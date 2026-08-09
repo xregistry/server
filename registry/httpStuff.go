@@ -157,19 +157,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// the response yet (info.SentStatus == false) - GET/PUT/POST/PATCH
 	// responses are streamed incrementally (see jsonWriter.go), so once
 	// real bytes reach the client a clean retry is no longer possible.
-	const maxAttempts = 3
+	const maxAttempts = 5
 	const retryBackoff = 40 * time.Millisecond
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		r.Body = io.NopCloser(bytes.NewReader(savedBody))
 
-		retry := s.serveOneAttempt(w, r, &info, &tx, attempt == maxAttempts)
+		retry := s.serveOneAttempt(w, r, &info, &tx, attempt,
+			attempt == maxAttempts)
 		if !retry {
 			return
 		}
 
-		log.VPrintf(1, "Retrying %s %s after DB lock conflict (attempt %d)",
-			r.Method, r.URL, attempt)
 		time.Sleep(retryBackoff)
 	}
 }
@@ -185,8 +184,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // retryable conflict on the final allowed attempt) it fully handles the
 // response itself (or re-panics, for a genuine bug, so the outer recover()
 // still produces today's generic 500) and returns false.
-func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request, infoPtr **RequestInfo, txPtr **Tx, lastAttempt bool) (retry bool) {
+func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
+	infoPtr **RequestInfo, txPtr **Tx,
+	attempt int, lastAttempt bool) (retry bool) {
+
 	defer func() {
+		uuid := "n/a"
+		if *txPtr != nil && (*txPtr).uuid != "" {
+			uuid = (*txPtr).uuid
+		}
+		log.VPrintf(3, "tx: %s Done with serveOneAttempt", uuid)
 		rec := recover()
 		if rec == nil {
 			return
@@ -194,11 +201,24 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request, infoPtr
 
 		info := *infoPtr
 		if isRetryableDBErr(rec) && (info == nil || !info.SentStatus) {
+			uuid := "n/a"
+			if *txPtr != nil && (*txPtr).uuid != "" {
+				uuid = (*txPtr).uuid
+			}
 			if *txPtr != nil {
 				(*txPtr).Rollback()
 			}
 
 			if !lastAttempt {
+				if log.GetVerbose() < 3 {
+					log.VPrintf(1, "Retrying %s %s after DB lock conflict "+
+						"(attempt %d)", r.Method, r.URL, attempt)
+				} else {
+					log.VPrintf(3, "tx: %s Retrying %s %s after DB lock "+
+						"conflict (attempt %d)", uuid, r.Method, r.URL,
+						attempt)
+				}
+
 				retry = true
 				return
 			}
@@ -245,6 +265,8 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request, infoPtr
 	info, xErr := ParseRequest(tx, w, r)
 	*infoPtr = info
 	// tx.RequestInfo = info
+	log.VPrintf(3, "tx: %s Request: %s %s", tx.uuid,
+		info.OriginalRequest.Method, info.OriginalPath)
 
 	if xErr != nil {
 		HTTPWriteError(info, xErr)
@@ -1332,7 +1354,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-
 		if group == nil {
 			group, _, xErr = info.Registry.UpsertGroup(info.GroupType, groupUID)
 			if xErr != nil {

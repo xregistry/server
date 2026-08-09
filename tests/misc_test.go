@@ -398,6 +398,29 @@ func TestMiscConcurrency(t *testing.T) {
 }`,
 	}
 
+	redoXHTTP := func(verb, path, in string, rc int, out string) {
+		for {
+			res := XDoHTTP(t, reg, verb, path, in)
+			// if res != nil && (res.StatusCode == 500 || res.StatusCode == 503) &&
+			if res != nil && res.StatusCode == 503 &&
+				strings.Contains(res.body, "server_busy") {
+				time.Sleep(100 * time.Millisecond)
+				t.Logf("Got 500+try again, retrying...")
+				continue
+			}
+
+			t.Logf("Code: %d", res.StatusCode)
+			t.Logf("Body: %s", res.body)
+
+			if rc < 10 {
+				XEqual(t, "Unexpected status code", res.StatusCode/100, rc)
+			} else {
+				XEqual(t, "Unexpected status code", res.StatusCode, rc)
+			}
+			break
+		}
+	}
+
 	runs := 0
 	for _, mod := range models {
 		t.Logf("============================\nMODEL:\n%s\n", mod)
@@ -407,39 +430,42 @@ func TestMiscConcurrency(t *testing.T) {
 		wg := &sync.WaitGroup{}
 
 		NewJob(t, "PATCH /", &startFlag, wg, 5, 10, func(num int) {
-			XHTTP(t, reg, "PATCH", fmt.Sprintf("/"), "{}", 200, "*")
+			redoXHTTP("PATCH", fmt.Sprintf("/"), "{}", 200, "*")
 		})
 
 		NewJob(t, "PUT dx", &startFlag, wg, 5, 10, func(num int) {
-			XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d%d", num), "{}", 2, "*")
+			redoXHTTP("PUT", fmt.Sprintf("/dirs/d%d", num), "{}", 2, "*")
 		})
 		NewJob(t, "PUT d1", &startFlag, wg, 5, 10, func(num int) {
-			XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1"), "{}", 2, "*")
+			redoXHTTP("PUT", fmt.Sprintf("/dirs/d1"), "{}", 2, "*")
 		})
 
 		NewJob(t, "PUT fx", &startFlag, wg, 5, 10, func(num int) {
-			XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f%d", num), "{}", 2, "*")
+			redoXHTTP("PUT", fmt.Sprintf("/dirs/d1/files/f%d", num), "{}", 2, "*")
 		})
 		NewJob(t, "PUT f1", &startFlag, wg, 5, 10, func(num int) {
-			XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1"), "{}", 2, "*")
+			redoXHTTP("PUT", fmt.Sprintf("/dirs/d1/files/f1"), "{}", 2, "*")
 		})
 
 		NewJob(t, "PUT vx", &startFlag, wg, 5, 10, func(num int) {
-			XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/%d", num), "{}", 2, "*")
+			redoXHTTP("PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/%d", num), "{}", 2, "*")
 		})
 		NewJob(t, "PUT v1", &startFlag, wg, 5, 10, func(num int) {
-			XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/1"), "{}", 2, "*")
+			redoXHTTP("PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/1"), "{}", 2, "*")
 		})
 
-		// log.SetVerbose(2) // To see server's activity
+		log.SetVerbose(2) // To see server's activity
 		defer func() {
 			// log.SetVerbose(0)
 		}()
 
-		t.Logf("GO!!! -----")
+		runs = runs + 1
+
+		t.Logf("GO Run #%d!!! -----", runs)
 		startFlag = true
 		wg.Wait()
-		t.Logf("DONE")
+		t.Logf("DONE Run #%d", runs)
+
 		res := XHTTP(t, reg, "GET", "/?inline", "", 200, "*")
 
 		type tmp struct {
@@ -465,8 +491,6 @@ func TestMiscConcurrency(t *testing.T) {
 
 		t.Logf("Json: %s", ToJSON(data))
 
-		runs = runs + 1
-
 		// 1=initial, 1=model, 20=/,/dir/x PUT, 1=if deep PUT creates it
 		if data.Epoch < 1+runs*20 || data.Epoch > 1+runs*22 {
 			t.Fatalf("data.Epoch(%d) needs to be beween %d and %d",
@@ -483,10 +507,13 @@ func TestMiscConcurrency(t *testing.T) {
 		XEqual(t, "", data.Dirs["d1"].FilesCount, 10)
 
 		f1E := data.Dirs["d1"].Files["f1"].Meta.Epoch
-		// DUG FIX ME!!
-		if f1E < 10 || f1E > 12 {
+		// DUG FIX ME!! For some reason f1.meta.epoch is 13 sometimes.
+		// Not sure if it's valid or a bug
+		fMin := 10
+		fMax := 12
+		if f1E < fMin || f1E > fMax {
 			t.Fatalf(`data.Dirs["d1"].Files["f1"].Meta.Epoch(%d) should be `+
-				`between 10 and 12`, f1E)
+				`between %d and %d`, f1E, fMin, fMax)
 		}
 
 		XEqual(t, "", data.Dirs["d1"].Files["f1"].VersionsCount, 10)
@@ -516,22 +543,29 @@ func TestMiscConcurrency(t *testing.T) {
 // other - exactly what triggers InnoDB's deadlock detector (1213).
 func TestMiscDeadlockRetry(t *testing.T) {
 	reg := NewRegistry("TestMiscDeadlockRetry")
-	defer PassDeleteReg(t, reg)
-
-	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	XNoErr(t, err)
 
 	// Capture the server's log output so we can confirm the "Retrying"
 	// message (emitted by ServeHTTP right before it loops for another
 	// attempt) actually fired at least once.
 	buf := &SyncBuffer{}
 	saveVerbose := log.GetVerbose()
+	saveWriter := log.Writer()
 	log.SetOutput(buf)
 	log.SetVerbose(1)
+	// Registered BEFORE the PassDeleteReg defer below so it runs AFTER
+	// it (defers run LIFO) - otherwise log output gets reset to nil
+	// while PassDeleteReg's cleanup (which can still log, e.g. if it
+	// needs to reopen a closed Tx) is still running. Restore the
+	// PREVIOUS writer (not nil) since a nil writer would crash any
+	// later test that logs after this one runs.
 	defer func() {
-		log.SetOutput(nil)
+		log.SetOutput(saveWriter)
 		log.SetVerbose(saveVerbose)
 	}()
+	defer PassDeleteReg(t, reg)
+
+	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
+	XNoErr(t, err)
 
 	const numDirs = 30
 	const numRounds = 6

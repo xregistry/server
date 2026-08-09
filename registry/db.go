@@ -32,11 +32,11 @@ const (
 )
 
 // isRetryableDBErr inspects a recovered panic value (or a plain error) and
-// reports whether it's a MySQL deadlock/lock-wait-timeout - the only two
-// conditions ServeHTTP's per-request retry loop should transparently retry
-// on a fresh Tx. Everything else (syntax errors, bugs, connection loss,
-// etc.) is NOT retryable and should keep surfacing exactly as it does
-// today (500 via the outer recover()).
+// reports whether it's a MySQL deadlock/lock-wait-timeout - the only
+// conditions ServeHTTP's per-request retry loop should transparently
+// retry on a fresh Tx. Everything else (syntax errors, bugs, connection
+// loss, etc.) is NOT retryable and should keep surfacing exactly as it
+// does today (500 via the outer recover()).
 //
 // This codebase's Query()/doCount()/etc. always panic via
 // Must()/PanicIf()/Panicf() (see common/utils.go), which panic with a
@@ -217,8 +217,9 @@ type Tx struct {
 	ResourcesValidatingBatch map[string]bool
 
 	// For debugging
-	uuid  string   // just a unique ID for the TXs map key
-	stack []string // Stack at time NewTX
+	uuid   string   // just a unique ID for the TXs map key
+	stack  []string // Stack at time NewTX
+	connID int64    // MySQL CONNECTION_ID() this Tx is bound to
 }
 
 func (tx *Tx) IsOpen() bool {
@@ -235,7 +236,7 @@ func (tx *Tx) String() string {
 	if tx.tx != nil {
 		txStr = "<set>"
 	}
-	return fmt.Sprintf("Tx: sql.tx: %s, Registry: %s", txStr, regStr)
+	return fmt.Sprintf("tx: sql.tx: %s, Registry: %s", txStr, regStr)
 }
 
 func NewTx() (*Tx, *XRError) {
@@ -292,6 +293,28 @@ func (tx *Tx) NewTx() *XRError {
 	tx.uuid = NewUUID()
 	tx.stack = GetStack()
 
+	log.VPrintf(3, "tx: %s Begin transaction", tx.uuid)
+
+	if log.GetVerbose() > 2 {
+		var connID int64
+		t.QueryRow("SELECT CONNECTION_ID()").Scan(&connID)
+		tx.connID = connID
+
+		var autocommit int
+		var isoLevel string
+		err := t.QueryRow("SELECT @@autocommit, "+
+			"@@session.transaction_isolation").Scan(&autocommit, &isoLevel)
+		if err != nil {
+			log.Printf("tx: %s connID=%d error checking "+
+				"autocommit/isolation: %s", tx.uuid, connID, err)
+		} else {
+			log.Printf("tx: %s connID=%d autocommit=%d isolation=%s",
+				tx.uuid, connID, autocommit, isoLevel)
+		}
+
+		log.Printf("tx: %s bound to MySQL CONNECTION_ID=%d", tx.uuid, connID)
+	}
+
 	TXsMutex.Lock()
 	TXs[tx.uuid] = tx
 	TXsMutex.Unlock()
@@ -311,7 +334,8 @@ func (tx *Tx) EraseCache() {
 }
 
 func (tx *Tx) AddToCache(e *Entity) {
-	PanicIf(IsNil(e.Self), "Self is nil, %s/%s", e.Singular, e.UID)
+	PanicIf(IsNil(e.Self), "tx: %s Self is nil, %s/%s",
+		tx.uuid, e.Singular, e.UID)
 	tx.Cache[e.Registry.UID+"/"+e.Path] = e
 }
 
@@ -358,7 +382,8 @@ func (tx *Tx) Validate(info *RequestInfo) *XRError {
 	*/
 
 	if tx.Registry != nil {
-		PanicIf(tx.Registry.Model.GetChanged(), "Unwritten model")
+		PanicIf(tx.Registry.Model.GetChanged(), "tx: %s Unwritten model",
+			tx.uuid)
 
 		// Drains any deferred Resource/Group validation - this can
 		// still write (e.g. meta.ValidateAndSave()/r.ValidateAndSave()
@@ -372,7 +397,7 @@ func (tx *Tx) Validate(info *RequestInfo) *XRError {
 
 	// Make sure we've saved everything in the cache before we generate
 	// the results. If the stack isn't shown, enable it in entity.SetNewObject
-	PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
+	PanicIf(tx.IsCacheDirty(), "tx: %s Unwritten stuff in cache", tx.uuid)
 
 	return nil
 }
@@ -413,8 +438,8 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 				log.Printf("%s", ToJSON(e.NewObject))
 				ShowStack()
 			}
-			PanicIf(e.NewObject != nil, "Entity %s/%q not saved",
-				e.Singular, e.UID)
+			PanicIf(e.NewObject != nil, "tx: %s Entity %s/%q not saved",
+				tx.uuid, e.Singular, e.UID)
 		}
 		if xErr := e.ValidateAndSave(false); xErr != nil {
 			return xErr
@@ -440,6 +465,7 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 // possibly-multiple Versions - so the buffered values are visible to
 // the response that gets serialized later in the same request, well
 // before the Tx actually commits.
+// DUG TODO THIS NEEDS TO BE DONE ON A PER RESOURCE BASIS NOT GLOBAL
 func (tx *Tx) FlushSystemProps() {
 	for _, e := range tx.Cache {
 		e.SaveSystemProps()
@@ -550,17 +576,19 @@ func (tx *Tx) Commit() *XRError {
 		// panic("Tx isn't locked!!")
 	}
 
-	tx.Locked = false
-
 	if tx.tx == nil {
 		return nil
 	}
 
+	tx.Locked = false
+
 	if xErr := tx.WriteCache(true); xErr != nil {
+		tx.Rollback()
 		return xErr
 	}
 
 	Must(tx.tx.Commit())
+	log.VPrintf(3, "tx: %s Committed", tx.uuid)
 
 	tx.Clear()
 	return nil
@@ -570,8 +598,10 @@ func (tx *Tx) Rollback() *XRError {
 	if tx == nil || tx.tx == nil {
 		return nil
 	}
+
 	err := tx.tx.Rollback()
 	Must(err)
+	log.VPrintf(3, "tx: %s Rolled Back", tx.uuid)
 
 	tx.Clear()
 	return nil
@@ -584,11 +614,17 @@ func (tx *Tx) Clear() {
 	delete(TXs, tx.uuid)
 	TXsMutex.Unlock()
 	tx.tx = nil
+	// tx.Registry = nil // new
 	tx.CreateTime = ""
-	tx.Cache = nil
+	// tx.RequestInfo = nil // new
+	// tx.Locked = false    // new
+	// tx.Validated = false // new
+	tx.EraseCache()
 	tx.GroupsToValidate = nil
 	tx.ResourcesToValidate = nil
+	tx.ResourcesValidatingBatch = nil
 	tx.uuid = ""
+	tx.stack = nil
 }
 
 func (tx *Tx) Conditional(xErr *XRError) *XRError {
@@ -750,6 +786,28 @@ func (r *Result) RetrieveAllRowsFromDB() {
 	// When done, technically r.Data contains the last item from the query
 	// but it'll be overwritten on the first call to PullNextRow
 
+	// rows.Next() returning false means EITHER "no more rows" (the
+	// normal/expected case) OR that iteration stopped early because of a
+	// real error (e.g. the connection's transaction was killed as a
+	// deadlock victim, or a lock-wait-timeout occurred, mid-scan) -
+	// database/sql only surfaces that error via rows.Err(), never from
+	// Next() itself. Without this check, a genuine mid-query MySQL error
+	// (including ones that silently end this transaction, e.g. via an
+	// implicit rollback + a fresh connection-level transaction on the
+	// very next statement) would be indistinguishable from a normal,
+	// successful, empty/short result set - letting execution proceed as
+	// though a "FOR UPDATE" lock had been granted when in fact it never
+	// was. Panic so isRetryableDBErr()'s existing deadlock/lock-timeout
+	// retry logic (see httpStuff.go) can catch and retry it like any
+	// other DB error.
+	if r.sqlRows != nil {
+		if err := r.sqlRows.Err(); err != nil {
+			r.sqlRows.Close()
+			r.sqlRows = nil
+			Panicf("Error retrieving rows from DB: %s", err)
+		}
+	}
+
 	// Close the MYSQL query and prepare stmt
 	if r.sqlRows != nil {
 		r.sqlRows.Close()
@@ -831,6 +889,79 @@ func DumpTimings() string {
 	return str
 }
 
+// VerifyLockHeldOrPanic is a hard invariant check against MySQL's own
+// lock state (not Go-level bookkeeping, which can't see locks taken by
+// the "Family" lock helpers' multi-row FOR UPDATE queries unless every
+// call site remembers to record them): it queries
+// performance_schema.data_locks (via this Tx's own connection) to
+// confirm this Tx's connection actually holds a GRANTED exclusive (X)
+// record lock on the Entities row for eSID, right now - not just that
+// our own in-Go AccessMode bookkeeping says FOR_WRITE. If, after a few
+// short retries (to ride out any performance_schema visibility lag),
+// we still see no such lock, we are NOT actually holding the row lock
+// we need before Save()'s destructive DELETE+INSERT of Props - this
+// must never be allowed to silently proceed, since doing so is exactly
+// what let a losing Tx corrupt another Tx's (or its own already
+// stale) entity by racing its Props rewrite.
+func VerifyLockHeldOrPanic(tx *Tx, eSID string, xid string) {
+	if log.GetVerbose() < 3 {
+		return
+	}
+	// need tx.ConnID to be set from NewTx
+
+	const maxAttempts = 5
+	var rowsSeen []string
+	found := false
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		results := Query(tx, `
+			SELECT dl.LOCK_MODE, dl.LOCK_STATUS, dl.LOCK_DATA, th.PROCESSLIST_ID
+			FROM performance_schema.data_locks dl
+			JOIN performance_schema.threads th
+			  ON th.THREAD_ID = dl.THREAD_ID
+			WHERE dl.OBJECT_NAME = 'Entities'
+			  AND th.PROCESSLIST_ID = ?
+			  AND dl.LOCK_TYPE = 'RECORD'
+			  AND dl.LOCK_DATA LIKE CONCAT('''', ?, '''%')`,
+			tx.connID, eSID)
+
+		rowsSeen = rowsSeen[:0]
+		for {
+			row := results.NextRow()
+			if row == nil {
+				break
+			}
+			lockMode := NotNilString(row[0])
+			lockStatus := NotNilString(row[1])
+			lockData := NotNilString(row[2])
+			mysqlThreadID := *row[3]
+			rowsSeen = append(rowsSeen, fmt.Sprintf("mode=%s status=%s data=%s connID=%v",
+				lockMode, lockStatus, lockData, mysqlThreadID))
+			if lockStatus == "GRANTED" &&
+				(lockMode == "X" || lockMode == "X,REC_NOT_GAP" || lockMode == "X,GAP") {
+				found = true
+			}
+		}
+		results.Close()
+
+		if found {
+			return
+		}
+
+		if attempt < maxAttempts {
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	ShowStack()
+	panic(fmt.Sprintf(
+		"tx: %s VerifyLockHeldOrPanic(%s eSID=%s): NO GRANTED X row lock "+
+			"found for this tx's connID=%d in performance_schema.data_locks "+
+			"after %d attempts right before Save()'s destructive DELETE+"+
+			"INSERT - rows seen: %v", tx.uuid, xid, eSID, tx.connID,
+		maxAttempts, rowsSeen))
+}
+
 func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	startTime := time.Time{}
 	pTime := time.Time{}
@@ -849,17 +980,20 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	if doTime {
 		pTime = time.Now()
 	}
-	PanicIf(xErr != nil, "Error Prepping query (%s): %s\n", cmd, xErr)
+	PanicIf(xErr != nil, "tx: %s Error Prepping query (%s): %s\n",
+		tx.uuid, cmd, xErr)
 	defer ps.Close()
 
 	rows, err := ps.Query(args...)
 	if doTime {
 		qTime = time.Now()
 	}
-	PanicIf(err != nil, "Error querying DB(%s)(%v)->%s\n", cmd, args, err)
+	PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
+		tx.uuid, cmd, args, err)
 
 	colTypes, err := rows.ColumnTypes()
-	PanicIf(err != nil, "Error querying DB(%s)(%v)->%s\n", cmd, args, err)
+	PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
+		tx.uuid, cmd, args, err)
 
 	result := &Result{
 		tx:       tx,
@@ -909,12 +1043,14 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	}
 
 	ps, xErr := tx.Prepare(cmd)
-	PanicIf(xErr != nil, "CMD: %q args: %v  err: %s", cmd, args, xErr)
+	PanicIf(xErr != nil, "tx:%s CMD: %q args: %v  err: %s",
+		tx.uuid, cmd, args, xErr)
 	defer ps.Close()
 
 	result, err := ps.Exec(args...)
 	if err != nil {
-		Panicf("doCount:Error DB(%s)->%s\n", SubQuery(cmd, args), err)
+		Panicf("tx: %s doCount: Error DB(%s)->%s\n", tx.uuid,
+			SubQuery(cmd, args), err)
 	}
 
 	count, _ := result.RowsAffected()
@@ -929,31 +1065,31 @@ func Do(tx *Tx, cmd string, args ...interface{}) {
 func DoOne(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 
-	PanicIf(count != 1, "DoOne:Error DB(%s) didn't change exactly 1 row(%d)",
-		SubQuery(cmd, args), count)
+	PanicIf(count != 1, "tx: %s DoOne: Error DB(%s) didn't change "+
+		"exactly 1 row(%d)", tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoZeroOne(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 
 	PanicIf(count != 0 && count != 1,
-		"DoOne:Error DB(%s) didn't change exactly 0/1 row(%d)",
-		SubQuery(cmd, args), count)
+		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/1 row(%d)",
+		tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoOneTwo(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 
 	PanicIf(count != 1 && count != 2,
-		"DoOne:Error DB(%s) didn't change exactly 1/2 row(%d)",
-		SubQuery(cmd, args), count)
+		"tx: %s DoOne: Error DB(%s) didn't change exactly 1/2 row(%d)",
+		tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 	PanicIf(count != 0 && count != 2,
-		"DoOne:Error DB(%s) didn't change exactly 0/2 row(%d)",
-		SubQuery(cmd, args), count)
+		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/2 row(%d)",
+		tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
@@ -961,8 +1097,8 @@ func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 
 	PanicIf(count != num,
-		"DoOne:Error DB(%s) didn't change exactly %d row(%d)",
-		SubQuery(cmd, args), num, count)
+		"tx: %s DoOne: Error DB(%s) didn't change exactly %d row(%d)",
+		tx.uuid, SubQuery(cmd, args), num, count)
 }
 
 func DBExists(name string) bool {

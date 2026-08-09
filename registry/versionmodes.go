@@ -167,7 +167,7 @@ func (vm *ManualVersionMode) newestVersionID(r *Resource, excludeTBD bool) (stri
 	// later EnsureCircularReferences() call be the one to authoritatively
 	// decide if this is actually a problem once the rest of validation
 	// (including any max-versions eviction) has run.
-	results = Query(r.tx, base+order, r.Registry.DbSID, r.DbSID)
+	results = Query(r.tx, base+order+lockExpr, r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
 	row = results.NextRow()
@@ -248,6 +248,17 @@ func (vm *CreatedatVersionMode) Name() string { return "createdat" }
 func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	// select * from (select createdat,UID,AncestorID,ifnull(lag(UID) over (order by createdat,UID),UID) as expectedAncestorID from Versions) list where list.AncestorID!=list.expectedAncestorID  order by createdat
 
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as ManualVersionMode.newestVersionID()
+	// / HasCircularAncestors(): this runs on the write path (via
+	// ValidateResource()) and without a lock hint can be pinned to this
+	// tx's original RR snapshot, missing Version rows committed by other
+	// Txs after that snapshot was established.
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
 	// Search the DB for all Versions of this Resource, sorted by 'createdat'
 	// and return the ones that do not have the proper 'ancestorid' value.
 	// Meaning, they don't point to the next oldest one (based on createdat)
@@ -261,7 +272,7 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
                   FROM Versions
                   WHERE RegistrySID=? AND ResourceSID=?) AS list
                 WHERE list.AncestorID != list.ExpectedAncestorID
-                ORDER BY CreatedAt ASC`,
+                ORDER BY CreatedAt ASC`+lockExpr,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 

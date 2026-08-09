@@ -125,6 +125,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	log.VPrintf(3, ">Enter: UpsertResource(%s,%s)", ru.RType, ru.Id)
 	defer log.VPrintf(3, "<Exit: UpsertResource")
 
+	// Need this because two concurrent Txs both creating the same new
+	// Resource under this Group would otherwise have no serialization
+	// point at all before their FindResource(FOR_WRITE) re-check below -
+	// unlike Registry.UpsertGroupWithObject(), which locks the parent
+	// Registry first for the exact same reason. Locking g here forces
+	// full serialization of that check-then-insert sequence per Group.
+	g.Lock()
+
 	if xErr := g.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
 	}

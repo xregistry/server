@@ -1735,3 +1735,43 @@ func CommonHttpDo(verb string, url string, headers map[string]string, body []byt
 	httpRes.Error = xErr
 	return httpRes, xErr
 }
+
+func getGoRoutineID() string {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	i := bytes.IndexByte(b, ' ')
+	if i < 0 {
+		return ""
+	}
+	return string(b[:i])
+}
+
+func ShowStacksWith(needle string) string {
+	buf := make([]byte, 1024*1024)
+	n := runtime.Stack(buf, true)
+
+	sections := []string{}
+	section := ""
+	lines := strings.Split(string(buf[:n]), "\n")
+	for i := 0; ; i++ {
+		line := ""
+		if i < len(lines) {
+			line = lines[i]
+		}
+		if strings.TrimSpace(line) == "" {
+			if len(section) != 0 {
+				if strings.Contains(section, needle) {
+					sections = append(sections, section)
+				}
+				section = ""
+			}
+			if i == len(lines) {
+				break
+			}
+		}
+		section += line + "\n"
+	}
+
+	return strings.Join(sections, "\n")
+}

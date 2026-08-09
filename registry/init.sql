@@ -128,7 +128,7 @@ CREATE TABLE "Groups" (
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
-    INDEX(RegistrySID, UID),
+    INDEX(RegistrySID, UID),   # DUG!! See if we can remove this, it's wrong
     UNIQUE INDEX (RegistrySID, ModelSID, UID)
 );
 
@@ -152,8 +152,8 @@ CREATE TABLE Resources (
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
-    INDEX(GroupSID, UID),
-    INDEX(Path),
+    INDEX(GroupSID, UID),   # DUG!!! See if we can remove this, it's wrong
+    INDEX(Path),            # DUG! this is wrong, see if we can remove it
     INDEX(RegistrySID),
     INDEX(RegistrySID, Path),
     UNIQUE INDEX (GroupSID, ModelSID, UID)
@@ -297,6 +297,7 @@ CREATE TABLE Props (
   eSID       VARCHAR(64) NOT NULL,      # Reg,Group,Res,Ver System ID
   UID        VARCHAR(255) NOT NULL,      # User Defined
   Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  LowerPath  VARCHAR(329) GENERATED ALWAYS AS (LOWER(Path)) STORED,
   PropName   VARCHAR($MAX_PROPNAME) NOT NULL,
   PropValue  MEDIUMTEXT NULL, # VARCHAR($MAX_VARCHAR),
   PropType   CHAR(64) NOT NULL,          # string, boolean, int, ...
@@ -367,6 +368,7 @@ CREATE TABLE Entities (
   UID        VARCHAR(255) NOT NULL,
   Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
   Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  LowerPath  VARCHAR(329) GENERATED ALWAYS AS (LOWER(Path)) STORED,
 
   # True for the synthetic Version rows added because a Resource
   # xref's another Resource (mirrors the "-" eSID prefix convention
@@ -383,7 +385,8 @@ CREATE TABLE Entities (
   PRIMARY KEY(eSID),
   INDEX(RegSID),
   INDEX(ParentSID),
-  UNIQUE INDEX (RegSID, Path)
+  UNIQUE INDEX (RegSID, Path),
+  UNIQUE INDEX (RegSID, LowerPath)
 );
 
 # These maintain Versions.AncestorID/CreatedAt and Metas.xRefPath/

@@ -327,6 +327,9 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	defer log.VPrintf(3, "<Exit: FindRegistrySID")
 
 	if tx.Registry != nil && tx.Registry.DbSID == sid {
+		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
+			tx.Registry.Lock()
+		}
 		return tx.Registry, nil
 	}
 
@@ -371,6 +374,9 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	defer log.VPrintf(3, "<Exit: FindRegistry")
 
 	if tx != nil && tx.Registry != nil && tx.Registry.UID == id {
+		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
+			tx.Registry.Lock()
+		}
 		return tx.Registry, nil
 	}
 
@@ -555,6 +561,7 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
 	reg.Lock()
+
 	reg.SetNewObject(obj)
 
 	// Ignore any incoming "model" attribute
@@ -659,6 +666,8 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	}
 
 	// Save the registry attributes first (this applies reg.NewObject)
+	log.VPrintf(3, "tx: %s old:%s", reg.tx.uuid, ToJSON(reg.Object))
+	log.VPrintf(3, "tx: %s new:%s", reg.tx.uuid, ToJSON(reg.NewObject))
 	if xErr := reg.ValidateAndSave(false); xErr != nil {
 		return xErr
 	}
@@ -700,6 +709,8 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 	defer log.VPrintf(3, "<Exit: FindGroup")
 
 	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
+		log.VPrintf(3, "tx: %s FindGroup %s,%s from cache",
+			reg.tx.uuid, gType, id)
 		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
 			g.Lock()
 		}
@@ -773,6 +784,59 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	if xErr != nil {
 		return nil, false, xErr
 	}
+	log.VPrintf(3, "tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
+		reg.tx.uuid, gType, id, g != nil)
+
+	if g == nil && log.GetVerbose() >= 3 {
+		results := Query(reg.tx, `SELECT Path FROM Entities WHERE RegSID=? FOR UPDATE`,
+			reg.DbSID)
+		defer results.Close()
+
+		log.VPrintf(3, "    tx: %s RegSID: %q Entities:", reg.tx.uuid, reg.DbSID)
+		for row := results.NextRow(); row != nil; row = results.NextRow() {
+			log.VPrintf(3, "    tx: %s Path: %q", reg.tx.uuid, NotNilString(row[0]))
+		}
+
+		results = Query(reg.tx, `SELECT Path FROM Entities WHERE RegSID=? `+
+			`AND LowerPath=?  FOR UPDATE`,
+			reg.DbSID, strings.ToLower(gType+"/"+id))
+		defer results.Close()
+
+		log.VPrintf(3, "    tx: %s RegSID: %q Entities(Path+Coll):", reg.tx.uuid, reg.DbSID)
+		for row := results.NextRow(); row != nil; row = results.NextRow() {
+			log.VPrintf(3, "    tx: %s Path: %q", reg.tx.uuid, NotNilString(row[0]))
+		}
+
+		results = Query(reg.tx, `SELECT Path FROM Entities WHERE RegSID=? `+
+			`AND Path=?  FOR UPDATE`,
+			reg.DbSID, gType+"/"+id)
+		defer results.Close()
+
+		log.VPrintf(3, "    tx: %s RegSID: %q Entities(Path+w/o Coll):", reg.tx.uuid, reg.DbSID)
+		for row := results.NextRow(); row != nil; row = results.NextRow() {
+			log.VPrintf(3, "    tx: %s Path: %q", reg.tx.uuid, NotNilString(row[0]))
+		}
+
+		results = Query(reg.tx, `SELECT e.Path,p.PropName,p.IsCalcStatic FROM Entities AS e
+LEFT JOIN Props AS p ON (
+    e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+	AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
+	AND p.IsCalcDynamic=false)
+WHERE e.RegSID=? AND e.LowerPath=?
+ORDER BY Path FOR UPDATE`,
+			// AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+			// AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
+			// AND p.IsCalcDynamic=false)
+			reg.DbSID, strings.ToLower(gType+"/"+id))
+		defer results.Close()
+
+		log.VPrintf(3, "    tx: %s RegSID: %q Entities(raw):", reg.tx.uuid, reg.DbSID)
+		for row := results.NextRow(); row != nil; row = results.NextRow() {
+			log.VPrintf(3, "    tx: %s Path: %q Prop: %q %v", reg.tx.uuid,
+				NotNilString(row[0]), NotNilString(row[1]),
+				*(row[2]))
+		}
+	}
 
 	if g != nil && g.UID != id {
 		return nil, false,
@@ -818,6 +882,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		g.Self = g
 
+		log.VPrintf(3, "tx: %s INSERT INTO Groups %s regSID=%s",
+			reg.tx.uuid, g.Path, g.Registry.DbSID)
 		DoOne(reg.tx, `
 			INSERT INTO "Groups"(
                 SID, RegistrySID, UID,
@@ -1323,7 +1389,7 @@ ft.eSID IN ( -- eSID from query
 	}
 
 	query += `  ORDER BY ` + sortOrder +
-		`    ft.Path COLLATE utf8mb4_general_ci ASC;`
+		`    ft.LowerPath ASC;`
 
 	if log.GetVerbose() > 3 || log.HasKeyword("genq") {
 		log.Printf("Query:\n%s\n\n", SubQuery(query, args))
