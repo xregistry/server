@@ -455,10 +455,9 @@ func TestMiscConcurrency(t *testing.T) {
 			redoXHTTP("PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/1"), "{}", 2, "*")
 		})
 
+		oldVerbose := log.GetVerbose()
 		log.SetVerbose(2) // To see server's activity
-		defer func() {
-			// log.SetVerbose(0)
-		}()
+		defer log.SetVerbose(oldVerbose)
 
 		runs = runs + 1
 

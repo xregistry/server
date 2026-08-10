@@ -617,8 +617,8 @@ func (tx *Tx) Clear() {
 	// tx.Registry = nil // new
 	tx.CreateTime = ""
 	// tx.RequestInfo = nil // new
-	// tx.Locked = false    // new
-	// tx.Validated = false // new
+	tx.Locked = false
+	tx.Validated = false
 	tx.EraseCache()
 	tx.GroupsToValidate = nil
 	tx.ResourcesToValidate = nil
