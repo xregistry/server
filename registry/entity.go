@@ -412,9 +412,11 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
 		// is the very first, not-yet-cached fetch of an entity, so it
 		// never went through Refresh()'s already-correct two-phase
 		// locking.
+		/* DUG I DON'T THINK WE NEED THIS
 		lockResults := Query(tx, `SELECT eSID FROM Entities WHERE RegSID=? AND `+Path+`=? FOR UPDATE`,
 			regID, path)
 		lockResults.Close()
+		*/
 	}
 
 	queryString := `
@@ -1152,10 +1154,21 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
 	r, ok := e.Self.(*Resource)
 	PanicIf(!ok, "%s isn't a Resource", e.XID)
 
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as sibling functions (e.g.
+	// GetVersionIDs()/GetRootVersionIDs()). Called from EnsureCompat()
+	// on the write path; without this a Version committed by another
+	// Tx after our RR snapshot could be missed, leaving its stale
+	// system props uncleared.
+	lockExpr := ""
+	if meta := e.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
 	// Query the real Versions table directly (not r.GetVersions(),
 	// which reads from Entities and would also pick up synthetic
 	// xref-copied version rows sharing this Resource's ParentSID).
-	results := Query(e.tx, `SELECT UID FROM Versions WHERE ResourceSID=?`,
+	results := Query(e.tx, `SELECT UID FROM Versions WHERE ResourceSID=?`+lockExpr,
 		r.DbSID)
 	defer results.Close()
 
@@ -2499,6 +2512,32 @@ func (e *Entity) Save() *XRError {
 	log.VPrintf(3, ">Enter: Save(%s/%s)", e.Abstract, e.UID)
 	defer log.VPrintf(3, "<Exit: Save")
 
+	/*
+			if e.XID == "/dirs/d1/files/f1/meta" {
+				results := Query(e.tx, `
+		        SELECT UID, CreatedAt, AncestorID FROM Versions
+		        WHERE ResourceSID=? ORDER BY CreatedAt ASC FOR UPDATE`,
+					e.Self.(*Meta).Resource.DbSID)
+
+				vers := "Vid    CreatedAt                 AncestorID\n"
+				for row := results.NextRow(); row != nil; row = results.NextRow() {
+					vers += NotNilString(row[0]) + " " + NotNilString(row[1]) + " " +
+						NotNilString(row[2]) + "\n"
+				}
+
+				log.Printf("tx: %s Saving: %s\n"+
+					"Req: %s %q\n"+
+					"Old: %s\n"+
+					"New: %s\n"+
+					"%s\n",
+					e.tx.uuid,
+					e.XID, e.tx.RequestInfo.OriginalRequest.Method,
+					e.tx.RequestInfo.OriginalPath,
+					ToJSON(e.Object), ToJSON(e.NewObject),
+					vers)
+			}
+	*/
+
 	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 
 	// TODO remove at some point when we're sure it's safe
@@ -2507,44 +2546,6 @@ func (e *Entity) Save() *XRError {
 		if e.Type != ENTITY_META || IsNil(e.NewObject["xref"]) {
 			PanicIf(true, "Epoch is nil(%s):%s", e.XID, ToJSON(e.NewObject))
 		}
-	}
-
-	// NewObject having exactly 1 key (just "epoch") means
-	// Touch()/EnsureNewObject() cloned an e.Object that was ALREADY
-	// empty before anything else in this Tx populated NewObject - i.e.
-	// we're about to persist an entity with nothing but its epoch, which
-	// would wipe out every other property (id, specversion, etc.) via the
-	// DELETE-then-INSERT below. This should never legitimately happen -
-	// panic here (instead of silently corrupting the DB) so we catch the
-	// exact Tx/stack responsible instead of some innocent later victim.
-	if len(e.NewObject) == 1 {
-		if _, ok := e.NewObject["epoch"]; ok {
-			log.Printf("tx: %s (%s) Save(): NewObject has ONLY \"epoch\" - "+
-				"this looks like corrupted/wiped state, not saving. "+
-				"eSID=%s e.Object=%s e.NewObject=%s e.OriginObject=%s",
-				e.tx.uuid, e.XID, e.DbSID, ToJSON(e.Object),
-				ToJSON(e.NewObject), ToJSON(e.OriginObject))
-			ShowStack()
-			panic(fmt.Sprintf(`tx: %s (%s) Save(): NewObject has ONLY `+
-				`"epoch" - refusing to save (would wipe all other props)`,
-				e.tx.uuid, e.XID))
-		}
-	}
-
-	// TEMPORARY diagnostic: confirm - according to MySQL itself, not just
-	// our own AccessMode bookkeeping - that this Tx's connection still
-	// holds a GRANTED exclusive row lock on this entity's Entities row
-	// RIGHT NOW, immediately before we do the destructive
-	// DELETE-then-INSERT of its Props below. If the lock was somehow
-	// released early (or never truly granted), another Tx could be
-	// concurrently doing the same DELETE-then-INSERT dance on the same
-	// row, which is exactly the kind of interleaving that would explain
-	// the "registryid is nil"/empty-Object corruption we've been chasing.
-	// Skip for entities we just INSERTed ourselves this Tx (see
-	// insertedThisTx's doc comment) - those rows are implicit-locked,
-	// which performance_schema.data_locks won't show.
-	if log.GetVerbose() > 2 && !e.insertedThisTx {
-		VerifyLockHeldOrPanic(e.tx, e.DbSID, e.XID)
 	}
 
 	if log.GetVerbose() > 2 {
@@ -2562,19 +2563,6 @@ func (e *Entity) Save() *XRError {
 
 	// make a dup so we can delete some attributes
 	newObj := maps.Clone(e.NewObject)
-
-	if log.GetVerbose() > 4 {
-		// TEMPORARY diagnostic: log every Save() that actually reaches the
-		// destructive DELETE-then-INSERT of Props, with enough detail
-		// (eSID, NewObject keys/size, insertedThisTx) to reconstruct, after
-		// the fact, the exact order/count of Saves against a given eSID -
-		// needed to pin down which Save() is the one that leaves an entity
-		// with an incomplete/near-empty Props set.
-		log.Printf("tx: %s Save() writing Props for %q eSID=%s "+
-			"insertedThisTx=%v len(NewObject)=%d keys=%v",
-			e.tx.uuid, e.XID, e.DbSID, e.insertedThisTx, len(newObj),
-			SortedKeys(newObj))
-	}
 
 	// Delete all user props for this entity, we assume that NewObject
 	// contains everything we want going forward

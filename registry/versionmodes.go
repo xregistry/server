@@ -210,15 +210,39 @@ func (vm *ManualVersionMode) GetOrderedVersionIDs(r *Resource) ([]*VersionAncest
 
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as ManualVersionMode.newestVersionID().
+	//
+	// This used to query the VersionAncestors view instead of inlining
+	// its definition here, but the view's own Pos-computing correlated
+	// EXISTS subquery doesn't inherit this outer FOR UPDATE (same class
+	// of issue as newestVersionID()'s notReferenced subquery - MySQL
+	// doesn't propagate an outer query's lock hint into a correlated
+	// subquery, and a view definition can't have a caller-supplied lock
+	// hint baked into its own internal subqueries). Confirmed via a
+	// standalone repro against MySQL 8: RR snapshot established by an
+	// early plain read -> concurrent Tx commits a new leaf Version
+	// elsewhere -> FOR UPDATE query via the view still returned the
+	// PRE-EXISTING version's Pos as "leaf" even though it's now a
+	// "middle" (the new version's ancestor) - inlining the view's SQL
+	// here and adding lockExpr to the EXISTS subquery too fixes it.
 	lockExpr := ""
 	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
 	}
 	results := Query(r.tx, `
-                SELECT VersionUID, AncestorID, Pos, CTime FROM VersionAncestors
-                WHERE RegistrySID=? AND ResourceSID=? AND
-                  AncestorID<>'`+ANCESTORID_TBD+`'
-                ORDER BY Pos ASC, CTime ASC, VersionUID ASC`+lockExpr,
+                SELECT v.UID, v.AncestorID,
+                    CASE
+                        WHEN v.UID=v.AncestorID THEN '0-root'
+                        WHEN EXISTS(SELECT 1 FROM Versions AS v2
+                                    WHERE v2.ResourceSID=v.ResourceSID AND
+                                          v2.AncestorID=v.UID`+lockExpr+`)
+                             THEN '1-middle'
+                        ELSE '2-leaf'
+                    END AS Pos,
+                    v.CreatedAt
+                FROM Versions AS v
+                WHERE v.RegistrySID=? AND v.ResourceSID=? AND
+                  v.AncestorID<>'`+ANCESTORID_TBD+`'
+                ORDER BY Pos ASC, v.CreatedAt ASC, v.UID ASC`+lockExpr,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
@@ -270,7 +294,7 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
                          IFNULL(lag(UID) OVER (ORDER BY CreatedAt, UID),
                                 UID) AS ExpectedAncestorID
                   FROM Versions
-                  WHERE RegistrySID=? AND ResourceSID=?) AS list
+                  WHERE RegistrySID=? AND ResourceSID=?`+lockExpr+`) AS list
                 WHERE list.AncestorID != list.ExpectedAncestorID
                 ORDER BY CreatedAt ASC`+lockExpr,
 		r.Registry.DbSID, r.DbSID)
@@ -347,15 +371,33 @@ func (vm *CreatedatVersionMode) GetOrderedVersionIDs(r *Resource) ([]*VersionAnc
 
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as ManualVersionMode.newestVersionID().
+	//
+	// See ManualVersionMode.GetOrderedVersionIDs()'s doc comment for why
+	// this inlines the VersionAncestors view's definition instead of
+	// querying the view directly: the view's own Pos-computing
+	// correlated EXISTS subquery doesn't inherit the outer query's FOR
+	// UPDATE, so it can return stale Pos values for pre-existing rows
+	// after a concurrent Tx commits a new Version - confirmed via a
+	// standalone MySQL repro.
 	lockExpr := ""
 	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
 	}
 	results := Query(r.tx, `
-                SELECT VersionUID, AncestorID, Pos, CTime FROM VersionAncestors
-                WHERE RegistrySID=? AND ResourceSID=? AND
-                  AncestorID<>'`+ANCESTORID_TBD+`'
-                ORDER BY Pos ASC, CTime ASC, VersionUID ASC`+lockExpr,
+                SELECT v.UID, v.AncestorID,
+                    CASE
+                        WHEN v.UID=v.AncestorID THEN '0-root'
+                        WHEN EXISTS(SELECT 1 FROM Versions AS v2
+                                    WHERE v2.ResourceSID=v.ResourceSID AND
+                                          v2.AncestorID=v.UID`+lockExpr+`)
+                             THEN '1-middle'
+                        ELSE '2-leaf'
+                    END AS Pos,
+                    v.CreatedAt
+                FROM Versions AS v
+                WHERE v.RegistrySID=? AND v.ResourceSID=? AND
+                  v.AncestorID<>'`+ANCESTORID_TBD+`'
+                ORDER BY Pos ASC, v.CreatedAt ASC, v.UID ASC`+lockExpr,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 

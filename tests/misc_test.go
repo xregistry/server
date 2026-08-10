@@ -377,7 +377,8 @@ func TestMiscConcurrency(t *testing.T) {
       "resources": {
         "files": {
           "singular": "file",
-          "versionmode": "manual"
+          "versionmode": "manual",
+          "hasdocument": false
         }
       }
     }
@@ -506,15 +507,16 @@ func TestMiscConcurrency(t *testing.T) {
 
 		XEqual(t, "", data.Dirs["d1"].FilesCount, 10)
 
-		f1E := data.Dirs["d1"].Files["f1"].Meta.Epoch
-		// DUG FIX ME!! For some reason f1.meta.epoch is 13 sometimes.
-		// Not sure if it's valid or a bug
-		fMin := 10
-		fMax := 12
-		if f1E < fMin || f1E > fMax {
-			t.Fatalf(`data.Dirs["d1"].Files["f1"].Meta.Epoch(%d) should be `+
-				`between %d and %d`, f1E, fMin, fMax)
-		}
+		XEqual(t, "", data.Dirs["d1"].Files["f1"].Meta.Epoch, 10)
+		/*
+					f1E := data.Dirs["d1"].Files["f1"].Meta.Epoch
+					// DUG FIX ME!! For some reason f1.meta.epoch is 13 sometimes.
+					// Not sure if it's valid or a bug
+			        if f1E != 12 {
+						t.Fatalf(`data.Dirs["d1"].Files["f1"].Meta.Epoch(%d) should be `+
+							`between %d and %d`, f1E, fMin, fMax)
+					}
+		*/
 
 		XEqual(t, "", data.Dirs["d1"].Files["f1"].VersionsCount, 10)
 

@@ -128,7 +128,6 @@ CREATE TABLE "Groups" (
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
-    INDEX(RegistrySID, UID),   # DUG!! See if we can remove this, it's wrong
     UNIQUE INDEX (RegistrySID, ModelSID, UID)
 );
 
@@ -152,8 +151,6 @@ CREATE TABLE Resources (
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
-    INDEX(GroupSID, UID),   # DUG!!! See if we can remove this, it's wrong
-    INDEX(Path),            # DUG! this is wrong, see if we can remove it
     INDEX(RegistrySID),
     INDEX(RegistrySID, Path),
     UNIQUE INDEX (GroupSID, ModelSID, UID)
@@ -467,28 +464,14 @@ WHERE eSID NOT IN (
     SELECT DISTINCT ParentSID FROM Entities WHERE ParentSID IS NOT NULL
 );
 
-# Find all of the versions of a resource. Users of this should order
-# the results: ORDER BY Pos ASC, Time ASC, VersionUID ASC
-# to get oldest first, newest last.
-# Pos (postion) makes sure roots are first, leaves are last.
-# For similar rows, order by createdat timestamps and then versionIDs
-CREATE VIEW VersionAncestors AS
-SELECT
-    v.RegistrySID AS RegistrySID,
-    v.ResourceSID AS ResourceSID,
-    v.SID AS VersionSID,
-    v.UID AS VersionUID,
-    v.AncestorID AS AncestorID,
-    v.CreatedAt AS CTime,
-    CASE
-        WHEN v.UID=v.AncestorID THEN '0-root'
-        WHEN EXISTS(SELECT 1 FROM Versions AS v2 WHERE
-                    # v2.RegistrySID=v2.ResistrySID AND
-                    v2.ResourceSID=v.ResourceSID AND v2.AncestorID=v.UID)
-             THEN '1-middle'
-        ELSE '2-leaf'
-    END AS Pos
-FROM Versions AS v ;
+# NOTE: the "VersionAncestors" view used to live here (ordering a
+# Resource's Versions by Pos/CTime/VersionUID) but was removed - its
+# EXISTS subquery couldn't have a caller's row-lock hint (e.g. FOR
+# UPDATE) propagate into it, which was a real bug (see git history /
+# TODO.md for details). Its SQL is now inlined directly in
+# registry/versionmodes.go (ManualVersionMode/CreatedatVersionMode
+# GetOrderedVersionIDs()) so a lockExpr can be applied everywhere
+# needed instead.
 
 # Find all Versions that are part of circular references (circles)
 # Would this be better to do in code and use args(?) for regSID?

@@ -1300,12 +1300,18 @@ func (r *Resource) checkHasDocumentViolation() *XRError {
 	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
 	}
+	// The nested EXISTS subquery below reads ResourceContents, a
+	// different table than the outer query's Versions - MySQL does NOT
+	// propagate the outer query's FOR UPDATE into a correlated
+	// subquery's own table reads (confirmed empirically elsewhere in
+	// this investigation, e.g. the VersionAncestors view bug), so
+	// lockExpr must be applied to the subquery explicitly too.
 	query := `
 		SELECT v.Path FROM Versions v
 		WHERE v.ResourceSID = ?
 		AND EXISTS (
 			SELECT 1 FROM ResourceContents rc
-			WHERE rc.VersionSID = v.SID
+			WHERE rc.VersionSID = v.SID` + lockExpr + `
 		)
 		LIMIT 1` + lockExpr
 

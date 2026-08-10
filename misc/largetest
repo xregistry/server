@@ -15,6 +15,7 @@
 # f58db84dbc20 11m15s  2m49s  43s     old sql table names, moved funcs/tests
 # cfe72b3bb9a2 11m38s  2m46s  43s     partial move of test to use http
 # f6df0bef5d8f 11m14s  2m54s  43s     fix hasDoc model updates
+# f819d7594a64 2m20s   2m50s  44s     phase 3 of tx fixes
 
 set -e
  

@@ -28,13 +28,18 @@ func (g *Group) Delete() *XRError {
 	log.VPrintf(3, ">Enter: Group.Delete(%s)", g.UID)
 	defer log.VPrintf(3, "<Exit: Group.Delete")
 
-	// Make sure we don't have any readonly Resources
+	// Make sure we don't have any readonly Resources. Callers (HTTPDelete/
+	// HTTPDeleteGroups) already lock g itself FOR_WRITE, but that doesn't
+	// lock the descendant Resources/Metas whose readonly Props this scans -
+	// without FOR UPDATE here, a concurrent Tx setting readonly=true on a
+	// descendant after our RR snapshot was established could be missed,
+	// letting this Group be improperly deleted.
 	results := Query(g.tx, `
 	    SELECT EXISTS(SELECT 1 FROM Props
 		WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
 		  Path LIKE '`+g.Path+`/%' AND
 		  PropName='readonly`+string(DB_IN)+`' AND
-		  PropValue='true')`,
+		  PropValue='true') FOR UPDATE`,
 		g.Registry.DbSID)
 	defer results.Close()
 
