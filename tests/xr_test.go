@@ -2019,6 +2019,155 @@ func TestXRResourceType(t *testing.T) {
 		"", "Created Resource type: fs22\n", true)
 }
 
+func TestXRResourceFlags(t *testing.T) {
+	reg := NewRegistry("TestXRResourceFlags")
+	defer PassDeleteReg(t, reg)
+
+	XCLIServer("localhost:8181")
+
+	XCLI(t, "model resource create files:file -g dirs:dir --has-doc", "", "", "", true)
+	XCLI(t, "model resource create datas:data -g dirs --no-has-doc", "", "", "", true)
+
+	// Test --set during create
+	XCLI(t, "create /dirs/d1/files/f1 --set name=file1", "", "", "", true)
+	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "file1",
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "1",
+  "contenttype": "application/json",
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`, "", true)
+
+	XCLI(t, "create /dirs/d1/datas/d1 --set name=data1", "", "", "", true)
+	XCLI(t, "get /dirs/d1/datas/d1", "", `{
+  "dataid": "d1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/datas/d1",
+  "xid": "/dirs/d1/datas/d1",
+  "epoch": 1,
+  "name": "data1",
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "1",
+  "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
+  "versionscount": 1
+}
+`, "", true)
+
+	// Test --set during update
+	XCLI(t, "update /dirs/d1/files/f1 --set name=file2", "", "", "", true)
+	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "file2",
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "1",
+  "contenttype": "application/json",
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`, "", true)
+
+	XCLI(t, "update /dirs/d1/datas/d1 --set name=data2", "", "", "", true)
+	XCLI(t, "get /dirs/d1/datas/d1", "", `{
+  "dataid": "d1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/datas/d1",
+  "xid": "/dirs/d1/datas/d1",
+  "epoch": 2,
+  "name": "data2",
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "1",
+  "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
+  "versionscount": 1
+}
+`, "", true)
+
+	// Test --set with -d on resource with document
+	XCLI(t, `update /dirs/d1/files/f1 -d '{"name":"file3"}' --set name=file4`, "", "", "", true)
+	XCLI(t, "get /dirs/d1/files/f1", "", `{"name":"file3"}`, "", true)
+	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "name": "file4",
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "1",
+  "contenttype": "application/json",
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`, "", true)
+
+	// Test --set with -d on resource without document
+	XCLI(t, `update /dirs/d1/datas/d1 -d '{"name":"data3","description":"data3"}' --set name=data4`, "", "", "", true)
+	XCLI(t, "get /dirs/d1/datas/d1", "", `{
+  "dataid": "d1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/datas/d1",
+  "xid": "/dirs/d1/datas/d1",
+  "epoch": 3,
+  "name": "data4",
+  "isdefault": true,
+  "description": "data3",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "1",
+  "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
+  "versionscount": 1
+}
+`, "", true)
+
+	// Test --set with -d and -m on resource with document
+	XCLI(t, `update /dirs/d1/files/f1 -m -d '{"description":"file5"}' --set name=file5`, "", "", "", true)
+	XCLI(t, "get /dirs/d1/files/f1", "", `{"name":"file3"}`, "", true)
+	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 4,
+  "name": "file5",
+  "isdefault": true,
+  "description": "file5",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "1",
+  "contenttype": "application/json",
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`, "", true)
+}
+
 func TestXRConfig(t *testing.T) {
 	reg := NewRegistry("TestXRConfig")
 	defer PassDeleteReg(t, reg)
