@@ -4773,12 +4773,12 @@ func TestHTTPRegGroups(t *testing.T) {
 		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Value of \"d\" must be a \"Group\".",
-  "subject": "/dirs",
+  "title": "Value of \"d\" must be a \"dir\".",
+  "subject": "/",
   "args": {
-    "error_detail": "Value of \"d\" must be a \"Group\""
+    "error_detail": "Value of \"d\" must be a \"dir\""
   },
-  "source": "a3d56ce41e09:common:utils:769"
+  "source": "a257d5f27b6d:common:utils:793"
 }
 `,
 	})
@@ -13247,4 +13247,100 @@ func TestHTTPMatchCaseEnum(t *testing.T) {
 }
 `)
 
+}
+
+func TestHTTPNullCollEntity(t *testing.T) {
+	reg := NewRegistry("TestHTTPNullCollEntity")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS_NODOC, 200,
+		MODEL_DIRS_NODOC+"\n")
+
+	XHTTP(t, reg, "POST", "/", `{"dirs":{"d1":null}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Value of \"d1\" must be a \"dir\".",
+  "subject": "/",
+  "args": {
+    "error_detail": "Value of \"d1\" must be a \"dir\""
+  },
+  "source": "a257d5f27b6d:common:utils:793"
+}
+`)
+	XHTTP(t, reg, "POST", "/", `{"dirs":{"d1":{"files":{"f1":null}}}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"files\" for \"/dirs/d1\" is not valid: Key \"f1\" doesn't appear to be of type \"file\".",
+  "subject": "/dirs/d1",
+  "args": {
+    "error_detail": "Key \"f1\" doesn't appear to be of type \"file\"",
+    "name": "files"
+  },
+  "source": "a257d5f27b6d:registry:registry:933"
+}
+`)
+	XHTTP(t, reg, "POST", "/",
+		`{"dirs":{"d1":{"files":{"f1":{"versions":{"v1":null}}}}}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versions\" for \"/dirs/d1/files/f1\" is not valid: key \"v1\" in attribute \"versions\" doesn't appear to be of type \"version\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "error_detail": "key \"v1\" in attribute \"versions\" doesn't appear to be of type \"version\"",
+    "name": "versions"
+  },
+  "source": "a257d5f27b6d:registry:group:513"
+}
+`)
+	XHTTP(t, reg, "POST", "/dirs", `{"d1":null}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Value of \"d1\" must be a \"dir\".",
+  "subject": "/dirs",
+  "args": {
+    "error_detail": "Value of \"d1\" must be a \"dir\""
+  },
+  "source": "a257d5f27b6d:common:utils:793"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{"files":{"v1":null}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"files\" for \"/dirs/d1\" is not valid: Key \"v1\" doesn't appear to be of type \"file\".",
+  "subject": "/dirs/d1",
+  "args": {
+    "error_detail": "Key \"v1\" doesn't appear to be of type \"file\"",
+    "name": "files"
+  },
+  "source": "a257d5f27b6d:registry:registry:933"
+}
+`)
+	XHTTP(t, reg, "POST", "/dirs/d1/files", `{"f1":null}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Value of \"f1\" must be a \"file\".",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "error_detail": "Value of \"f1\" must be a \"file\""
+  },
+  "source": "a257d5f27b6d:common:utils:793"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"versions":{"v1":null}}`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versions\" for \"/dirs/d1/files/f1\" is not valid: key \"v1\" in attribute \"versions\" doesn't appear to be of type \"version\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "error_detail": "key \"v1\" in attribute \"versions\" doesn't appear to be of type \"version\"",
+    "name": "versions"
+  },
+  "source": "a257d5f27b6d:registry:group:513"
+}
+`)
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"v1":null}`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Value of \"v1\" must be a version.",
+  "subject": "/dirs/d1/files/f1/versions",
+  "args": {
+    "error_detail": "Value of \"v1\" must be a version"
+  },
+  "source": "a257d5f27b6d:common:utils:793"
+}
+`)
 }

@@ -674,16 +674,17 @@ func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string
 		}
 	}
 
-	rootMap, xErr := IncomingObj2Map(rootObj, "Resource")
+	rootMap, xErr := IncomingObj2Map(rootObj, g.XID, "map of Resources")
 	if xErr != nil {
-		return nil, xErr.SetSubject("/").
-			SetTitle("Request must be a map of Resource types.")
+		return nil, xErr.
+			SetDetail("Request must be a map of Resource types.")
 	}
 
 	for rType, rAny := range rootMap {
-		rMap, xErr := IncomingObj2Map(rAny, "Resource")
+		rMap, xErr := IncomingObj2Map(rAny, g.XID,
+			fmt.Sprintf("%q", g.GroupModel.Resources[rType].Singular))
 		if xErr != nil {
-			return nil, xErr.SetSubject(g.XID)
+			return nil, xErr
 		}
 
 		// Make sure we include empty resourceTypes in the result

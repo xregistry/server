@@ -6460,12 +6460,12 @@ func TestHTTPGroupResources(t *testing.T) {
 
 	XHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f":"b"}}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Value of \"f\" must be a \"Resource\".",
+  "title": "Value of \"f\" must be a \"file\".",
   "subject": "/dirs/d1",
   "args": {
-    "error_detail": "Value of \"f\" must be a \"Resource\""
+    "error_detail": "Value of \"f\" must be a \"file\""
   },
-  "source": "a3d56ce41e09:common:utils:769"
+  "source": "a257d5f27b6d:common:utils:793"
 }
 `)
 

@@ -1292,9 +1292,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	if numParts == 1 {
 		// POST /GROUPs + body:map[id]Group
 
-		objMap, xErr := IncomingObj2Map(IncomingObj, "Group")
+		objMap, xErr := IncomingObj2Map(IncomingObj, info.GetParts(0),
+			"\""+info.GroupModel.Singular+"\"")
 		if xErr != nil {
-			return xErr.SetSubject(info.GetParts(0))
+			return xErr
 		}
 
 		addType := ADD_UPSERT
@@ -1434,9 +1435,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				"flag=setdefaultversionid")
 		}
 
-		objMap, xErr := IncomingObj2Map(IncomingObj, "Resource")
+		objMap, xErr := IncomingObj2Map(IncomingObj,
+			info.GetParts(0), "\""+info.ResourceModel.Singular+"\"")
 		if xErr != nil {
-			return xErr.SetSubject(info.GetParts(0))
+			return xErr
 		}
 
 		// For each Resource in the map, upsert it and add it's path to result
@@ -1658,7 +1660,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// PATCH GROUPs/gID/RESOURCEs/rID/versions, body=map[id]->Version
 
 		// Convert IncomingObj to a map of Objects
-		objMap, xErr := IncomingObj2Map(IncomingObj, "Version")
+		objMap, xErr := IncomingObj2Map(IncomingObj, "/"+info.OriginalPath,
+			"version")
 		if xErr != nil {
 			return xErr
 		}

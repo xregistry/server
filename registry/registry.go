@@ -930,7 +930,7 @@ ORDER BY Path FOR UPDATE`,
 			_, ok := val.(map[string]any)
 			if !ok {
 				return nil, false,
-					NewXRError("invalid_attribute", "/"+plural,
+					NewXRError("invalid_attribute", g.XID,
 						"name="+plural,
 						"error_detail="+
 							fmt.Sprintf("Key %q doesn't appear to be of "+
@@ -1009,10 +1009,9 @@ func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[stri
 		}
 	}
 
-	rootMap, xErr := IncomingObj2Map(rootObj, "Group")
+	rootMap, xErr := IncomingObj2Map(rootObj, "/", "map of Group types")
 	if xErr != nil {
-		return nil, xErr.SetSubject("/").
-			SetTitle("Request must be a map of Group types.")
+		return nil, xErr
 	}
 
 	// rootMap is map[groupType]group
@@ -1023,9 +1022,10 @@ func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[stri
 			}
 		*/
 
-		gMap, xErr := IncomingObj2Map(gAny, "Group")
+		gMap, xErr := IncomingObj2Map(gAny, "/",
+			"\""+reg.Model.Groups[gType].Singular+"\"")
 		if xErr != nil {
-			return nil, xErr.SetSubject(gType)
+			return nil, xErr
 		}
 
 		// Make sure we include empty groupTypes in the result

@@ -781,7 +781,7 @@ func ResetMap[M ~map[K]V, K comparable, V any](m M, key K, oldVal V) {
 
 type Object map[string]any
 
-func IncomingObj2Map(incomingObj Object, daType string) (map[string]Object, *XRError) {
+func IncomingObj2Map(incomingObj Object, subject string, daType string) (map[string]Object, *XRError) {
 	result := map[string]Object{}
 	for id, obj := range incomingObj {
 		oV := reflect.ValueOf(obj)
@@ -789,9 +789,9 @@ func IncomingObj2Map(incomingObj Object, daType string) (map[string]Object, *XRE
 			oV.Type().Key().Kind() != reflect.String {
 
 			return nil,
-				NewXRError("bad_request", "",
+				NewXRError("bad_request", subject,
 					"error_detail="+
-						fmt.Sprintf("Value of %q must be a %q",
+						fmt.Sprintf("Value of %q must be a %s",
 							id, daType))
 		}
 		newObj := Object{}
