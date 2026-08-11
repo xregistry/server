@@ -49,8 +49,8 @@ TODOs:
   - verify TestMetaCombos epoch values are correct
   - stuff in TestXrefRevert
   - make sure if we set defaultversionid=XX w/o sticky, and XX isn't latest,
-    then we need to flag it as an error. Maybe clear it on Set() if not 
-	provided by a user (and sticky=false), and then at the end if null 
+    then we need to flag it as an error. Maybe clear it on Set() if not
+	provided by a user (and sticky=false), and then at the end if null
 	calc it, if not null if defVer!=calc value->error??
 ** make meta.readonly a non-readonly attribute if the client is an admin
   - by making it mutable and changings it's meta-model
@@ -84,6 +84,7 @@ TODOs:
 ** support "xr model group/resource create/update" with "--data"
 ** add support for setversionid, and flag an error when not allowed
 ** support min/max in capabilities
+** support/test case insensitive capability keys/values
 - add tests for xr model group update/upsert/create & --flags
 ** UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 ** UI: add support for wrapping the output text (style=text-wrap=wrap)
@@ -113,8 +114,11 @@ TODOs:
   at the group/resource level, but there's nothing at the version level to check
 - test attribute definitions with enums with strict=true / false
 - attr.clone should be deep
-- I think getorderedversions is wrong when there are multiple trees
+** I think getorderedversions is wrong when there are multiple trees
 ** support smart sub-filter generation
    https://grok.com/share/bGVnYWN5LWNvcHk_54be15f5-d342-464b-836c-90f3cd7ef39a
 ** add support for excludeall and add it to filter results
-- clean-up design of model save/apply 
+- clean-up design of model save/apply
+- make sure we support ?ignore  w/o value (or "*") to mean all possible
+** support "instance" in errors
+** in dlog, sync the write to the output

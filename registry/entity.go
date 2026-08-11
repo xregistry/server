@@ -34,19 +34,6 @@ type EntityExtensions struct {
 	// below) so they can be written as a single multi-row REPLACE INTO
 	// instead of one round trip per property.
 	dbPropBatch []dbPropRow
-
-	// insertedThisTx is set by EntityInsert() and means this entity's
-	// Entities row was freshly INSERTed by THIS Tx and not yet
-	// committed. Such a row is protected by InnoDB's *implicit* lock
-	// (only the inserting Tx can see/touch an uncommitted row it just
-	// inserted) which does NOT show up in
-	// performance_schema.data_locks unless some other Tx actually
-	// requests a conflicting lock on it - so
-	// VerifyLockHeldOrPanic()'s explicit-lock check must skip entities
-	// with this flag set, or it'll false-positive on ordinary
-	// brand-new-entity creation (e.g. NewRegistry(), which sets
-	// AccessMode=FOR_WRITE directly and never calls Lock()).
-	insertedThisTx bool
 }
 
 func (e *Entity) GetRequestInfo() *RequestInfo {
@@ -169,7 +156,8 @@ func (e *Entity) EnsureNewObject() bool {
 	// buffering an edit against a row we never actually took a DB lock
 	// on, which is exactly the kind of bug this whole locking-strategy
 	// rework is trying to prevent. Catch it here, as early as possible.
-	PanicIf(e.AccessMode != FOR_WRITE, "EnsureNewObject: %q isn't FOR_WRITE", e.XID)
+	PanicIf(e.AccessMode != FOR_WRITE, "EnsureNewObject: %q isn't FOR_WRITE",
+		e.XID)
 
 	// Save pre-Tx values in case we need to diff. NewObject will be erased
 	// and Object will be updated during a Save() so we can't diff NewObject
@@ -398,25 +386,6 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
 	lockExpr := ""
 	if accessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
-
-		// Lock the Entities row FIRST, before the LEFT JOIN query below
-		// touches Props - same two-phase reasoning as Refresh(FOR_WRITE):
-		// Save() rewrites Props via DELETE-then-INSERT (not atomic), so
-		// without this separate lock-first step we could land the LEFT
-		// JOIN query in the transient window between another Tx's DELETE
-		// and its subsequent INSERT and silently treat the (temporarily)
-		// near-empty Props set as real, rather than blocking until that
-		// other Tx's Save() fully commits or rolls back. This was the
-		// root cause of an intermittent "<attr> is nil" panic (e.g.
-		// Meta's "fileid") seen under concurrency - RawEntityFromPath()
-		// is the very first, not-yet-cached fetch of an entity, so it
-		// never went through Refresh()'s already-correct two-phase
-		// locking.
-		/* DUG I DON'T THINK WE NEED THIS
-		lockResults := Query(tx, `SELECT eSID FROM Entities WHERE RegSID=? AND `+Path+`=? FOR UPDATE`,
-			regID, path)
-		lockResults.Close()
-		*/
 	}
 
 	queryString := `
@@ -436,7 +405,8 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             p.IsSystemProp as IsSystemProp
         FROM Entities AS e
         LEFT JOIN Props AS p ON (
-            e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+            e.eSID=p.eSID
+            AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
             AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
             AND p.IsCalcDynamic=false)
         WHERE e.RegSID=? AND e.` + Path + `=?
@@ -598,18 +568,6 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 	lockExpr := ""
 	if accessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
-
-		// Lock the Entities rows FIRST, before the LEFT JOIN query below
-		// touches Props - same two-phase reasoning as RawEntityFromPath()/
-		// Refresh(FOR_WRITE): without this we could land the LEFT JOIN
-		// query in the transient window between another Tx's Props
-		// DELETE and its subsequent INSERT and silently treat the
-		// (temporarily) near-empty Props set as real.
-		/* DUG I DON'T THINK THIS IS TRUE - DELETE IT ONCE PROVEN OK
-		lockQuery := `SELECT eSID FROM Entities AS e WHERE e.RegSID=? ` + query + ` FOR UPDATE`
-		lockResults := Query(tx, lockQuery, args...)
-		lockResults.Close()
-		*/
 	}
 
 	results := Query(tx, `
@@ -685,25 +643,11 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 	if accessMode == FOR_WRITE {
 		mode = " FOR UPDATE"
 
-		// Lock the parent Entities row FIRST, before touching Props. Save()
-		// rewrites an entity's Props via DELETE-then-INSERT (not an atomic
-		// update), so a "FOR UPDATE" lock scoped to just the Props rows can
-		// transiently observe zero rows if we happen to land between a
-		// sibling Tx's DELETE and its subsequent INSERT (InnoDB's "FOR
-		// UPDATE" only re-checks the specific rows it originally blocked
-		// on when the blocking Tx commits/rolls back - it doesn't re-scan
-		// for newly-inserted rows). Locking the single, always-present
-		// Entities row here forces us to fully serialize with any other
-		// Tx that's mid-Save() on this entity, so by the time we run the
-		// Props query below, that other Tx has either fully committed
-		// (Props fully rewritten) or fully rolled back (Props unchanged).
-		results := Query(e.tx, `SELECT Path,UID FROM Entities WHERE eSID=? FOR UPDATE`, e.DbSID)
+		// Need to lock the entity so we grab the latest stuff
+		results := Query(e.tx,
+			`SELECT UID FROM Entities WHERE eSID=? FOR UPDATE`, e.DbSID)
 		PanicIf(len(results.AllRows) != 1, "Rows: %d", len(results.AllRows))
-		row := results.NextRow()
 		results.Close()
-		PanicIf(row == nil, "Refresh(FOR_WRITE): Entities row eSID=%q vanished - "+
-			"lock acquired 0 rows instead of exactly 1", e.DbSID)
-		log.VPrintf(3, "tx: %s Locked path:%q (%s)", e.tx.uuid, NotNilString(row[0]), NotNilString(row[1]))
 	}
 
 	log.VPrintf(3, "tx: %s Refreshing %q, mode: %v", e.tx.uuid, e.XID, mode)
@@ -760,11 +704,6 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 func (e *Entity) eSetSave(path string, val any) *XRError {
 	log.VPrintf(3, ">Enter: SetSave(%s=%v)", path, val)
 	defer log.VPrintf(3, "<Exit Set")
-
-	if path == "defaultversionid" && val == "" {
-		log.Printf("In setsave: %q=%q", path, val)
-		ShowStack()
-	}
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
@@ -1154,12 +1093,7 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
 	r, ok := e.Self.(*Resource)
 	PanicIf(!ok, "%s isn't a Resource", e.XID)
 
-	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
-	// RR-snapshot-staleness reasoning as sibling functions (e.g.
-	// GetVersionIDs()/GetRootVersionIDs()). Called from EnsureCompat()
-	// on the write path; without this a Version committed by another
-	// Tx after our RR snapshot could be missed, leaving its stale
-	// system props uncleared.
+	// FOR UPDATE to make sure we grab the latest stuff, and lock it
 	lockExpr := ""
 	if meta := e.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
@@ -1168,7 +1102,8 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
 	// Query the real Versions table directly (not r.GetVersions(),
 	// which reads from Entities and would also pick up synthetic
 	// xref-copied version rows sharing this Resource's ParentSID).
-	results := Query(e.tx, `SELECT UID FROM Versions WHERE ResourceSID=?`+lockExpr,
+	results := Query(e.tx,
+		`SELECT UID FROM Versions WHERE ResourceSID=?`+lockExpr,
 		r.DbSID)
 	defer results.Close()
 
@@ -1530,11 +1465,11 @@ var PropsFuncs = []*Attribute{
 					delete(e.NewObject, singular)
 				} else if IsNil(e.NewObject[singular]) {
 					log.Printf("tx: %s (%s) %q is nil - "+
-						"e.UID=%q e.Type=%d e.Object=%s e.NewObject=%s e.OriginObject=%s",
+						"e.UID=%q e.Type=%d e.Object=%s e.NewObject=%s "+
+						"e.OriginObject=%s",
 						e.tx.uuid, e.XID, singular, e.UID, e.Type,
 						ToJSON(e.Object), ToJSON(e.NewObject),
 						ToJSON(e.OriginObject))
-					ShowStack()
 					panic(fmt.Sprintf(`tx: %s (%s) %q is nil - `+
 						`that's bad, fix it!`,
 						e.tx.uuid, e.XID, singular))
@@ -1586,7 +1521,6 @@ var PropsFuncs = []*Attribute{
 						"e.UID=%q e.Object=%s e.NewObject=%s e.OriginObject=%s",
 						e.tx.uuid, e.XID, e.UID, ToJSON(e.Object),
 						ToJSON(e.NewObject), ToJSON(e.OriginObject))
-					ShowStack()
 					panic(fmt.Sprintf(`"tx: %s (%s) versionid" is nil - " +
                     "fix it!`, e.tx.uuid, e.XID))
 				}
@@ -2220,12 +2154,6 @@ var PropsFuncs = []*Attribute{
 					PanicIf(!ok, "e isn't a meta: %#v", e)
 
 					val := meta.GetAsString("defaultversionid")
-					// FOR_WRITE: this updateFn only runs while the Meta
-					// itself is being written (Meta.AccessMode ==
-					// FOR_WRITE at this point), so this FindVersion() must
-					// match, otherwise a plain FOR_READ lookup here can
-					// still be pinned to a stale RR snapshot from before
-					// another Tx's Version INSERT committed.
 					ver, xErr := meta.Resource.FindVersion(val, false)
 					if xErr != nil {
 						return xErr
@@ -2511,32 +2439,6 @@ func (e *Entity) Lock() bool { // did we lock it?
 func (e *Entity) Save() *XRError {
 	log.VPrintf(3, ">Enter: Save(%s/%s)", e.Abstract, e.UID)
 	defer log.VPrintf(3, "<Exit: Save")
-
-	/*
-			if e.XID == "/dirs/d1/files/f1/meta" {
-				results := Query(e.tx, `
-		        SELECT UID, CreatedAt, AncestorID FROM Versions
-		        WHERE ResourceSID=? ORDER BY CreatedAt ASC FOR UPDATE`,
-					e.Self.(*Meta).Resource.DbSID)
-
-				vers := "Vid    CreatedAt                 AncestorID\n"
-				for row := results.NextRow(); row != nil; row = results.NextRow() {
-					vers += NotNilString(row[0]) + " " + NotNilString(row[1]) + " " +
-						NotNilString(row[2]) + "\n"
-				}
-
-				log.Printf("tx: %s Saving: %s\n"+
-					"Req: %s %q\n"+
-					"Old: %s\n"+
-					"New: %s\n"+
-					"%s\n",
-					e.tx.uuid,
-					e.XID, e.tx.RequestInfo.OriginalRequest.Method,
-					e.tx.RequestInfo.OriginalPath,
-					ToJSON(e.Object), ToJSON(e.NewObject),
-					vers)
-			}
-	*/
 
 	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 
@@ -3876,11 +3778,6 @@ func (e *Entity) EntityInsert() {
         VALUES(?,?,?,?,?,?,?,?,?,false)`,
 		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
 		e.UID, e.Abstract, e.Path)
-
-	// This row was just inserted by us and is only protected by
-	// InnoDB's implicit lock until we commit - see insertedThisTx's
-	// doc comment for why VerifyLockHeldOrPanic() must skip it.
-	e.insertedThisTx = true
 
 	e.SaveCalcStaticInsert()
 }

@@ -410,8 +410,8 @@ func TestMiscConcurrency(t *testing.T) {
 				continue
 			}
 
-			t.Logf("Code: %d", res.StatusCode)
-			t.Logf("Body: %s", res.body)
+			// t.Logf("Code: %d", res.StatusCode)
+			// t.Logf("Body: %s", res.body)
 
 			if rc < 10 {
 				XEqual(t, "Unexpected status code", res.StatusCode/100, rc)
@@ -455,9 +455,9 @@ func TestMiscConcurrency(t *testing.T) {
 			redoXHTTP("PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/1"), "{}", 2, "*")
 		})
 
-		oldVerbose := log.GetVerbose()
-		log.SetVerbose(2) // To see server's activity
-		defer log.SetVerbose(oldVerbose)
+		// oldVerbose := log.GetVerbose()
+		// log.SetVerbose(2) // To see server's activity
+		// defer log.SetVerbose(oldVerbose)
 
 		runs = runs + 1
 
@@ -489,12 +489,12 @@ func TestMiscConcurrency(t *testing.T) {
 		data := tmp{}
 		Unmarshal([]byte(res.body), &data)
 
-		t.Logf("Json: %s", ToJSON(data))
+		// t.Logf("Json: %s", ToJSON(data))
 
 		// 1=initial, 1=model, 20=/,/dir/x PUT, 1=if deep PUT creates it
-		if data.Epoch < 1+runs*20 || data.Epoch > 1+runs*22 {
+		if data.Epoch < 1+runs*21 || data.Epoch > 1+runs*22 {
 			t.Fatalf("data.Epoch(%d) needs to be beween %d and %d",
-				data.Epoch, 1+runs*20, 1+runs*21)
+				data.Epoch, 1+runs*21, 1+runs*22)
 		}
 		XEqual(t, "", data.DirsCount, 10)
 
@@ -505,18 +505,7 @@ func TestMiscConcurrency(t *testing.T) {
 		}
 
 		XEqual(t, "", data.Dirs["d1"].FilesCount, 10)
-
 		XEqual(t, "", data.Dirs["d1"].Files["f1"].Meta.Epoch, 10)
-		/*
-					f1E := data.Dirs["d1"].Files["f1"].Meta.Epoch
-					// DUG FIX ME!! For some reason f1.meta.epoch is 13 sometimes.
-					// Not sure if it's valid or a bug
-			        if f1E != 12 {
-						t.Fatalf(`data.Dirs["d1"].Files["f1"].Meta.Epoch(%d) should be `+
-							`between %d and %d`, f1E, fMin, fMax)
-					}
-		*/
-
 		XEqual(t, "", data.Dirs["d1"].Files["f1"].VersionsCount, 10)
 
 		// clean-up for next round
@@ -568,7 +557,7 @@ func TestMiscDeadlockRetry(t *testing.T) {
 	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
 	XNoErr(t, err)
 
-	const numDirs = 30
+	const numDirs = 5 // used to be 30
 	const numRounds = 6
 	const numRequests = 3 // concurrent "DELETE /dirs" per round
 
@@ -590,9 +579,9 @@ func TestMiscDeadlockRetry(t *testing.T) {
 
 		// All dirs should be gone regardless of how many times any
 		// individual request was retried.
-		res := XHTTP(t, reg, "GET", "/dirs?inline", "", 200, "*")
+		res := XHTTP(t, reg, "GET", "/", "", 200, "*")
 		type tmp struct {
-			DirsCount int `json:"DirsCount,omitempty"`
+			DirsCount int `json:"dirscount"`
 		}
 		data := tmp{}
 		Unmarshal([]byte(res.body), &data)

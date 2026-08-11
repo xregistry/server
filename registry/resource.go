@@ -317,13 +317,9 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 	// mistake, or simply not realizing the family is already locked,
 	// and silently getting a stale RR snapshot for a row that's
 	// conceptually already locked in this Tx).
-	accessMode := FOR_READ
-	if r.AccessMode == FOR_WRITE {
-		accessMode = FOR_WRITE
-	}
 
 	if m := r.tx.GetMeta(r); m != nil {
-		if accessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
+		if r.AccessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
 			m.Lock()
 		}
 		return m, nil
@@ -331,7 +327,7 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 
 	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
 		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/meta",
-		anyCase, accessMode)
+		anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/meta").
 			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s.",
@@ -361,13 +357,9 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 	// locked together as one family, so a Version's effective access
 	// mode always mirrors its parent Resource's - no separate
 	// accessMode arg for callers to get wrong.
-	accessMode := FOR_READ
-	if r.AccessMode == FOR_WRITE {
-		accessMode = FOR_WRITE
-	}
 
 	if v := r.tx.GetVersion(r, id); v != nil {
-		if accessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
+		if r.AccessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
 			v.Lock()
 		}
 		return v, nil
@@ -375,7 +367,7 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 
 	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
 		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+id,
-		anyCase, accessMode)
+		anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
 			SetDetail(fmt.Sprintf("Error finding Version %s: %s.",
@@ -1758,17 +1750,7 @@ func (r *Resource) HasCircularAncestors() ([]string, *XRError) {
 	// tx's original REPEATABLE-READ snapshot and can miss Version rows
 	// committed by other Txs after that snapshot was established,
 	// producing false "circular reference" errors.
-	//
-	// NOTE: we deliberately do NOT run the previous recursive-CTE/VIEW-
-	// based query here anymore. MySQL doesn't propagate an outer FOR
-	// UPDATE into a recursive CTE's internal correlated subqueries, AND
-	// (worse) it doesn't even allow a "FOR UPDATE" clause inside one of
-	// a recursive CTE's own UNION branches (syntax error) - so there's
-	// no way to make every part of that query honor lockExpr. Instead,
-	// fetch ALL of this Resource's (UID, AncestorID) pairs with a
-	// single flat, fully lockExpr'd query, and do the cycle-detection
-	// logic itself in Go, where the correctness of "did we see every
-	// Version row as of the lock" only depends on this one query.
+
 	lockExpr := ""
 	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
@@ -2579,8 +2561,8 @@ func (r *Resource) SaveDefaultVersionCascade() {
             JOIN Metas AS m ON (m.ResourceSID=tr.SID)
             JOIN Versions AS v ON (v.ResourceSID=m.ResourceSID AND
                                     v.UID=m.defaultVID)
-            WHERE srcM.ResourceSID=?
-            FOR UPDATE`, resourceSID)
+            WHERE srcM.ResourceSID=? FOR UPDATE`,
+			resourceSID)
 		tRow := tResults.NextRow()
 		tResults.Close()
 		if tRow == nil {
@@ -2709,8 +2691,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
             Abstract, Path, IsXrefVerCopy)
         SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID, ?,
                CONCAT(?, '/versions/', v.UID), true
-        FROM Versions AS v WHERE v.ResourceSID=?
-        FOR UPDATE`,
+        FROM Versions AS v WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, synthAbstract, srcResource.Path,
 		targetResourceSID)
@@ -2733,8 +2714,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
         WHERE v.ResourceSID=? AND ft.IsDefaultVerCopy=false
               AND ft.IsXrefPropCopy=false AND ft.IsXrefVerCopy=false
               AND ft.IsCalcStatic=false AND ft.IsCalcDynamic=false
-              AND ft.PropName<>?
-        FOR UPDATE`,
+              AND ft.PropName<>? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, srcResource.Path, synthAbstract,
 		targetResourceSID, "xref"+string(DB_IN))
@@ -2756,8 +2736,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
                CONCAT(?, '/versions/', v.UID),
                ?, CONCAT('/', ?, '/versions/', v.UID), 'string', ?, false,
                false, false, true, true, false
-        FROM Versions AS v WHERE v.ResourceSID=?
-        FOR UPDATE`,
+        FROM Versions AS v WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, srcResource.Path,
 		"xid"+string(DB_IN), srcResource.Path, synthAbstract, targetResourceSID)
@@ -2774,8 +2753,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
                false, false, true, true, false
         FROM Versions AS v
         JOIN Resources AS r ON (r.SID=?)
-        WHERE v.ResourceSID=?
-        FOR UPDATE`,
+        WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, srcResource.Path,
 		"id"+string(DB_IN), synthAbstract, sourceResourceSID,
@@ -2793,8 +2771,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
                false, false, false, true, false, true
         FROM Versions AS v
         JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
-        WHERE v.ResourceSID=?
-        FOR UPDATE`,
+        WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, srcResource.Path,
 		"isdefault"+string(DB_IN), synthAbstract, targetResourceSID)

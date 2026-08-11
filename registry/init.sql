@@ -464,15 +464,6 @@ WHERE eSID NOT IN (
     SELECT DISTINCT ParentSID FROM Entities WHERE ParentSID IS NOT NULL
 );
 
-# NOTE: the "VersionAncestors" view used to live here (ordering a
-# Resource's Versions by Pos/CTime/VersionUID) but was removed - its
-# EXISTS subquery couldn't have a caller's row-lock hint (e.g. FOR
-# UPDATE) propagate into it, which was a real bug (see git history /
-# TODO.md for details). Its SQL is now inlined directly in
-# registry/versionmodes.go (ManualVersionMode/CreatedatVersionMode
-# GetOrderedVersionIDs()) so a lockExpr can be applied everywhere
-# needed instead.
-
 # Find all Versions that are part of circular references (circles)
 # Would this be better to do in code and use args(?) for regSID?
 CREATE VIEW VersionCircles AS

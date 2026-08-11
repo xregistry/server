@@ -201,7 +201,6 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
 
 		info := *infoPtr
 		if isRetryableDBErr(rec) && (info == nil || !info.SentStatus) {
-			uuid := "n/a"
 			if *txPtr != nil && (*txPtr).uuid != "" {
 				uuid = (*txPtr).uuid
 			}
@@ -1350,11 +1349,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
 
+		// We'll lock it later if needed
 		group, xErr = info.Registry.FindGroup(info.GroupType, groupUID, false,
 			FOR_READ)
 		if xErr != nil {
 			return xErr
 		}
+
 		if group == nil {
 			group, _, xErr = info.Registry.UpsertGroup(info.GroupType, groupUID)
 			if xErr != nil {
@@ -1474,14 +1475,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	if numParts > 3 {
 		// GROUPs/gID/RESOURCEs/rID...
-		// This result directly decides "create a new Resource" vs
-		// "update the existing one" below, so it must be a real
-		// locking read (FOR_WRITE/"FOR UPDATE") - not a plain FOR_READ.
-		// Under REPEATABLE READ, a plain read here could keep
-		// returning "doesn't exist" for the rest of this Tx even
-		// after another Tx has already committed the Resource,
-		// leading this code down the wrong (from-scratch creation)
-		// path.
+		// Any write action on a Resource or version needs to lock the entire
+		// tree due to the interdependencies of everything, esp. with the
+		// compatibility and constraints stuff. So lock this "Find" result.
 		resource, xErr = group.FindResource(info.ResourceType, resourceUID,
 			false, FOR_WRITE)
 		if xErr != nil {
@@ -1941,6 +1937,8 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 	// before applying the new model - same physical lock
 	// Registry.Update() takes for "/" PUT/PATCH, just triggered here
 	// via the /modelsource entry point instead.
+	// DUG - do we need to lock everything in Entities too?
+	// I wonder if a PUT to a version would be let thru and missed??
 	info.Registry.Lock()
 
 	xErr := info.Registry.Model.ApplyNewModelFromJSON(body, true)

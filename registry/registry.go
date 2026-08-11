@@ -666,8 +666,6 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	}
 
 	// Save the registry attributes first (this applies reg.NewObject)
-	log.VPrintf(3, "tx: %s old:%s", reg.tx.uuid, ToJSON(reg.Object))
-	log.VPrintf(3, "tx: %s new:%s", reg.tx.uuid, ToJSON(reg.NewObject))
 	if xErr := reg.ValidateAndSave(false); xErr != nil {
 		return xErr
 	}
@@ -786,57 +784,6 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	}
 	log.VPrintf(3, "tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
 		reg.tx.uuid, gType, id, g != nil)
-
-	if g == nil && log.GetVerbose() >= 3 {
-		results := Query(reg.tx, `SELECT Path FROM Entities WHERE RegSID=? FOR UPDATE`,
-			reg.DbSID)
-		defer results.Close()
-
-		log.VPrintf(3, "    tx: %s RegSID: %q Entities:", reg.tx.uuid, reg.DbSID)
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			log.VPrintf(3, "    tx: %s Path: %q", reg.tx.uuid, NotNilString(row[0]))
-		}
-
-		results = Query(reg.tx, `SELECT Path FROM Entities WHERE RegSID=? `+
-			`AND LowerPath=?  FOR UPDATE`,
-			reg.DbSID, strings.ToLower(gType+"/"+id))
-		defer results.Close()
-
-		log.VPrintf(3, "    tx: %s RegSID: %q Entities(Path+Coll):", reg.tx.uuid, reg.DbSID)
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			log.VPrintf(3, "    tx: %s Path: %q", reg.tx.uuid, NotNilString(row[0]))
-		}
-
-		results = Query(reg.tx, `SELECT Path FROM Entities WHERE RegSID=? `+
-			`AND Path=?  FOR UPDATE`,
-			reg.DbSID, gType+"/"+id)
-		defer results.Close()
-
-		log.VPrintf(3, "    tx: %s RegSID: %q Entities(Path+w/o Coll):", reg.tx.uuid, reg.DbSID)
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			log.VPrintf(3, "    tx: %s Path: %q", reg.tx.uuid, NotNilString(row[0]))
-		}
-
-		results = Query(reg.tx, `SELECT e.Path,p.PropName,p.IsCalcStatic FROM Entities AS e
-LEFT JOIN Props AS p ON (
-    e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
-	AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
-	AND p.IsCalcDynamic=false)
-WHERE e.RegSID=? AND e.LowerPath=?
-ORDER BY Path FOR UPDATE`,
-			// AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
-			// AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
-			// AND p.IsCalcDynamic=false)
-			reg.DbSID, strings.ToLower(gType+"/"+id))
-		defer results.Close()
-
-		log.VPrintf(3, "    tx: %s RegSID: %q Entities(raw):", reg.tx.uuid, reg.DbSID)
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			log.VPrintf(3, "    tx: %s Path: %q Prop: %q %v", reg.tx.uuid,
-				NotNilString(row[0]), NotNilString(row[1]),
-				*(row[2]))
-		}
-	}
 
 	if g != nil && g.UID != id {
 		return nil, false,

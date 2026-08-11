@@ -1288,6 +1288,8 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 				// the new model - same physical lock Registry.Update()
 				// already takes for "/" PUT/PATCH, just triggered here
 				// for the model-changing reason instead.
+				// DUG do we need to lock everything in Entities too?
+				// Could a lower-level entity update get thru?
 				info.Registry.Lock()
 
 				xErr := info.Registry.Model.ApplyNewModelFromJSON(
