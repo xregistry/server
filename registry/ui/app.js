@@ -87,6 +87,7 @@ var LS_NAMES       = 'xreg-name-overrides';
 var LS_PROXY       = 'xreg-proxy-servers';
 var LS_DISCOVERED  = 'xreg-discovered-from';
 var LS_HIDDEN      = 'xreg-hidden-servers';
+var LS_LOCAL_DELETED = 'xreg-local-server-deleted';
 var LS_LABELS      = 'xreg-label-cache';
 // normalizedURL → last-known-good probed registry name. Persisted (not
 // just in-memory) so that a server which happens to be offline/unreachable
@@ -356,6 +357,25 @@ function setHidden(url, on) {
   var norm = normalizeURL(url);
   if (on) map[norm] = true; else delete map[norm];
   saveHiddenFlags(map);
+}
+
+// The local "this server" row isn't stored in LS_SERVERS (its URL is
+// implicit - always window.location.origin), so it needs its own
+// separate "deleted" flag rather than reusing removeServer()/loadServers().
+// Deleting it just hides it from Config too (in addition to Home, via
+// isHidden()-equivalent treatment) — it can always be brought back with
+// "Add" (as it's always addable, being a real /xregistry root), so this
+// isn't a destructive action against the server itself, only against the
+// UI's local bookkeeping for it.
+function isLocalServerDeleted() {
+  try { return localStorage.getItem(LS_LOCAL_DELETED) === '1'; }
+  catch(e) { return false; }
+}
+function setLocalServerDeleted(on) {
+  try {
+    if (on) localStorage.setItem(LS_LOCAL_DELETED, '1');
+    else localStorage.removeItem(LS_LOCAL_DELETED);
+  } catch(e) {}
 }
 
 // Reverses the local xrproxy rewrite (see registry/xrproxy.go
@@ -2843,10 +2863,20 @@ function renderHome() {
   var main = el('main-view');
   var origin = window.location.origin;
   var servers = loadServers().filter(function(u) { return !isHidden(u); });
-  var allServers = [origin].concat(servers.filter(function(u) { return u !== origin; }));
+  var localExcluded = isHidden(origin) || isLocalServerDeleted();
+  var allServers = localExcluded ? servers.filter(function(u) { return u !== origin; })
+    : [origin].concat(servers.filter(function(u) { return u !== origin; }));
 
   var g = _state.homeGroup;
   var l = currentHomeLayout(); // per-group persisted layout, independent of data pages
+  if (allServers.length === 0) {
+    main.innerHTML = '<div class="home-page"><div class="home-empty-state">'
+      + '<p>No registry servers configured.</p>'
+      + '<p>Go to <a href="#" onclick="setView(\'config\');return false;">Config</a>'
+      + ' to add one.</p>'
+      + '</div></div>';
+    return;
+  }
   if (g === 'types') {
     renderHomeFlatList(main, allServers); // Grid removed for this page — always List
   } else {
@@ -3521,7 +3551,11 @@ function renderConfig() {
   // Proxying only ever makes sense for a *remote* server, so this row has
   // no checkbox at all (blank cell) rather than a disabled/checked one.
   // Its select checkbox is still real (usable as a scan source, or to
-  // hide it), even though it can't be deleted.
+  // hide it). It CAN be "deleted" (see setLocalServerDeleted()) - this
+  // just removes it from the Config/Home lists, same as any other
+  // deleted server; it can always be re-added via "Add" since it's
+  // always a real, reachable /xregistry root.
+  if (!isLocalServerDeleted()) {
   html += '<tr data-cfg-url="' + esc(normalizeURL(origin)) + '" '
     + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(origin))) + '">'
     + '<td class="cfg-select-cell">'
@@ -3541,7 +3575,10 @@ function renderConfig() {
     +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
     +   '<button class="cfg-btn cfg-btn-primary cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
     +   '<button class="cfg-btn cfg-btn-cancel cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
+    +   '<button class="cfg-btn cfg-btn-danger" onclick="cfgDeleteLocalServer()" '
+    +     'title="Remove this server from the list (it can be added back later)">Delete</button>'
     + '</td></tr>';
+  }
 
   // User-added servers — sorted per the current column/direction chosen
   // via the sortable column headers (see cfgSortBy()/cfgSortedServerUrls()),
@@ -3669,7 +3706,8 @@ function renderConfig() {
   main.innerHTML = html;
 
   // Probe all servers; mark any that error with the same ! badge + popup as the home page
-  var allUrls = [origin].concat(servers.filter(function(u) { return u !== origin; }));
+  var allUrls = isLocalServerDeleted() ? servers.filter(function(u) { return u !== origin; })
+    : [origin].concat(servers.filter(function(u) { return u !== origin; }));
   allUrls.forEach(function(url) {
     var norm = normalizeURL(url);
     probeRegistry(url, function(info) {
@@ -3811,6 +3849,16 @@ function cfgSetHidden(url, on) {
   setHidden(url, on);
 }
 
+// Deletes the local "this server" row from Config/Home (see
+// setLocalServerDeleted()) - unlike removeServer() for a remote server,
+// this doesn't touch LS_SERVERS (the local server was never stored
+// there), and its name-override/hidden flags are left alone so they'll
+// still apply if it's ever added back via the Add row.
+function cfgDeleteLocalServer() {
+  setLocalServerDeleted(true);
+  renderConfig();
+}
+
 // Multi-select bulk actions (Delete / Scan for registries) ----------------
 
 // Header "select all" checkbox: check/uncheck every row's checkbox
@@ -3831,17 +3879,11 @@ function cfgToggleSelectAll(cb) {
 function cfgUpdateSelection() {
   var boxes  = document.querySelectorAll('.cfg-select-input');
   var checked = document.querySelectorAll('.cfg-select-input:checked');
-  var origin = normalizeURL(window.location.origin);
-  // The local server row can be selected for scanning/hiding, but can
-  // never be deleted, so it's excluded from the Delete Selected count.
-  var deletableChecked = Array.prototype.filter.call(checked, function(inp) {
-    return inp.closest('tr').dataset.cfgUrl !== origin;
-  });
   var delBtn = el('cfg-delete-selected-btn');
   if (delBtn) {
-    delBtn.disabled = deletableChecked.length === 0;
-    delBtn.textContent = deletableChecked.length > 0
-      ? 'Delete Selected (' + deletableChecked.length + ')' : 'Delete Selected';
+    delBtn.disabled = checked.length === 0;
+    delBtn.textContent = checked.length > 0
+      ? 'Delete Selected (' + checked.length + ')' : 'Delete Selected';
   }
   var scanBtn = el('cfg-scan-selected-btn');
   if (scanBtn) {
@@ -3856,19 +3898,23 @@ function cfgUpdateSelection() {
   }
 }
 
-// Deletes every checked, deletable server row in one pass (the local
-// server row, if checked, is silently skipped — it can't be deleted),
+// Deletes every checked server row in one pass, including the local
+// "this server" row if it's checked (see setLocalServerDeleted() -
+// removeServer() only applies to remote servers stored in LS_SERVERS),
 // then re-renders the Config page (which naturally resets the selection
 // since the table is rebuilt from scratch).
 function cfgDeleteSelected() {
   var origin = normalizeURL(window.location.origin);
   var urls = [];
+  var deleteLocal = false;
   document.querySelectorAll('.cfg-select-input:checked').forEach(function(inp) {
     var url = inp.closest('tr').dataset.cfgUrl;
-    if (url !== origin) urls.push(url);
+    if (url === origin) deleteLocal = true;
+    else urls.push(url);
   });
-  if (urls.length === 0) return;
+  if (urls.length === 0 && !deleteLocal) return;
   urls.forEach(function(url) { removeServer(url); });
+  if (deleteLocal) setLocalServerDeleted(true);
   renderConfig();
 }
 
@@ -4015,6 +4061,28 @@ function cfgAddNew() {
   if (!inp || !inp.value.trim()) return;
   var url = inp.value.trim();
   if (errEl) { hideErrorBanner(errEl); }
+
+  // Re-adding "this server" (the local origin) after it was deleted just
+  // clears the deleted flag - it's never stored in LS_SERVERS like a
+  // normal remote server (its URL is implicit/fixed), so addServer()
+  // would be the wrong mechanism here.
+  if (normalizeURL(url) === normalizeURL(window.location.origin)) {
+    if (!isLocalServerDeleted()) {
+      if (errEl) {
+        errEl.textContent = 'Already configured — delete the existing entry'
+          + ' first if you want to re-add it with different settings.';
+        errEl.style.display = '';
+      }
+      return;
+    }
+    setLocalServerDeleted(false);
+    if (nameInp && nameInp.value.trim()) setNameOverride(url, nameInp.value.trim());
+    renderConfig();
+    var newInp0 = el('cfg-new-url');
+    if (newInp0) newInp0.focus();
+    return;
+  }
+
   if (!addServer(url)) {
     if (errEl) {
       errEl.textContent = 'Already configured — delete the existing entry'
@@ -4034,7 +4102,8 @@ function cfgAddNew() {
 //
 // All browser-side state this app keeps lives in a handful of localStorage
 // keys (LS_SERVERS, LS_OPTIONS, LS_NAMES, LS_PROXY, LS_DISCOVERED,
-// LS_HIDDEN, LS_LABELS) plus a handful of in-memory caches (_modelCache/
+// LS_HIDDEN, LS_LOCAL_DELETED, LS_LABELS) plus a handful of in-memory
+// caches (_modelCache/
 // _capCache/_offeredCache etc.) that are rebuilt automatically on next use —
 // a full page reload after clearing localStorage is therefore sufficient to
 // reset everything, with no need to individually track/clear each in-memory
@@ -4048,6 +4117,7 @@ function cfgResetAll() {
   localStorage.removeItem(LS_PROXY);
   localStorage.removeItem(LS_DISCOVERED);
   localStorage.removeItem(LS_HIDDEN);
+  localStorage.removeItem(LS_LOCAL_DELETED);
   localStorage.removeItem(LS_LABELS);
   window.location.reload();
 }

@@ -136,7 +136,111 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Buffer the raw request body ONCE, up front, so it can be replayed
+	// (see r.Body reset below) if the retry loop needs to redo the
+	// whole request - ParseRequest() below fully drains r.Body via
+	// io.ReadAll into info.Body, and an http.Request's Body can't be
+	// rewound on its own once read.
+	var savedBody []byte
+	if r.Body != nil {
+		savedBody, _ = io.ReadAll(r.Body)
+		r.Body.Close()
+	}
+
+	// Bounded retry loop for a genuine MySQL deadlock/lock-wait-timeout
+	// (see isRetryableDBErr()) discovered while acquiring a FOR_WRITE row
+	// lock (see entity.go's FOR_WRITE "FOR UPDATE" fetches) - now that
+	// those locks are real (as of this change), transient conflicts
+	// between two concurrent Txs are expected occasionally and should be
+	// retried transparently on a fresh Tx rather than surfaced as a
+	// client-visible 500. Only retried when NOTHING has been written to
+	// the response yet (info.SentStatus == false) - GET/PUT/POST/PATCH
+	// responses are streamed incrementally (see jsonWriter.go), so once
+	// real bytes reach the client a clean retry is no longer possible.
+	const maxAttempts = 5
+	const retryBackoff = 40 * time.Millisecond
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		r.Body = io.NopCloser(bytes.NewReader(savedBody))
+
+		retry := s.serveOneAttempt(w, r, &info, &tx, attempt,
+			attempt == maxAttempts)
+		if !retry {
+			return
+		}
+
+		time.Sleep(retryBackoff)
+	}
+}
+
+// serveOneAttempt runs one full "new Tx -> parse -> dispatch by method ->
+// commit/rollback" pass for a single attempt of ServeHTTP's retry loop.
+// info/txPtr are pointers into ServeHTTP's own locals so its outer defers
+// (HTTPWriter.Done()/tx.Rollback()/the generic panic recover()) keep
+// working exactly as before, whichever attempt ends up being the last one.
+// Returns true only when this attempt hit a retryable DB conflict (see
+// isRetryableDBErr()) before any response bytes were sent AND lastAttempt
+// is false - in every other case (success, non-retryable error/panic, or a
+// retryable conflict on the final allowed attempt) it fully handles the
+// response itself (or re-panics, for a genuine bug, so the outer recover()
+// still produces today's generic 500) and returns false.
+func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
+	infoPtr **RequestInfo, txPtr **Tx,
+	attempt int, lastAttempt bool) (retry bool) {
+
+	defer func() {
+		uuid := "n/a"
+		if *txPtr != nil && (*txPtr).uuid != "" {
+			uuid = (*txPtr).uuid
+		}
+		log.VPrintf(3, "tx: %s Done with serveOneAttempt", uuid)
+		rec := recover()
+		if rec == nil {
+			return
+		}
+
+		info := *infoPtr
+		if isRetryableDBErr(rec) && (info == nil || !info.SentStatus) {
+			if *txPtr != nil && (*txPtr).uuid != "" {
+				uuid = (*txPtr).uuid
+			}
+			if *txPtr != nil {
+				(*txPtr).Rollback()
+			}
+
+			if !lastAttempt {
+				if log.GetVerbose() < 3 {
+					log.VPrintf(1, "Retrying %s %s after DB lock conflict "+
+						"(attempt %d)", r.Method, r.URL, attempt)
+				} else {
+					log.VPrintf(3, "tx: %s Retrying %s %s after DB lock "+
+						"conflict (attempt %d)", uuid, r.Method, r.URL,
+						attempt)
+				}
+
+				retry = true
+				return
+			}
+
+			// Out of attempts - tell the client plainly instead of a
+			// generic 500, rather than letting this re-panic.
+			if info == nil {
+				info = NewRequestInfo(w, r)
+				*infoPtr = info
+			}
+			xErr := NewXRError("server_busy", "/"+info.OriginalPath)
+			HTTPWriteError(info, xErr)
+			return
+		}
+
+		// Not retryable (or a response was already sent) - preserve
+		// today's exact behavior by letting ServeHTTP's outer recover()
+		// handle it.
+		panic(rec)
+	}()
+
 	tx, xErr := NewTx()
+	*txPtr = tx
 	if xErr != nil {
 		log.Printf("Error talking to the DB creating new Tx: %s",
 			xErr.GetTitle())
@@ -146,21 +250,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if xErr != nil {
 		// Special one off - info isn't defined yet
+		info := *infoPtr
 		if info == nil {
 			info = NewRequestInfo(w, r)
+			*infoPtr = info
 		}
 
 		HTTPWriteError(info, xErr)
 
-		return
+		return false
 	}
 
-	info, xErr = ParseRequest(tx, w, r)
+	info, xErr := ParseRequest(tx, w, r)
+	*infoPtr = info
 	// tx.RequestInfo = info
+	log.VPrintf(3, "tx: %s Request: %s %s", tx.uuid,
+		info.OriginalRequest.Method, info.OriginalPath)
 
 	if xErr != nil {
 		HTTPWriteError(info, xErr)
-		return
+		return false
 	}
 
 	if r.URL.Query().Has("ui") { // Wrap in html page
@@ -212,6 +321,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if xErr != nil {
 		HTTPWriteError(info, xErr)
 	}
+
+	return false
 }
 
 type HTTPWriter interface {
@@ -623,7 +734,7 @@ FROM Props WHERE RegSID=? AND `
 		if resource == nil {
 			return NewXRError("not_found", info.GetParts(4))
 		}
-		meta := resource.MustFindMeta(false, FOR_READ)
+		meta := resource.MustFindMeta(false)
 
 		vID := meta.GetAsString("defaultversionid")
 		for {
@@ -1180,9 +1291,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	if numParts == 1 {
 		// POST /GROUPs + body:map[id]Group
 
-		objMap, xErr := IncomingObj2Map(IncomingObj, "Group")
+		objMap, xErr := IncomingObj2Map(IncomingObj, info.GetParts(0),
+			"\""+info.GroupModel.Singular+"\"")
 		if xErr != nil {
-			return xErr.SetSubject(info.GetParts(0))
+			return xErr
 		}
 
 		addType := ADD_UPSERT
@@ -1236,8 +1348,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
+
+		// We'll lock it later if needed
 		group, xErr = info.Registry.FindGroup(info.GroupType, groupUID, false,
-			FOR_WRITE)
+			FOR_READ)
 		if xErr != nil {
 			return xErr
 		}
@@ -1277,10 +1391,18 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	// Must be PUT/POST /GROUPs/gID/...
 
-	// This will either find or create an empty Group as needed
-	group, _, xErr = info.Registry.UpsertGroup(info.GroupType, groupUID)
+	group, xErr = info.Registry.FindGroup(info.GroupType, groupUID, false,
+		FOR_READ)
 	if xErr != nil {
 		return xErr
+	}
+
+	// If not found, create it
+	if group == nil {
+		group, _, xErr = info.Registry.UpsertGroup(info.GroupType, groupUID)
+		if xErr != nil {
+			return xErr
+		}
 	}
 
 	// URL: /GROUPs/gID/RESOURCEs...
@@ -1314,9 +1436,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				"flag=setdefaultversionid")
 		}
 
-		objMap, xErr := IncomingObj2Map(IncomingObj, "Resource")
+		objMap, xErr := IncomingObj2Map(IncomingObj,
+			info.GetParts(0), "\""+info.ResourceModel.Singular+"\"")
 		if xErr != nil {
-			return xErr.SetSubject(info.GetParts(0))
+			return xErr
 		}
 
 		// For each Resource in the map, upsert it and add it's path to result
@@ -1352,9 +1475,11 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	if numParts > 3 {
 		// GROUPs/gID/RESOURCEs/rID...
-
+		// Any write action on a Resource or version needs to lock the entire
+		// tree due to the interdependencies of everything, esp. with the
+		// compatibility and constraints stuff. So lock this "Find" result.
 		resource, xErr = group.FindResource(info.ResourceType, resourceUID,
-			false, FOR_READ)
+			false, FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
@@ -1531,7 +1656,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// PATCH GROUPs/gID/RESOURCEs/rID/versions, body=map[id]->Version
 
 		// Convert IncomingObj to a map of Objects
-		objMap, xErr := IncomingObj2Map(IncomingObj, "Version")
+		objMap, xErr := IncomingObj2Map(IncomingObj, "/"+info.OriginalPath,
+			"version")
 		if xErr != nil {
 			return xErr
 		}
@@ -1587,7 +1713,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 					"/"))
 			}
 		} else {
-			meta := resource.MustFindMeta(false, FOR_WRITE)
+			meta := resource.MustFindMeta(false)
 
 			if meta.Get("readonly") == true {
 				if resource.tx.RequestInfo.HasIgnore("readonly") {
@@ -1652,7 +1778,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			isNew = true
 		}
 
-		version, xErr = resource.FindVersion(versionUID, false, FOR_WRITE)
+		version, xErr = resource.FindVersion(versionUID, false)
 		if xErr != nil {
 			return xErr
 		}
@@ -1696,7 +1822,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// Now that validation has run (deferred via
 		// Tx.AddResourceToValidate()), meta's "defaultversionid" is
 		// guaranteed to be resolved - safe to read it now.
-		meta := resource.MustFindMeta(false, FOR_READ)
+		meta := resource.MustFindMeta(false)
 		locationVersionUID = meta.GetAsString("defaultversionid")
 	}
 
@@ -1806,6 +1932,15 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 		body = []byte("{}")
 	}
 
+	// A Model change can impact/invalidate assumptions across the
+	// entire Registry tree, so lock the whole Registry row FOR_WRITE
+	// before applying the new model - same physical lock
+	// Registry.Update() takes for "/" PUT/PATCH, just triggered here
+	// via the /modelsource entry point instead.
+	// DUG - do we need to lock everything in Entities too?
+	// I wonder if a PUT to a version would be let thru and missed??
+	info.Registry.Lock()
+
 	xErr := info.Registry.Model.ApplyNewModelFromJSON(body, true)
 	if xErr != nil {
 		return xErr
@@ -1912,7 +2047,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		return NewXRError("not_found", info.GetParts(4))
 	}
 
-	meta := resource.MustFindMeta(false, FOR_WRITE)
+	meta := resource.MustFindMeta(false)
 
 	if len(info.Parts) == 4 {
 		// DELETE /GROUPs/gID/RESOURCEs/rID
@@ -1954,7 +2089,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
-	version, xErr := resource.FindVersion(info.VersionUID, false, FOR_WRITE)
+	version, xErr := resource.FindVersion(info.VersionUID, false)
 	if xErr != nil {
 		return xErr
 	}
@@ -2116,7 +2251,7 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 			continue
 		}
 
-		meta := resource.MustFindMeta(false, FOR_WRITE)
+		meta := resource.MustFindMeta(false)
 
 		singular := resource.Singular + "id"
 
@@ -2212,7 +2347,7 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	// However, we can save the Versions for the next loop.
 	vers := []*Version{}
 	for id, entry := range list {
-		version, xErr := resource.FindVersion(id, false, FOR_WRITE)
+		version, xErr := resource.FindVersion(id, false)
 		if xErr != nil {
 			return xErr
 		}
@@ -2257,7 +2392,7 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	}
 
 	if nextDefault != "" {
-		version, xErr := resource.FindVersion(nextDefault, false, FOR_READ)
+		version, xErr := resource.FindVersion(nextDefault, false)
 		if xErr != nil {
 			return xErr
 		}

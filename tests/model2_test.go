@@ -2171,10 +2171,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
 	r1, err := d1.AddResource("files", "f1", "v1")
 	XNoErr(t, err)
 
-	v1, err := r1.FindVersion("v1", false, registry.FOR_WRITE)
+	v1, err := r1.FindVersion("v1", false)
 	XNoErr(t, err)
 
-	meta, err := r1.FindMeta(false, registry.FOR_WRITE)
+	meta, err := r1.FindMeta(false)
 	XNoErr(t, err)
 
 	// AddResource() above defers r1's Resource-level validation (see

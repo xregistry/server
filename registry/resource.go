@@ -144,7 +144,7 @@ var _ EntitySetter = &Meta{}
 func (r *Resource) Get(name string) any {
 	log.VPrintf(4, "Get: r(%s).Get(%s)", r.UID, name)
 
-	meta := r.MustFindMeta(false, FOR_READ)
+	meta := r.MustFindMeta(false)
 
 	xrefStr, xref, xErr := r.GetXref()
 	Must(xErr)
@@ -162,7 +162,7 @@ func (r *Resource) Get(name string) any {
 		return meta.Get(name)
 	}
 
-	v, xErr := r.GetDefault(FOR_READ)
+	v, xErr := r.GetDefault()
 	if xErr != nil {
 		panic(xErr)
 	}
@@ -172,7 +172,7 @@ func (r *Resource) Get(name string) any {
 }
 
 func (r *Resource) GetXref() (string, *Resource, *XRError) {
-	meta := r.MustFindMeta(false, FOR_READ)
+	meta := r.MustFindMeta(false)
 
 	tmp := meta.Get("xref")
 	if IsNil(tmp) {
@@ -220,7 +220,7 @@ func (r *Resource) GetXref() (string, *Resource, *XRError) {
 }
 
 func (r *Resource) IsXref() bool {
-	tmp := r.MustFindMeta(false, FOR_READ).Get("xref")
+	tmp := r.MustFindMeta(false).Get("xref")
 	return !IsNil(tmp) && tmp != ""
 }
 
@@ -231,7 +231,7 @@ func (m *Meta) JustSet(name string, val any) *XRError {
 
 func (r *Resource) JustSetMeta(name string, val any) *XRError {
 	log.VPrintf(4, "JustSetMeta: r(%s).Set(%s,%v)", r.UID, name, val)
-	meta := r.MustFindMeta(false, FOR_WRITE)
+	meta := r.MustFindMeta(false)
 	return meta.Entity.eJustSetPath(name, val)
 }
 
@@ -247,7 +247,7 @@ func (r *Resource) JustSetDefault(name string, val any) *XRError {
 			"name=defaultversionid")
 	}
 
-	v, xErr := r.GetDefault(FOR_WRITE)
+	v, xErr := r.GetDefault()
 	PanicIf(xErr != nil, "%s", xErr)
 	return v.JustSet(name, val)
 }
@@ -260,7 +260,7 @@ func (m *Meta) SetSave(name string, val any) *XRError {
 func (r *Resource) SetSaveMeta(name string, val any) *XRError {
 	log.VPrintf(4, "SetSaveMeta: r(%s).Set(%s,%v)", r.UID, name, val)
 
-	meta := r.MustFindMeta(false, FOR_WRITE)
+	meta := r.MustFindMeta(false)
 	return meta.Entity.eSetSave(name, val)
 }
 
@@ -280,33 +280,46 @@ func (r *Resource) SetSave(name string, val any) *XRError {
 func (r *Resource) SetSaveDefault(name string, val any) *XRError {
 	log.VPrintf(4, "SetSaveDefault: r(%s).Set(%s,%v)", r.UID, name, val)
 
-	v, xErr := r.GetDefault(FOR_WRITE)
+	v, xErr := r.GetDefault()
 	PanicIf(xErr != nil, "%s", xErr)
 
 	return v.SetSave(name, val)
 }
 
 func (r *Resource) Touch() bool {
-	return r.MustFindMeta(false, FOR_WRITE).Touch()
+	return r.MustFindMeta(false).Touch()
 }
 
-func (r *Resource) MustFindMeta(anyCase bool, accessMode int) *Meta {
-	meta, xErr := r.FindMeta(anyCase, accessMode)
+func (r *Resource) MustFindMeta(anyCase bool) *Meta {
+	meta, xErr := r.FindMeta(anyCase)
 	if xErr != nil {
 		panic(xErr)
 	}
 	if IsNil(meta) {
-		panic("Meta is missing:" + r.UID)
+		panic(fmt.Sprintf("tx: %s Meta is missing: %s (rXID=%s)",
+			r.tx.uuid, r.UID, r.XID))
 	}
 	return meta
 }
 
-func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
+func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 	log.VPrintf(3, ">Enter: FindMeta(%v)", anyCase)
 	defer log.VPrintf(3, "<Exit: FindMeta")
 
+	// Resource/Meta/Version are locked together as one family (see
+	// lockEntityFamily()) - Meta's effective access mode is always
+	// derived from its parent Resource's lock state, never chosen
+	// independently by the caller. If you need a FOR_WRITE Meta, call
+	// r.Lock() first (which locks the whole family), then call
+	// FindMeta()/MustFindMeta() - there's no separate "accessMode" to
+	// think about. This removes the caller-mistake class of bug fixed
+	// in newestVersionID()/HTTPDeleteVersions() (passing FOR_READ by
+	// mistake, or simply not realizing the family is already locked,
+	// and silently getting a stale RR snapshot for a row that's
+	// conceptually already locked in this Tx).
+
 	if m := r.tx.GetMeta(r); m != nil {
-		if accessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
+		if r.AccessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
 			m.Lock()
 		}
 		return m, nil
@@ -314,7 +327,7 @@ func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
 
 	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
 		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/meta",
-		anyCase, accessMode)
+		anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/meta").
 			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s.",
@@ -332,7 +345,7 @@ func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
 }
 
 // Maybe replace error with a panic? same for other finds??
-func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Version, *XRError) {
+func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 	log.VPrintf(3, ">Enter: FindVersion(%s,%v)", id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindVersion")
 
@@ -340,8 +353,13 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 		return nil, nil
 	}
 
+	// Same reasoning as FindMeta() above - Resource/Meta/Version are
+	// locked together as one family, so a Version's effective access
+	// mode always mirrors its parent Resource's - no separate
+	// accessMode arg for callers to get wrong.
+
 	if v := r.tx.GetVersion(r, id); v != nil {
-		if accessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
+		if r.AccessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
 			v.Lock()
 		}
 		return v, nil
@@ -349,7 +367,7 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 
 	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
 		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+id,
-		anyCase, accessMode)
+		anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
 			SetDetail(fmt.Sprintf("Error finding Version %s: %s.",
@@ -367,8 +385,8 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 }
 
 // Maybe replace error with a panic?
-func (r *Resource) GetDefault(accessMode int) (*Version, *XRError) {
-	meta, xErr := r.FindMeta(false, accessMode)
+func (r *Resource) GetDefault() (*Version, *XRError) {
+	meta, xErr := r.FindMeta(false)
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 	if meta == nil {
 		// Resource (and its Meta) no longer exists - e.g. it was
@@ -378,7 +396,7 @@ func (r *Resource) GetDefault(accessMode int) (*Version, *XRError) {
 	}
 
 	val := meta.GetAsString("defaultversionid")
-	return r.FindVersion(val, false, accessMode)
+	return r.FindVersion(val, false)
 }
 
 func (r *Resource) GetVersionMode() VersionMode {
@@ -398,12 +416,12 @@ func (r *Resource) GetNewest() (*Version, *XRError) {
 	if xErr != nil {
 		return nil, xErr
 	}
-	return r.FindVersion(vid, false, FOR_READ)
+	return r.FindVersion(vid, false)
 }
 
 func (r *Resource) EnsureLatest() *XRError {
 	log.Trace("EnsureLatest", r.XID)()
-	meta := r.MustFindMeta(false, FOR_WRITE)
+	meta := r.MustFindMeta(false)
 
 	currentDefault := meta.GetAsString("defaultversionid")
 
@@ -428,7 +446,6 @@ func (r *Resource) EnsureLatest() *XRError {
 
 		// Only update if it changed
 		if currentDefault != newDefault {
-			// log.Printf("  Setting def to: %q", newDefault)
 			return meta.SetSave("defaultversionid", newDefault)
 		}
 	}
@@ -446,7 +463,7 @@ func (r *Resource) SetDefaultID(vID string) *XRError {
 	var xErr *XRError
 
 	if vID != "" {
-		v, xErr = r.FindVersion(vID, false, FOR_WRITE)
+		v, xErr = r.FindVersion(vID, false)
 		if xErr != nil {
 			return xErr
 		}
@@ -468,7 +485,7 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 			"name=defaultversionid")
 	}
 
-	meta := r.MustFindMeta(false, FOR_WRITE)
+	meta := r.MustFindMeta(false)
 
 	newDefaultID := ""
 	if newDefault != nil {
@@ -531,7 +548,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	meta := r.MustFindMeta(false, FOR_WRITE)
+	meta := r.MustFindMeta(false)
 
 	if meta.Get("readonly") == true {
 		if r.tx.RequestInfo.HasIgnore("readonly") {
@@ -947,7 +964,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		return nil, false, xErr
 	}
 
-	meta := r.MustFindMeta(false, FOR_WRITE)
+	meta := r.MustFindMeta(false)
 
 	if meta.Get("readonly") == true {
 		if r.tx.RequestInfo.HasIgnore("readonly") {
@@ -997,7 +1014,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		nextID := NotNilInt(&tmp)
 		for {
 			vu.Id = strconv.Itoa(nextID)
-			v, xErr := r.FindVersion(vu.Id, false, FOR_WRITE)
+			v, xErr := r.FindVersion(vu.Id, false)
 			if xErr != nil {
 				return nil, false, xErr
 			}
@@ -1011,7 +1028,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			}
 		}
 	} else {
-		v, xErr = r.FindVersion(vu.Id, true, FOR_WRITE)
+		v, xErr = r.FindVersion(vu.Id, true)
 
 		if vu.AddType == ADD_ADD && v != nil {
 			return nil, false,
@@ -1267,14 +1284,28 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 // stored document bytes, which can never be legal once hasdocument=false -
 // that's the only thing left to check for.
 func (r *Resource) checkHasDocumentViolation() *XRError {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID(). Called from ValidateResource()
+	// on the write path.
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+	// The nested EXISTS subquery below reads ResourceContents, a
+	// different table than the outer query's Versions - MySQL does NOT
+	// propagate the outer query's FOR UPDATE into a correlated
+	// subquery's own table reads (confirmed empirically elsewhere in
+	// this investigation, e.g. the VersionAncestors view bug), so
+	// lockExpr must be applied to the subquery explicitly too.
 	query := `
 		SELECT v.Path FROM Versions v
 		WHERE v.ResourceSID = ?
 		AND EXISTS (
 			SELECT 1 FROM ResourceContents rc
-			WHERE rc.VersionSID = v.SID
+			WHERE rc.VersionSID = v.SID` + lockExpr + `
 		)
-		LIMIT 1`
+		LIMIT 1` + lockExpr
 
 	results := Query(r.tx, query, r.DbSID)
 	defer results.Close()
@@ -1333,7 +1364,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// the constraints are still valid
 	r.tx.AddGroupToValidate(r.Group)
 
-	meta := r.MustFindMeta(false, FOR_WRITE)
+	meta := r.MustFindMeta(false)
 
 	// If xref is set then we don't need to check anything, but this
 	// Resource (as an xref source) may still need its default-version-
@@ -1436,7 +1467,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 // here: ValidateResource() (runCascade()'s only caller) already calls
 // r.MustFindMeta() before ever reaching this point.
 func (r *Resource) runCascade() {
-	meta := r.MustFindMeta(false, FOR_READ)
+	meta := r.MustFindMeta(false)
 
 	// (Re)build r's own IsXrefPropCopy/IsXrefVerCopy rows first, in
 	// case r's own Meta.xref was just set/changed/cleared -
@@ -1508,7 +1539,7 @@ func (r *Resource) runCascade() {
 	defaultVerCascadeNeeded := oldXref != newXref ||
 		meta.GetOriginAsString("defaultversionid") != meta.GetAsString("defaultversionid")
 	if !defaultVerCascadeNeeded {
-		finalDefVer, _ := r.GetDefault(FOR_READ)
+		finalDefVer, _ := r.GetDefault()
 		// finalDefVer can be nil for an xref source with no real
 		// Versions of its own (its "default version" is really the
 		// xref target's synthetic copy) - nothing of r's OWN to have
@@ -1561,10 +1592,17 @@ type VersionAncestor struct {
 }
 
 func (r *Resource) GetVersionIDs() ([]string, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID().
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
 	// Find all version IDs for this Resource
 	results := Query(r.tx, `
             SELECT UID FROM Versions
-			WHERE RegistrySID=? AND ResourceSID=?`,
+			WHERE RegistrySID=? AND ResourceSID=?`+lockExpr,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
@@ -1582,9 +1620,17 @@ func (r *Resource) GetVersionIDs() ([]string, *XRError) {
 
 func (r *Resource) GetRootVersionIDs() ([]string, *XRError) {
 	// Find all versions whose AncestorID = its vID
+
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// GetOrderedVersionIDs().
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
 	results := Query(r.tx, `
             SELECT UID FROM Versions
-			WHERE RegistrySID=? AND ResourceSID=? AND UID=AncestorID`,
+			WHERE RegistrySID=? AND ResourceSID=? AND UID=AncestorID`+lockExpr,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
@@ -1605,6 +1651,15 @@ func (r *Resource) GetRootVersionIDs() ([]string, *XRError) {
 // Note that the results is ordered so that we can process the ones with
 // a missing AncestorID in oldest->newest order
 func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID(). This is called from
+	// CheckAncestors() on the write path, and its correlated subquery
+	// needs its own lock hint too (see HasCircularAncestors()).
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
 	// Find all versions that point to non-existing versions
 	results := Query(r.tx, `
             SELECT v1.UID, v1.AncestorID, v1.CreatedAt FROM Versions AS v1
@@ -1615,8 +1670,8 @@ func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, *XRError) {
 			          NOT EXISTS(SELECT 1 FROM Versions AS v2
 				                WHERE v2.RegistrySID=v1.RegistrySID AND
 							          v2.ResourceSID=v1.ResourceSID AND
-							          v2.UID=v1.AncestorID)))
-			ORDER BY CreatedAt ASC, UID ASC`,
+							          v2.UID=v1.AncestorID`+lockExpr+`)))
+			ORDER BY CreatedAt ASC, UID ASC`+lockExpr,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
@@ -1638,11 +1693,19 @@ func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, *XRError) {
 }
 
 func (r *Resource) GetChildVersionIDs(parentVID string) ([]string, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID(). Called from WillDelete() on
+	// the write path.
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
 	// Find all versions that point 'parentVID'.
 	// Note that roots will include themselves - not sure if this is ok or not
 	results := Query(r.tx, `
 			SELECT UID FROM Versions
-			WHERE RegistrySID=? AND ResourceSID=? AND AncestorID=?`,
+			WHERE RegistrySID=? AND ResourceSID=? AND AncestorID=?`+lockExpr,
 		r.Registry.DbSID, r.DbSID, parentVID)
 	defer results.Close()
 
@@ -1659,10 +1722,18 @@ func (r *Resource) GetChildVersionIDs(parentVID string) ([]string, *XRError) {
 }
 
 func (r *Resource) GetNumberOfVersions() (int, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID(). Called from write paths
+	// (e.g. Version.Delete(), UpsertVersion()).
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
 	// Get the list of Version IDs for this Resource (oldest first)
 	results := Query(r.tx, `
 	        SELECT COUNT(*) FROM Versions
-			WHERE RegistrySID=? AND ResourceSID=?`,
+			WHERE RegistrySID=? AND ResourceSID=?`+lockExpr,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
@@ -1671,21 +1742,77 @@ func (r *Resource) GetNumberOfVersions() (int, *XRError) {
 }
 
 func (r *Resource) HasCircularAncestors() ([]string, *XRError) {
-	// v.RegistrySID,v.ResourceSID,v.UID
 	// Get the list of Version IDs that are part of circular ancestor refs
+
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as ManualVersionMode.newestVersionID()
+	// / GetOrderedVersionIDs(): otherwise this query runs against this
+	// tx's original REPEATABLE-READ snapshot and can miss Version rows
+	// committed by other Txs after that snapshot was established,
+	// producing false "circular reference" errors.
+
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
 	results := Query(r.tx, `
-			SELECT UID FROM VersionCircles
-			WHERE RegistrySID=? AND ResourceSID=?`,
-		r.Registry.DbSID, r.DbSID)
+		SELECT UID, AncestorID FROM Versions
+		WHERE ResourceSID=?`+lockExpr,
+		r.DbSID)
 	defer results.Close()
 
-	vIDs := ([]string)(nil)
+	ancestorOf := map[string]string{}
 	for {
 		row := results.NextRow()
 		if row == nil {
 			break
 		}
-		vIDs = append(vIDs, NotNilString(row[0]))
+		ancestorOf[NotNilString(row[0])] = NotNilString(row[1])
+	}
+
+	// A Version is "OK" (not circular) if, by walking its AncestorID
+	// chain, we reach a self-referencing root (AncestorID==UID) without
+	// re-visiting a Version we've already seen on this same walk. Any
+	// Version whose chain loops back on itself before reaching such a
+	// root is part of a cycle.
+	vIDs := ([]string)(nil)
+	for uid := range ancestorOf {
+		seen := map[string]bool{}
+		cur := uid
+		circular := false
+		for {
+			if cur == uid && seen[cur] {
+				// Walked all the way back to our own starting Version -
+				// uid itself is part of the cycle.
+				circular = true
+				break
+			}
+			if seen[cur] {
+				// Looped back to some OTHER already-visited Version -
+				// that means uid merely points (directly or
+				// transitively) INTO a cycle that doesn't include uid
+				// itself (e.g. 3->2->1->2->...): uid is not itself
+				// circular, just unreachable/problematic, which is a
+				// separate concern (not reported here).
+				break
+			}
+			seen[cur] = true
+			anc, ok := ancestorOf[cur]
+			if !ok {
+				// Points at a Version that doesn't exist - not our
+				// concern here, GetProblematicVersions() handles that
+				// case. Treat as non-circular so we don't double-report.
+				break
+			}
+			if anc == cur {
+				// Self-referencing root - end of chain, not circular
+				break
+			}
+			cur = anc
+		}
+		if circular {
+			vIDs = append(vIDs, uid)
+		}
 	}
 
 	return vIDs, nil
@@ -1747,7 +1874,7 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 	for count > rm.GetMaxVersions() {
 		// Skip the "default" Version
 		if verIDs[0].VID != defaultID {
-			v, xErr := r.FindVersion(verIDs[0].VID, false, FOR_WRITE)
+			v, xErr := r.FindVersion(verIDs[0].VID, false)
 			if xErr != nil {
 				return xErr
 			}
@@ -1762,7 +1889,7 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 		verIDs = verIDs[1:]
 	}
 
-	meta := r.MustFindMeta(false, FOR_READ)
+	meta := r.MustFindMeta(false)
 	if rm.GetMaxVersions() == 1 && meta.Get("defaultversionsticky") == true {
 		return NewXRError("setdefaultversionsticky_false", meta.XID)
 	}
@@ -1774,7 +1901,7 @@ func (r *Resource) Delete() *XRError {
 	log.VPrintf(3, ">Enter: Resource.Delete(%s)", r.UID)
 	defer log.VPrintf(3, "<Exit: Resource.Delete")
 
-	meta := r.MustFindMeta(false, FOR_WRITE)
+	meta := r.MustFindMeta(false)
 
 	if meta.Get("readonly") == true {
 		return NewXRError("readonly", r.XID)
@@ -1940,7 +2067,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	log.VPrintf(3, ">Enter: EnsureCompat(%s)", r.UID)
 	defer log.VPrintf(3, "<Exit: EnsureCompat")
 
-	meta := r.MustFindMeta(false, FOR_READ)
+	meta := r.MustFindMeta(false)
 
 	validateFormat := r.ResourceModel.GetValidateFormat()
 	validateCompat := r.ResourceModel.GetValidateCompatibility()
@@ -1994,9 +2121,9 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			// Already checked
 			return nil
 		}
-		oldV, xErr := r.FindVersion(oldVID, false, FOR_READ)
+		oldV, xErr := r.FindVersion(oldVID, false)
 		PanicIf(!IsNil(xErr) || IsNil(oldV), "%s: %s", oldVID, ToJSON(xErr))
-		newV, xErr := r.FindVersion(newVID, false, FOR_READ)
+		newV, xErr := r.FindVersion(newVID, false)
 		PanicIf(!IsNil(xErr) || IsNil(newV), "%s: %s", newVID, ToJSON(xErr))
 
 		// I'm always compatible with myself. Just in case caller doesn't check
@@ -2042,7 +2169,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 	// Loop over all of the Resource's Versions
 	for _, va := range orderedVAs {
-		ver, xErr := r.FindVersion(va.VID, false, FOR_READ)
+		ver, xErr := r.FindVersion(va.VID, false)
 		if xErr != nil {
 			return xErr
 		}
@@ -2180,7 +2307,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	compatFound := false
 	for _, verID := range changedVersions {
 		// Already checked newFormat & checker in previous loop
-		ver, xErr := r.FindVersion(verID, false, FOR_READ)
+		ver, xErr := r.FindVersion(verID, false)
 		PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
 
 		newFormat := ver.GetAsString("format")
@@ -2307,6 +2434,15 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 
 	mvs := r.ResourceModel.GetMatchVersionAttributes()
 
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// GetOrderedVersionIDs(): otherwise this can miss sibling Version
+	// rows committed by other Txs after this tx's snapshot was taken.
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
 	for _, mv := range mvs {
 		binary := ""
 		if mv.MatchCase {
@@ -2317,7 +2453,7 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
             SELECT count(*),p.PropName,p.PropValue FROM Entities e
             LEFT JOIN Props AS p ON ( p.eSID=e.eSID AND p.PropName=?)
             WHERE e.RegSID = ?  AND e.ParentSID = ?  AND e.Type = ?
-            GROUP BY %s PropValue`, binary)
+            GROUP BY %s PropValue`+lockExpr, binary)
 
 		results := Query(r.tx, query, mv.Path.DB(),
 			r.Registry.DbSID, r.DbSID, ENTITY_VERSION)
@@ -2381,7 +2517,7 @@ func (r *Resource) SaveDefaultVersionCascade() {
 	// same Tx after being marked for a cascade run (e.g. all of its
 	// Versions were deleted, which per business rules deletes the
 	// Resource itself). If so there's nothing left to cascade.
-	meta, xErr := r.FindMeta(false, FOR_READ)
+	meta, xErr := r.FindMeta(false)
 	Must(xErr)
 	if meta == nil {
 		return
@@ -2394,11 +2530,11 @@ func (r *Resource) SaveDefaultVersionCascade() {
 	// in resource.ValidateResource() should fix it. And hopefully, this
 	// func will be called again to fix-up the default version props for
 	// the resource.
-	ver, xErr := r.GetDefault(FOR_READ)
+	ver, xErr := r.GetDefault()
 	Must(xErr)
 	if !r.IsXref() && ver == nil {
 		Must(r.EnsureLatest())
-		ver, xErr = r.GetDefault(FOR_READ)
+		ver, xErr = r.GetDefault()
 		Must(xErr)
 	}
 
@@ -2409,6 +2545,15 @@ func (r *Resource) SaveDefaultVersionCascade() {
 		// default, copied in as a synthetic Version by
 		// SaveXrefVersionCopies(). Copy from THAT synthetic
 		// Props eSID instead of Props.
+		//
+		// This is a source reading its xref TARGET's row (same
+		// direction as SaveXrefCascadeInsert()'s tResults query), so it
+		// needs its own FOR UPDATE too: a plain SELECT here would still
+		// be pinned to this Tx's original RR snapshot, and could miss
+		// the target entirely (or see a stale defaultVID) even if the
+		// target Resource/Meta/Version was created AND committed by a
+		// concurrent Tx after this Tx began - silently leaving this
+		// source's mirrored default-version Props missing/stale.
 		tResults := Query(r.tx, `
             SELECT v.SID FROM Metas AS srcM
             JOIN Resources AS tr ON (tr.RegistrySID=srcM.RegistrySID AND
@@ -2416,7 +2561,8 @@ func (r *Resource) SaveDefaultVersionCascade() {
             JOIN Metas AS m ON (m.ResourceSID=tr.SID)
             JOIN Versions AS v ON (v.ResourceSID=m.ResourceSID AND
                                     v.UID=m.defaultVID)
-            WHERE srcM.ResourceSID=?`, resourceSID)
+            WHERE srcM.ResourceSID=? FOR UPDATE`,
+			resourceSID)
 		tRow := tResults.NextRow()
 		tResults.Close()
 		if tRow == nil {
@@ -2499,6 +2645,19 @@ func (r *Resource) SaveDefaultVersionCascade() {
 // The synthetic eSID for each target Version is deterministically
 // CONCAT('-', sourceResourceSID, '-', v.SID), matching the
 // "-<srcRSID>-<verSID>" convention.
+//
+// Every INSERT...SELECT below that reads the target's Versions/Props
+// uses FOR UPDATE: this is srcResource (a source) reading its xref
+// TARGET's rows, the mirror image of SaveXrefFanOutForTarget's
+// target-reads-sources direction (which already locks each source
+// FOR_WRITE). Without FOR UPDATE here, a plain SELECT would still be
+// pinned to this Tx's RR snapshot and could copy stale target Version/
+// Prop data into the source's mirror even after a concurrent Tx
+// already committed a newer Version, which would then feed this
+// source's own Group constraint validation with stale mirrored data.
+// (The DELETE...JOIN statements above don't need this: DELETE/UPDATE
+// searches always read latest-committed data in InnoDB, unlike plain
+// SELECTs - only these INSERT...SELECTs need the explicit FOR UPDATE.)
 func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
 	if srcResource == nil {
 		return
@@ -2532,7 +2691,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
             Abstract, Path, IsXrefVerCopy)
         SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID, ?,
                CONCAT(?, '/versions/', v.UID), true
-        FROM Versions AS v WHERE v.ResourceSID=?`,
+        FROM Versions AS v WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, synthAbstract, srcResource.Path,
 		targetResourceSID)
@@ -2555,7 +2714,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
         WHERE v.ResourceSID=? AND ft.IsDefaultVerCopy=false
               AND ft.IsXrefPropCopy=false AND ft.IsXrefVerCopy=false
               AND ft.IsCalcStatic=false AND ft.IsCalcDynamic=false
-              AND ft.PropName<>?`,
+              AND ft.PropName<>? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, srcResource.Path, synthAbstract,
 		targetResourceSID, "xref"+string(DB_IN))
@@ -2577,7 +2736,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
                CONCAT(?, '/versions/', v.UID),
                ?, CONCAT('/', ?, '/versions/', v.UID), 'string', ?, false,
                false, false, true, true, false
-        FROM Versions AS v WHERE v.ResourceSID=?`,
+        FROM Versions AS v WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, srcResource.Path,
 		"xid"+string(DB_IN), srcResource.Path, synthAbstract, targetResourceSID)
@@ -2594,7 +2753,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
                false, false, true, true, false
         FROM Versions AS v
         JOIN Resources AS r ON (r.SID=?)
-        WHERE v.ResourceSID=?`,
+        WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, srcResource.Path,
 		"id"+string(DB_IN), synthAbstract, sourceResourceSID,
@@ -2612,7 +2771,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
                false, false, false, true, false, true
         FROM Versions AS v
         JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
-        WHERE v.ResourceSID=?`,
+        WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
 		sourceResourceSID, sourceResourceSID, srcResource.Path,
 		"isdefault"+string(DB_IN), synthAbstract, targetResourceSID)
@@ -2648,11 +2807,19 @@ func (r *Resource) SaveXrefFanOutForTarget() {
 
 	defer log.Trace("FullTree", r.XID)()
 
+	// FOR UPDATE: this is r (the target) reading the "who xrefs me" set
+	// from Metas.xRefPath - a plain SELECT here would still be pinned
+	// to this Tx's original RR snapshot, and could miss a source Meta
+	// that set its xref to r AND committed after this Tx began (e.g. a
+	// brand new source Resource created and xref'd to r by a concurrent
+	// Tx that's already committed by the time we run this). Missing it
+	// here means that source's mirrored Props never get refreshed to
+	// reflect r's just-saved change, even though r is committing last.
 	results := Query(r.tx, `
         SELECT res.Path
         FROM Metas AS m
         JOIN Resources AS res ON (res.SID=m.ResourceSID)
-        WHERE m.RegistrySID=? AND m.xRefPath=?`,
+        WHERE m.RegistrySID=? AND m.xRefPath=?  FOR UPDATE`,
 		r.Registry.DbSID, r.Path)
 	defer results.Close()
 
@@ -2663,7 +2830,7 @@ func (r *Resource) SaveXrefFanOutForTarget() {
 		if xErr != nil || sourceResource == nil {
 			continue
 		}
-		sourceMeta, xErr := sourceResource.FindMeta(false, FOR_WRITE)
+		sourceMeta, xErr := sourceResource.FindMeta(false)
 		if xErr != nil || sourceMeta == nil {
 			continue
 		}

@@ -187,7 +187,7 @@ func (fp FormatProtobuf) IsCompatible(
 	if err != nil {
 		compat := newVersion.
 			Resource.
-			MustFindMeta(false, FOR_READ).
+			MustFindMeta(false).
 			GetAsString("compatibility")
 
 		return true, "", NewXRError("bad_request", newVersion.XID,

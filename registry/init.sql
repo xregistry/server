@@ -128,7 +128,6 @@ CREATE TABLE "Groups" (
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
-    INDEX(RegistrySID, UID),
     UNIQUE INDEX (RegistrySID, ModelSID, UID)
 );
 
@@ -152,8 +151,6 @@ CREATE TABLE Resources (
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
-    INDEX(GroupSID, UID),
-    INDEX(Path),
     INDEX(RegistrySID),
     INDEX(RegistrySID, Path),
     UNIQUE INDEX (GroupSID, ModelSID, UID)
@@ -297,6 +294,7 @@ CREATE TABLE Props (
   eSID       VARCHAR(64) NOT NULL,      # Reg,Group,Res,Ver System ID
   UID        VARCHAR(255) NOT NULL,      # User Defined
   Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  LowerPath  VARCHAR(329) GENERATED ALWAYS AS (LOWER(Path)) STORED,
   PropName   VARCHAR($MAX_PROPNAME) NOT NULL,
   PropValue  MEDIUMTEXT NULL, # VARCHAR($MAX_VARCHAR),
   PropType   CHAR(64) NOT NULL,          # string, boolean, int, ...
@@ -367,6 +365,7 @@ CREATE TABLE Entities (
   UID        VARCHAR(255) NOT NULL,
   Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
   Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  LowerPath  VARCHAR(329) GENERATED ALWAYS AS (LOWER(Path)) STORED,
 
   # True for the synthetic Version rows added because a Resource
   # xref's another Resource (mirrors the "-" eSID prefix convention
@@ -383,7 +382,8 @@ CREATE TABLE Entities (
   PRIMARY KEY(eSID),
   INDEX(RegSID),
   INDEX(ParentSID),
-  UNIQUE INDEX (RegSID, Path)
+  UNIQUE INDEX (RegSID, Path),
+  UNIQUE INDEX (RegSID, LowerPath)
 );
 
 # These maintain Versions.AncestorID/CreatedAt and Metas.xRefPath/
@@ -464,29 +464,6 @@ WHERE eSID NOT IN (
     SELECT DISTINCT ParentSID FROM Entities WHERE ParentSID IS NOT NULL
 );
 
-# Find all of the versions of a resource. Users of this should order
-# the results: ORDER BY Pos ASC, Time ASC, VersionUID ASC
-# to get oldest first, newest last.
-# Pos (postion) makes sure roots are first, leaves are last.
-# For similar rows, order by createdat timestamps and then versionIDs
-CREATE VIEW VersionAncestors AS
-SELECT
-    v.RegistrySID AS RegistrySID,
-    v.ResourceSID AS ResourceSID,
-    v.SID AS VersionSID,
-    v.UID AS VersionUID,
-    v.AncestorID AS AncestorID,
-    v.CreatedAt AS CTime,
-    CASE
-        WHEN v.UID=v.AncestorID THEN '0-root'
-        WHEN EXISTS(SELECT 1 FROM Versions AS v2 WHERE
-                    # v2.RegistrySID=v2.ResistrySID AND
-                    v2.ResourceSID=v.ResourceSID AND v2.AncestorID=v.UID)
-             THEN '1-middle'
-        ELSE '2-leaf'
-    END AS Pos
-FROM Versions AS v ;
-
 # Find all Versions that are part of circular references (circles)
 # Would this be better to do in code and use args(?) for regSID?
 CREATE VIEW VersionCircles AS
@@ -527,3 +504,20 @@ SELECT
 FROM Props as p
 JOIN Entities as e ON (e.eSID=p.eSID)
 ORDER by Path ;
+
+CREATE VIEW NewVAs AS
+SELECT
+    r.UID AS rUID,
+    v.UID AS VersionUID,
+    v.AncestorID AS AncestorID,
+    v.CreatedAt AS CTime,
+    CASE
+        WHEN v.UID=v.AncestorID THEN '0-root'
+        WHEN EXISTS(SELECT 1 FROM Versions AS v2 WHERE
+                    # v2.RegistrySID=v2.ResistrySID AND
+                    v2.ResourceSID=v.ResourceSID AND v2.AncestorID=v.UID)
+             THEN '1-middle'
+        ELSE '2-leaf'
+    END AS Pos
+FROM Versions AS v
+JOIN Resources as r on (r.SID=v.ResourceSID) ;

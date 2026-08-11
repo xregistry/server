@@ -69,9 +69,10 @@ func PanicIf(b bool, msg string, args ...any) {
 		Panicf(msg, args...)
 	}
 }
+
 func Panicf(msg string, args ...any) {
-	log.Printf(msg, args...)
-	ShowStack()
+	// log.Printf(msg, args...)
+	// ShowStack()
 	panic(fmt.Sprintf(msg, args...))
 }
 
@@ -780,7 +781,7 @@ func ResetMap[M ~map[K]V, K comparable, V any](m M, key K, oldVal V) {
 
 type Object map[string]any
 
-func IncomingObj2Map(incomingObj Object, daType string) (map[string]Object, *XRError) {
+func IncomingObj2Map(incomingObj Object, subject string, daType string) (map[string]Object, *XRError) {
 	result := map[string]Object{}
 	for id, obj := range incomingObj {
 		oV := reflect.ValueOf(obj)
@@ -788,9 +789,9 @@ func IncomingObj2Map(incomingObj Object, daType string) (map[string]Object, *XRE
 			oV.Type().Key().Kind() != reflect.String {
 
 			return nil,
-				NewXRError("bad_request", "",
+				NewXRError("bad_request", subject,
 					"error_detail="+
-						fmt.Sprintf("Value of %q must be a %q",
+						fmt.Sprintf("Value of %q must be a %s",
 							id, daType))
 		}
 		newObj := Object{}
@@ -1733,4 +1734,44 @@ func CommonHttpDo(verb string, url string, headers map[string]string, body []byt
 
 	httpRes.Error = xErr
 	return httpRes, xErr
+}
+
+func getGoRoutineID() string {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	i := bytes.IndexByte(b, ' ')
+	if i < 0 {
+		return ""
+	}
+	return string(b[:i])
+}
+
+func ShowStacksWith(needle string) string {
+	buf := make([]byte, 1024*1024)
+	n := runtime.Stack(buf, true)
+
+	sections := []string{}
+	section := ""
+	lines := strings.Split(string(buf[:n]), "\n")
+	for i := 0; ; i++ {
+		line := ""
+		if i < len(lines) {
+			line = lines[i]
+		}
+		if strings.TrimSpace(line) == "" {
+			if len(section) != 0 {
+				if strings.Contains(section, needle) {
+					sections = append(sections, section)
+				}
+				section = ""
+			}
+			if i == len(lines) {
+				break
+			}
+		}
+		section += line + "\n"
+	}
+
+	return strings.Join(sections, "\n")
 }

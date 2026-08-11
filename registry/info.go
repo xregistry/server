@@ -1281,6 +1281,17 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 							"error_detail="+err.Error())
 					}
 				}
+				// A Model change can impact/invalidate assumptions
+				// across the entire Registry tree (not just the
+				// Registry entity's own attrs), so this must lock
+				// the whole Registry row FOR_WRITE before applying
+				// the new model - same physical lock Registry.Update()
+				// already takes for "/" PUT/PATCH, just triggered here
+				// for the model-changing reason instead.
+				// DUG do we need to lock everything in Entities too?
+				// Could a lower-level entity update get thru?
+				info.Registry.Lock()
+
 				xErr := info.Registry.Model.ApplyNewModelFromJSON(
 					rawJson, false)
 				if xErr != nil {

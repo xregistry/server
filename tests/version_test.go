@@ -314,7 +314,7 @@ func TestVersionDefault(t *testing.T) {
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
-	v1, _ := f1.FindVersion("v1", false, registry.FOR_WRITE)
+	v1, _ := f1.FindVersion("v1", false)
 	v2, _ := f1.AddVersion("v2")
 
 	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
@@ -645,7 +645,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
-	f1.FindVersion("v1", false, registry.FOR_WRITE)
+	f1.FindVersion("v1", false)
 	f1.AddVersion("v2")
 	f1.AddVersion("v3")
 

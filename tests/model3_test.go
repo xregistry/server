@@ -343,8 +343,7 @@ func TestModelXImport(t *testing.T) {
     }`, 200, "*")
 
 	// Make sure ximportresources isn't in "model"
-	res := XDoHTTP(t, reg, "GET", "/model", "")
-	XEqual(t, "", res.Response.StatusCode, 200)
+	res := XHTTP(t, reg, "GET", "/model", "", 200, "*")
 	if strings.Contains(res.body, "ximportresources") {
 		t.Logf("Body should not contain ximportresources but it does.\n%s",
 			res.body)
@@ -3105,8 +3104,7 @@ func TestModelSourcePatchReplacement(t *testing.T) {
 `)
 
 	// Verify dirs is in the model
-	res := XDoHTTP(t, reg, "GET", "/?inline=model", "")
-	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	res := XHTTP(t, reg, "GET", "/?inline=model", "", 200, "*")
 	XCheck(t, strings.Contains(res.body, `"dirs"`), "Model should contain 'dirs' group")
 	XCheck(t, strings.Contains(res.body, `"files"`), "Model should contain 'files' resource")
 	XCheck(t, !strings.Contains(res.body, `"foos"`), "Model should NOT contain 'foos' group yet")
@@ -3136,8 +3134,7 @@ func TestModelSourcePatchReplacement(t *testing.T) {
 `)
 
 	// Verify: dirs is GONE from model, only foos remains
-	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
-	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	res = XHTTP(t, reg, "GET", "/?inline=model", "", 200, "*")
 	XCheck(t, !strings.Contains(res.body, `"dirs"`), "Model should NOT contain 'dirs' group anymore")
 	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource anymore")
 	XCheck(t, strings.Contains(res.body, `"foos"`), "Model should contain 'foos' group")
@@ -3203,8 +3200,7 @@ func TestModelSourcePatchReplacement(t *testing.T) {
 `)
 
 	// Verify: dirs now has BOTH files and data in the model
-	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
-	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	res = XHTTP(t, reg, "GET", "/?inline=model", "", 200, "*")
 	XCheck(t, strings.Contains(res.body, `"dirs"`), "Model should contain 'dirs' group")
 	XCheck(t, strings.Contains(res.body, `"files"`), "Model should contain 'files' resource")
 	XCheck(t, strings.Contains(res.body, `"data"`), "Model should contain 'data' resource")
@@ -3240,8 +3236,7 @@ func TestModelSourcePatchReplacement(t *testing.T) {
 `)
 
 	// Verify: files is GONE from model, only data remains
-	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
-	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	res = XHTTP(t, reg, "GET", "/?inline=model", "", 200, "*")
 	XCheck(t, strings.Contains(res.body, `"dirs"`), "Model should contain 'dirs' group")
 	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource anymore")
 	XCheck(t, strings.Contains(res.body, `"data"`), "Model should contain 'data' resource")
@@ -3272,8 +3267,7 @@ func TestModelSourcePatchReplacement(t *testing.T) {
 `)
 
 	// Verify: dirs exists but has NO resources in the model
-	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
-	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	res = XHTTP(t, reg, "GET", "/?inline=model", "", 200, "*")
 	XCheck(t, strings.Contains(res.body, `"dirs"`), "Model should contain 'dirs' group")
 	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource")
 	XCheck(t, !strings.Contains(res.body, `"data"`), "Model should NOT contain 'data' resource")
@@ -3337,8 +3331,7 @@ func TestModelSourcePatchReplacement(t *testing.T) {
 `)
 
 	// Verify: dirs is GONE from model, only foos remains
-	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
-	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	res = XHTTP(t, reg, "GET", "/?inline=model", "", 200, "*")
 	XCheck(t, !strings.Contains(res.body, `"dirs"`), "Model should NOT contain 'dirs' group anymore")
 	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource anymore")
 	XCheck(t, strings.Contains(res.body, `"foos"`), "Model should contain 'foos' group")

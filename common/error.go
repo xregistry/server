@@ -280,6 +280,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `Attribute "<name>" is invalid. Only Resource types are allowed to be specified on this request: <subject>.`,
 	},
+	"server_busy": &XRError{
+		Code:  503,
+		Title: `Due to excessive requests, the server could not complete "<subject>", please try again later.`,
+	},
 	"server_error": &XRError{
 		Code:  500,
 		Title: `An unexpected error occurred, please try again later.`,

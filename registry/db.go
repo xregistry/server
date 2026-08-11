@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -16,9 +17,48 @@ import (
 	"time"
 
 	log "github.com/duglin/dlog"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	. "github.com/xregistry/server/common"
 )
+
+// MySQL error numbers we treat as safe/expected to retry the whole HTTP
+// request for (see isRetryableDBErr()/ServeHTTP's retry loop) rather than
+// as a hard failure - both only ever happen because two Txs' row locks
+// (see entity.go's FOR_WRITE "FOR UPDATE" fetches) genuinely collided,
+// not because of a coding bug.
+const (
+	mysqlErrLockDeadlock    = 1213 // ER_LOCK_DEADLOCK
+	mysqlErrLockWaitTimeout = 1205 // ER_LOCK_WAIT_TIMEOUT
+)
+
+// isRetryableDBErr inspects a recovered panic value (or a plain error) and
+// reports whether it's a MySQL deadlock/lock-wait-timeout - the only
+// conditions ServeHTTP's per-request retry loop should transparently
+// retry on a fresh Tx. Everything else (syntax errors, bugs, connection
+// loss, etc.) is NOT retryable and should keep surfacing exactly as it
+// does today (500 via the outer recover()).
+//
+// This codebase's Query()/doCount()/etc. always panic via
+// Must()/PanicIf()/Panicf() (see common/utils.go), which panic with a
+// formatted STRING (fmt.Sprintf(msg, args...)), not the original *error*
+// value - so the underlying *mysql.MySQLError is normally unwrappable
+// from the recovered panic value. Try errors.As() first (in case a
+// caller ever panics with the raw error directly), then fall back to
+// matching the well-known MySQL error text embedded in that string,
+// which is the case that matters in practice here.
+func isRetryableDBErr(v any) bool {
+	if err, ok := v.(error); ok {
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &mysqlErr) {
+			return mysqlErr.Number == mysqlErrLockDeadlock ||
+				mysqlErr.Number == mysqlErrLockWaitTimeout
+		}
+	}
+
+	msg := fmt.Sprint(v)
+	return strings.Contains(msg, "Error 1213") ||
+		strings.Contains(msg, "Error 1205")
+}
 
 var DB *sql.DB
 var DB_Name = ""
@@ -177,8 +217,9 @@ type Tx struct {
 	ResourcesValidatingBatch map[string]bool
 
 	// For debugging
-	uuid  string   // just a unique ID for the TXs map key
-	stack []string // Stack at time NewTX
+	uuid   string   // just a unique ID for the TXs map key
+	stack  []string // Stack at time NewTX
+	connID int64    // MySQL CONNECTION_ID() this Tx is bound to
 }
 
 func (tx *Tx) IsOpen() bool {
@@ -195,7 +236,7 @@ func (tx *Tx) String() string {
 	if tx.tx != nil {
 		txStr = "<set>"
 	}
-	return fmt.Sprintf("Tx: sql.tx: %s, Registry: %s", txStr, regStr)
+	return fmt.Sprintf("tx: sql.tx: %s, Registry: %s", txStr, regStr)
 }
 
 func NewTx() (*Tx, *XRError) {
@@ -230,8 +271,16 @@ func (tx *Tx) NewTx() *XRError {
 		return nil
 	}
 
+	// REPEATABLE READ (InnoDB's default) rather than READ COMMITTED: it
+	// gives every plain (non-locking) SELECT in this Tx one consistent
+	// snapshot/read-view established at the transaction's first read -
+	// effectively "snapshot at tx start" for our purposes - while
+	// SELECT ... FOR UPDATE reads (see entity.go's FOR_WRITE fetches)
+	// still always see latest-committed data and take real row locks.
+	// This combination is what makes the FOR_READ/FOR_WRITE distinction
+	// in Entity.AccessMode actually mean something at the DB level.
 	t, err := DB.BeginTx(context.Background(),
-		&sql.TxOptions{sql.LevelReadCommitted, false})
+		&sql.TxOptions{sql.LevelRepeatableRead, false})
 	if err != nil {
 		DB = nil
 		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
@@ -243,6 +292,28 @@ func (tx *Tx) NewTx() *XRError {
 	tx.Cache = map[string]*Entity{}
 	tx.uuid = NewUUID()
 	tx.stack = GetStack()
+
+	log.VPrintf(3, "tx: %s Begin transaction", tx.uuid)
+
+	if log.GetVerbose() > 2 {
+		var connID int64
+		t.QueryRow("SELECT CONNECTION_ID()").Scan(&connID)
+		tx.connID = connID
+
+		var autocommit int
+		var isoLevel string
+		err := t.QueryRow("SELECT @@autocommit, "+
+			"@@session.transaction_isolation").Scan(&autocommit, &isoLevel)
+		if err != nil {
+			log.Printf("tx: %s connID=%d error checking "+
+				"autocommit/isolation: %s", tx.uuid, connID, err)
+		} else {
+			log.Printf("tx: %s connID=%d autocommit=%d isolation=%s",
+				tx.uuid, connID, autocommit, isoLevel)
+		}
+
+		log.Printf("tx: %s bound to MySQL CONNECTION_ID=%d", tx.uuid, connID)
+	}
 
 	TXsMutex.Lock()
 	TXs[tx.uuid] = tx
@@ -263,7 +334,8 @@ func (tx *Tx) EraseCache() {
 }
 
 func (tx *Tx) AddToCache(e *Entity) {
-	PanicIf(IsNil(e.Self), "Self is nil, %s/%s", e.Singular, e.UID)
+	PanicIf(IsNil(e.Self), "tx: %s Self is nil, %s/%s",
+		tx.uuid, e.Singular, e.UID)
 	tx.Cache[e.Registry.UID+"/"+e.Path] = e
 }
 
@@ -310,7 +382,8 @@ func (tx *Tx) Validate(info *RequestInfo) *XRError {
 	*/
 
 	if tx.Registry != nil {
-		PanicIf(tx.Registry.Model.GetChanged(), "Unwritten model")
+		PanicIf(tx.Registry.Model.GetChanged(), "tx: %s Unwritten model",
+			tx.uuid)
 
 		// Drains any deferred Resource/Group validation - this can
 		// still write (e.g. meta.ValidateAndSave()/r.ValidateAndSave()
@@ -324,7 +397,7 @@ func (tx *Tx) Validate(info *RequestInfo) *XRError {
 
 	// Make sure we've saved everything in the cache before we generate
 	// the results. If the stack isn't shown, enable it in entity.SetNewObject
-	PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
+	PanicIf(tx.IsCacheDirty(), "tx: %s Unwritten stuff in cache", tx.uuid)
 
 	return nil
 }
@@ -365,8 +438,8 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 				log.Printf("%s", ToJSON(e.NewObject))
 				ShowStack()
 			}
-			PanicIf(e.NewObject != nil, "Entity %s/%q not saved",
-				e.Singular, e.UID)
+			PanicIf(e.NewObject != nil, "tx: %s Entity %s/%q not saved",
+				tx.uuid, e.Singular, e.UID)
 		}
 		if xErr := e.ValidateAndSave(false); xErr != nil {
 			return xErr
@@ -392,6 +465,7 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 // possibly-multiple Versions - so the buffered values are visible to
 // the response that gets serialized later in the same request, well
 // before the Tx actually commits.
+// DUG TODO THIS NEEDS TO BE DONE ON A PER RESOURCE BASIS NOT GLOBAL
 func (tx *Tx) FlushSystemProps() {
 	for _, e := range tx.Cache {
 		e.SaveSystemProps()
@@ -502,17 +576,19 @@ func (tx *Tx) Commit() *XRError {
 		// panic("Tx isn't locked!!")
 	}
 
-	tx.Locked = false
-
 	if tx.tx == nil {
 		return nil
 	}
 
+	tx.Locked = false
+
 	if xErr := tx.WriteCache(true); xErr != nil {
+		tx.Rollback()
 		return xErr
 	}
 
 	Must(tx.tx.Commit())
+	log.VPrintf(3, "tx: %s Committed", tx.uuid)
 
 	tx.Clear()
 	return nil
@@ -522,8 +598,10 @@ func (tx *Tx) Rollback() *XRError {
 	if tx == nil || tx.tx == nil {
 		return nil
 	}
+
 	err := tx.tx.Rollback()
 	Must(err)
+	log.VPrintf(3, "tx: %s Rolled Back", tx.uuid)
 
 	tx.Clear()
 	return nil
@@ -536,11 +614,17 @@ func (tx *Tx) Clear() {
 	delete(TXs, tx.uuid)
 	TXsMutex.Unlock()
 	tx.tx = nil
+	// tx.Registry = nil // new
 	tx.CreateTime = ""
-	tx.Cache = nil
+	// tx.RequestInfo = nil // new
+	tx.Locked = false
+	tx.Validated = false
+	tx.EraseCache()
 	tx.GroupsToValidate = nil
 	tx.ResourcesToValidate = nil
+	tx.ResourcesValidatingBatch = nil
 	tx.uuid = ""
+	tx.stack = nil
 }
 
 func (tx *Tx) Conditional(xErr *XRError) *XRError {
@@ -702,6 +786,28 @@ func (r *Result) RetrieveAllRowsFromDB() {
 	// When done, technically r.Data contains the last item from the query
 	// but it'll be overwritten on the first call to PullNextRow
 
+	// rows.Next() returning false means EITHER "no more rows" (the
+	// normal/expected case) OR that iteration stopped early because of a
+	// real error (e.g. the connection's transaction was killed as a
+	// deadlock victim, or a lock-wait-timeout occurred, mid-scan) -
+	// database/sql only surfaces that error via rows.Err(), never from
+	// Next() itself. Without this check, a genuine mid-query MySQL error
+	// (including ones that silently end this transaction, e.g. via an
+	// implicit rollback + a fresh connection-level transaction on the
+	// very next statement) would be indistinguishable from a normal,
+	// successful, empty/short result set - letting execution proceed as
+	// though a "FOR UPDATE" lock had been granted when in fact it never
+	// was. Panic so isRetryableDBErr()'s existing deadlock/lock-timeout
+	// retry logic (see httpStuff.go) can catch and retry it like any
+	// other DB error.
+	if r.sqlRows != nil {
+		if err := r.sqlRows.Err(); err != nil {
+			r.sqlRows.Close()
+			r.sqlRows = nil
+			Panicf("Error retrieving rows from DB: %s", err)
+		}
+	}
+
 	// Close the MYSQL query and prepare stmt
 	if r.sqlRows != nil {
 		r.sqlRows.Close()
@@ -801,17 +907,20 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	if doTime {
 		pTime = time.Now()
 	}
-	PanicIf(xErr != nil, "Error Prepping query (%s): %s\n", cmd, xErr)
+	PanicIf(xErr != nil, "tx: %s Error Prepping query (%s): %s\n",
+		tx.uuid, cmd, xErr)
 	defer ps.Close()
 
 	rows, err := ps.Query(args...)
 	if doTime {
 		qTime = time.Now()
 	}
-	PanicIf(err != nil, "Error querying DB(%s)(%v)->%s\n", cmd, args, err)
+	PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
+		tx.uuid, cmd, args, err)
 
 	colTypes, err := rows.ColumnTypes()
-	PanicIf(err != nil, "Error querying DB(%s)(%v)->%s\n", cmd, args, err)
+	PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
+		tx.uuid, cmd, args, err)
 
 	result := &Result{
 		tx:       tx,
@@ -861,12 +970,14 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	}
 
 	ps, xErr := tx.Prepare(cmd)
-	PanicIf(xErr != nil, "CMD: %q args: %v  err: %s", cmd, args, xErr)
+	PanicIf(xErr != nil, "tx:%s CMD: %q args: %v  err: %s",
+		tx.uuid, cmd, args, xErr)
 	defer ps.Close()
 
 	result, err := ps.Exec(args...)
 	if err != nil {
-		Panicf("doCount:Error DB(%s)->%s\n", SubQuery(cmd, args), err)
+		Panicf("tx: %s doCount: Error DB(%s)->%s\n", tx.uuid,
+			SubQuery(cmd, args), err)
 	}
 
 	count, _ := result.RowsAffected()
@@ -881,31 +992,31 @@ func Do(tx *Tx, cmd string, args ...interface{}) {
 func DoOne(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 
-	PanicIf(count != 1, "DoOne:Error DB(%s) didn't change exactly 1 row(%d)",
-		SubQuery(cmd, args), count)
+	PanicIf(count != 1, "tx: %s DoOne: Error DB(%s) didn't change "+
+		"exactly 1 row(%d)", tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoZeroOne(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 
 	PanicIf(count != 0 && count != 1,
-		"DoOne:Error DB(%s) didn't change exactly 0/1 row(%d)",
-		SubQuery(cmd, args), count)
+		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/1 row(%d)",
+		tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoOneTwo(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 
 	PanicIf(count != 1 && count != 2,
-		"DoOne:Error DB(%s) didn't change exactly 1/2 row(%d)",
-		SubQuery(cmd, args), count)
+		"tx: %s DoOne: Error DB(%s) didn't change exactly 1/2 row(%d)",
+		tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 	PanicIf(count != 0 && count != 2,
-		"DoOne:Error DB(%s) didn't change exactly 0/2 row(%d)",
-		SubQuery(cmd, args), count)
+		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/2 row(%d)",
+		tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
@@ -913,8 +1024,8 @@ func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
 
 	PanicIf(count != num,
-		"DoOne:Error DB(%s) didn't change exactly %d row(%d)",
-		SubQuery(cmd, args), num, count)
+		"tx: %s DoOne: Error DB(%s) didn't change exactly %d row(%d)",
+		tx.uuid, SubQuery(cmd, args), num, count)
 }
 
 func DBExists(name string) bool {

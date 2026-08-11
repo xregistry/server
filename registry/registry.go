@@ -327,6 +327,9 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	defer log.VPrintf(3, "<Exit: FindRegistrySID")
 
 	if tx.Registry != nil && tx.Registry.DbSID == sid {
+		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
+			tx.Registry.Lock()
+		}
 		return tx.Registry, nil
 	}
 
@@ -371,6 +374,9 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	defer log.VPrintf(3, "<Exit: FindRegistry")
 
 	if tx != nil && tx.Registry != nil && tx.Registry.UID == id {
+		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
+			tx.Registry.Lock()
+		}
 		return tx.Registry, nil
 	}
 
@@ -555,6 +561,7 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
 	reg.Lock()
+
 	reg.SetNewObject(obj)
 
 	// Ignore any incoming "model" attribute
@@ -680,11 +687,28 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	return nil
 }
 
+// FindGroup, unlike Resource's FindMeta/FindVersion, keeps its own
+// explicit accessMode arg rather than deriving it from a parent's lock
+// state - Group/Registry are NOT part of a lockEntityFamily() "family"
+// the way Resource+Meta+Version are, and don't need to be: a Group's own
+// row (epoch/modifiedat) is only ever mutated via an explicit Touch()/
+// Lock() call made right at the point of change (e.g. UpsertResource()
+// and Resource.Delete() both call g.Touch() when a child Resource is
+// added/removed, since that bumps the owning Group's epoch/modifiedat),
+// not by relying on whatever accessMode an earlier FindGroup() call used.
+// So a caller that fetches a Group FOR_READ and later needs to mutate it
+// is always safe as long as the actual mutation path itself locks first
+// (which every Group-mutating call site already does). Contrast this
+// with the bug class Resource/Meta/Version's family-locking exists to
+// prevent, where a decision (e.g. "does this Resource already exist?")
+// computed from an unlocked read could go stale before the write.
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
 	log.VPrintf(3, ">Enter: FindGroup(%s,%s,%v)", gType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindGroup")
 
 	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
+		log.VPrintf(3, "tx: %s FindGroup %s,%s from cache",
+			reg.tx.uuid, gType, id)
 		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
 			g.Lock()
 		}
@@ -727,12 +751,9 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	log.VPrintf(3, ">Enter UpsertGroupWithObject(%s,%s)", gType, id)
 	defer log.VPrintf(3, "<Exit UpsertGroupWithObject")
 
-	// Need this because its parent (the registry) might not be locked, which
-	// we need because we need to change stuff in it. And we don't want all
-	// callers of this func to have to re-Find/lock the registry themselves.
-	// The registry at this point is the generic "find the registry for read"
-	// that all interactions go thru.
-	reg.Lock()
+	// Move to below, after the "findGroup". Is SaveModel needs it then
+	// it'll lock it.
+	// reg.Lock()
 
 	if xErr := reg.SaveModel(false); xErr != nil {
 		return nil, false, xErr
@@ -758,6 +779,21 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	if xErr != nil {
 		return nil, false, xErr
 	}
+
+	if g == nil {
+		// If the group doesn't exist yet then, if the Registry isn't already
+		// locked, lock it before we try to create the group.
+		// We don't lock it before this because if the group already
+		// exists then there should be no reason to touch the Regristry
+		reg.Lock()
+		g, xErr = reg.FindGroup(gType, id, true, FOR_WRITE)
+		if xErr != nil {
+			return nil, false, xErr
+		}
+	}
+
+	log.VPrintf(3, "tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
+		reg.tx.uuid, gType, id, g != nil)
 
 	if g != nil && g.UID != id {
 		return nil, false,
@@ -803,6 +839,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		g.Self = g
 
+		log.VPrintf(3, "tx: %s INSERT INTO Groups %s regSID=%s",
+			reg.tx.uuid, g.Path, g.Registry.DbSID)
 		DoOne(reg.tx, `
 			INSERT INTO "Groups"(
                 SID, RegistrySID, UID,
@@ -849,7 +887,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			_, ok := val.(map[string]any)
 			if !ok {
 				return nil, false,
-					NewXRError("invalid_attribute", "/"+plural,
+					NewXRError("invalid_attribute", g.XID,
 						"name="+plural,
 						"error_detail="+
 							fmt.Sprintf("Key %q doesn't appear to be of "+
@@ -928,10 +966,9 @@ func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[stri
 		}
 	}
 
-	rootMap, xErr := IncomingObj2Map(rootObj, "Group")
+	rootMap, xErr := IncomingObj2Map(rootObj, "/", "map of Group types")
 	if xErr != nil {
-		return nil, xErr.SetSubject("/").
-			SetTitle("Request must be a map of Group types.")
+		return nil, xErr
 	}
 
 	// rootMap is map[groupType]group
@@ -942,9 +979,10 @@ func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[stri
 			}
 		*/
 
-		gMap, xErr := IncomingObj2Map(gAny, "Group")
+		gMap, xErr := IncomingObj2Map(gAny, "/",
+			"\""+reg.Model.Groups[gType].Singular+"\"")
 		if xErr != nil {
-			return nil, xErr.SetSubject(gType)
+			return nil, xErr
 		}
 
 		// Make sure we include empty groupTypes in the result
@@ -1308,7 +1346,7 @@ ft.eSID IN ( -- eSID from query
 	}
 
 	query += `  ORDER BY ` + sortOrder +
-		`    ft.Path COLLATE utf8mb4_general_ci ASC;`
+		`    ft.LowerPath ASC;`
 
 	if log.GetVerbose() > 3 || log.HasKeyword("genq") {
 		log.Printf("Query:\n%s\n\n", SubQuery(query, args))
@@ -1376,7 +1414,7 @@ func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 		return &res.Entity, nil
 	}
 
-	v, xErr := res.FindVersion(xid.VersionID, false, FOR_READ)
+	v, xErr := res.FindVersion(xid.VersionID, false)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -1470,7 +1508,7 @@ func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRErro
 	if xErr != nil || resource == nil {
 		return nil, xErr
 	}
-	return resource.FindVersion(xid.VersionID, false, FOR_READ)
+	return resource.FindVersion(xid.VersionID, false)
 }
 
 func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
@@ -1504,7 +1542,7 @@ func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
 	if xErr != nil || resource == nil {
 		return nil, xErr
 	}
-	return resource.FindMeta(false, FOR_READ)
+	return resource.FindMeta(false)
 }
 
 /*
