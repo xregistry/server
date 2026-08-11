@@ -130,20 +130,15 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	log.VPrintf(3, ">Enter: UpsertResource(%s,%s)", ru.RType, ru.Id)
 	defer log.VPrintf(3, "<Exit: UpsertResource")
 
-	// Need this because two concurrent Txs both creating the same new
-	// Resource under this Group would otherwise have no serialization
-	// point at all before their FindResource(FOR_WRITE) re-check below -
-	// unlike Registry.UpsertGroupWithObject(), which locks the parent
-	// Registry first for the exact same reason. Locking g here forces
-	// full serialization of that check-then-insert sequence per Group.
-	g.Lock()
+	// ru.VID is the version ID we want to use for the update/create.
+	// A value of "" means just use the default Version
+
+	// Moved to after the findResource below.
+	// g.Lock()
 
 	if xErr := g.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
 	}
-
-	// ru.VID is the version ID we want to use for the update/create.
-	// A value of "" means just use the default Version
 
 	if xErr := CheckAttrs(ru.Obj, g.XID+"/"+ru.RType+"/"+ru.Id); xErr != nil {
 		return nil, false, xErr
@@ -153,8 +148,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	rModel := gModel.Resources[ru.RType]
 	if rModel == nil {
 		return nil, false, NewXRError("unknown_resource_type", g.XID,
-			"group="+g.Plural,
-			"name="+ru.RType)
+			"group="+g.Plural, "name="+ru.RType)
 	}
 
 	r, xErr := g.FindResource(ru.RType, ru.Id, true, FOR_WRITE)
@@ -162,17 +156,22 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		return nil, false, xErr
 	}
 
+	if r == nil {
+		// Not found, so before we create it, lock Group.
+		// We didn't lock it before this because if the resource is already
+		// there, then we're just updating it and there's no need to lock
+		// the entire group (yet)
+		g.Lock()
+		r, xErr = g.FindResource(ru.RType, ru.Id, true, FOR_WRITE)
+		if xErr != nil {
+			return nil, false, xErr
+		}
+	}
+
 	// calc rXID so we can use it even if r == nil
 	rXID := g.XID + "/" + ru.RType + "/" + ru.Id
 
 	if r != nil {
-		// Use FOR_WRITE (not FOR_READ): r itself was just fetched
-		// FOR_WRITE above (so it reflects latest-committed data, even
-		// if that means observing another Tx's just-committed Resource+
-		// Meta pair) - but a plain FOR_READ here is a non-locking SELECT
-		// that can still be pinned to this Tx's original RR snapshot
-		// from before that Meta row was committed, incorrectly finding
-		// no rows even though we just proved the Resource exists.
 		meta := r.MustFindMeta(false)
 		if meta.Get("readonly") == true {
 			if r.tx.RequestInfo.HasIgnore("readonly") {

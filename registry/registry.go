@@ -751,12 +751,9 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	log.VPrintf(3, ">Enter UpsertGroupWithObject(%s,%s)", gType, id)
 	defer log.VPrintf(3, "<Exit UpsertGroupWithObject")
 
-	// Need this because its parent (the registry) might not be locked, which
-	// we need because we need to change stuff in it. And we don't want all
-	// callers of this func to have to re-Find/lock the registry themselves.
-	// The registry at this point is the generic "find the registry for read"
-	// that all interactions go thru.
-	reg.Lock()
+	// Move to below, after the "findGroup". Is SaveModel needs it then
+	// it'll lock it.
+	// reg.Lock()
 
 	if xErr := reg.SaveModel(false); xErr != nil {
 		return nil, false, xErr
@@ -782,6 +779,19 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	if xErr != nil {
 		return nil, false, xErr
 	}
+
+	if g == nil {
+		// If the group doesn't exist yet then, if the Registry isn't already
+		// locked, lock it before we try to create the group.
+		// We don't lock it before this because if the group already
+		// exists then there should be no reason to touch the Regristry
+		reg.Lock()
+		g, xErr = reg.FindGroup(gType, id, true, FOR_WRITE)
+		if xErr != nil {
+			return nil, false, xErr
+		}
+	}
+
 	log.VPrintf(3, "tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
 		reg.tx.uuid, gType, id, g != nil)
 
