@@ -19,6 +19,8 @@ func addServeCmd(parent *cobra.Command) {
 		GroupID: "Admin",
 	}
 
+	serveCmd.Flags().BoolP("cors", "c", false,
+		"Send CORS header with '*' value")
 	serveCmd.Flags().StringP("address", "a", "0.0.0.0:8080",
 		"address:port of listener (0.0.0.0:8080*)")
 	serveCmd.Flag("address").DefValue = "" // hide default text
@@ -26,8 +28,12 @@ func addServeCmd(parent *cobra.Command) {
 	parent.AddCommand(serveCmd)
 }
 
+var address string
+var cors bool
+
 func serveFunc(cmd *cobra.Command, args []string) {
-	address, _ := cmd.Flags().GetString("address")
+	address, _ = cmd.Flags().GetString("address")
+	cors, _ = cmd.Flags().GetBool("cors")
 
 	if len(args) != 1 {
 		Error("Command requires exactly one arg, the path to a directory")
@@ -95,6 +101,36 @@ func doit(w http.ResponseWriter, r *http.Request, dir string) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
+	}
+
+	if cors {
+		// w.Header().Add("Access-Control-Allow-Headers", "*")
+		// w.Header().Add("Access-Control-Allow-Methods", "*")
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+	}
+
+	// Default to nada
+	w.Header().Add("Content-Type", "")
+
+	mimeTypes := map[string]string{
+		"html": "text/html",
+		"js":   "text/javascript",
+		"css":  "text/css",
+		"svg":  "image/svg+xml",
+		"json": "application/json",
+		"xreg": "application/json",
+		"png":  "image/image/png",
+		"jpg":  "image/jpeg",
+		"jpeg": "image/jpegl",
+		"gif":  "image/gif",
+		"ico":  "image/x-icon",
+	}
+
+	if i := strings.LastIndex(file, "."); i > 0 {
+		ext := file[i+1:]
+		if daType := mimeTypes[ext]; daType != "" {
+			w.Header().Add("Content-Type", daType)
+		}
 	}
 
 	// If we have a header(hdr) file, write the HTTP headers before the body

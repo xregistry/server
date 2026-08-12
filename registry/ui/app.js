@@ -23,13 +23,49 @@
 
 // ---- State ----------------------------------------------------------------
 
+// The "default"/"this server" registry — historically always
+// window.location.origin (i.e. the SPA assumed it was served BY the
+// xRegistry server it should talk to by default). That's no longer
+// always true — the UI can be hosted separately (e.g. a static file
+// host) from the xRegistry server it points to — so this now defaults
+// to window.location.origin but can be overridden by an optional
+// UI_CONFIG_FILE (see loadUIConfig()), fetched once at startup before
+// the app renders anything. Everywhere in the app that used to hard-code
+// window.location.origin as "the default server" now reads this instead.
+var DEFAULT_SERVER_ORIGIN = window.location.origin;
+
+// Relative path (resolved against wherever index.html/app.js are served
+// from) of the optional JSON config file used to override
+// DEFAULT_SERVER_ORIGIN — see loadUIConfig(). A missing file (404) or any
+// fetch/parse error is treated as "no override" and silently ignored;
+// this file is entirely optional.
+var UI_CONFIG_FILE = 'xrui.json';
+
+// Fetches UI_CONFIG_FILE (if present) and, if it has a non-empty
+// `defaultServer` string, uses it to override DEFAULT_SERVER_ORIGIN
+// (normalized the same way every other server URL is — see
+// normalizeURL()) before the rest of the app boots — see init(). Always
+// resolves (never rejects), so a missing/invalid config file can never
+// block startup; it just means DEFAULT_SERVER_ORIGIN keeps its
+// window.location.origin fallback.
+function loadUIConfig() {
+  return fetch(UI_CONFIG_FILE, {cache: 'no-store'})
+    .then(function(resp) { return resp.ok ? resp.json() : null; })
+    .then(function(cfg) {
+      if (cfg && typeof cfg.defaultServer === 'string' && cfg.defaultServer.trim()) {
+        DEFAULT_SERVER_ORIGIN = normalizeURL(cfg.defaultServer.trim());
+      }
+    })
+    .catch(function() { /* no config file, or invalid JSON — ignore */ });
+}
+
 var _state = {
   view:        'home',  // 'home' | 'tile' | 'table' | 'json'
   homeGroup:   'registry',  // 'registry' | 'types' — overridden from localStorage in init()
   homeLayouts: {registry: 'grid', types: 'grid'}, // per-group layout, overridden from localStorage
   dataView:    'grid',  // 'grid' | 'table' | 'json'
   serverURL:   '',      // full URL to registry root, e.g. 'http://localhost:8080'
-                        // '' = same origin as the SPA
+                        // '' = DEFAULT_SERVER_ORIGIN (see above)
   section:     'data',  // 'data' | 'model' | 'modelsource' | 'capabilities' | 'capabilitiesoffered' | 'xregistry'
   path:        [],      // path segments relative to registry root (data section only)
   editMode:    false,
@@ -89,6 +125,16 @@ var LS_DISCOVERED  = 'xreg-discovered-from';
 var LS_HIDDEN      = 'xreg-hidden-servers';
 var LS_LOCAL_DELETED = 'xreg-local-server-deleted';
 var LS_LABELS      = 'xreg-label-cache';
+var LS_FAVORITES   = 'xreg-favorite-servers';
+// Manual/drag order for Favorite servers (see LS_FAVORITES above) —
+// "this server" is included here like any other URL once favorited, it's
+// no longer specially pinned. Populated only by dragging rows in the
+// Config page's Favorites table (see cfgRowDrop()); any URL not yet
+// present here (e.g. one just newly favorited) simply falls to the end,
+// which is exactly the "newly favorited servers are appended at the end"
+// default behavior — see applyServerOrder(). Non-favorite servers are
+// never placed in here; they're always shown alphabetically instead.
+var LS_ORDER       = 'xreg-server-order';
 // normalizedURL → last-known-good probed registry name. Persisted (not
 // just in-memory) so that a server which happens to be offline/unreachable
 // at page-load time doesn't lose its previously-learned display name —
@@ -147,6 +193,16 @@ function optJsonColorMode() { return _opts.jsonColorMode || 'full'; }
 // mode and JSON view always show every attribute regardless of this
 // setting.
 function optXregFocused() { return !!_opts.xregFocused; }
+
+// "Optimized browsing" — when a Group/Resource-type collection listed on a
+// Registry-root/Group-entity page's Collections table has exactly one item,
+// clicking it jumps straight to that one item's entity page instead of
+// stopping on the (otherwise pointless, single-row) collection list page.
+// On by default; the Config-page checkbox lets people turn it off if they'd
+// rather always see the intermediate collection page. See
+// navigateToCollOrSingleItem().
+function optOptimizedBrowsing() { return _opts.optimizedBrowsing !== false; }
+
 
 // Per-session override of optXregFocused(), toggled via the kebab menu's
 // "Show/Hide xReg Data" entry (see buildMoreMenuItems()/toggleXregOverride())
@@ -207,6 +263,36 @@ function saveServers(list) {
   localStorage.setItem(LS_SERVERS, JSON.stringify(list));
 }
 
+function loadServerOrder() {
+  try { return JSON.parse(localStorage.getItem(LS_ORDER) || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveServerOrder(list) {
+  localStorage.setItem(LS_ORDER, JSON.stringify(list));
+}
+
+// Rearranges `urls` (any list of normalized server URLs) per the user's
+// saved manual/drag order, falling back to each URL's original position
+// in `urls` for any entry not yet present in the saved order (e.g. a
+// server added/discovered since the order was last saved, or before any
+// dragging has ever happened) — this is what keeps "newly configured
+// registries land at the end" true by default, without cfgAddNew()/
+// addServer()/discovery etc. needing to also maintain LS_ORDER.
+function applyServerOrder(urls) {
+  var order = loadServerOrder();
+  var rank = {};
+  order.forEach(function(u, i) { rank[u] = i; });
+  return urls
+    .map(function(u, i) { return {u: u, i: i}; })
+    .sort(function(a, b) {
+      var ra = rank.hasOwnProperty(a.u) ? rank[a.u] : (order.length + a.i);
+      var rb = rank.hasOwnProperty(b.u) ? rank[b.u] : (order.length + b.i);
+      return ra - rb;
+    })
+    .map(function(x) { return x.u; });
+}
+
 function normalizeURL(url) {
   url = url.trim().replace(/\/$/, '');
   if (url && !/^https?:\/\//i.test(url)) url = 'http://' + url;
@@ -237,21 +323,24 @@ function addServer(url, discoveredFrom) {
 }
 
 // Removes a server from LS_SERVERS AND clears every other per-URL flag
-// map keyed to it (name override, proxy, hidden, discoveredFrom) —
-// deleting a server is a full teardown, not just a list removal, so a
-// later re-add/re-discovery of the same URL starts from clean defaults
-// instead of silently inheriting stale state (e.g. a "hidden" flag from
-// a server that was hidden, then deleted, then re-discovered much later
-// under the same URL).
+// map keyed to it (name override, proxy, hidden, discoveredFrom, manual
+// order, favorite) — deleting a server is a full teardown, not just a
+// list removal, so a later re-add/re-discovery of the same URL starts
+// from clean defaults instead of silently inheriting stale state (e.g. a
+// "hidden" flag from a server that was hidden, then deleted, then
+// re-discovered much later under the same URL — same reasoning applies
+// to a stale favorite/manual-order status).
 function removeServer(url) {
   var norm = normalizeURL(url);
   saveServers(loadServers().filter(function(u) { return u !== url; }));
   setNameOverride(norm, '');
   setProxied(norm, false);
   setHidden(norm, false);
+  setFavorite(norm, false);
   var discMap = loadDiscoveredFrom();
   delete discMap[norm];
   saveDiscoveredFrom(discMap);
+  saveServerOrder(loadServerOrder().filter(function(u) { return u !== norm; }));
 }
 
 // ---- Registry name overrides (persisted) -----------------------------------
@@ -359,8 +448,31 @@ function setHidden(url, on) {
   saveHiddenFlags(map);
 }
 
+// favorite: puts a server in the Config page's drag-reorderable
+// "Favorites" table (and, on Home, in that same manual order, ahead of
+// all non-favorites) instead of the plain alphabetical "All Other
+// Registries" table/list — see renderConfig()/renderHome(). Defaults to
+// false (non-favorite/alphabetical) for every server, including "this
+// server", until the user explicitly opts a row in.
+function loadFavoriteFlags() {
+  try { return JSON.parse(localStorage.getItem(LS_FAVORITES) || '{}'); }
+  catch(e) { return {}; }
+}
+function saveFavoriteFlags(map) {
+  try { localStorage.setItem(LS_FAVORITES, JSON.stringify(map)); } catch(e) {}
+}
+function isFavorite(url) {
+  return !!loadFavoriteFlags()[normalizeURL(url)];
+}
+function setFavorite(url, on) {
+  var map  = loadFavoriteFlags();
+  var norm = normalizeURL(url);
+  if (on) map[norm] = true; else delete map[norm];
+  saveFavoriteFlags(map);
+}
+
 // The local "this server" row isn't stored in LS_SERVERS (its URL is
-// implicit - always window.location.origin), so it needs its own
+// implicit - always DEFAULT_SERVER_ORIGIN), so it needs its own
 // separate "deleted" flag rather than reusing removeServer()/loadServers().
 // Deleting it just hides it from Config too (in addition to Home, via
 // isHidden()-equivalent treatment) — it can always be brought back with
@@ -396,7 +508,7 @@ function setLocalServerDeleted(on) {
 // fetch-time). Returns `url` unchanged if it isn't one of our own
 // /xrproxy/ URLs (or doesn't decode to a plausible origin).
 function decodeAnyXRProxyURL(url) {
-  var prefix = normalizeURL(window.location.origin) + '/xrproxy/';
+  var prefix = normalizeURL(DEFAULT_SERVER_ORIGIN) + '/xrproxy/';
   if (!url || url.indexOf(prefix) !== 0) return url;
   var rest = url.slice(prefix.length);
   var slashIdx = rest.indexOf('/');
@@ -427,7 +539,7 @@ function decodeAnyXRProxyURL(url) {
 // never throws — results is an array of
 // {url, discoveredFrom, alreadyKnown}.
 function discoverRegistriesFrom(sourceUrls, cb) {
-  var origin = normalizeURL(window.location.origin);
+  var origin = normalizeURL(DEFAULT_SERVER_ORIGIN);
   var known  = loadServers();
   var seen   = {};   // normalizedURL -> true, for cross-source dedup
   var results = [];
@@ -476,9 +588,9 @@ function b64urlEncode(str) {
 // keeps using the raw server URL as its identity - only the actual network
 // request needs to go through the proxy.
 function serverFetchBase(url) {
-  var norm = normalizeURL(url || window.location.origin);
+  var norm = normalizeURL(url || DEFAULT_SERVER_ORIGIN);
   if (isProxied(norm)) {
-    var origin = window.location.origin.replace(/\/$/, '');
+    var origin = DEFAULT_SERVER_ORIGIN.replace(/\/$/, '');
     return origin + '/xrproxy/' + b64urlEncode(norm);
   }
   return norm;
@@ -497,7 +609,7 @@ function toRealURL(url) {
   if (!url) return url;
   var proxyBase = serverFetchBase(_state.serverURL).replace(/\/$/, '');
   if (url.indexOf(proxyBase) !== 0) return url;
-  var real = normalizeURL(_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var real = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   return real + url.slice(proxyBase.length);
 }
 
@@ -525,6 +637,16 @@ document.addEventListener('keydown', function(e) {
 });
 
 function init() {
+  // Load the optional UI config (may override DEFAULT_SERVER_ORIGIN —
+  // see loadUIConfig()) before doing anything that could depend on it
+  // (renderHeader()/refresh() below, and everything they call, use
+  // DEFAULT_SERVER_ORIGIN as the fallback "this server"/default
+  // registry). loadUIConfig() always resolves, so this never hangs
+  // startup even if the config file is missing or invalid.
+  loadUIConfig().then(doInit);
+}
+
+function doInit() {
   _state.homeGroup   = optHomeGroup();
   _state.homeLayouts = optHomeLayouts();
   applyJsonColorMode();
@@ -1318,7 +1440,7 @@ function applyFilters() {
 // serverFetchBase()'s actual fetch calls get proxy-translated (see
 // plan.md's xrproxy writeup), so no special-casing is needed here.
 function serverURLLineHtml() {
-  var url = _state.serverURL || window.location.origin;
+  var url = _state.serverURL || DEFAULT_SERVER_ORIGIN;
   return '<div class="eg-server-url-line" title="' + esc(url) + '">Server: '
     + esc(url) + '</div>';
 }
@@ -1512,10 +1634,10 @@ function renderHeader() {
   // view.
   var filtersBtn = el('filters-toggle-btn');
   if (filtersBtn) {
-    var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
+    var svURL2 = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN);
     var capLoaded2 = _capCache.hasOwnProperty(svURL2);
     if (isData && section === 'data' && !capLoaded2) {
-      ensureCapCached(_state.serverURL || window.location.origin, function() { renderHeader(); });
+      ensureCapCached(_state.serverURL || DEFAULT_SERVER_ORIGIN, function() { renderHeader(); });
     }
     var capData2 = _capCache[svURL2];
     var flags2 = (capData2 && capData2.flags) || [];
@@ -1594,7 +1716,7 @@ function renderHeader() {
   // For data pages, skip breadcrumb render if label not cached yet —
   // the probe in refresh() will call renderBreadcrumbs() once the name arrives.
   if (isData) {
-    var svURL = normalizeURL(_state.serverURL || window.location.origin);
+    var svURL = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN);
     if (!_labelCache[svURL]) return;
   }
   renderBreadcrumbs();
@@ -1816,7 +1938,7 @@ function setDataView(v) {
       if (v === 'json') {
         renderJSONView(_lastData);
       } else {
-        var svBaseC2 = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+        var svBaseC2 = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
         ensureOfferedCached(svBaseC2, function(offered) {
           renderCapabilitiesEditor(_lastData, offered);
         });
@@ -1880,7 +2002,7 @@ function setDataView(v) {
 
 // Build the registry dropdown: Home + known registries + Add
 function serverLabel(url) {
-  var norm = normalizeURL(url || window.location.origin);
+  var norm = normalizeURL(url || DEFAULT_SERVER_ORIGIN);
   var override = getNameOverride(norm);
   if (override) return override;
   if (_labelCache[norm]) return _labelCache[norm];
@@ -1946,7 +2068,7 @@ function buildBreadcrumbSegments() {
   if (_state.view === 'config') return [{label:'Config',     onclick:null, isCurrent:true}];
 
   var segs = [];
-  var regLabel = serverLabel(_state.serverURL || window.location.origin);
+  var regLabel = serverLabel(_state.serverURL || DEFAULT_SERVER_ORIGIN);
   var regClick = guardedOnclick('pushState({path:[],section:\'data\',useExport:false})');
   // Use the cached real/filtered root URL (if any) so the hover-href
   // reflects the root's OWN active filter, not whatever the current
@@ -2310,7 +2432,7 @@ function buildTabAwareAPIURL() {
   } else if (activeTabEl) {
     tab = activeTabEl.getAttribute('data-tab');
   } else {
-    var modelFallback = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+    var modelFallback = _modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)] || null;
     tab = resourceHasDocument(modelFallback, path) ? 'doc' : (isResource ? 'defver' : 'version');
   }
 
@@ -2656,7 +2778,7 @@ function refresh() {
   }
 
   // Probe registry label if not yet cached, then refresh breadcrumbs
-  var svURL = normalizeURL(_state.serverURL || window.location.origin);
+  var svURL = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN);
   if (!_labelCache[svURL]) {
     probeRegistry(svURL, function(info) {
       if (info.label) renderBreadcrumbs();
@@ -2726,7 +2848,7 @@ function refresh() {
   // Capabilities — list (editor) or JSON view, per _state.dataView. Editable
   // when the doc itself reports available.capabilities.mutable === true.
   if (isCapabilitiesSection) {
-    var svBaseC = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var svBaseC = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
     ensureCapCached(svBaseC, function(cap) {
       if (!cap) {
         main.innerHTML = '<div class="error-banner">Error loading:\n'
@@ -2752,7 +2874,7 @@ function refresh() {
   // Editing is only ever enabled while on modelsource (see renderHeader()).
   if (isModelSection) {
     var modelURL = buildAPIURL();
-    var svBaseM  = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var svBaseM  = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
     ensureCapCached(svBaseM, function(cap) {
       var avail = cap && cap.available;
       // /model and /modelsource are optional, capability-gated endpoints
@@ -2809,7 +2931,7 @@ function refresh() {
 // Shared tail of the fetch-based branch in refresh().
 function renderEntityFromData(data, coll) {
   _lastData = data;
-  var svBaseE = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var svBaseE = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var capKeyE = normalizeURL(svBaseE);
   if (_capCache.hasOwnProperty(capKeyE)) {
     _state.mutable = entitiesMutableFromCap(_capCache[capKeyE]);
@@ -2859,13 +2981,37 @@ function entitiesMutableFromCap(cap) {
 
 // ---- Home view -----------------------------------------------------------
 
+// The full set of "known" servers regardless of hidden status — "this
+// server" first if it hasn't been deleted, then every remote server from
+// LS_SERVERS. Used by the Config page (which must still list hidden
+// servers, with Hide checked, so they can be un-hidden) and as the base
+// for visibleServerUrls() below.
+function allKnownServerUrls() {
+  var origin = normalizeURL(DEFAULT_SERVER_ORIGIN);
+  var list = loadServers().filter(function(u) { return u !== origin; });
+  if (!isLocalServerDeleted()) list = [origin].concat(list);
+  return list;
+}
+
+// Same as allKnownServerUrls(), minus anything hidden — this is what
+// actually appears on Home (see renderHome() below).
+function visibleServerUrls() {
+  return allKnownServerUrls().filter(function(u) { return !isHidden(u); });
+}
+
 function renderHome() {
   var main = el('main-view');
-  var origin = window.location.origin;
-  var servers = loadServers().filter(function(u) { return !isHidden(u); });
-  var localExcluded = isHidden(origin) || isLocalServerDeleted();
-  var allServers = localExcluded ? servers.filter(function(u) { return u !== origin; })
-    : [origin].concat(servers.filter(function(u) { return u !== origin; }));
+  var all = visibleServerUrls();
+  // Favorites (including "this server" once favorited — it's no longer
+  // specially pinned) keep the user's manual/drag order from the Config
+  // page's Favorites table (see applyServerOrder()); every other
+  // ("the rest") server is always shown alphabetically by label,
+  // regardless of any temporary column sort applied on the Config page.
+  var favorites = applyServerOrder(all.filter(function(u) { return isFavorite(u); }));
+  var rest = all.filter(function(u) { return !isFavorite(u); }).sort(function(a, b) {
+    return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
+  });
+  var allServers = favorites.concat(rest);
 
   var g = _state.homeGroup;
   var l = currentHomeLayout(); // per-group persisted layout, independent of data pages
@@ -2880,7 +3026,7 @@ function renderHome() {
   if (g === 'types') {
     renderHomeFlatList(main, allServers); // Grid removed for this page — always List
   } else {
-    l === 'table' ? renderHomeTable(main, allServers) : renderHomeGrid(main, allServers);
+    l === 'table' ? renderHomeTable(main, allServers, favorites.length) : renderHomeGrid(main, allServers, favorites.length);
   }
 }
 
@@ -2906,21 +3052,36 @@ function doHomeRefresh() {
   else renderHome();
 }
 
-function renderHomeGrid(main, servers) {
-  var sorted = servers.slice().sort(function(a, b) {
-    return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
-  });
+// Builds a labeled section-divider (thin rule + small caption), used to
+// visually separate Favorites from "All Other Registries" on Home's
+// Grid/List views — see renderHomeGrid()/renderHomeTable() below. Only
+// meant to be inserted when both groups are non-empty; a single group
+// needs no divider.
+function homeSectionDividerHTML(label) {
+  return '<div class="home-section-divider"><span>' + esc(label) + '</span></div>';
+}
+
+function renderHomeGrid(main, servers, favCount) {
+  // `servers` already arrives in the desired display order (local server
+  // pinned first, remote servers per the Config page's manual/drag order
+  // — see renderHome()/applyServerOrder()); no re-sorting here. The
+  // first `favCount` entries are Favorites; the rest is "All Other
+  // Registries" — see renderHome().
   var html = '<div class="home-page"><div class="home-grid">';
-  sorted.forEach(function(url) { html += serverCard(url); });
+  var hasBoth = favCount > 0 && favCount < servers.length;
+  if (hasBoth) html += homeSectionDividerHTML('Favorites');
+  servers.forEach(function(url, i) {
+    if (hasBoth && i === favCount) html += homeSectionDividerHTML('All Other Registries');
+    html += serverCard(url);
+  });
   html += '</div></div>';
   main.innerHTML = html;
   probeAllCards(main);
 }
 
-function renderHomeTable(main, servers) {
-  var sorted = servers.slice().sort(function(a, b) {
-    return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
-  });
+function renderHomeTable(main, servers, favCount) {
+  // Same ordering note as renderHomeGrid() above — `servers` is already
+  // in the desired display order.
   // Card-list design (see plan.md "List view visual redesign for Registries
   // home page") — a stack of rounded row-cards rather than a plain <table>,
   // so List reads as a denser sibling of Grid rather than a cold fallback.
@@ -2928,11 +3089,14 @@ function renderHomeTable(main, servers) {
   // which stay as-is for the Home "types" flat list — see
   // renderHomeFlatList()).
   var html = '<div class="home-page"><div class="reg-list">';
-  sorted.forEach(function(url) {
-    var sv = (url === window.location.origin) ? '' : url;
+  var hasBoth = favCount > 0 && favCount < servers.length;
+  if (hasBoth) html += homeSectionDividerHTML('Favorites');
+  servers.forEach(function(url, i) {
+    if (hasBoth && i === favCount) html += homeSectionDividerHTML('All Other Registries');
+    var sv = (url === DEFAULT_SERVER_ORIGIN) ? '' : url;
     var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: []}));
     html += '<div class="reg-row" data-server-url="' + esc(url) + '">'
-      + '<img src="favicon.svg" class="reg-row-icon" alt="" width="20" height="20">'
+      + '<img src="registry-icon.svg" class="reg-row-icon" alt="" width="20" height="20">'
       + '<div class="reg-row-main">'
       +   '<div class="reg-row-title">'
       +     '<a class="reg-row-name ht-name-text ht-name-link" href="' + esc(href) + '" onclick="' + esc(guardedOnclick('doBrowse(' + JSON.stringify(url) + ')')) + '">' + esc(serverLabel(url)) + '</a>'
@@ -3012,7 +3176,8 @@ function renderHomeTable(main, servers) {
           }
         }
       }
-      sortServerElements(row.closest('.reg-list'));
+      // Rows keep their configured (drag/manual) order — see renderHome()
+      // — so no post-probe re-sort here, unlike the old label-based sort.
     });
   });
 }
@@ -3023,7 +3188,7 @@ function renderHomeTable(main, servers) {
 // registry) in a more scannable table. See plan.md "Grid view removed".
 
 function browseGroupCollection(serverUrl, collName, url) {
-  var sv = (serverUrl === window.location.origin) ? '' : serverUrl;
+  var sv = (serverUrl === DEFAULT_SERVER_ORIGIN) ? '' : serverUrl;
   pushState({view: 'table', serverURL: sv, section: 'data', path: [collName], apiURL: url || ''});
 }
 
@@ -3034,7 +3199,7 @@ function browseGroupCollection(serverUrl, collName, url) {
 // link to their collections").
 function groupTypePillHTML(serverUrl, c) {
   var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(serverUrl) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')');
-  var sv = (serverUrl === window.location.origin) ? '' : serverUrl;
+  var sv = (serverUrl === DEFAULT_SERVER_ORIGIN) ? '' : serverUrl;
   var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [c.plural], apiURL: c.url || ''}));
   // Hover help shows the Group Type's model description, if any, so users
   // don't have to leave the page to learn what a pill (e.g. "dirs") means.
@@ -3072,13 +3237,13 @@ function renderHomeFlatList(main, servers) {
     }
     container.innerHTML = allRows.map(function(r) {
       var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(r.serverUrl) + ',' + JSON.stringify(r.plural) + ',' + JSON.stringify(r.url) + ')');
-      var sv = (r.serverUrl === window.location.origin) ? '' : r.serverUrl;
+      var sv = (r.serverUrl === DEFAULT_SERVER_ORIGIN) ? '' : r.serverUrl;
       var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [r.plural], apiURL: r.url || ''}));
       var regHref = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: []}));
       var regOnclick = guardedOnclick('doBrowse(' + JSON.stringify(r.serverUrl) + ')');
       return '<div class="gt-row">'
         + '<div class="gt-row-top">'
-        +   '<img src="' + esc(r.icon || r.regIcon || 'favicon.svg') + '" class="gt-row-icon" alt="" width="20" height="20" onerror="this.onerror=null;this.src=\'favicon.svg\'">'
+        +   '<img src="' + esc(r.icon || r.regIcon || 'registry-icon.svg') + '" class="gt-row-icon" alt="" width="20" height="20" onerror="this.onerror=null;this.src=\'registry-icon.svg\'">'
         +   '<div class="gt-row-main">'
         +     '<div class="gt-row-title">'
         +       '<a class="gt-row-name" href="' + esc(href) + '" onclick="' + esc(onclick) + '">' + esc(r.plural) + '</a>'
@@ -3132,19 +3297,7 @@ function renderHomeFlatList(main, servers) {
 }
 
 
-function sortServerElements(container) {
-  if (!container) return;
-  var els = Array.prototype.slice.call(container.querySelectorAll('[data-server-url]'));
-  els.sort(function(a, b) {
-    var la = (a.querySelector('.server-card-name, .ht-name-text') || a).textContent.trim().toLowerCase();
-    var lb = (b.querySelector('.server-card-name, .ht-name-text') || b).textContent.trim().toLowerCase();
-    return la.localeCompare(lb);
-  });
-  els.forEach(function(el) { container.appendChild(el); });
-}
-
 function probeAllCards(main) {
-  var container = main.querySelector('.home-grid, tbody');
   main.querySelectorAll('[data-server-url]').forEach(function(card) {
     probeRegistry(card.dataset.serverUrl, function(info) {
       var nameEl   = card.querySelector('.server-card-name');
@@ -3198,17 +3351,18 @@ function probeAllCards(main) {
           if (titleEl2) titleEl2.appendChild(warnBadge);
         }
       }
-      sortServerElements(container);
+      // Cards keep their configured (drag/manual) order — see renderHome()
+      // — so no post-probe re-sort here, unlike the old label-based sort.
     });
   });
 }
 
 function serverCard(url) {
-  var sv = (url === window.location.origin) ? '' : url;
+  var sv = (url === DEFAULT_SERVER_ORIGIN) ? '' : url;
   var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: []}));
   return '<div class="server-card" data-server-url="' + esc(url) + '">'
     + '<div class="server-card-title">'
-    +   '<img src="favicon.svg" class="server-card-icon" alt="" width="16" height="16">'
+    +   '<img src="registry-icon.svg" class="server-card-icon" alt="" width="16" height="16">'
     +   '<a class="server-card-name" href="' + esc(href) + '" onclick="return serverCardClick(event,this.closest(\'.server-card\'),' + esc(JSON.stringify(url)) + ')">' + esc(serverLabel(url)) + '</a>'
     + '</div>'
     + '<div class="server-card-desc" style="display:none"></div>'
@@ -3364,7 +3518,7 @@ function doRemoveServer(url) {
 }
 
 function doBrowse(url) {
-  var sv = (url === window.location.origin) ? '' : url;
+  var sv = (url === DEFAULT_SERVER_ORIGIN) ? '' : url;
   pushState({view: 'table', serverURL: sv, section: 'data', path: []});
 }
 
@@ -3408,11 +3562,15 @@ function cfgXregRadio(mode, label, desc) {
     + '</label>';
 }
 
-// Sort state for the Config page's Registry Servers table — persisted only
-// in-memory (resets to the default Name/ascending on reload), toggled by
-// clicking a sortable column header (see cfgSortBy()/cfgSortHeaderHTML()).
-// The local server's row is always pinned first regardless of sort column/
-// direction (it's "this server", not a regular addable/removable entry).
+// Sort state for the Config page's "All Other Registries" (non-favorite)
+// table only — persisted in-memory only (resets to Name/ascending each
+// time Config is (re)rendered from scratch, e.g. a page reload), toggled
+// by clicking a sortable column header (see cfgSortBy()/
+// cfgSortHeaderHTML()). Purely a temporary display convenience: it never
+// affects what's saved, and Home always shows this same group of servers
+// alphabetically by name regardless of this setting (see renderHome()).
+// The Favorites table (see below) has no column sorting at all — its
+// order is only ever set by dragging (see cfgRowDrop()).
 var _cfgSortCol = 'name';
 var _cfgSortDir = 'asc';
 
@@ -3427,9 +3585,9 @@ function cfgSortHeaderHTML(col, label, extraAttrs) {
     + esc(label) + arrow + '</th>';
 }
 
-// Handles a click on a Registry Servers column header — toggles direction
-// if the same column is clicked again, otherwise switches to the new
-// column defaulting to ascending.
+// Handles a click on an "All Other Registries" column header — toggles
+// direction if the same column is clicked again, otherwise switches to
+// the new column defaulting to ascending.
 function cfgSortBy(col) {
   if (_cfgSortCol === col) {
     _cfgSortDir = (_cfgSortDir === 'asc') ? 'desc' : 'asc';
@@ -3452,10 +3610,10 @@ function cfgSortKeyFor(url, col) {
   }
 }
 
-// Sorts the (non-local) server URL list per the current
+// Sorts the "All Other Registries" URL list per the current
 // _cfgSortCol/_cfgSortDir, with a stable Name tie-breaker so equal-value
-// rows (e.g. two servers both un-proxied) don't visibly reshuffle between
-// renders.
+// rows (e.g. two servers both un-proxied) don't visibly reshuffle
+// between renders.
 function cfgSortedServerUrls(urls) {
   var col = _cfgSortCol, dir = _cfgSortDir;
   return urls.slice().sort(function(a, b) {
@@ -3469,6 +3627,93 @@ function cfgSortedServerUrls(urls) {
     return dir === 'desc' ? -cmp : cmp;
   });
 }
+
+// Toggles a server's Favorite status from either table's checkbox —
+// newly-favorited servers are appended to the end of the Favorites
+// drag order (via applyServerOrder()'s "not yet in the saved order"
+// fallback), and un-favorited servers simply reappear alphabetically in
+// "All Other Registries". Un-favoriting also forgets the server's saved
+// drag position (see saveServerOrder()) so that if it's ever favorited
+// again later, it starts fresh at the end of the Favorites order rather
+// than jumping back to wherever it used to be.
+function cfgSetFavorite(url, on) {
+  setFavorite(url, on);
+  if (!on) {
+    var norm = normalizeURL(url);
+    saveServerOrder(loadServerOrder().filter(function(u) { return u !== norm; }));
+  }
+  renderConfig();
+}
+
+// ---- Favorites table drag-to-reorder ----------------------------------
+//
+// The Favorites table has no column-header sorting (see renderConfig())
+// — dragging is the only way to reorder it, and that saved order (see
+// applyServerOrder()) is exactly what the Home page uses too. "This
+// server" is draggable like any other row once it's a Favorite; it's no
+// longer specially pinned.
+var _cfgDragUrl = null;
+
+function cfgRowDragStart(e, url) {
+  _cfgDragUrl = url;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', url); } catch (err) {}
+  }
+  if (e.currentTarget) e.currentTarget.classList.add('cfg-row-dragging');
+}
+
+function cfgRowDragEnd() {
+  document.querySelectorAll('.cfg-row-dragging, .cfg-row-drop-before, .cfg-row-drop-after')
+    .forEach(function(tr) {
+      tr.classList.remove('cfg-row-dragging', 'cfg-row-drop-before', 'cfg-row-drop-after');
+    });
+  _cfgDragUrl = null;
+}
+
+function cfgRowDragOver(e) {
+  if (!_cfgDragUrl) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  var tr = e.currentTarget;
+  if (tr.dataset.cfgUrl === _cfgDragUrl) return;
+  document.querySelectorAll('.cfg-row-drop-before, .cfg-row-drop-after').forEach(function(r) {
+    if (r !== tr) r.classList.remove('cfg-row-drop-before', 'cfg-row-drop-after');
+  });
+  var rect = tr.getBoundingClientRect();
+  var before = (e.clientY - rect.top) < rect.height / 2;
+  tr.classList.toggle('cfg-row-drop-before', before);
+  tr.classList.toggle('cfg-row-drop-after', !before);
+}
+
+// Drops the dragged row's URL just before/after the target row (based on
+// which half of the target row the pointer was over — see
+// cfgRowDragOver()), persists the resulting order to LS_ORDER, and
+// re-renders. Recomputes the full displayed Favorites URL list itself
+// (via applyServerOrder(), same as renderConfig()'s Favorites table)
+// rather than trusting the DOM, so it's correct even if something else
+// changed the table in the meantime.
+function cfgRowDrop(e, targetUrl) {
+  e.preventDefault();
+  var draggedUrl = _cfgDragUrl;
+  var tr = e.currentTarget;
+  var before = tr.classList.contains('cfg-row-drop-before');
+  tr.classList.remove('cfg-row-drop-before', 'cfg-row-drop-after');
+  if (!draggedUrl || draggedUrl === targetUrl) return;
+
+  var favorites = applyServerOrder(allKnownServerUrls().filter(function(u) { return isFavorite(u); }));
+  var from = favorites.indexOf(draggedUrl);
+  if (from === -1) return;
+  favorites.splice(from, 1);
+  var to = favorites.indexOf(targetUrl);
+  if (to === -1) favorites.push(draggedUrl);
+  else favorites.splice(before ? to : to + 1, 0, draggedUrl);
+
+  saveServerOrder(favorites);
+  renderConfig();
+}
+
+
 
 // Builds the Config page's "About" section — static project links plus the
 // UI's own build-time commit sha (XREG_UI_COMMIT, from specattrs.js — see
@@ -3516,10 +3761,118 @@ function buildAboutSectionHtml() {
     + '</div>';
 }
 
+// Builds the Favorite-toggle <td> shared by both Registry Servers tables
+// — a star that favorites (☆ → adds to Favorites, at the end of the
+// drag order) or un-favorites (★ → moves back into "All Other
+// Registries", alphabetically) the row's server.
+function cfgFavoriteCellHTML(url, isFav) {
+  var title = isFav ? 'Remove from Favorites' : 'Add to Favorites';
+  return '<td class="cfg-fav-cell">'
+    + '<button type="button" class="cfg-fav-btn' + (isFav ? ' cfg-fav-on' : '') + '" '
+    +   'title="' + esc(title) + '" '
+    +   'onclick="cfgSetFavorite(' + esc(JSON.stringify(url)) + ', ' + (!isFav) + ')">'
+    +   (isFav ? '\u2605' : '\u2606')
+    + '</button></td>';
+}
+
+// Builds one Registry Servers <tr> — shared by both the Favorites table
+// (draggable, drag-handle cell) and the "All Other Registries" table (not
+// draggable, no drag-handle cell). `isLocal` renders the restricted
+// "this server" variant (fixed URL, no proxy checkbox) — otherwise it's
+// treated the same as any other row, including bulk-select Delete (see
+// cfgDeleteSelected()).
+function cfgServerRowHTML(url, isLocal, draggable) {
+  var isFav = isFavorite(url);
+  var dragCell = draggable
+    ? '<td class="cfg-drag-cell" title="Drag to reorder">\u2261</td>'
+    : '';
+  var dragAttrs = draggable
+    ? ' draggable="true"'
+      + ' ondragstart="cfgRowDragStart(event,' + esc(JSON.stringify(url)) + ')"'
+      + ' ondragover="cfgRowDragOver(event)"'
+      + ' ondragleave="this.classList.remove(\'cfg-row-drop-before\',\'cfg-row-drop-after\')"'
+      + ' ondrop="cfgRowDrop(event,' + esc(JSON.stringify(url)) + ')"'
+      + ' ondragend="cfgRowDragEnd()"'
+    : '';
+
+  if (isLocal) {
+    // Local server — its URL is fixed (can't ever be a different
+    // server), but its display Name can still be overridden and edited
+    // like any other registry, via its own Edit/Save/Cancel. Proxying
+    // only ever makes sense for a *remote* server, so this row has no
+    // checkbox at all (blank cell) rather than a disabled/checked one.
+    // Deletion works the same as for any other row — via its row
+    // checkbox + the "Delete Selected" bulk action (see
+    // cfgDeleteSelected()) — rather than its own per-row Delete button;
+    // it can always be re-added via "Add" since it's always a real,
+    // reachable /xregistry root.
+    return '<tr data-cfg-url="' + esc(url) + '"' + dragAttrs + ' '
+      + 'data-cfg-name="' + esc(getNameOverride(url)) + '">'
+      + dragCell
+      + '<td class="cfg-select-cell">'
+      +   '<input type="checkbox" class="cfg-select-input" '
+      +     'onchange="cfgUpdateSelection()">'
+      + '</td>'
+      + '<td class="cfg-name">' + cfgNameCellHTML(url) + '</td>'
+      + '<td><span class="cfg-url-display">' + esc(url)
+      + ' <span class="config-local-badge">this server</span></span></td>'
+      + '<td></td>'
+      + '<td class="cfg-hide-cell">'
+      +   '<input type="checkbox" class="cfg-hide-input"'
+      +     (isHidden(url) ? ' checked' : '') + ' '
+      +     'onchange="cfgSetHidden(\'' + esc(url) + '\', this.checked)">'
+      + '</td>'
+      + cfgFavoriteCellHTML(url, isFav)
+      + '<td class="cfg-actions">'
+      +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
+      +   '<button class="cfg-btn cfg-btn-primary cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
+      +   '<button class="cfg-btn cfg-btn-cancel cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
+      + '</td></tr>';
+  }
+
+  var discFrom = getDiscoveredFrom(url);
+  return '<tr data-cfg-url="' + esc(url) + '"' + dragAttrs + ' '
+    + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(url))) + '">'
+    + dragCell
+    + '<td class="cfg-select-cell">'
+    +   '<input type="checkbox" class="cfg-select-input" '
+    +     'onchange="cfgUpdateSelection()">'
+    + '</td>'
+    + '<td class="cfg-name">' + cfgNameCellHTML(url) + '</td>'
+    + '<td>'
+    +   '<span class="cfg-url-display"' + (discFrom ? ' title="Discovered via '
+          + esc(discFrom) + '"' : '') + '>' + esc(url) + '</span>'
+    +   '<input class="cfg-url-input" style="display:none" value="' + esc(url) + '" '
+    +     'onkeydown="if(event.key===\'Enter\')cfgSave(this);'
+    +               'else if(event.key===\'Escape\')cfgCancel(this)">'
+    + '</td>'
+    + '<td class="cfg-proxy-cell" title="Route requests to this server'
+    +   ' through this server\u2019s own proxy - use this if the remote'
+    +   ' registry doesn\u2019t allow direct cross-origin access (CORS)">'
+    +   '<input type="checkbox" class="cfg-proxy-input"'
+    +     (isProxied(url) ? ' checked' : '') + ' '
+    +     'onchange="cfgSetProxied(\'' + esc(url) + '\', this.checked)">'
+    + '</td>'
+    + '<td class="cfg-hide-cell" title="Hide from the Home page (without'
+    +   ' deleting)">'
+    +   '<input type="checkbox" class="cfg-hide-input"'
+    +     (isHidden(url) ? ' checked' : '') + ' '
+    +     'onchange="cfgSetHidden(\'' + esc(url) + '\', this.checked)">'
+    + '</td>'
+    + cfgFavoriteCellHTML(url, isFav)
+    + '<td class="cfg-actions">'
+    +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
+    +   '<button class="cfg-btn cfg-btn-primary cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
+    +   '<button class="cfg-btn cfg-btn-cancel cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
+    + '</td></tr>';
+}
+
 function renderConfig() {
   var main   = el('main-view');
-  var origin = window.location.origin;
-  var servers = loadServers();
+  var origin = normalizeURL(DEFAULT_SERVER_ORIGIN);
+  var all    = allKnownServerUrls();
+  var favorites = applyServerOrder(all.filter(function(u) { return isFavorite(u); }));
+  var rest      = cfgSortedServerUrls(all.filter(function(u) { return !isFavorite(u); }));
 
   var html = '<div class="config-page"><div class="config-section">'
     + '<div class="config-section-header">'
@@ -3534,90 +3887,46 @@ function renderConfig() {
     +       ' about, and review the results before adding any">Scan for'
     +       ' registries</button>'
     +   '</div>'
-    + '</div>'
+    + '</div>';
+
+  // ---- Favorites: drag-reorderable, shown on Home in this exact order.
+  html += '<h4 class="config-subsection-title" title="Reorder by dragging'
+    + ' rows below. Shown on the Home page first, in this order.">Favorites</h4>';
+  if (favorites.length === 0) {
+    html += '<p class="cfg-empty-note">No favorites yet \u2014 click \u2606 on'
+      + ' any server below to add it here, then drag rows to reorder.</p>';
+  } else {
+    html += '<table class="config-table cfg-favorites-table"><thead><tr>'
+      + '<th class="cfg-drag-th" title="Drag rows below to reorder"></th>'
+      + '<th class="cfg-select-cell"><input type="checkbox" class="cfg-select-all" '
+      +   'title="Select/deselect all favorite servers" '
+      +   'onchange="cfgToggleSelectAll(this)"></th>'
+      + '<th>Name</th><th>Location</th><th>Proxy</th>'
+      + '<th title="Hide from the Home page (without deleting)">Hide</th>'
+      + '<th></th><th></th></tr></thead><tbody>';
+    favorites.forEach(function(url) {
+      html += cfgServerRowHTML(url, url === origin, /*draggable=*/true);
+    });
+    html += '</tbody></table>';
+  }
+
+  // ---- All Other Registries: alphabetical on Home; column sort here is
+  // a temporary, view-only convenience (see cfgSortBy()).
+  html += '<h4 class="config-subsection-title" title="Always shown'
+    + ' alphabetically by name on the Home page. Sorting here (by clicking'
+    + ' a column) only changes this table\u2019s display and is not'
+    + ' saved.">All Other Registries</h4>'
     + '<table class="config-table"><thead><tr>'
-    + '<th class="cfg-select-cell"><input type="checkbox" id="cfg-select-all" '
+    + '<th class="cfg-select-cell"><input type="checkbox" class="cfg-select-all" '
     +   'title="Select/deselect all servers" '
     +   'onchange="cfgToggleSelectAll(this)"></th>'
     + cfgSortHeaderHTML('name', 'Name')
     + cfgSortHeaderHTML('location', 'Location')
     + cfgSortHeaderHTML('proxy', 'Proxy')
     + cfgSortHeaderHTML('hide', 'Hide', ' title="Hide from the Home page (without deleting)"')
-    + '<th></th></tr></thead><tbody>';
-
-  // Local server — its URL is fixed (can't ever be a different server),
-  // but its display Name can still be overridden and edited like any
-  // other registry, via its own Edit/Save/Cancel (no Delete/URL editing).
-  // Proxying only ever makes sense for a *remote* server, so this row has
-  // no checkbox at all (blank cell) rather than a disabled/checked one.
-  // Its select checkbox is still real (usable as a scan source, or to
-  // hide it). It CAN be "deleted" (see setLocalServerDeleted()) - this
-  // just removes it from the Config/Home lists, same as any other
-  // deleted server; it can always be re-added via "Add" since it's
-  // always a real, reachable /xregistry root.
-  if (!isLocalServerDeleted()) {
-  html += '<tr data-cfg-url="' + esc(normalizeURL(origin)) + '" '
-    + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(origin))) + '">'
-    + '<td class="cfg-select-cell">'
-    +   '<input type="checkbox" class="cfg-select-input" '
-    +     'onchange="cfgUpdateSelection()">'
-    + '</td>'
-    + '<td class="cfg-name">' + cfgNameCellHTML(normalizeURL(origin)) + '</td>'
-    + '<td><span class="cfg-url-display">' + esc(origin)
-    + ' <span class="config-local-badge">this server</span></span></td>'
-    + '<td></td>'
-    + '<td class="cfg-hide-cell">'
-    +   '<input type="checkbox" class="cfg-hide-input"'
-    +     (isHidden(normalizeURL(origin)) ? ' checked' : '') + ' '
-    +     'onchange="cfgSetHidden(\'' + esc(normalizeURL(origin)) + '\', this.checked)">'
-    + '</td>'
-    + '<td class="cfg-actions">'
-    +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
-    +   '<button class="cfg-btn cfg-btn-primary cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
-    +   '<button class="cfg-btn cfg-btn-cancel cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
-    +   '<button class="cfg-btn cfg-btn-danger" onclick="cfgDeleteLocalServer()" '
-    +     'title="Remove this server from the list (it can be added back later)">Delete</button>'
-    + '</td></tr>';
-  }
-
-  // User-added servers — sorted per the current column/direction chosen
-  // via the sortable column headers (see cfgSortBy()/cfgSortedServerUrls()),
-  // defaulting to Name/ascending (same serverLabel()-based ordering used
-  // on the Home page's Registries list) for a deterministic initial order.
-  cfgSortedServerUrls(servers.filter(function(u) { return u !== origin; })).forEach(function(url) {
-    var discFrom = getDiscoveredFrom(url);
-    html += '<tr data-cfg-url="' + esc(url) + '" '
-      + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(url))) + '">'
-      + '<td class="cfg-select-cell">'
-      +   '<input type="checkbox" class="cfg-select-input" '
-      +     'onchange="cfgUpdateSelection()">'
-      + '</td>'
-      + '<td class="cfg-name">' + cfgNameCellHTML(url) + '</td>'
-      + '<td>'
-      +   '<span class="cfg-url-display"' + (discFrom ? ' title="Discovered via '
-            + esc(discFrom) + '"' : '') + '>' + esc(url) + '</span>'
-      +   '<input class="cfg-url-input" style="display:none" value="' + esc(url) + '" '
-      +     'onkeydown="if(event.key===\'Enter\')cfgSave(this);'
-      +               'else if(event.key===\'Escape\')cfgCancel(this)">'
-      + '</td>'
-      + '<td class="cfg-proxy-cell" title="Route requests to this server'
-      +   ' through this server\u2019s own proxy - use this if the remote'
-      +   ' registry doesn\u2019t allow direct cross-origin access (CORS)">'
-      +   '<input type="checkbox" class="cfg-proxy-input"'
-      +     (isProxied(url) ? ' checked' : '') + ' '
-      +     'onchange="cfgSetProxied(\'' + esc(url) + '\', this.checked)">'
-      + '</td>'
-      + '<td class="cfg-hide-cell" title="Hide from the Home page (without'
-      +   ' deleting)">'
-      +   '<input type="checkbox" class="cfg-hide-input"'
-      +     (isHidden(url) ? ' checked' : '') + ' '
-      +     'onchange="cfgSetHidden(\'' + esc(url) + '\', this.checked)">'
-      + '</td>'
-      + '<td class="cfg-actions">'
-      +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
-      +   '<button class="cfg-btn cfg-btn-primary cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
-      +   '<button class="cfg-btn cfg-btn-cancel cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
-      + '</td></tr>';
+    + '<th></th><th></th></tr></thead><tbody>';
+  rest.forEach(function(url) {
+    html += cfgServerRowHTML(url, url === origin, /*draggable=*/false);
   });
 
   html += '</tbody><tfoot><tr class="cfg-add-tr">'
@@ -3639,6 +3948,7 @@ function renderConfig() {
     +   '<input type="checkbox" id="cfg-new-proxy">'
     + '</td>'
     + '<td class="cfg-hide-cell"></td>'
+    + '<td></td>'
     + '<td class="cfg-actions">'
     +   '<button class="cfg-btn cfg-btn-primary" onclick="cfgAddNew()">Add</button>'
     + '</td>'
@@ -3686,6 +3996,23 @@ function renderConfig() {
     +   ' the JSON view uses</span>'
     + '</div>'
 
+    + '<div class="cfg-option-row cfg-option-group"'
+    +   ' title="When a Group Types/Resources collection listed on a'
+    +   ' Registry or Group page has only one item in it, clicking it jumps'
+    +   ' straight to that one item instead of showing the single-row'
+    +   ' collection list page first. View mode only.">'
+    +   '<span class="cfg-option-label">Optimized browsing</span>'
+    +   '<label class="cfg-radio-row">'
+    +     '<input type="checkbox" id="cfg-optimized-browsing"'
+    +     (optOptimizedBrowsing() ? ' checked' : '')
+    +     ' onchange="cfgSetOptimizedBrowsing(this.checked)">'
+    +     '<span class="cfg-radio-label">Auto-jump into single-item collections</span>'
+    +   '</label>'
+    +   '<span class="cfg-option-desc">When stepping into a collection,'
+    +   ' auto jump to the item in a collection when it\u2019s the only'
+    +   ' item</span>'
+    + '</div>'
+
     + '</div>'
 
     // ---- Reset section ----
@@ -3706,8 +4033,7 @@ function renderConfig() {
   main.innerHTML = html;
 
   // Probe all servers; mark any that error with the same ! badge + popup as the home page
-  var allUrls = isLocalServerDeleted() ? servers.filter(function(u) { return u !== origin; })
-    : [origin].concat(servers.filter(function(u) { return u !== origin; }));
+  var allUrls = all;
   allUrls.forEach(function(url) {
     var norm = normalizeURL(url);
     probeRegistry(url, function(info) {
@@ -3849,16 +4175,6 @@ function cfgSetHidden(url, on) {
   setHidden(url, on);
 }
 
-// Deletes the local "this server" row from Config/Home (see
-// setLocalServerDeleted()) - unlike removeServer() for a remote server,
-// this doesn't touch LS_SERVERS (the local server was never stored
-// there), and its name-override/hidden flags are left alone so they'll
-// still apply if it's ever added back via the Add row.
-function cfgDeleteLocalServer() {
-  setLocalServerDeleted(true);
-  renderConfig();
-}
-
 // Multi-select bulk actions (Delete / Scan for registries) ----------------
 
 // Header "select all" checkbox: check/uncheck every row's checkbox
@@ -3891,11 +4207,11 @@ function cfgUpdateSelection() {
     scanBtn.textContent = checked.length > 0
       ? 'Scan for registries (' + checked.length + ')' : 'Scan for registries';
   }
-  var all = el('cfg-select-all');
-  if (all) {
-    all.checked = boxes.length > 0 && checked.length === boxes.length;
-    all.indeterminate = checked.length > 0 && checked.length < boxes.length;
-  }
+  var all = document.querySelectorAll('.cfg-select-all');
+  all.forEach(function(cb) {
+    cb.checked = boxes.length > 0 && checked.length === boxes.length;
+    cb.indeterminate = checked.length > 0 && checked.length < boxes.length;
+  });
 }
 
 // Deletes every checked server row in one pass, including the local
@@ -3904,7 +4220,7 @@ function cfgUpdateSelection() {
 // then re-renders the Config page (which naturally resets the selection
 // since the table is rebuilt from scratch).
 function cfgDeleteSelected() {
-  var origin = normalizeURL(window.location.origin);
+  var origin = normalizeURL(DEFAULT_SERVER_ORIGIN);
   var urls = [];
   var deleteLocal = false;
   document.querySelectorAll('.cfg-select-input:checked').forEach(function(inp) {
@@ -4048,6 +4364,14 @@ function cfgSetXregFocused(checked) {
   refresh();
 }
 
+// Flips the "Optimized browsing" option (see optOptimizedBrowsing()). No
+// re-render needed beyond what the checkbox's own state already reflects —
+// it only affects behavior of a future click, not anything currently shown.
+function cfgSetOptimizedBrowsing(checked) {
+  _opts.optimizedBrowsing = !!checked;
+  saveOpts();
+}
+
 // Adds a new server from the Config page's Add row. Blocks (shows an
 // inline error, touches nothing) if the URL is already configured — a
 // URL is a server's unique identity, so re-adding a known URL (e.g. to
@@ -4066,7 +4390,7 @@ function cfgAddNew() {
   // clears the deleted flag - it's never stored in LS_SERVERS like a
   // normal remote server (its URL is implicit/fixed), so addServer()
   // would be the wrong mechanism here.
-  if (normalizeURL(url) === normalizeURL(window.location.origin)) {
+  if (normalizeURL(url) === normalizeURL(DEFAULT_SERVER_ORIGIN)) {
     if (!isLocalServerDeleted()) {
       if (errEl) {
         errEl.textContent = 'Already configured — delete the existing entry'
@@ -4102,8 +4426,8 @@ function cfgAddNew() {
 //
 // All browser-side state this app keeps lives in a handful of localStorage
 // keys (LS_SERVERS, LS_OPTIONS, LS_NAMES, LS_PROXY, LS_DISCOVERED,
-// LS_HIDDEN, LS_LOCAL_DELETED, LS_LABELS) plus a handful of in-memory
-// caches (_modelCache/
+// LS_HIDDEN, LS_LOCAL_DELETED, LS_LABELS, LS_ORDER, LS_FAVORITES) plus a
+// handful of in-memory caches (_modelCache/
 // _capCache/_offeredCache etc.) that are rebuilt automatically on next use —
 // a full page reload after clearing localStorage is therefore sufficient to
 // reset everything, with no need to individually track/clear each in-memory
@@ -4119,6 +4443,8 @@ function cfgResetAll() {
   localStorage.removeItem(LS_HIDDEN);
   localStorage.removeItem(LS_LOCAL_DELETED);
   localStorage.removeItem(LS_LABELS);
+  localStorage.removeItem(LS_ORDER);
+  localStorage.removeItem(LS_FAVORITES);
   window.location.reload();
 }
 
@@ -4951,7 +5277,7 @@ function saveNewEntity(cb) {
       if (resp.ok) {
         _addNewOpen = false; _addNewData = {}; _addNewIdValue = ''; _addNewMetaData = {};
         if (_addNewDocWidgetId) { clearDocWidgetState(_addNewDocWidgetId); _addNewDocWidgetId = null; }
-        invalidateRegistryProbe(_state.serverURL || window.location.origin);
+        invalidateRegistryProbe(_state.serverURL || DEFAULT_SERVER_ORIGIN);
         if (cb) { cb(); } else { refresh(); }
       } else {
         if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
@@ -5033,7 +5359,7 @@ function collDeleteSelected() {
   })).then(function() {
     removeOverlay();
     _collSelectedIds = {};
-    invalidateRegistryProbe(_state.serverURL || window.location.origin);
+    invalidateRegistryProbe(_state.serverURL || DEFAULT_SERVER_ORIGIN);
     if (errors.length) alert('Some deletes failed:\n' + errors.join('\n'));
     // A partial failure means at least one version (and therefore the
     // Resource, and this Versions collection) still exists, so refresh as
@@ -5057,7 +5383,7 @@ function renderTableView(data) {
   var preserveOrder = !_sortCol && !!_state.sort;
   var items = collectionItems(data, preserveOrder);
 
-  var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var svBase = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var modelKey = normalizeURL(svBase);
   if (!_modelCache.hasOwnProperty(modelKey)) {
     ensureModelCached(svBase, function() {
@@ -5137,7 +5463,7 @@ function renderTableView(data) {
   var pluralLabel = _state.path[_state.path.length - 1];
   var titleIdPrefix = '';
   if (depth === 1) {
-    var regLabelT = serverLabel(_state.serverURL || window.location.origin);
+    var regLabelT = serverLabel(_state.serverURL || DEFAULT_SERVER_ORIGIN);
     titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(regLabelT) + ':</span> ';
   } else if (depth === 3) {
     titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(_state.path[1]) + ':</span> ';
@@ -5281,7 +5607,7 @@ function sortBy(col) {
     }
     var sortHost = el('lp-sort-section');
     if (sortHost) {
-      var svBaseS = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+      var svBaseS = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
       sortHost.innerHTML = buildSortSectionInner(_modelCache[normalizeURL(svBaseS)] || null);
     }
   }
@@ -5321,7 +5647,7 @@ function buildRegEndpointPillsHtml() {
   // domain-focused filter — toggling "Show/Hide xReg Data" while editing
   // shows/hides this row exactly like it does in View mode.
   if (!effectiveXregFocused()) return '';
-  var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var svBaseP = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var capDataP = _capCache[normalizeURL(svBaseP)];
   var availP   = capDataP && capDataP.available;
   var modelKeyP = normalizeURL(svBaseP);
@@ -5370,7 +5696,7 @@ function toggleRegWarnBanner() {
 // see plan.md "Data-loading warning indicators". Returns '' when there's
 // nothing to warn about.
 function buildRegDataWarnBannerHtml() {
-  var svBaseW = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var svBaseW = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var warningsW = getRegDataWarnings(svBaseW);
   if (!warningsW.length) return '';
   var html2 = '<div id="regDataWarnBanner" class="reg-data-warn-banner' + (_regWarnBannerExpanded ? ' reg-data-warn-banner-expanded' : '') + '">'
@@ -5398,14 +5724,14 @@ function buildRegDataWarnBannerHtml() {
 // same button alongside its own version-scoped "Delete Version (#)" one).
 function buildDataEditorActionBarHtml(deleteDisabled, showAddVersion) {
   var deleteDisabledAttr = deleteDisabled ? ' disabled title="Deleting the registry itself is not supported here"' : '';
-  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)], _state.path) || 'entity');
   // "+ Add Version" is duplicated here (Resource pages only, depth 4 — see
   // showAddVersion) so users can add a version without first switching to
   // the Versions List tab — same entry point (verTabToggleAddForm()) as
   // the button on that tab (see renderVersionsTabPanel()'s addBtnsHtml).
   var addVersionHtml = '';
   if (showAddVersion) {
-    var verModel = _modelCache[normalizeURL(_state.serverURL || window.location.origin)];
+    var verModel = _modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)];
     var verSingular = capitalize(getSingularName(verModel, _state.path.concat(['versions', '__new__'])) || 'Version');
     addVersionHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(verSingular) + '</button> ';
   }
@@ -5437,7 +5763,7 @@ function renderSingleEntity(data) {
     return;
   }
 
-  var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var svBase = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var modelKey = normalizeURL(svBase);
   if (!_modelCache.hasOwnProperty(modelKey)) {
     ensureModelCached(svBase, function() {
@@ -5557,7 +5883,7 @@ function renderSingleEntity(data) {
       // "REGISTRY: CloudEvents Registry") — an explicit user override is
       // shown verbatim since the user already controls exactly what to
       // type there.
-      var regNameOverrideH = getNameOverride(_state.serverURL || window.location.origin);
+      var regNameOverrideH = getNameOverride(_state.serverURL || DEFAULT_SERVER_ORIGIN);
       titleDisplayH = regNameOverrideH
         || titleDisplayH.replace(/\s+Registry$/i, '');
     }
@@ -5609,7 +5935,21 @@ function renderSingleEntity(data) {
           + '</tr></thead>';
     html += '<tbody>';
     colls.forEach(function(c) {
-      var collClickExpr = 'navigateTo(' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
+      // Single-choice skip-ahead: applies to ANY collection listed here
+      // (Group Types at the Registry root, Resource Types in a Group)
+      // whose count is exactly 1 — not just when it's the only collection
+      // type on the page. Clicking jumps straight to that one item's
+      // entity page instead of stopping on the (otherwise pointless,
+      // single-row) collection list page. Scoped ONLY to this click site
+      // (not breadcrumbs, not direct/bookmarked collection links —
+      // collHref/pageHref below still point at the plain collection URL
+      // for hover/ctrl-click/"open in new tab"/refresh), gated on the
+      // opt-in-by-default "Optimized browsing" Config-page option, and
+      // only in view mode (skip is confusing/unwanted while editing).
+      var skipToSingleItem = c.count === 1 && !_state.editMode && optOptimizedBrowsing();
+      var collClickExpr = skipToSingleItem
+        ? 'navigateToCollOrSingleItem(' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')'
+        : 'navigateTo(' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
       var collHref = pageHref(_state.path.concat([c.plural]), c.url);
       var resTypesHtml = showResTypes
         ? (c.resources && c.resources.length ? esc(c.resources.join(', ')) : '')
@@ -5750,23 +6090,18 @@ function renderSingleEntity(data) {
     // (loadVersionsForSelect()); until then only "Default" is selectable.
     // Neither "Versions List" nor "Metadata" "belongs" to a single version
     // (Versions List shows every version at once; Metadata is the same
-    // for all versions) — both leave the dropdown enabled but blank,
-    // start it that way if either is the tab being restored on load (kept
-    // in sync afterwards by switchDocTab()/syncVersionSelectorForTab()).
-    // See plan.md. Picking one there jumps straight to Version Details.
-    var verSelUnsetD = (_state.docTab === 'meta');
+    // for all versions) — but the dropdown still shows whatever version
+    // was last selected (just "Default" on the very first render) rather
+    // than a blank placeholder, so a single click back to Document/Version
+    // Details returns to that same version — no need to re-pick it. See
+    // syncVersionSelectorForTab() for the kept-in-sync version used after
+    // the initial render.
     var verSelViewAllD = (_state.docTab === 'versions');
-    // Highlighted (border/glow, see .eg-tab-active in style.css) whenever
-    // the dropdown shows any real selection — everywhere except Metadata's
-    // blank "\u2014 Select \u2014" placeholder, which has nothing
-    // meaningful selected to highlight. See syncVersionSelectorForTab() for
-    // the kept-in-sync version used after the initial render.
     var versionSelectorHtml = versionsUrlD
-      ? '<span class="eg-version-selector' + (!verSelUnsetD ? ' eg-tab-active' : '') + '"><label for="eg-doc-version-select">Version:</label>'
+      ? '<span class="eg-version-selector eg-tab-active"><label for="eg-doc-version-select">Version:</label>'
         + '<select id="eg-doc-version-select"'
         + ' onchange="onVersionSelectChange(this.value, true)">'
-        + (verSelUnsetD ? '<option value="__unset__" selected>\u2014 Select \u2014</option>' : '')
-        + '<option value="default"' + (verSelUnsetD || verSelViewAllD ? '' : ' selected') + '>' + esc(defaultOptionLabel(data)) + '</option>'
+        + '<option value="default"' + (verSelViewAllD ? '' : ' selected') + '>' + esc(defaultOptionLabel(data)) + '</option>'
         // Experimental "View All" shortcut — see onVersionSelectChange().
         + '<option value="__viewall__"' + (verSelViewAllD ? ' selected' : '') + '>View All</option>'
         + '</select></span>'
@@ -5788,16 +6123,20 @@ function renderSingleEntity(data) {
       if (versionSelectorHtml) rowParts.push(versionSelectorHtml);
       var initTabKeyD = tabDefs[initActiveIdx] && tabDefs[initActiveIdx].key;
       tabDefs.forEach(function(t, i) {
-        var btnDisabledD = ((initTabKeyD === 'versions' || initTabKeyD === 'meta') && (t.key === 'doc' || t.key === 'defver'));
-        var btnTitleD = initTabKeyD === 'meta' ? 'Metadata is the same for all versions' : 'Select a version from the list below first';
         // Versions List's own tab button is hidden — reached instead via
         // "View All" in the Version: dropdown (see onVersionSelectChange())
         // — but the button element itself, plus its panel and all the
         // .eg-doc-tab.active/data-tab="versions" logic elsewhere, are kept
         // completely intact so this can be trivially reverted.
         var btnHiddenD = (t.key === 'versions') ? ' eg-doc-tab-hidden' : '';
+        // Document/Version Details are plain, normal (not disabled, not
+        // dimmed) non-active buttons while Versions List/Metadata is
+        // active — exactly like any other inactive tab (e.g. how Document
+        // looks perfectly normal while Version Details is the active
+        // tab). A single click jumps straight back to whichever version
+        // was last selected (see switchDocTab()), no re-picking required.
         rowParts.push('<button class="eg-doc-tab' + (i === initActiveIdx ? ' active' : '') + btnHiddenD + '" data-tab="' + esc(t.key)
-          + '"' + (btnDisabledD ? ' disabled title="' + esc(btnTitleD) + '"' : '')
+          + '"'
           + ' onclick="switchDocTab(\'' + esc(t.key) + '\')">' + esc(t.label) + '</button>');
       });
       html += '<div class="eg-doc-tabs">' + rowParts.join('') + '</div>';
@@ -5981,7 +6320,7 @@ function hasRegDataWarnings(baseURL) {
 // functions (checkbox onchange handlers, sortRerender(), fbRerender()) that
 // aren't nested inside that render call. See computeApplyDirty().
 function capHasFlag(f) {
-  var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var svBase = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var cap    = _capCache[normalizeURL(svBase)];
   var flags  = (cap && cap.flags) || [];
   return flags.indexOf(f) !== -1;
@@ -8013,7 +8352,7 @@ function dataEditFieldChange(k, inputEl) {
   } else {
     val = inputEl.value;
   }
-  var model = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+  var model = _modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)] || null;
   var beforeAttrs = topLevelAttrsMapFor(model, _state.path, _dataEditData);
   _dataEditData[k] = val;
   markDataDirty();
@@ -8251,14 +8590,14 @@ function undoDataEdit() {
 // Deletes the entity currently on-screen, after confirmation, then
 // navigates back up to its parent (collection) page.
 function deleteDataEntity() {
-  var typeLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  var typeLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)], _state.path) || 'entity');
   if (!confirm('Delete this ' + typeLabel + '? This cannot be undone.')) return;
   var errDiv = document.getElementById('dataEditorError');
   if (errDiv) { hideErrorBanner(errDiv); }
   fetch(buildBaseURL(), {method: 'DELETE'}).then(function(resp) {
     if (resp.ok || resp.status === 204) {
       _dataDirty = false; _dataEditData = null; _dataEditSrc = null; _dataLoadedFor = null;
-      invalidateRegistryProbe(_state.serverURL || window.location.origin);
+      invalidateRegistryProbe(_state.serverURL || DEFAULT_SERVER_ORIGIN);
       pushState({path: _state.path.slice(0, -1)});
       return;
     }
@@ -8287,7 +8626,7 @@ function saveDataEntity(verb, cb) {
   // normalizeVersionDepth()); a Version's own edits now go through
   // saveVersionEntity() instead, which has its own matching check.
   if (_state.path.length === 4) {
-    var svBaseS = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var svBaseS = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
     var modelS = _modelCache[normalizeURL(svBaseS)] || null;
     if (resourceHasDocument(modelS, _state.path)) {
       url = url.replace(/(\?|$)/, '$details$1');
@@ -8365,7 +8704,7 @@ function metaEditFieldChange(k, inputEl) {
   } else {
     val = inputEl.value;
   }
-  var model = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+  var model = _modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)] || null;
   var metaPath = (_state.path || []).concat(['meta']);
   var beforeAttrs = topLevelAttrsMapFor(model, metaPath, _metaEditData);
   _metaEditData[k] = val;
@@ -8408,7 +8747,7 @@ function markMetaDirty() {
 function rerenderMetaTab() {
   var box = document.getElementById('eg-meta-box');
   if (!box || !_metaEditData) return;
-  var svURL = normalizeURL(_state.serverURL || window.location.origin);
+  var svURL = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN);
   box.innerHTML = renderMetaBoxContent(_metaEditData, _modelCache[svURL] || null, true);
   // The Save/Undo action bar now lives in the shared #dataEditorActionBarSlot
   // (see buildMetaActionBarHtml()), not inside this box's own innerHTML —
@@ -8444,12 +8783,12 @@ function buildMetaActionBarHtml() {
   // action while looking at its Metadata, same as it is from the Document/
   // Version Details tabs (see buildDataEditorActionBarHtml()). Reuses the
   // same deleteDataEntity() and singular-name computation those bars use.
-  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)], _state.path) || 'entity');
   // "+ Add Version" is duplicated here too (same entry point as the
   // Document/Version Details tabs' own copy — see
   // buildDataEditorActionBarHtml()) so it's available no matter which tab
   // happens to be active, Metadata included.
-  var verModel = _modelCache[normalizeURL(_state.serverURL || window.location.origin)];
+  var verModel = _modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)];
   var verSingular = capitalize(getSingularName(verModel, _state.path.concat(['versions', '__new__'])) || 'Version');
   var addVersionHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(verSingular) + '</button> ';
   return '<div id="metaEditorError" class="error-banner" style="display:none"></div>'
@@ -8575,12 +8914,12 @@ function markVerDirty() {
 // operations; the page-level bar (Default version only) only ever needs
 // the latter — see buildDataEditorActionBarHtml().
 function buildVersionActionBarHtml() {
-  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)], _state.path) || 'entity');
   // "+ Add Version" duplicated here too (see buildDataEditorActionBarHtml()'s
   // matching comment) — a specific non-default version being viewed is
   // still a Resource page, so adding a new version makes just as much
   // sense here as on the Default-version bar.
-  var verModel = _modelCache[normalizeURL(_state.serverURL || window.location.origin)];
+  var verModel = _modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)];
   var verSingular = capitalize(getSingularName(verModel, (_resPath || _state.path).concat(['versions', '__new__'])) || 'Version');
   var addVersionHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(verSingular) + '</button> ';
   return '<div id="verEditorError" class="error-banner" style="display:none"></div>'
@@ -9095,7 +9434,7 @@ function loadMetaDetails() {
     }
     var liveBox = document.getElementById('eg-meta-box');
     if (!liveBox) return;
-    var svURL = normalizeURL(_state.serverURL || window.location.origin);
+    var svURL = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN);
     liveBox.innerHTML = renderMetaBoxContent(editableM ? _metaEditData : d, _modelCache[svURL] || null, editableM);
   }
   if (_metaData && stillCurrent() && _metaLoadedFor === (_lastData && _lastData.self)) { afterLoad(_metaData); return; }
@@ -9165,10 +9504,11 @@ function loadVersionsForSelect() {
       sel.innerHTML = html;
       if (restoredVid) onVersionSelectChange(restoredVid);
       // If the Metadata or Versions List tab is already active when this
-      // async fetch resolves, re-apply the blank "\u2014 Select \u2014"
-      // placeholder state on top of the freshly-populated real options
-      // (otherwise they'd silently replace it with the restored/previous
-      // selection). See plan.md "Metadata tab disables version selector".
+      // async fetch resolves, re-apply that tab's selector state (real
+      // last-selected version for Metadata, "View All" for Versions List)
+      // on top of the freshly-populated real options (otherwise they'd
+      // silently replace it with plain "default"/whatever `current`
+      // resolved to above). See syncVersionSelectorForTab().
       var activeTabBtn = document.querySelector('.eg-doc-tab.active[data-tab]');
       var activeTabKey = activeTabBtn && activeTabBtn.getAttribute('data-tab');
       if (activeTabKey === 'meta' || activeTabKey === 'versions') syncVersionSelectorForTab(activeTabKey);
@@ -9591,7 +9931,12 @@ function verTabRowClick(vid) {
   var sel = document.getElementById('eg-doc-version-select');
   if (sel) sel.value = vid;
   onVersionSelectChange(vid);
-  switchDocTab('doc');
+  // Resource types with hasdocument:false have no "Document" tab at all
+  // (see resourceHasDocument()/tabDefs.push() in renderSingleEntity()) —
+  // jump to "Version Details" instead in that case, otherwise
+  // switchDocTab('doc') targets a tab button/panel that doesn't exist,
+  // leaving the tab bar with nothing selected/visible.
+  switchDocTab(resourceHasDocument(_resModel, _resPath || []) ? 'doc' : 'defver');
 }
 
 // Same shape as saveNewEntity(), but targets _resVersionsUrl directly (the
@@ -9647,7 +9992,7 @@ function verTabSaveNewVersion() {
         _addNewResourceSingular = null;
         _addNewRerender = null;
         setVersionTabsEnabledForAdd(true);
-        invalidateRegistryProbe(_state.serverURL || window.location.origin);
+        invalidateRegistryProbe(_state.serverURL || DEFAULT_SERVER_ORIGIN);
         loadVersionsForSelect();
         restoreVersionTabsAfterAdd();
       } else {
@@ -9721,7 +10066,7 @@ function verTabDeleteSelected() {
   })).then(function() {
     removeOverlay();
     _verTabSelectedIds = {};
-    invalidateRegistryProbe(_state.serverURL || window.location.origin);
+    invalidateRegistryProbe(_state.serverURL || DEFAULT_SERVER_ORIGIN);
     if (errors.length) alert('Some deletes failed:\n' + errors.join('\n'));
     // A partial failure means at least one version (and therefore the
     // Resource itself) still exists, so refresh the Versions List as
@@ -9889,17 +10234,22 @@ function onVersionSelectChangeReal(vid, fromUserPick) {
   refreshCopyLinkBtnTooltip();
   // Picking a version from the dropdown while on the Metadata or Versions
   // List tab has nothing to show there (Metadata doesn't vary per-version;
-  // Versions List shows every version at once — see syncDocButtonsForTab())
-  // , so jump straight to the Document tab, the panel this selection
-  // actually affects — same "show the version they just picked" idea as
-  // verTabRowClick()'s row-click handler. Gated on fromUserPick so a page
-  // refresh/reload restoring the previously-selected version
-  // (loadVersionsForSelect()) doesn't also yank the user off the tab they
+  // Versions List shows every version at once), so jump straight to the
+  // Document tab, the panel this selection actually affects — same "show
+  // the version they just picked" idea as verTabRowClick()'s row-click
+  // handler. Gated on fromUserPick so a page refresh/reload restoring the
+  // previously-selected version (loadVersionsForSelect()) doesn't also
+  // yank the user off the tab they
   // were actually on.
   if (fromUserPick) {
     var curActiveTab = document.querySelector('.eg-doc-tab.active');
     var curActiveKey = curActiveTab && curActiveTab.getAttribute('data-tab');
-    if (curActiveKey === 'meta' || curActiveKey === 'versions') switchDocTab('doc');
+    if (curActiveKey === 'meta' || curActiveKey === 'versions') {
+      // Same hasdocument-aware fallback as verTabRowClick() above — jump to
+      // "Version Details" instead of a nonexistent "Document" tab when this
+      // resource type has no document concept.
+      switchDocTab(resourceHasDocument(_resModel, _resPath || []) ? 'doc' : 'defver');
+    }
   }
 }
 
@@ -10063,40 +10413,19 @@ function switchDocTabReal(tabKey) {
   // now that layout/geometry is accurate (hidden panels report 0 height).
   if (tabKey === 'doc') sizeDocTextarea();
   syncVersionSelectorForTab(tabKey);
-  syncDocButtonsForTab(tabKey);
   refreshCopyLinkBtnTooltip();
-}
-
-// Document/Version Details are both per-VERSION views; Metadata (metaurl)
-// is a per-RESOURCE concept instead. Neither "Versions List" (shows every
-// version at once — see verTabRowClick(), which switches to Version
-// Details itself once a row is picked) nor "Metadata" (not scoped to any
-// one version) has a single version in context for Document/Version
-// Details to display — even though the "Version:" dropdown itself stays
-// enabled on both (see syncVersionSelectorForTab()), picking from it just
-// jumps straight to Version Details rather than updating either tab in
-// place. Disable (grey out, unclickable) both buttons while either tab is
-// active, and restore them otherwise.
-function syncDocButtonsForTab(tabKey) {
-  var disable = (tabKey === 'versions' || tabKey === 'meta');
-  ['doc', 'defver'].forEach(function(key) {
-    var btn = document.querySelector('.eg-doc-tab[data-tab="' + key + '"]');
-    if (!btn) return;
-    btn.disabled = disable;
-    btn.title = disable
-      ? (tabKey === 'meta' ? 'Metadata is the same for all versions' : 'Select a version from the list below first')
-      : '';
-  });
 }
 
 // Metadata (metaurl) is a per-Resource concept, not per-version, but the
 // "Version:" dropdown stays enabled while on the Metadata tab anyway —
 // picking a version there is still a useful shortcut to jump straight to
 // that version's own Document/Version Details afterward, even though
-// Metadata itself doesn't change. "Versions List" (shows every version at
-// once, so there's no "currently selected" version either) gets the same
-// treatment — enabled with the same blank placeholder — since picking one
-// there is just as useful a shortcut into Document/Version Details.
+// Metadata itself doesn't change; it keeps showing whatever version was
+// last selected instead of a blank placeholder, matching the normal
+// (non-dimmed) look the Document/Version Details tab buttons keep even
+// while inactive. "Versions List" (shows every version at once) gets its
+// own dedicated "View All" option selected instead, since that's
+// literally what that tab means.
 function syncVersionSelectorForTab(tabKey) {
   var sel = document.getElementById('eg-doc-version-select');
   if (!sel) return;
@@ -10124,60 +10453,30 @@ function syncVersionSelectorForTab(tabKey) {
     return;
   }
   var wrap = sel.closest('.eg-version-selector');
-  if (tabKey === 'versions' || tabKey === 'meta') {
-    // Neither Versions List nor Metadata "belongs" to any one version, so
-    // there's no "currently selected" version to show here — unlike every
-    // other tab, where the selector reflects whatever version that tab is
-    // actually displaying.
-    var naOpt2b = sel.querySelector('option[value="__na__"]');
-    if (naOpt2b) naOpt2b.remove();
-    var creatingOpt2b = sel.querySelector('option[value="__creating__"]');
-    if (creatingOpt2b) creatingOpt2b.remove();
-    if (tabKey === 'versions') {
-      // Versions List IS what "View All" means, so show that option
-      // selected (it already exists in the list — see loadVersionsForSelect()
-      // / the initial-render option-building) rather than a blank
-      // placeholder — unlike Metadata, this tab has a real, named option
-      // to point at.
-      var unsetOptVL = sel.querySelector('option[value="__unset__"]');
-      if (unsetOptVL) unsetOptVL.remove();
-      sel.value = '__viewall__';
-    } else {
-      var unsetOpt = sel.querySelector('option[value="__unset__"]');
-      if (!unsetOpt) {
-        unsetOpt = document.createElement('option');
-        unsetOpt.value = '__unset__';
-        unsetOpt.textContent = '\u2014 Select \u2014'; // em dash
-        sel.insertBefore(unsetOpt, sel.firstChild);
-      }
-      sel.value = '__unset__';
-    }
-    sel.disabled = false;
-    sel.title = '';
-    // The dropdown is highlighted (border/glow, see .eg-tab-active in
-    // style.css) whenever it shows any real selection — "View All" here,
-    // or any actual version everywhere else — and only UNhighlighted for
-    // the blank "\u2014 Select \u2014" placeholder (Metadata), since that
-    // one has nothing meaningful selected to highlight.
-    if (wrap) wrap.classList.toggle('eg-tab-active', tabKey !== 'meta');
+  sel.disabled = false;
+  sel.title = '';
+  if (wrap) wrap.classList.add('eg-tab-active');
+  var naOpt3 = sel.querySelector('option[value="__na__"]');
+  if (naOpt3) naOpt3.remove();
+  var unsetOpt2 = sel.querySelector('option[value="__unset__"]');
+  if (unsetOpt2) unsetOpt2.remove();
+  var creatingOpt3 = sel.querySelector('option[value="__creating__"]');
+  if (creatingOpt3) creatingOpt3.remove();
+  if (tabKey === 'versions') {
+    // Versions List IS what "View All" means, so show that option
+    // selected (it already exists in the list — see loadVersionsForSelect()
+    // / the initial-render option-building) rather than whatever version
+    // was previously selected.
+    sel.value = '__viewall__';
   } else {
-    sel.disabled = false;
-    sel.title = '';
-    if (wrap) wrap.classList.add('eg-tab-active');
-    var naOpt3 = sel.querySelector('option[value="__na__"]');
-    if (naOpt3) naOpt3.remove();
-    var unsetOpt2 = sel.querySelector('option[value="__unset__"]');
-    if (unsetOpt2) unsetOpt2.remove();
-    var creatingOpt3 = sel.querySelector('option[value="__creating__"]');
-    if (creatingOpt3) creatingOpt3.remove();
     // Reflect whatever version is actually currently selected
     // (_resSelectedVersionId — a plain JS var, only ever updated by
     // onVersionSelectChangeReal()) rather than trying to "restore" a
     // previously-stashed DOM value: stashing sel.value at the moment the
-    // Metadata/Versions-List tab was entered went stale the instant the
-    // user picked a *different* real version while still on that tab
-    // (e.g. Meta tab -> pick version "1" -> auto-jumps to Version Details,
-    // see onVersionSelectChangeReal()) — the stash still held whatever was
+    // Metadata tab was entered went stale the instant the user picked a
+    // *different* real version while still on that tab (e.g. Meta tab ->
+    // pick version "1" -> auto-jumps to Version Details, see
+    // onVersionSelectChangeReal()) — the stash still held whatever was
     // selected *before* that pick, so leaving would wrongly snap the
     // dropdown back to the old value even though the picked version's data
     // was already showing. _resSelectedVersionId is always kept accurate
@@ -10620,7 +10919,7 @@ function buildCombinedDocDataActionBarHtml() {
   var isVersionScoped = (_dataEditActiveKind === 'version' && _verEditVid);
   var metaDirty = isVersionScoped ? _verDirty : _dataDirty;
   var anyDirty = metaDirty || _docEditDirty;
-  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)], _state.path) || 'entity');
   var deleteVersionBtnHtml = isVersionScoped
     ? ' <button class="editorBtn editorBtnDanger" onclick="deleteVersionEntity()">Delete Version (' + esc(_verEditVid || '') + ')</button>'
     : '';
@@ -10630,7 +10929,7 @@ function buildCombinedDocDataActionBarHtml() {
   // document concept (_docSingular set), which is the common case, so the
   // button needs to live here as well for it to actually show up in
   // practice — see the matching comment on buildDataEditorActionBarHtml().
-  var verModel = _modelCache[normalizeURL(_state.serverURL || window.location.origin)];
+  var verModel = _modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)];
   var verSingular = capitalize(getSingularName(verModel, (_resPath || _state.path).concat(['versions', '__new__'])) || 'Version');
   var addVersionHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(verSingular) + '</button> ';
   return '<div id="dataEditorError" class="error-banner" style="display:none"></div>'
@@ -11322,7 +11621,7 @@ function renderJSONView(data) {
     return;
   }
 
-  var keyNow = normalizeURL(_state.serverURL || window.location.origin) + '|' + _state.path.join('/');
+  var keyNow = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN) + '|' + _state.path.join('/');
   if (_jsonDocModeKey !== keyNow) { _jsonDocMode = ''; _jsonDocModeKey = keyNow; }
 
   var showDocToggle = jsonDocToggleApplies();
@@ -11332,7 +11631,7 @@ function renderJSONView(data) {
   }
 
   var jsonHtml = addTwisties(syntaxHighlight(JSON.stringify(data, null, 2)));
-  var serverURL = _state.serverURL || window.location.origin;
+  var serverURL = _state.serverURL || DEFAULT_SERVER_ORIGIN;
   el('main-view').innerHTML =
     '<div class="json-exp-wrap">' +
       '<span class="json-exp-server-url" title="' + esc(serverURL) + '">Server: '
@@ -11357,7 +11656,7 @@ function renderJSONView(data) {
 // such a resource just returns the same metadata as $details, which would
 // be confusing to show under a "Document" label.
 function renderJSONViewDocumentMode(entityData) {
-  var serverURL = _state.serverURL || window.location.origin;
+  var serverURL = _state.serverURL || DEFAULT_SERVER_ORIGIN;
   el('main-view').innerHTML =
     '<div class="json-exp-wrap">' +
       '<span class="json-exp-server-url" title="' + esc(serverURL) + '">Server: '
@@ -11369,7 +11668,7 @@ function renderJSONViewDocumentMode(entityData) {
     '</div>' +
     '<div id="json-output" tabindex="0"><div class="eg-loading">Loading document\u2026</div></div>';
 
-  var model = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+  var model = _modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)] || null;
   var depthJ = _state.path.length;
   var singular = (depthJ === 4) ? getSingularName(model, _state.path)
                                  : getSingularName(model, _state.path.slice(0, 4));
@@ -11486,7 +11785,7 @@ function jsonEditTarget() {
   var url = buildBaseURL();
   var depthS = _state.path.length;
   if (depthS === 4 || depthS >= 6) {
-    var svBaseS = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var svBaseS = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
     var modelS = _modelCache[normalizeURL(svBaseS)] || null;
     if (resourceHasDocument(modelS, _state.path)) url = url.replace(/(\?|$)/, '$details$1');
   }
@@ -11508,7 +11807,7 @@ function renderJSONEditView(data) {
     // through ensureModelCached() (a same-tick callback if already cached,
     // otherwise a real fetch-then-callback) to close that race before
     // computing/locking in _jsonEditURL.
-    var svBaseJ = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var svBaseJ = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
     ensureModelCached(svBaseJ, function() {
       if (_jsonEditOrigText !== null) return; // already initialized meanwhile
       var target = jsonEditTarget();
@@ -11521,7 +11820,7 @@ function renderJSONEditView(data) {
     });
     return;
   }
-  var serverURL = _state.serverURL || window.location.origin;
+  var serverURL = _state.serverURL || DEFAULT_SERVER_ORIGIN;
   var isEntity = (_jsonEditKind === 'entity');
   var deleteDisabled = (isEntity && _state.path.length === 0)
     ? ' disabled title="Deleting the registry itself is not supported here"' : '';
@@ -11837,7 +12136,7 @@ function renderJSONLeftPanel(filtersOnly) {
   if (!inner) return;
   var html = '';
 
-  var svBase2  = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var svBase2  = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var normUrl2 = normalizeURL(svBase2);
   var model2   = _modelCache[normUrl2] || null;
   var cap2     = _capCache.hasOwnProperty(normUrl2) ? _capCache[normUrl2] : undefined;
@@ -14072,6 +14371,32 @@ function navigateTo(id, url) {
   pushState({path: _state.path.concat([id]), apiURL: url || ''});
 }
 
+// Single-choice skip-ahead: used ONLY by the Collections table's row click
+// on a Registry-root/Group-entity page (see renderSingleEntity()) when that
+// page lists exactly one collection type AND that collection's count is 1.
+// Fetches the (one-item) collection to find that item's own id/self link,
+// then jumps straight to its entity page instead of stopping on the
+// otherwise-pointless single-row collection list page. Falls back to the
+// normal collection-list navigation if anything about the fetch/shape is
+// unexpected (missing/renamed item, network error, count actually != 1 by
+// the time we look, etc.) so a bookmarked/refreshed URL never breaks.
+function navigateToCollOrSingleItem(plural, url) {
+  var basePath = _state.path.slice();
+  if (!url) { navigateTo(plural, url); return; }
+  fetchJSON(url).then(function(data) {
+    var items = collectionItems(data, true);
+    if (items.length !== 1) { navigateTo(plural, url); return; }
+    var item = items[0];
+    var id = itemNavKey(item);
+    if (!id) { navigateTo(plural, url); return; }
+    var itemPath = basePath.concat([plural, id]);
+    var itemSelf = entityHrefWithFilter(item.self || '', itemPath);
+    pushState({path: itemPath, apiURL: itemSelf || ''});
+  }).catch(function() {
+    navigateTo(plural, url);
+  });
+}
+
 // Navigate directly into a nested collection shown as a resource-pill on a
 // collection view's tile/row (e.g. clicking "files (2)" on group "d1" while
 // viewing the "dirs" collection takes you straight to dirs/d1/files, instead
@@ -14188,7 +14513,7 @@ var _cstrCounter    = 0;  // unique ID counter for constraint enum containers
 // Entry point called from refresh().
 function renderModelEditor(data) {
   var main = el('main-view');
-  var key = normalizeURL(_state.serverURL || window.location.origin) + '|' + _state.section;
+  var key = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN) + '|' + _state.section;
   if (_modelLoadedFor !== key) {
     _modelSrc  = deepClone(data);
     _modelData = deepClone(_modelSrc);
@@ -15935,7 +16260,7 @@ function saveModel(onSuccess) {
         // (used for entity-type resolution, tile descriptions, JSON left
         // panel, etc. while browsing data) is now stale. Refresh it with a
         // fresh GET /model before continuing.
-        var svBaseSave = (_state.serverURL || window.location.origin).replace(/\/$/, '') ;
+        var svBaseSave = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '') ;
         var mKey = normalizeURL(svBaseSave) ;
         invalidateRegistryProbe(svBaseSave) ;
         fetch(serverFetchBase(svBaseSave) + '/model')
@@ -15981,7 +16306,7 @@ var _capKnownKeys = ['available', 'compatibilities', 'flags', 'formats',
 
 function renderCapabilitiesEditor(data, offered) {
   var main = el('main-view');
-  var key = normalizeURL(_state.serverURL || window.location.origin) + '|' + _state.section;
+  var key = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN) + '|' + _state.section;
   if (_capLoadedFor !== key) {
     _capSrc  = deepClone(data);
     _capData = deepClone(_capSrc);
@@ -16041,7 +16366,7 @@ function saveCapabilities(onSuccess) {
         _capDirty = false;
         _capSrc  = updated ? deepClone(updated) : deepClone(_capData);
         _capData = deepClone(_capSrc);
-        var svBaseSave = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+        var svBaseSave = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
         _capCache[normalizeURL(svBaseSave)] = deepClone(_capSrc);
         invalidateRegistryProbe(svBaseSave);
         if (onSuccess) { onSuccess(); } else { window.location.reload(); }

@@ -1077,6 +1077,30 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   gap: 14px;
 }
 
+/* Labeled section divider between Favorites and "All Other Registries"
+   on Home's Grid/List views (see homeSectionDividerHTML()) — spans the
+   full grid width via grid-column so it reads as a section break rather
+   than another tile; .reg-list is a plain flex column so no extra rule
+   is needed there. */
+.home-section-divider {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  color: #999;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.home-section-divider::before,
+.home-section-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid #ddd;
+}
+
 .server-card {
   background: white;
   border: 1px solid #ccc;
@@ -1309,6 +1333,33 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 }
 .config-section-header .config-section-title { margin: 0 0 14px; }
 .config-section-header-btns { display: flex; gap: 8px; align-items: center; }
+.config-subsection-title {
+  margin: 18px 0 8px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #777;
+}
+.config-subsection-title:first-of-type { margin-top: 6px; }
+.cfg-empty-note {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
+}
+.cfg-fav-cell { text-align: center; width: 26px; }
+.cfg-fav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  color: #bbb;
+}
+.cfg-fav-btn:hover { color: #d9a400; }
+.cfg-fav-btn.cfg-fav-on { color: #d9a400; }
 .config-table {
   width: 100%;
   border-collapse: collapse;
@@ -1339,6 +1390,26 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   vertical-align: middle;
 }
 .config-table tr:last-child td { border-bottom: none; }
+.cfg-drag-th {
+  cursor: pointer;
+  user-select: none;
+  width: 22px;
+  text-align: center;
+}
+.cfg-drag-th:hover { background: #d5d5d5; }
+.cfg-drag-cell {
+  width: 22px;
+  text-align: center;
+  color: #999;
+  cursor: grab;
+  font-size: 14px;
+  letter-spacing: -1px;
+}
+tr[draggable="true"] .cfg-drag-cell:active { cursor: grabbing; }
+tr.cfg-row-dragging { opacity: 0.4; }
+tr.cfg-row-drop-before { box-shadow: inset 0 2px 0 0 #4a90d9; }
+tr.cfg-row-drop-after { box-shadow: inset 0 -2px 0 0 #4a90d9; }
+
 .cfg-url-input {
   width: 100%;
   font-size: 13px;
@@ -2698,12 +2769,10 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 }
 .eg-doc-tab:hover { background: #dce4f5; border-color: #a8c0e6; }
 .eg-doc-tab.active { background: #2060a0; color: #fff; border-color: #2060a0; }
-/* Document/Version Details tabs while the "Versions List" tab is active —
-   both are per-version views, but "Versions List" has no single version in
-   context (it shows all of them at once), so they're disabled rather than
-   left clickable-but-meaningless. See syncDocButtonsForTab(). */
-.eg-doc-tab:disabled { color: #999; background: #f3f3f3; border-color: #ddd; cursor: not-allowed; }
-.eg-doc-tab:disabled:hover { background: #f3f3f3; border-color: #ddd; }
+/* Document/Version Details tabs stay in their normal, non-active look
+   (same as any other inactive tab button) while Versions List/Metadata is
+   selected — no extra dimming/disabling — and remain a single click away
+   from whichever version was last selected. See switchDocTab(). */
 /* JSON view's Details/Document toggle AND "expand all" button all reuse
    .eg-doc-tab verbatim (see line ~592) but need a smaller/no-wrap
    footprint to fit the compact sticky header instead of List view's
