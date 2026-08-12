@@ -17,8 +17,6 @@ TODOs:
 - add complex filters testcases
 - copy all of the types tests in http from Reg to groups, resources and vers
 - test to make sure an ID in the body == ID in URL for reg and group
-- test to ensure we can do 2 tx at the same time
-- need to decide on the best tx isolation level
 - add http test for maxVersions (already have non-http tests)
 
 - see if we can prepend Path with / or append it with /
@@ -122,3 +120,4 @@ TODOs:
 - make sure we support ?ignore  w/o value (or "*") to mean all possible
 ** support "instance" in errors
 ** in dlog, sync the write to the output
+** put tx in the error messages

@@ -1182,73 +1182,73 @@ func TestValidChars(t *testing.T) {
 	}{
 		{"", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value () is malformed: ID value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value () is malformed: ID value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": ""
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"*", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (*) is malformed: ID value \"*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (*) is malformed: ID value \"*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "*"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"!", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (!) is malformed: ID value \"!\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (!) is malformed: ID value \"!\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"!\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "!"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"+", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (+) is malformed: ID value \"+\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (+) is malformed: ID value \"+\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"+\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "+"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"A*", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (A*) is malformed: ID value \"A*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (A*) is malformed: ID value \"A*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"A*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "A*"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1328"
 }`},
 		{"*a", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (*a) is malformed: ID value \"*a\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (*a) is malformed: ID value \"*a\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"*a\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "*a"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{a129, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (a234567890a234567890a234567890a234567890a234567890a2345678901234a234567890a234567890a234567890a234567890a234567890a23456789012349) is malformed: ID value \"a234567890a234567890a234567890a234567890a234567890a2345678901234a234567890a234567890a234567890a234567890a234567890a23456789012349\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (a234567890a234567890a234567890a234567890a234567890a2345678901234a234567890a234567890a234567890a234567890a234567890a23456789012349) is malformed: ID value \"a234567890a234567890a234567890a234567890a234567890a2345678901234a234567890a234567890a234567890a234567890a234567890a23456789012349\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"a234567890a234567890a234567890a234567890a234567890a2345678901234a234567890a234567890a234567890a234567890a234567890a23456789012349\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "a234567890a234567890a234567890a234567890a234567890a2345678901234a234567890a234567890a234567890a234567890a234567890a23456789012349"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"a", ``},
 		{"A", ``},
@@ -1275,53 +1275,53 @@ func TestValidChars(t *testing.T) {
 		{"_Z_", ``},
 		{" a", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value ( a) is malformed: ID value \" a\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value ( a) is malformed: ID value \" a\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \" a\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": " a"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{".", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (.) is malformed: ID value \".\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (.) is malformed: ID value \".\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \".\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "."
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"-", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (-) is malformed: ID value \"-\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (-) is malformed: ID value \"-\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"-\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "-"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"~", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (~) is malformed: ID value \"~\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (~) is malformed: ID value \"~\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"~\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "~"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"@", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_id",
-  "title": "The specified ID value (@) is malformed: ID value \"@\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "For \"/model\", the specified ID value (@) is malformed: ID value \"@\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/model",
   "args": {
     "error_detail": "ID value \"@\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "id": "@"
   },
-  "source": ":registry:shared_model:76"
+  "source": "4a51b174cf4e:registry:shared_model:78,registry:model_test:1329"
 }`},
 		{"Z.-~:_0Nb", ``},
 		{a128, ``},

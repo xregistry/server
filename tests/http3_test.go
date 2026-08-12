@@ -1438,46 +1438,46 @@ func TestHTTPSort(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
-  "title": "Can't sort on a non-collection result set. Query path: /.",
-  "subject": "/",
-  "source": "e4e59b8a76c4:registry:info:490"
+  "title": "Can't sort on a non-collection result set. Query path: /?sort=epoch.",
+  "subject": "/?sort=epoch",
+  "source": "4a51b174cf4e:registry:info:735"
 }
 `)
 	XHTTP(t, reg, "GET", "/dirs/d1?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
-  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1.",
-  "subject": "/dirs/d1",
-  "source": "e4e59b8a76c4:registry:info:490"
+  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1?sort=epoch.",
+  "subject": "/dirs/d1?sort=epoch",
+  "source": "4a51b174cf4e:registry:info:735"
 }
 `)
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
-  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1.",
-  "subject": "/dirs/d1/files/f1",
-  "source": "e4e59b8a76c4:registry:info:490"
+  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1?sort=epoch.",
+  "subject": "/dirs/d1/files/f1?sort=epoch",
+  "source": "4a51b174cf4e:registry:info:735"
 }
 `)
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
-  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1$details.",
-  "subject": "/dirs/d1/files/f1$details",
-  "source": "e4e59b8a76c4:registry:info:490"
+  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1$details?sort=epoch.",
+  "subject": "/dirs/d1/files/f1$details?sort=epoch",
+  "source": "4a51b174cf4e:registry:info:735"
 }
 `)
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?sort=epoch",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
-  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1/versions/v1.",
-  "subject": "/dirs/d1/files/f1/versions/v1",
-  "source": "e4e59b8a76c4:registry:info:490"
+  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1/versions/v1?sort=epoch.",
+  "subject": "/dirs/d1/files/f1/versions/v1?sort=epoch",
+  "source": "4a51b174cf4e:registry:info:735"
 }
 `)
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?sort=epoch",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
-  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1/versions/v1$details.",
-  "subject": "/dirs/d1/files/f1/versions/v1$details",
-  "source": "e4e59b8a76c4:registry:info:490"
+  "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1/versions/v1$details?sort=epoch.",
+  "subject": "/dirs/d1/files/f1/versions/v1$details?sort=epoch",
+  "source": "4a51b174cf4e:registry:info:735"
 }
 `)
 

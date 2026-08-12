@@ -1880,13 +1880,13 @@ func TestFiltersMisc(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/?filter=dirs..dirid=d2", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
-  "title": "An error was found in \"filter\" value (dirs..dirid): Unexpected \".\" in \"dirs..dirid\" at pos 6.",
-  "subject": "/",
+  "title": "For \"/?filter=dirs..dirid=d2\", an error was found in \"filter\" value (dirs..dirid): Unexpected \".\" in \"dirs..dirid\" at pos 6.",
+  "subject": "/?filter=dirs..dirid=d2",
   "args": {
     "error_detail": "Unexpected \".\" in \"dirs..dirid\" at pos 6",
     "value": "dirs..dirid"
   },
-  "source": "b51cea166ad9:registry:info:417"
+  "source": "4a51b174cf4e:registry:info:481"
 }
 `)
 }
@@ -2062,8 +2062,8 @@ func TestFiltersWildcardsInName(t *testing.T) {
 		XHTTP(t, reg, "GET", "/dirs/d1/files?filter=obj."+errQ+"=astr", "",
 			400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
-  "title": "An error was found in \"filter\" value (obj.`+errQ+`): Unexpected \"*\" in \"`+errQ+`\".",
-  "subject": "/dirs/d1/files",
+  "title": "For \"/dirs/d1/files?filter=obj.`+errQ+`=astr\", an error was found in \"filter\" value (obj.`+errQ+`): Unexpected \"*\" in \"`+errQ+`\".",
+  "subject": "/dirs/d1/files?filter=obj.`+errQ+`=astr",
   "args": {
     "error_detail": "Unexpected \"*\" in \"`+errQ+`\"",
     "value": "obj.`+errQ+`"

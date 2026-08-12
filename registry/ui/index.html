@@ -11,6 +11,12 @@
   <div id="app">
     <header id="header">
       <div id="header-left">
+        <!-- Sibling switcher toggle — sits just left of the logo, as a
+             normal in-flow header button (not fixed/overlaid), so the
+             breadcrumb bar simply shifts right to make room and the icon
+             can never overlap the page title. See toggleSiblingPanel()/
+             updateSiblingToggleBtn(). -->
+        <button id="sibling-toggle-fixed" class="eg-sibling-toggle-fixed" style="display:none" onclick="toggleSiblingPanel()" title="Show/hide sibling list"></button>
         <a id="logo-link" href="#" onclick="if(navShouldDefault(event))return true;pushState({view:'home',path:[],serverURL:'',editMode:false});return false;"         title="All Registries">
           <svg id="xreg-logo" width="20" height="20" viewBox="0 0 663 800" fill="none" aria-hidden="true">
             <g clip-path="url(#clip0)">
@@ -58,6 +64,13 @@
         <div id="left-panel-inner"></div>
       </div>
       <div id="left-panel-resizer" style="display:none"></div>
+      <div id="sibling-panel" style="display:none">
+        <!-- Sibling switcher: current entity's parent collection, so the
+             user can bounce between siblings without traversing back up
+             via the breadcrumbs. See plan.md "Sibling-switcher slide-in
+             panel". -->
+        <div id="sibling-panel-inner"></div>
+      </div>
       <main id="main-view"></main>
     </div>
   </div>

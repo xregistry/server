@@ -439,6 +439,95 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   padding: 0;
 }
 
+/* ---- Sibling switcher panel ---- (push panel, same flex-child pattern as
+   #left-panel — see plan.md "Sibling-switcher slide-in panel") */
+#sibling-panel {
+  width: 220px;
+  min-width: 160px;
+  background: #fafafa;
+  border-right: 1px solid #e0e4ee;
+  overflow-y: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+#sibling-panel-inner {
+  padding: 8px 6px;
+  font-size: 13px;
+}
+.sib-panel-header {
+  font-size: 12px;
+  font-weight: bold;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 8px 8px;
+}
+.sib-panel-list {
+  display: flex;
+  flex-direction: column;
+}
+.sib-panel-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #222;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sib-panel-item:hover { background: #eef1f8; }
+.sib-panel-item.sib-panel-current {
+  background: #e3ebff;
+  font-weight: bold;
+  cursor: default;
+}
+.sib-panel-item-name {
+  color: #888;
+  font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sib-panel-default-badge {
+  font-size: 10px;
+  font-weight: bold;
+  color: #5a8a5a;
+  background: #e6f5e6;
+  border-radius: 3px;
+  padding: 1px 4px;
+  flex-shrink: 0;
+}
+.sib-panel-empty {
+  padding: 8px;
+  color: #888;
+}
+
+/* Sibling-switcher toggle button — sits in #header-left, just left of the
+   xreg logo, as a normal in-flow flex item (not fixed/overlaid). This way
+   the breadcrumb bar simply shifts right to make room for it, the page
+   title is never indented by it, and it can never overlap page content —
+   see index.html's #header-left. */
+.eg-sibling-toggle-fixed {
+  cursor: pointer;
+  color: #666;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.eg-sibling-toggle-fixed:hover { background: #eef1f8; color: #333; }
+.eg-sibling-toggle-fixed.sib-toggle-open { color: #0066ff; }
+
 /* ---- Tile view ---- (removed — see plan.md "Grid view removed for
    collection pages"; List view (renderTableView) is now the only view for
    the Groups/Resources/Versions collection pages) */

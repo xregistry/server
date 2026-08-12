@@ -10837,13 +10837,13 @@ func TestHTTPDefault(t *testing.T) {
 		Code:   400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
-  "title": "An error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
-  "subject": "/dirs/d1/files/f1",
+  "title": "For \"/dirs/d1/files/f1?setdefaultversionid\", an error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
+  "subject": "/dirs/d1/files/f1?setdefaultversionid",
   "args": {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "source": ":registry:httpStuff:2604"
+  "source": "4a51b174cf4e:registry:info:782"
 }
 `,
 	})
@@ -10855,13 +10855,13 @@ func TestHTTPDefault(t *testing.T) {
 		Code:   400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
-  "title": "An error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
-  "subject": "/dirs/d1/files/f1",
+  "title": "For \"/dirs/d1/files/f1?setdefaultversionid=\", an error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
+  "subject": "/dirs/d1/files/f1?setdefaultversionid=",
   "args": {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "source": ":registry:httpStuff:2604"
+  "source": "4a51b174cf4e:registry:info:782"
 }
 `,
 	})
@@ -10874,13 +10874,13 @@ func TestHTTPDefault(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
-  "title": "An error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
-  "subject": "/dirs/d1/files/f1$details",
+  "title": "For \"/dirs/d1/files/f1$details?setdefaultversionid\", an error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
+  "subject": "/dirs/d1/files/f1$details?setdefaultversionid",
   "args": {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "source": "396100315a6e:registry:info:586"
+  "source": "4a51b174cf4e:registry:info:782"
 }
 `,
 	})
@@ -10893,13 +10893,13 @@ func TestHTTPDefault(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
-  "title": "An error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
-  "subject": "/dirs/d1/files/f1$details",
+  "title": "For \"/dirs/d1/files/f1$details?setdefaultversionid=\", an error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
+  "subject": "/dirs/d1/files/f1$details?setdefaultversionid=",
   "args": {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "source": "396100315a6e:registry:info:586"
+  "source": "4a51b174cf4e:registry:info:782"
 }
 `,
 	})
@@ -11360,13 +11360,13 @@ func TestHTTPSticky(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=", `{}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
-  "title": "An error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
-  "subject": "/dirs/d1/files/f1",
+  "title": "For \"/dirs/d1/files/f1?setdefaultversionid=\", an error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
+  "subject": "/dirs/d1/files/f1?setdefaultversionid=",
   "args": {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "source": "923b0240301e:registry:info:739"
+  "source": "4a51b174cf4e:registry:info:782"
 }
 `)
 

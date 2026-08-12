@@ -91,7 +91,7 @@ func (info *RequestInfo) AddInline(path string) *XRError {
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
-		return NewXRError("bad_inline", info.GetParts(0),
+		return NewXRError("bad_inline", info.OriginalRequest.URL.RequestURI(),
 			"value="+path,
 			"error_detail="+err.Error())
 	}
@@ -159,7 +159,8 @@ func (info *RequestInfo) AddInline(path string) *XRError {
 		path = path[len(info.Abstract)+1:]
 	}
 
-	return NewXRError("inline_noninlineable", info.GetParts(0), "name="+path)
+	return NewXRError("inline_noninlineable",
+		info.OriginalRequest.URL.RequestURI(), "name="+path)
 }
 
 func (info *RequestInfo) IsInlineSet(entityPath string) bool {
@@ -478,7 +479,8 @@ func (info *RequestInfo) ParseFilters() *XRError {
 
 			pp, err := PropPathFromUI(path)
 			if err != nil {
-				return NewXRError("bad_filter", info.GetParts(0),
+				return NewXRError("bad_filter",
+					info.OriginalRequest.URL.RequestURI(),
 					"value="+path,
 					"error_detail="+err.Error())
 			}
@@ -488,13 +490,15 @@ func (info *RequestInfo) ParseFilters() *XRError {
 			if filterOp == FILTER_LESS || filterOp == FILTER_LESS_EQUAL ||
 				filterOp == FILTER_GREATER || filterOp == FILTER_GREATER_EQUAL {
 				if value == "null" {
-					return NewXRError("bad_filter", info.GetParts(0),
+					return NewXRError("bad_filter",
+						info.OriginalRequest.URL.RequestURI(),
 						"value="+expr,
 						"error_detail=null is not allowed "+
 							"with <, <=, >, >= operators")
 				}
 				if strings.ContainsRune(value, '*') {
-					return NewXRError("bad_filter", info.GetParts(0),
+					return NewXRError("bad_filter",
+						info.OriginalRequest.URL.RequestURI(),
 						"value="+expr,
 						"error_detail=wildcards are not allowed "+
 							"with <, <=, >, >= operators")
@@ -502,14 +506,15 @@ func (info *RequestInfo) ParseFilters() *XRError {
 			}
 
 			/*
-				if info.What != "Coll" && strings.Index(path, "/") < 0 {
-				return NewXRError("bad_filter", info.GetParts(0),
-				"value=" + path,
-				"error_detail=" +
-				fmt.Sprintf("a filter with just an attribute " +
-				"name (%s) isn't allowed in this context",
-				path)
-				}
+								if info.What != "Coll" && strings.Index(path, "/") < 0 {
+								return NewXRError("bad_filter",
+				                info.OriginalRequest.URL.RequestURI(),
+								"value=" + path,
+								"error_detail=" +
+								fmt.Sprintf("a filter with just an attribute " +
+								"name (%s) isn't allowed in this context",
+								path)
+								}
 			*/
 
 			// If the request wasn't at the root, then add in the
@@ -594,7 +599,8 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 
 		reg, xErr := FindRegistry(info.tx, name, FOR_READ)
 		if xErr != nil {
-			return NewXRError("server_error", info.GetParts(0)).
+			return NewXRError("server_error",
+				info.OriginalRequest.URL.RequestURI()).
 				SetDetail(xErr.GetTitle())
 		}
 		if reg == nil {
@@ -657,7 +663,8 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 						*/
 					}
 					if val != "*" && !info.Registry.Capabilities.IgnoresEnabled(val) {
-						return NewXRError("bad_ignore", "/"+info.OriginalPath,
+						return NewXRError("bad_ignore",
+							info.OriginalRequest.URL.RequestURI(),
 							"value="+val,
 							"error_detail="+
 								fmt.Sprintf("value not supported; allowed "+
@@ -689,13 +696,15 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 					// want: p = info.Abstract + "." + p  in UI format
 					absPP, err := PropPathFromPath(info.Abstract)
 					if err != nil {
-						return NewXRError("bad_inline", info.GetParts(0),
+						return NewXRError("bad_inline",
+							info.OriginalRequest.URL.RequestURI(),
 							"value="+info.Abstract,
 							"error_detail="+err.Error())
 					}
 					pPP, err := PropPathFromUI(p)
 					if err != nil {
-						return NewXRError("bad_inline", info.GetParts(0),
+						return NewXRError("bad_inline",
+							info.OriginalRequest.URL.RequestURI(),
 							"value="+p,
 							"error_detail="+err.Error())
 					}
@@ -724,18 +733,21 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 
 	if info.HasFlag("sort") {
 		if info.What != "Coll" {
-			return NewXRError("sort_noncollection", info.GetParts(0))
+			return NewXRError("sort_noncollection",
+				info.OriginalRequest.URL.RequestURI())
 		}
 
 		sortStr := info.GetFlag("sort")
 		name, ascDesc, _ := strings.Cut(sortStr, "=")
 		if name == "" {
-			return NewXRError("bad_sort", info.GetParts(0),
+			return NewXRError("bad_sort",
+				info.OriginalRequest.URL.RequestURI(),
 				"value="+sortStr,
 				"error_detail=missing \"sort\" attribute name")
 		}
 		if ascDesc != "" && ascDesc != "asc" && ascDesc != "desc" {
-			return NewXRError("bad_sort", info.GetParts(0),
+			return NewXRError("bad_sort",
+				info.OriginalRequest.URL.RequestURI(),
 				"value="+sortStr,
 				"error_detail="+
 					fmt.Sprintf("invalid \"sort\" order %q", ascDesc))
@@ -743,7 +755,8 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 		// info.SortKey = name
 		pp, err := PropPathFromUI(name)
 		if err != nil {
-			return NewXRError("bad_sort", info.GetParts(0),
+			return NewXRError("bad_sort",
+				info.OriginalRequest.URL.RequestURI(),
 				"value="+sortStr,
 				"error_detail="+
 					fmt.Sprintf("bad attribute name(%s): %s",
@@ -768,7 +781,7 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 	if info.HasFlag("setdefaultversionid") {
 		if def := info.GetFlag("setdefaultversionid"); def == "" {
 			return NewXRError("bad_defaultversionid",
-				"/"+info.OriginalPath,
+				info.OriginalRequest.URL.RequestURI(),
 				"error_detail=value must not be empty",
 				"value=\"\"")
 		}

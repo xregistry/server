@@ -485,7 +485,8 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		delete(ru.Obj, r.Singular+"id")
 		if len(ru.Obj) > 0 {
 			xErr := NewXRError("extra_xref_attribute", r.XID,
-				"name="+SortedKeys(ru.Obj)[0])
+				"name="+SortedKeys(ru.Obj)[0],
+				"singular="+r.ResourceModel.Singular)
 			if len(ru.Obj) > 1 {
 				xErr.SetDetailf("Full list: %s.",
 					strings.Join(SortedKeys(ru.Obj), ","))

@@ -98,7 +98,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"bad_defaultversionid": &XRError{
 		Code:  400,
-		Title: `An error was found in the "defaultversionid" value specified (<value>): <error_detail>.`,
+		Title: `For "<subject>", an error was found in the "defaultversionid" value specified (<value>): <error_detail>.`,
 	},
 	"bad_details": &XRError{
 		Code:  400,
@@ -106,7 +106,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"bad_filter": &XRError{
 		Code:  400,
-		Title: `An error was found in "filter" value (<value>): <error_detail>.`,
+		Title: `For "<subject>", an error was found in "filter" value (<value>): <error_detail>.`,
 	},
 	"bad_flag": &XRError{
 		Code:  400,
@@ -114,11 +114,11 @@ var Type2Error = map[string]*XRError{
 	},
 	"bad_ignore": &XRError{
 		Code:  400,
-		Title: `An error was found in "ignore" value (<value>): <error_detail>.`,
+		Title: `For "<subject>", an error was found in "ignore" value (<value>): <error_detail>.`,
 	},
 	"bad_inline": &XRError{
 		Code:  400,
-		Title: `An error was found in "inline" value (<value>): <error_detail>.`,
+		Title: `For "<subject>", an error was found in "inline" value (<value>): <error_detail>.`,
 	},
 	"bad_request": &XRError{
 		Code:  400,
@@ -126,7 +126,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"bad_sort": &XRError{
 		Code:  400,
-		Title: `An error was found in "sort" value (<value>): <error_detail>.`,
+		Title: `For "<subject>", an error was found in "sort" value (<value>): <error_detail>.`,
 	},
 	"cannot_doc_xref": &XRError{
 		Code:  400,
@@ -174,7 +174,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"extra_xref_attribute": &XRError{
 		Code:  400,
-		Title: `Attribute "<name>" is not allowed to be present since the Resource (<subject>) uses "xref".`,
+		Title: `Attribute "<name>" is not allowed to be present since the "<singular>" (<subject>) uses "xref".`,
 	},
 	"format_external": &XRError{
 		Code:  400,
@@ -194,7 +194,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"hasdocument_violation": &XRError{
 		Code:  400,
-		Title: `The request would cause Version "<subject>" to be non-compliant. The Resource model has "hasdocument" set to "false" but this Version has document content.`,
+		Title: `The request would cause Version "<subject>" to be non-compliant. The model definition of "<plural>" has "hasdocument" set to "false" but this Version has document content.`,
 	},
 	"inline_noninlineable": &XRError{
 		Code:  400,
@@ -206,15 +206,15 @@ var Type2Error = map[string]*XRError{
 	},
 	"malformed_id": &XRError{
 		Code:  400,
-		Title: `The specified ID value (<id>) is malformed: <error_detail>.`,
+		Title: `For "<subject>", the specified ID value (<id>) is malformed: <error_detail>.`,
 	},
 	"malformed_xid": &XRError{
 		Code:  400,
-		Title: `The specified XID value (<xid>) is malformed: <error_detail>.`,
+		Title: `For "<subject>", the specified XID value (<xid>) is malformed: <error_detail>.`,
 	},
 	"malformed_xref": &XRError{
 		Code:  400,
-		Title: `The specified xref value (<xref>) is malformed: <error_detail>.`,
+		Title: `For "<subject>", the specified xref value (<xref>) is malformed: <error_detail>.`,
 	},
 	"mismatched_epoch": &XRError{
 		Code:  400,
@@ -290,7 +290,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"setdefaultversionsticky_false": &XRError{
 		Code:  400,
-		Title: `Setting "defaultversionsticky" to "true" is not allowed since "maxversions" is "1".`,
+		Title: `For "<subject>", setting "defaultversionsticky" to "true" is not allowed since "maxversions" is "1".`,
 	},
 	"sort_noncollection": &XRError{
 		Code:  400,
@@ -298,11 +298,11 @@ var Type2Error = map[string]*XRError{
 	},
 	"too_large": &XRError{
 		Code:  406,
-		Title: `The size of the response is too large to return in a single response.`,
+		Title: `For "<subject>", the size of the response is too large to return in a single response.`,
 	},
 	"too_many_versions": &XRError{
 		Code:  400,
-		Title: `When the "setdefaultversionid" flag is set to "request", only one Version is allowed to be specified in the request message.`,
+		Title: `For "<subject>", when the "setdefaultversionid" flag is set to "request", only one Version is allowed to be specified in the request message.`,
 	},
 	"unknown_attribute": &XRError{
 		Code:  400,

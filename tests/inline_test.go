@@ -366,12 +366,12 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (xxx) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (xxx) on: /?inline=xxx.",
+  "subject": "/?inline=xxx",
   "args": {
     "name": "xxx"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -380,12 +380,12 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=Dirs",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (Dirs) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (Dirs) on: /?inline=Dirs.",
+  "subject": "/?inline=Dirs",
   "args": {
     "name": "Dirs"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -394,12 +394,12 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=xxx.files",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (xxx.files) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (xxx.files) on: /?inline=xxx.files.",
+  "subject": "/?inline=xxx.files",
   "args": {
     "name": "xxx.files"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -408,12 +408,12 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=dirs.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.xxx) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.xxx) on: /?inline=dirs.xxx.",
+  "subject": "/?inline=dirs.xxx",
   "args": {
     "name": "dirs.xxx"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -432,12 +432,12 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "dirs?inline=dirs",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs) on: /dirs.",
-  "subject": "/dirs",
+  "title": "Attempting to inline a non-inlineable attribute (dirs) on: /dirs?inline=dirs.",
+  "subject": "/dirs?inline=dirs",
   "args": {
     "name": "dirs"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -456,12 +456,12 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "dirs?inline=files.versions.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (files.versions.xxx) on: /dirs.",
-  "subject": "/dirs",
+  "title": "Attempting to inline a non-inlineable attribute (files.versions.xxx) on: /dirs?inline=files.versions.xxx.",
+  "subject": "/dirs?inline=files.versions.xxx",
   "args": {
     "name": "files.versions.xxx"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -496,12 +496,12 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=dirs,dirs2.files.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs2.files.xxx) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs2.files.xxx) on: /?inline=dirs,dirs2.files.xxx.",
+  "subject": "/?inline=dirs,dirs2.files.xxx",
   "args": {
     "name": "dirs2.files.xxx"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -909,12 +909,12 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/dirs/d1/files/f1-proxy$details?inline=XXversions.file",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.XXversions.file) on: /dirs/d1/files/f1-proxy$details.",
-  "subject": "/dirs/d1/files/f1-proxy$details",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.XXversions.file) on: //dirs/d1/files/f1-proxy$details?inline=XXversions.file.",
+  "subject": "//dirs/d1/files/f1-proxy$details?inline=XXversions.file",
   "args": {
     "name": "dirs.files.XXversions.file"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -923,12 +923,12 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/?inline=dirs.files.yy",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.yy) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.yy) on: //?inline=dirs.files.yy.",
+  "subject": "//?inline=dirs.files.yy",
   "args": {
     "name": "dirs.files.yy"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -937,12 +937,12 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/?inline=dirs.files.version.yy",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.version.yy) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.version.yy) on: //?inline=dirs.files.version.yy.",
+  "subject": "//?inline=dirs.files.version.yy",
   "args": {
     "name": "dirs.files.version.yy"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `,
 		},
@@ -1550,208 +1550,208 @@ func TestInlineWildcards(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "?inline=.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (.*): Unexpected \".\" in \".*\" at pos 1.",
-  "subject": "/",
+  "title": "For \"/?inline=.*\", an error was found in \"inline\" value (.*): Unexpected \".\" in \".*\" at pos 1.",
+  "subject": "/?inline=.*",
   "args": {
     "error_detail": "Unexpected \".\" in \".*\" at pos 1",
     "value": ".*"
   },
-  "source": "e4e59b8a76c4:registry:info:75"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=foo.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (foo.*) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (foo.*) on: /?inline=foo.*.",
+  "subject": "/?inline=foo.*",
   "args": {
     "name": "foo.*"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=foo*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (foo*): Unexpected \"*\" in \"foo*\".",
-  "subject": "/",
+  "title": "For \"/?inline=foo*\", an error was found in \"inline\" value (foo*): Unexpected \"*\" in \"foo*\".",
+  "subject": "/?inline=foo*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"foo*\"",
     "value": "foo*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=dirs.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (dirs.bad*): Unexpected \"*\" in \"bad*\".",
-  "subject": "/",
+  "title": "For \"/?inline=dirs.bad*\", an error was found in \"inline\" value (dirs.bad*): Unexpected \"*\" in \"bad*\".",
+  "subject": "/?inline=dirs.bad*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.bad*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.bad.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.bad.*) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.bad.*) on: /?inline=dirs.bad.*.",
+  "subject": "/?inline=dirs.bad.*",
   "args": {
     "name": "dirs.bad.*"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (dirs.files.bad*): Unexpected \"*\" in \"bad*\".",
-  "subject": "/",
+  "title": "For \"/?inline=dirs.files.bad*\", an error was found in \"inline\" value (dirs.files.bad*): Unexpected \"*\" in \"bad*\".",
+  "subject": "/?inline=dirs.files.bad*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.bad*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.bad.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad.*) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad.*) on: /?inline=dirs.files.bad.*.",
+  "subject": "/?inline=dirs.files.bad.*",
   "args": {
     "name": "dirs.files.bad.*"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.file*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (dirs.files.file*): Unexpected \"*\" in \"file*\".",
-  "subject": "/",
+  "title": "For \"/?inline=dirs.files.file*\", an error was found in \"inline\" value (dirs.files.file*): Unexpected \"*\" in \"file*\".",
+  "subject": "/?inline=dirs.files.file*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"file*\"",
     "value": "dirs.files.file*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.file.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file.*) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file.*) on: /?inline=dirs.files.file.*.",
+  "subject": "/?inline=dirs.files.file.*",
   "args": {
     "name": "dirs.files.file.*"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.meta*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (dirs.files.meta*): Unexpected \"*\" in \"meta*\".",
-  "subject": "/",
+  "title": "For \"/?inline=dirs.files.meta*\", an error was found in \"inline\" value (dirs.files.meta*): Unexpected \"*\" in \"meta*\".",
+  "subject": "/?inline=dirs.files.meta*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"meta*\"",
     "value": "dirs.files.meta*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.meta.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta.*) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta.*) on: /?inline=dirs.files.meta.*.",
+  "subject": "/?inline=dirs.files.meta.*",
   "args": {
     "name": "dirs.files.meta.*"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (dirs.files.versions.bad*): Unexpected \"*\" in \"bad*\".",
-  "subject": "/",
+  "title": "For \"/?inline=dirs.files.versions.bad*\", an error was found in \"inline\" value (dirs.files.versions.bad*): Unexpected \"*\" in \"bad*\".",
+  "subject": "/?inline=dirs.files.versions.bad*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.versions.bad*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (dirs.files.versions.file*): Unexpected \"*\" in \"file*\".",
-  "subject": "/",
+  "title": "For \"/?inline=dirs.files.versions.file*\", an error was found in \"inline\" value (dirs.files.versions.file*): Unexpected \"*\" in \"file*\".",
+  "subject": "/?inline=dirs.files.versions.file*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"file*\"",
     "value": "dirs.files.versions.file*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.*) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.*) on: /?inline=dirs.files.versions.file.*.",
+  "subject": "/?inline=dirs.files.versions.file.*",
   "args": {
     "name": "dirs.files.versions.file.*"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (dirs.files.versions.file.bad*): Unexpected \"*\" in \"bad*\".",
-  "subject": "/",
+  "title": "For \"/?inline=dirs.files.versions.file.bad*\", an error was found in \"inline\" value (dirs.files.versions.file.bad*): Unexpected \"*\" in \"bad*\".",
+  "subject": "/?inline=dirs.files.versions.file.bad*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.versions.file.bad*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=model.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (model.*) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (model.*) on: /?inline=model.*.",
+  "subject": "/?inline=model.*",
   "args": {
     "name": "model.*"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=model.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (model.bad*): Unexpected \"*\" in \"bad*\".",
-  "subject": "/",
+  "title": "For \"/?inline=model.bad*\", an error was found in \"inline\" value (model.bad*): Unexpected \"*\" in \"bad*\".",
+  "subject": "/?inline=model.bad*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "model.bad*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=capabilities.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (capabilities.*) on: /.",
-  "subject": "/",
+  "title": "Attempting to inline a non-inlineable attribute (capabilities.*) on: /?inline=capabilities.*.",
+  "subject": "/?inline=capabilities.*",
   "args": {
     "name": "capabilities.*"
   },
-  "source": "e4e59b8a76c4:registry:info:146"
+  "source": "4a51b174cf4e:registry:info:162"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=capabilities.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in \"inline\" value (capabilities.bad*): Unexpected \"*\" in \"bad*\".",
-  "subject": "/",
+  "title": "For \"/?inline=capabilities.bad*\", an error was found in \"inline\" value (capabilities.bad*): Unexpected \"*\" in \"bad*\".",
+  "subject": "/?inline=capabilities.bad*",
   "args": {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "capabilities.bad*"
   },
-  "source": "3ba414aa22c1:registry:info:93"
+  "source": "4a51b174cf4e:registry:info:94"
 }
 `)
 

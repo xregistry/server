@@ -391,13 +391,13 @@ func TestModelXImport(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/g2p/g1/r2p/r2/meta", `{"xref":"/g1p/g1/r1p/r1"}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
-  "title": "The specified xref value (/g1p/g1/r1p/r1) is malformed: must point to a Resource of type \"/g1p/r2p\" not \"/g1p/r1p\".",
+  "title": "For \"/g2p/g1/r2p/r2/meta\", the specified xref value (/g1p/g1/r1p/r1) is malformed: must point to a \"/g1p/r2p\" not \"/g1p/r1p\".",
   "subject": "/g2p/g1/r2p/r2/meta",
   "args": {
-    "error_detail": "must point to a Resource of type \"/g1p/r2p\" not \"/g1p/r1p\"",
+    "error_detail": "must point to a \"/g1p/r2p\" not \"/g1p/r1p\"",
     "xref": "/g1p/g1/r1p/r1"
   },
-  "source": "e4e59b8a76c4:registry:resource:607"
+  "source": "4a51b174cf4e:registry:resource:714"
 }
 `)
 
@@ -3393,9 +3393,12 @@ func TestModelHasDocumentValidation(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
-  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The model definition of \"files\" has \"hasdocument\" set to \"false\" but this Version has document content.",
   "subject": "/dirs/d1/files/f1/versions/1",
-  "source": "xxx"
+  "args": {
+    "plural": "files"
+  },
+  "source": "4a51b174cf4e:registry:resource:1318"
 }
 `)
 
@@ -3418,9 +3421,12 @@ func TestModelHasDocumentValidation(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
-  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The model definition of \"files\" has \"hasdocument\" set to \"false\" but this Version has document content.",
   "subject": "/dirs/d1/files/f1/versions/1",
-  "source": "xxx"
+  "args": {
+    "plural": "files"
+  },
+  "source": "4a51b174cf4e:registry:resource:1318"
 }
 `)
 
@@ -3443,9 +3449,12 @@ func TestModelHasDocumentValidation(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
-  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The model definition of \"files\" has \"hasdocument\" set to \"false\" but this Version has document content.",
   "subject": "/dirs/d1/files/f1/versions/1",
-  "source": "xxx"
+  "args": {
+    "plural": "files"
+  },
+  "source": "4a51b174cf4e:registry:resource:1318"
 }
 `)
 
@@ -3585,9 +3594,12 @@ func TestModelHasDocumentValidation(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
-  "title": "The request would cause Version \"/dirs/d2/files/f2/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "title": "The request would cause Version \"/dirs/d2/files/f2/versions/1\" to be non-compliant. The model definition of \"files\" has \"hasdocument\" set to \"false\" but this Version has document content.",
   "subject": "/dirs/d2/files/f2/versions/1",
-  "source": "xxx"
+  "args": {
+    "plural": "files"
+  },
+  "source": "4a51b174cf4e:registry:resource:1318"
 }
 `)
 
