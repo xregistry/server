@@ -185,7 +185,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
 			rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
 			Error(xErr)
-			if rm.GetHasDocument() && !isMetadata {
+			if rm.GetHasDocument() && !isMetadata && len(data) > 0 {
 				doc_data = true
 				ops = append(ops, Operation{
 					Action: "set",
