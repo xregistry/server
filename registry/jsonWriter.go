@@ -613,6 +613,9 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 	path := jw.collPaths[eType]
 
 	filterString := ""
+	if len(jw.info.Filters) > 0 {
+		filterString = "?filter=excludeall"
+	}
 
 	if !jw.info.DoDocView() || !inlineCollection {
 		baseURL = jw.info.BaseURL
@@ -624,7 +627,7 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 		if strings.HasPrefix(path, "/") {
 			path = path[1:]
 		}
-		filterString = jw.info.FiltersRelativeToAbstract(p)
+		// filterString = jw.info.FiltersRelativeToAbstract(p)
 	}
 
 	jw.Printf("%s\n%s\"%surl\": \"%s/%s%s%s\",\n", extra, jw.indent,

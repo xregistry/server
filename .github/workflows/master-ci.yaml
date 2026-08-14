@@ -38,10 +38,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: build, test, push
-        run: make mysql test push
-
-      - name: benchmark
-        run: make benchmark | grep "[0-9]m[0-9][0-9]s" | sed "s/^/::/"
+        run: make mysql test benchmark push
 
       - name: build cmds for all platforms
         run: make cmds-all

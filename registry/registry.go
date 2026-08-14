@@ -1006,6 +1006,18 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 	query := ""
 	args := []any{}
 
+	// ?filter=excludeall returns nothing
+	if len(filters) == 1 && filters[0][0].Path == "excludeall"+string(DB_IN) {
+		if what != "Coll" {
+			return "", nil, NewXRError("bad_filter",
+				reg.tx.RequestInfo.OriginalRequest.URL.RequestURI(),
+				"value=excludeall",
+				"error_detail=\"excludeall\" must only be used "+
+					"on collections")
+		}
+		return "", nil, nil
+	}
+
 	if sortKey != "" && what != "Coll" {
 		return "", nil, NewXRError("bad_sort", "",
 			"value="+sortKey,
