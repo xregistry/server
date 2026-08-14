@@ -40,6 +40,9 @@ jobs:
       - name: build, test, push
         run: make mysql test push
 
+      - name: benchmark
+        run: make benchmark | grep "[0-9]m[0-9][0-9]s" | sed "s/^/::/"
+
       - name: build cmds for all platforms
         run: make cmds-all
 
