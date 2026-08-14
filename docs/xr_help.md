@@ -339,6 +339,7 @@ xr model verify [- | FILE...]
   # Parse and verify xRegistry model documents
       --config string   Config file ($HOME/.xrconfig)
       --errjson         Print errors as json
+      --full-model      Generate full model definition
   -?, --help            Help for xr
   -s, --server string   xRegistry server URL
       --skip-target     Skip 'target' verification for 'xid' attributes
@@ -349,6 +350,7 @@ xr serve DIR
   # Run an HTTP file server for a directory
   -a, --address string   address:port of listener (0.0.0.0:8080*)
       --config string    Config file ($HOME/.xrconfig)
+  -c, --cors             Send CORS header with '*' value
       --errjson          Print errors as json
   -?, --help             Help for xr
   -s, --server string    xRegistry server URL

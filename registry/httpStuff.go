@@ -2536,8 +2536,8 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 					"/"+info.OriginalPath,
 					"name=xRegistry-"+key,
 					"error_detail="+
-						fmt.Sprintf("'xRegistry-%s' isn't allowed as "+
-							"an HTTP header", key))
+						fmt.Sprintf("'xRegistry-%s' isn't a valid HTTP "+
+							"header", key))
 			}
 
 			if key == resSingular+"url" || key == resSingular+"proxyurl" {

@@ -123,6 +123,7 @@ var LS_NAMES       = 'xreg-name-overrides';
 var LS_PROXY       = 'xreg-proxy-servers';
 var LS_DISCOVERED  = 'xreg-discovered-from';
 var LS_HIDDEN      = 'xreg-hidden-servers';
+var LS_SIBLING_OPEN = 'xreg-sibling-panel-open';
 var LS_LOCAL_DELETED = 'xreg-local-server-deleted';
 var LS_LABELS      = 'xreg-label-cache';
 var LS_FAVORITES   = 'xreg-favorite-servers';
@@ -690,6 +691,272 @@ function setLeftPanelVisible(show) {
   var lp = el('left-panel'),  lr = el('left-panel-resizer');
   if (lp) lp.style.display = d;
   if (lr) lr.style.display = d;
+}
+
+// ---- Sibling switcher panel -----------------------------------------------
+//
+// A push panel (same flex-child pattern as #left-panel above) that lists
+// the current single-entity page's siblings — the other items in whatever
+// parent collection contains this page — so the user can jump straight
+// across to another sibling without traversing back up via the
+// breadcrumbs. See plan.md "Sibling-switcher slide-in panel". Scoped to
+// Registry root / Group instance / Resource instance pages (List view
+// only, never Home or JSON view — see getSiblingContext()).
+
+var _siblingPanelOpen = (function() {
+  try { return localStorage.getItem(LS_SIBLING_OPEN) === '1'; }
+  catch (e) { return false; }
+})();
+// Cache of the last-rendered sibling list, keyed by a string identifying
+// the parent collection it belongs to — avoids refetching every time
+// renderSiblingPanel() runs (e.g. re-renders triggered by unrelated state
+// changes) as long as the user is still looking at the same parent.
+var _siblingPanelDataKey = null;
+var _siblingPanelItems   = null;
+
+function setSiblingPanelVisible(show) {
+  var sp = el('sibling-panel');
+  if (sp) sp.style.display = show ? '' : 'none';
+}
+
+function toggleSiblingPanel() {
+  _siblingPanelOpen = !_siblingPanelOpen;
+  try { localStorage.setItem(LS_SIBLING_OPEN, _siblingPanelOpen ? '1' : '0'); } catch (e) {}
+  setSiblingPanelVisible(_siblingPanelOpen);
+  var btn = el('sibling-toggle-fixed');
+  if (btn) btn.classList.toggle('sib-toggle-open', _siblingPanelOpen);
+  if (_siblingPanelOpen) renderSiblingPanel();
+}
+
+// Header toggle button — shows/hides the #sibling-toggle-fixed button
+// (present in index.html's #header-left, just left of the logo) based on
+// whether the current page has an applicable sibling context, and keeps
+// its "open" visual state in sync. Called instead of embedding the icon
+// inline in .eg-page-title, so the icon's on-screen location never
+// depends on the page title's own content/indentation, and — since it's a
+// normal in-flow #header-left flex item rather than a fixed/overlaid
+// element — the breadcrumb bar simply shifts right to make room for it,
+// so it can never overlap the title. See plan.md "Sibling-switcher
+// slide-in panel" update: "toggle icon location".
+function updateSiblingToggleBtn() {
+  var btn = el('sibling-toggle-fixed');
+  if (!btn) return;
+  var ctx = getSiblingContext();
+  if (!ctx) { btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  btn.classList.toggle('sib-toggle-open', _siblingPanelOpen);
+  // "Sidebar/panel" icon — a rectangle with a divided left column,
+  // universally recognized as a panel/sidebar toggle (distinct from the
+  // hamburger "more menu" icon elsewhere in the header).
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">'
+    + '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/>'
+    + '<line x1="5.5" y1="2.5" x2="5.5" y2="13.5" stroke="currentColor" stroke-width="1.3"/>'
+    + '<rect x="2.7" y="3.7" width="1.9" height="8.6" rx="0.6" fill="currentColor"/>'
+    + '</svg>';
+}
+
+// Resolves the current page's sibling context, or null if this page has no
+// applicable parent/sibling concept (Home, JSON view, or a page depth this
+// feature doesn't cover). Returns:
+//   { label, currentKey, load(cb), navigate(item), versions: {...} (Resource pages only) }
+// `load(cb)` calls cb(items) with an array of {key, label, isDefault}.
+function getSiblingContext() {
+  if (_state.view === 'home' || _state.view === 'json' || _state.dataView === 'json') return null;
+  if (_state.section !== 'data') return null;
+  var depth = _state.path.length;
+  var svBase0 = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
+  var model0  = _modelCache[normalizeURL(svBase0)] || null;
+
+  if (depth === 1) {
+    // Groups collection page (e.g. "endpoints") — siblings are the OTHER
+    // Group Type collections declared by the model (not the items inside
+    // this collection — those are this page's own children, not siblings).
+    if (!model0 || !model0.groups) return null;
+    var curPlural1 = _state.path[0];
+    return {
+      label: 'Group Types',
+      currentKey: curPlural1,
+      load: function(cb) {
+        cb(Object.keys(model0.groups).sort().map(function(p) { return {key: p, label: p}; }));
+      },
+      navigate: function(item) {
+        pushState({path: [item.key], apiURL: buildAPIURLForPath([item.key])});
+      }
+    };
+  }
+
+  if (depth === 3) {
+    // Resources collection page within a Group instance (e.g.
+    // "endpoints/e1/messages") — siblings are the other Resource Type
+    // collections declared for this Group type.
+    var grpType3 = _state.path[0], grpId3 = _state.path[1];
+    var grpDef3 = model0 && model0.groups && model0.groups[grpType3];
+    if (!grpDef3 || !grpDef3.resources) return null;
+    var curPlural3 = _state.path[2];
+    return {
+      label: 'Resource Types',
+      currentKey: curPlural3,
+      load: function(cb) {
+        cb(Object.keys(grpDef3.resources).sort().map(function(p) { return {key: p, label: p}; }));
+      },
+      navigate: function(item) {
+        var newPath = [grpType3, grpId3, item.key];
+        pushState({path: newPath, apiURL: buildAPIURLForPath(newPath)});
+      }
+    };
+  }
+
+  if (depth === 0) {
+    // Registry root — siblings are other known registries.
+    var thisURL = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN);
+    return {
+      label: 'Registries',
+      currentKey: thisURL,
+      load: function(cb) {
+        var urls = visibleServerUrls();
+        cb(urls.map(function(u) { return {key: u, label: serverLabel(u)}; }));
+      },
+      navigate: function(item) { doBrowse(item.key); }
+    };
+  }
+
+  if (depth === 2) {
+    // Group instance — siblings are the Groups collection of the same type.
+    var grpType = _state.path[0];
+    var svBaseG = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
+    return {
+      label: capitalize(grpType),
+      currentKey: _state.path[1],
+      load: function(cb) {
+        loadSiblingCollection(svBaseG + '|' + grpType, function() {
+          return buildAPIURLForPath(_state.path.slice(0, 1));
+        }, cb);
+      },
+      navigate: function(item) {
+        var itemPath = [grpType, item.key];
+        pushState({path: itemPath, apiURL: item.self || ''});
+      }
+    };
+  }
+
+  if (depth === 4) {
+    // Resource instance — siblings are the Resources collection of the
+    // same type within this Group, PLUS (per user's scoping) this
+    // Resource's own Versions, shown as a second list within the same
+    // panel. See renderSiblingPanel().
+    var grpType4 = _state.path[0], grpId4 = _state.path[1], resType4 = _state.path[2];
+    var svBaseR = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
+    return {
+      label: capitalize(resType4),
+      currentKey: _state.path[3],
+      load: function(cb) {
+        loadSiblingCollection(svBaseR + '|' + grpType4 + '/' + grpId4 + '/' + resType4, function() {
+          return buildAPIURLForPath(_state.path.slice(0, 3));
+        }, cb);
+      },
+      navigate: function(item) {
+        var itemPath = [grpType4, grpId4, resType4, item.key];
+        // Preserve the currently-active tab (Document/Version Details/
+        // Resource Details) when hopping to a sibling Resource via this
+        // panel — a deliberate exception to pushStateReal()'s normal
+        // "fresh navigation resets docTab" rule, since the user is
+        // consciously staying on the "same kind of page", just swapping
+        // which sibling resource it shows.
+        pushState({path: itemPath, apiURL: item.self || '', docTab: _state.docTab});
+      },
+      versions: {
+        label: 'Versions',
+        currentKey: (_resSelectedVersionId === 'default') ? (_resDefaultData && _resDefaultData.versionid) || 'default' : _resSelectedVersionId,
+        load: function(cb) {
+          var items = (_resVersionsList || []).map(function(v) {
+            return {key: itemNavKey(v), label: itemNavKey(v), isDefault: !!(_resDefaultData && _resDefaultData.versionid === itemNavKey(v))};
+          });
+          cb(items);
+        },
+        navigate: function(item) {
+          onVersionSelectChange(item.key, true);
+        }
+      }
+    };
+  }
+
+  return null;
+}
+
+// Shared collection fetch/cache used by getSiblingContext()'s Group/
+// Resource cases. `key` identifies the parent collection (server+path);
+// `urlFn` lazily computes the collection's API URL only on a cache miss.
+function loadSiblingCollection(key, urlFn, cb) {
+  if (_siblingPanelDataKey === key && _siblingPanelItems) { cb(_siblingPanelItems); return; }
+  fetchJSON(urlFn()).then(function(data) {
+    var items = collectionItems(data).map(function(it) {
+      return {key: itemNavKey(it), label: it.name || itemNavKey(it), self: it.self || ''};
+    });
+    _siblingPanelDataKey = key;
+    _siblingPanelItems = items;
+    cb(items);
+  }).catch(function() { cb([]); });
+}
+
+// Builds a collection's API URL from a path array, honoring a possible
+// serverURL override — mirrors buildAPIURL()'s own logic but for an
+// arbitrary (ancestor) path rather than _state.path itself.
+function buildAPIURLForPath(path) {
+  var svBase = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
+  return svBase + '/' + path.join('/');
+}
+
+// Renders the sibling panel's content. Safe to call even while the panel
+// is closed (it's a no-op then) — actual show/hide is setSiblingPanelVisible().
+function renderSiblingPanel() {
+  var inner = el('sibling-panel-inner');
+  if (!inner) return;
+  if (!_siblingPanelOpen) return;
+  var ctx = getSiblingContext();
+  if (!ctx) { setSiblingPanelVisible(false); return; }
+
+  function listHtml(label, currentKey, items, navigateExpr) {
+    if (!items.length) return '';
+    var html = '<div class="sib-panel-header">' + esc(label) + '</div><div class="sib-panel-list">';
+    items.forEach(function(it, i) {
+      var isCur = it.key === currentKey;
+      var badge = it.isDefault ? '<span class="sib-panel-default-badge">default</span>' : '';
+      var nameHtml = (it.label && it.label !== it.key) ? ' <span class="sib-panel-item-name">' + esc(it.label) + '</span>' : '';
+      html += '<div class="sib-panel-item' + (isCur ? ' sib-panel-current' : '') + '"'
+        + (isCur ? '' : ' onclick="' + navigateExpr.replace(/__I__/g, i) + '"')
+        + ' title="' + esc(it.key) + '">' + esc(it.key) + nameHtml + badge + '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  inner.innerHTML = '<div class="state-msg">Loading…</div>';
+  ctx.load(function(items) {
+    window._sibPanelMainItems = items;
+    var html = listHtml(ctx.label, ctx.currentKey, items, "siblingPanelNavigate('main',__I__)");
+    if (ctx.versions) {
+      ctx.versions.load(function(vItems) {
+        window._sibPanelVersionItems = vItems;
+        html += listHtml(ctx.versions.label, ctx.versions.currentKey, vItems, "siblingPanelNavigate('versions',__I__)");
+        inner.innerHTML = html || '<div class="sib-panel-empty">No siblings</div>';
+      });
+      return;
+    }
+    inner.innerHTML = html || '<div class="sib-panel-empty">No siblings</div>';
+  });
+}
+
+// Dispatches a click on a sibling-panel row to the right navigate() —
+// `which` is 'main' (the primary Groups/Resources/Registries list) or
+// 'versions' (the Resource page's own Versions sub-list).
+function siblingPanelNavigate(which, i) {
+  var ctx = getSiblingContext();
+  if (!ctx) return;
+  if (which === 'versions' && ctx.versions) {
+    ctx.versions.navigate((window._sibPanelVersionItems || [])[i]);
+  } else {
+    ctx.navigate((window._sibPanelMainItems || [])[i]);
+  }
 }
 
 // ---- URL state -----------------------------------------------------------
@@ -2767,12 +3034,16 @@ function refresh() {
 
   if (_state.view === 'home') {
     setLeftPanelVisible(false);
+    setSiblingPanelVisible(false);
+    updateSiblingToggleBtn();
     renderHome();
     return;
   }
 
   if (_state.view === 'config') {
     setLeftPanelVisible(false);
+    setSiblingPanelVisible(false);
+    updateSiblingToggleBtn();
     renderConfig();
     return;
   }
@@ -2789,6 +3060,10 @@ function refresh() {
   var isCapabilitiesSection = (_state.section === 'capabilities');
   var isCapOfferedSection   = (_state.section === 'capabilitiesoffered');
   var isXRegistrySection    = (_state.section === 'xregistry');
+  // Sibling panel only ever applies to the 'data' section — hide it
+  // up front for model/capabilities/xregistry sections (which don't route
+  // through renderEntityFromData(), the normal show/hide point below).
+  if (_state.section !== 'data') { setSiblingPanelVisible(false); updateSiblingToggleBtn(); }
   // Grid/List's own "Filters" toggle (separate from JSON view, which always
   // shows the full left panel) — see plan.md "Filter support in Grid/List
   // views".
@@ -2966,6 +3241,17 @@ function renderEntityFromData(data, coll) {
   // Grid/List's own Filters-only left panel (independent of JSON view's
   // always-on panel) — render its content when toggled open.
   if (isGridFiltersOnlyMode()) renderJSONLeftPanel(true);
+
+  // Sibling-switcher push panel — applicable to single-entity AND
+  // collection-list pages (never Home or JSON view). See
+  // getSiblingContext(). The toggle icon itself is a fixed, independently-
+  // positioned button (see updateSiblingToggleBtn()/index.html), not part
+  // of the page title, so its own visibility is driven entirely by
+  // getSiblingContext() rather than this `coll` distinction.
+  var sibApplicable = _state.view !== 'json' && _state.dataView !== 'json';
+  setSiblingPanelVisible(sibApplicable && _siblingPanelOpen);
+  if (sibApplicable) renderSiblingPanel();
+  updateSiblingToggleBtn();
 }
 
 // Whether the "entities" capability (i.e. Registry/Group/Resource/Version
@@ -5387,7 +5673,18 @@ function renderTableView(data) {
   var modelKey = normalizeURL(svBase);
   if (!_modelCache.hasOwnProperty(modelKey)) {
     ensureModelCached(svBase, function() {
-      if (_lastData === data) renderTableView(data);
+      if (_lastData === data) {
+        renderTableView(data);
+        updateSiblingToggleBtn();
+        // The sibling panel's own context (getSiblingContext()) depends on
+        // this model for Groups/Resources-collection pages, so on a fresh
+        // page load renderSiblingPanel() may have force-hidden the panel
+        // (ctx was null) even though the toggle icon was already showing
+        // "open" from persisted state — re-render now that the model (and
+        // therefore ctx) is available, so the panel and icon stay in sync
+        // without requiring an extra click.
+        if (_siblingPanelOpen) { setSiblingPanelVisible(true); renderSiblingPanel(); }
+      }
     });
   }
   var model  = _modelCache[modelKey] || null;
@@ -9518,6 +9815,11 @@ function loadVersionsForSelect() {
       // mutations in that tab too (see verTabSaveNewVersion()/
       // verTabDeleteSelected()).
       renderVersionsTabPanel();
+      // Sibling panel's Versions sub-list depends on _resVersionsList too —
+      // refresh it now that the real collection has arrived (it may have
+      // rendered with an empty/stale list on the very first pass, since
+      // this fetch is async and independent of renderSingleEntity()).
+      if (_siblingPanelOpen) renderSiblingPanel();
     })
     .catch(function() { /* leave "Default" only — non-critical */ });
 }
@@ -10232,6 +10534,9 @@ function onVersionSelectChangeReal(vid, fromUserPick) {
   var pillsBox = document.getElementById('eg-doc-pills');
   if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(verData, metaEditableNow());
   refreshCopyLinkBtnTooltip();
+  // Keep the sibling panel's Versions sub-list highlight in sync with the
+  // newly-selected version (see getSiblingContext()'s `versions` case).
+  if (_siblingPanelOpen) renderSiblingPanel();
   // Picking a version from the dropdown while on the Metadata or Versions
   // List tab has nothing to show there (Metadata doesn't vary per-version;
   // Versions List shows every version at once), so jump straight to the

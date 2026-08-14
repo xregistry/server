@@ -41,6 +41,8 @@ func addModelCmd(parent *cobra.Command) {
 	// "Data(json), @FILE, @URL, @-(stdin)")
 	verifyCmd.Flags().BoolP("skip-target", "", false,
 		"Skip 'target' verification for 'xid' attributes")
+	verifyCmd.Flags().BoolP("full-model", "", false,
+		"Generate full model definition")
 	modelCmd.AddCommand(verifyCmd)
 
 	updateCmd := &cobra.Command{
@@ -299,6 +301,11 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 	}
 
 	skipTarget, _ := cmd.Flags().GetBool("skip-target")
+	fullModel, _ := cmd.Flags().GetBool("full-model")
+
+	if fullModel && len(args) > 1 {
+		Error("When --full-model is used, only one FILE may be specified")
+	}
 
 	for _, fileName := range args {
 		prefix := ""
@@ -308,7 +315,7 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 
 		buf, xErr = xrlib.ReadFile(fileName)
 		if xErr == nil {
-			xErr = VerifyModel(fileName, buf, skipTarget)
+			xErr = VerifyModel(fileName, buf, skipTarget, fullModel)
 		}
 		if xErr != nil {
 			if len(args) > 1 {
@@ -322,7 +329,7 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 	}
 }
 
-func VerifyModel(fileName string, buf []byte, skipTarget bool) *XRError {
+func VerifyModel(fileName string, buf []byte, skipTarget, fullModel bool) *XRError {
 	buf, xErr := ProcessIncludes(fileName, buf, true)
 	if xErr != nil {
 		return xErr
@@ -356,6 +363,13 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) *XRError {
 	if xErr := model.Verify(); xErr != nil {
 		return xErr
 	}
+
+	if fullModel {
+		buf, xErr := model.UserMarshal("", "  ")
+		Error(xErr)
+		fmt.Printf("%s\n", string(buf))
+	}
+
 	return nil
 }
 

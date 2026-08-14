@@ -28,13 +28,13 @@ func TestXrefBasic(t *testing.T) {
 		`{"xref":"dirs/d1/files/f1"}`, 400, // missing leading /
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
-  "title": "The specified xref value (dirs/d1/files/f1) is malformed: \"dirs/d1/files/f1\" must start with /.",
+  "title": "For \"/dirs/d1/files/fx/meta\", the specified xref value (dirs/d1/files/f1) is malformed: \"dirs/d1/files/f1\" must start with /.",
   "subject": "/dirs/d1/files/fx/meta",
   "args": {
     "error_detail": "\"dirs/d1/files/f1\" must start with /",
     "xref": "dirs/d1/files/f1"
   },
-  "source": "e4e59b8a76c4:registry:resource:589"
+  "source": "4a51b174cf4e:registry:resource:669"
 }
 `)
 
@@ -42,13 +42,13 @@ func TestXrefBasic(t *testing.T) {
 		`{"xref":"/foo/dirs/d1/files/f1"}`, 400, // make it bad
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
-  "title": "The specified xref value (/foo/dirs/d1/files/f1) is malformed: \"/foo/dirs/d1/files/f1\" must be of the form: /GROUPS/GID/RESOURCES/RID.",
+  "title": "For \"/dirs/d1/files/fx/meta\", the specified xref value (/foo/dirs/d1/files/f1) is malformed: \"/foo/dirs/d1/files/f1\" must be of the form: /GROUPS/GID/RESOURCES/RID.",
   "subject": "/dirs/d1/files/fx/meta",
   "args": {
     "error_detail": "\"/foo/dirs/d1/files/f1\" must be of the form: /GROUPS/GID/RESOURCES/RID",
     "xref": "/foo/dirs/d1/files/f1"
   },
-  "source": "e4e59b8a76c4:registry:resource:589"
+  "source": "4a51b174cf4e:registry:resource:669"
 }
 `)
 
@@ -679,25 +679,25 @@ func TestXrefErrors(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"xref": "/zoos/d1/files/fx"}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
-  "title": "The specified xref value (/zoos/d1/files/fx) is malformed: points to a non-existing Group Type: zoos.",
+  "title": "For \"/dirs/d1/files/f1/meta\", the specified xref value (/zoos/d1/files/fx) is malformed: points to a non-existing Group Type: zoos.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "points to a non-existing Group Type: zoos",
     "xref": "/zoos/d1/files/fx"
   },
-  "source": "49a49fc034c5:registry:resource:666"
+  "source": "4a51b174cf4e:registry:resource:691"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"xref": "/dirs/d1/zoos/fx"}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
-  "title": "The specified xref value (/dirs/d1/zoos/fx) is malformed: points to a non-existing Resource Type: zoos.",
+  "title": "For \"/dirs/d1/files/f1/meta\", the specified xref value (/dirs/d1/zoos/fx) is malformed: points to a non-existing Resource Type: zoos.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "points to a non-existing Resource Type: zoos",
     "xref": "/dirs/d1/zoos/fx"
   },
-  "source": "49a49fc034c5:registry:resource:675"
+  "source": "4a51b174cf4e:registry:resource:700"
 }
 `)
 
@@ -733,24 +733,26 @@ func TestXrefErrors(t *testing.T) {
 		400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"modifiedat\" is not allowed to be present since the Resource (/dirs/d1/files/f1/meta) uses \"xref\".",
+  "title": "Attribute \"modifiedat\" is not allowed to be present since the \"file\" (/dirs/d1/files/f1/meta) uses \"xref\".",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "name": "modifiedat"
+    "name": "modifiedat",
+    "singular": "file"
   },
-  "source": "0018b4bbf02e:registry:resource:746"
+  "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"foo":"foo","xref": "/dirs/d1/files/fx"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"foo\" is not allowed to be present since the Resource (/dirs/d1/files/f1/meta) uses \"xref\".",
+  "title": "Attribute \"foo\" is not allowed to be present since the \"file\" (/dirs/d1/files/f1/meta) uses \"xref\".",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "name": "foo"
+    "name": "foo",
+    "singular": "file"
   },
-  "source": "0018b4bbf02e:registry:resource:746"
+  "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
 
@@ -761,13 +763,14 @@ func TestXrefErrors(t *testing.T) {
 		400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"description\" is not allowed to be present since the Resource (/dirs/d1/files/f1) uses \"xref\".",
+  "title": "Attribute \"description\" is not allowed to be present since the \"file\" (/dirs/d1/files/f1) uses \"xref\".",
   "detail": "Full list: description,epoch.",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "name": "description"
+    "name": "description",
+    "singular": "file"
   },
-  "source": "0018b4bbf02e:registry:group:411"
+  "source": "4a51b174cf4e:registry:group:487"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
@@ -775,13 +778,14 @@ func TestXrefErrors(t *testing.T) {
 		400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"description\" is not allowed to be present since the Resource (/dirs/d1/files/f1) uses \"xref\".",
+  "title": "Attribute \"description\" is not allowed to be present since the \"file\" (/dirs/d1/files/f1) uses \"xref\".",
   "detail": "Full list: description,epoch.",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "name": "description"
+    "name": "description",
+    "singular": "file"
   },
-  "source": "0018b4bbf02e:registry:group:411"
+  "source": "4a51b174cf4e:registry:group:487"
 }
 `)
 
@@ -816,12 +820,13 @@ func TestXrefErrors(t *testing.T) {
 		`{"fileid": "f1", "meta": {"xref":"/dirs/d1/files/f1","modifiedat":"2025-01-01-T:12:00:00"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"modifiedat\" is not allowed to be present since the Resource (/dirs/d1/files/f1/meta) uses \"xref\".",
+  "title": "Attribute \"modifiedat\" is not allowed to be present since the \"file\" (/dirs/d1/files/f1/meta) uses \"xref\".",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "name": "modifiedat"
+    "name": "modifiedat",
+    "singular": "file"
   },
-  "source": "0018b4bbf02e:registry:resource:746"
+  "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
 
@@ -1638,32 +1643,32 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx", `{"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
-  "source": "396100315a6e:registry:resource:1026"
+  "source": "4a51b174cf4e:registry:resource:980"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx$details", `{"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
-  "source": "396100315a6e:registry:resource:1026"
+  "source": "4a51b174cf4e:registry:resource:980"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
   "source": "396100315a6e:registry:resource:1026"
 }
@@ -1671,10 +1676,10 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx$details?setdefaultversionid=2",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
   "source": "396100315a6e:registry:resource:1026"
 }
@@ -1682,34 +1687,36 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=2",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"defaultversionid\" is not allowed to be present since the Resource (/dirs/d1/files/fx/meta) uses \"xref\".",
+  "title": "Attribute \"defaultversionid\" is not allowed to be present since the \"file\" (/dirs/d1/files/fx/meta) uses \"xref\".",
   "detail": "Full list: defaultversionid,defaultversionsticky.",
   "subject": "/dirs/d1/files/fx/meta",
   "args": {
-    "name": "defaultversionid"
+    "name": "defaultversionid",
+    "singular": "file"
   },
-  "source": "396100315a6e:registry:resource:796"
+  "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=1",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"defaultversionid\" is not allowed to be present since the Resource (/dirs/d1/files/fx/meta) uses \"xref\".",
+  "title": "Attribute \"defaultversionid\" is not allowed to be present since the \"file\" (/dirs/d1/files/fx/meta) uses \"xref\".",
   "detail": "Full list: defaultversionid,defaultversionsticky.",
   "subject": "/dirs/d1/files/fx/meta",
   "args": {
-    "name": "defaultversionid"
+    "name": "defaultversionid",
+    "singular": "file"
   },
-  "source": "396100315a6e:registry:resource:796"
+  "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
   "source": "396100315a6e:registry:resource:1026"
 }
@@ -1719,10 +1726,10 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions", `{"vv":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
   "source": "396100315a6e:registry:resource:1026"
 }
@@ -1730,10 +1737,10 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1", "hi", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
   "source": "396100315a6e:registry:resource:1026"
 }
@@ -1741,10 +1748,10 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1$details", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
   "source": "396100315a6e:registry:resource:1026"
 }
@@ -1764,10 +1771,10 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2", "hi", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
   "source": "396100315a6e:registry:resource:1026"
 }
@@ -1775,10 +1782,10 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2$details", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
+  "title": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Cannot update Resource \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
+    "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
   "source": "396100315a6e:registry:resource:1026"
 }
@@ -1788,10 +1795,11 @@ func TestXrefDocs(t *testing.T) {
 		`{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fy) uses \"xref\".",
+  "title": "Attribute \"versions\" is not allowed to be present since the \"file\" (/dirs/d1/files/fy) uses \"xref\".",
   "subject": "/dirs/d1/files/fy",
   "args": {
-    "name": "versions"
+    "name": "versions",
+    "singular": "file"
   },
   "source": "396100315a6e:registry:group:479"
 }
@@ -1800,10 +1808,11 @@ func TestXrefDocs(t *testing.T) {
 		`{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{"2":{},"3":{}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fy) uses \"xref\".",
+  "title": "Attribute \"versions\" is not allowed to be present since the \"file\" (/dirs/d1/files/fy) uses \"xref\".",
   "subject": "/dirs/d1/files/fy",
   "args": {
-    "name": "versions"
+    "name": "versions",
+    "singular": "file"
   },
   "source": "396100315a6e:registry:group:479"
 }
@@ -1813,10 +1822,11 @@ func TestXrefDocs(t *testing.T) {
 		`{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fy) uses \"xref\".",
+  "title": "Attribute \"versions\" is not allowed to be present since the \"file\" (/dirs/d1/files/fy) uses \"xref\".",
   "subject": "/dirs/d1/files/fy",
   "args": {
-    "name": "versions"
+    "name": "versions",
+    "singular": "file"
   },
   "source": "396100315a6e:registry:group:479"
 }
@@ -1825,10 +1835,11 @@ func TestXrefDocs(t *testing.T) {
 		`{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{"2":{},"3":{}}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fy) uses \"xref\".",
+  "title": "Attribute \"versions\" is not allowed to be present since the \"file\" (/dirs/d1/files/fy) uses \"xref\".",
   "subject": "/dirs/d1/files/fy",
   "args": {
-    "name": "versions"
+    "name": "versions",
+    "singular": "file"
   },
   "source": "396100315a6e:registry:group:479"
 }
@@ -1838,10 +1849,11 @@ func TestXrefDocs(t *testing.T) {
 		`{"files":{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
-  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d2/files/fy) uses \"xref\".",
+  "title": "Attribute \"versions\" is not allowed to be present since the \"file\" (/dirs/d2/files/fy) uses \"xref\".",
   "subject": "/dirs/d2/files/fy",
   "args": {
-    "name": "versions"
+    "name": "versions",
+    "singular": "file"
   },
   "source": "396100315a6e:registry:group:479"
 }

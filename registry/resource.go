@@ -244,7 +244,8 @@ func (r *Resource) JustSetDefault(name string, val any) *XRError {
 
 	if r.IsXref() {
 		return NewXRError("extra_xref_attribute", r.XID,
-			"name=defaultversionid")
+			"name=defaultversionid",
+			"singular="+r.ResourceModel.Singular)
 	}
 
 	v, xErr := r.GetDefault()
@@ -699,8 +700,8 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 					return nil, false, NewXRError("malformed_xref", meta.XID,
 						"xref="+xref,
 						"error_detail="+
-							fmt.Sprintf("points to a non-existing Resource "+
-								"Type: %s", parts[2]))
+							fmt.Sprintf("points to a non-existing "+
+								"Resource Type: %s", parts[2]))
 				}
 
 				xrefAbsModel = rm.GetOriginAbstractModel()
@@ -713,8 +714,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 					return nil, false, NewXRError("malformed_xref", meta.XID,
 						"xref="+xref,
 						"error_detail="+
-							fmt.Sprintf("must point to a Resource of "+
-								"type %q not %q",
+							fmt.Sprintf("must point to a %q not %q",
 								targetAbsModel, xrefAbsModel))
 				}
 			}
@@ -861,7 +861,8 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			if len(extraAttrs) > 0 {
 				sort.Strings(extraAttrs)
 				xErr := NewXRError("extra_xref_attribute", meta.XID,
-					"name="+extraAttrs[0])
+					"name="+extraAttrs[0],
+					"singular="+r.ResourceModel.Singular)
 				if len(extraAttrs) > 1 {
 					xErr.SetDetailf("Full list: %s.",
 						strings.Join(extraAttrs, ","))
@@ -977,7 +978,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	if r.IsXref() {
 		return nil, false,
 			NewXRError("bad_request", r.XID,
-				"error_detail=Cannot update Resource \""+r.XID+
+				"error_detail=Cannot update \""+r.XID+
 					"\" in this way since it uses \"xref\"")
 	}
 
@@ -1314,7 +1315,8 @@ func (r *Resource) checkHasDocumentViolation() *XRError {
 	if row != nil {
 		// Found a version with document content
 		versionPath := "/" + string((*(row[0])).([]byte))
-		return NewXRError("hasdocument_violation", versionPath)
+		return NewXRError("hasdocument_violation", versionPath,
+			"plural="+r.ResourceModel.Plural)
 	}
 
 	return nil

@@ -835,9 +835,9 @@ func TestResourceMaxVersions(t *testing.T) {
 }`
 	XHTTP(t, reg, "PUT", "/modelsource", model, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
-  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
+  "title": "For \"/dirs/d1/files/f1/meta\", setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
   "subject": "/dirs/d1/files/f1/meta",
-  "source": "abc04c6d0dd6:registry:entity:2030"
+  "source": "4a51b174cf4e:registry:entity:2244"
 }
 `)
 
@@ -984,9 +984,9 @@ func TestResourceMaxVersions(t *testing.T) {
 }`
 	XHTTP(t, reg, "PUT", "/modelsource", model, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
-  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
+  "title": "For \"/dirs/d1/files/f1/meta\", setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
   "subject": "/dirs/d1/files/f1/meta",
-  "source": "9263661f51d9:registry:resource:1516"
+  "source": "4a51b174cf4e:registry:resource:1896"
 }
 `)
 }
