@@ -339,6 +339,7 @@ xr model verify [- | FILE...]
   # Parse and verify xRegistry model documents
       --config string   Config file ($HOME/.xrconfig)
       --errjson         Print errors as json
+      --full-model      Generate full model definition
   -?, --help            Help for xr
   -s, --server string   xRegistry server URL
       --skip-target     Skip 'target' verification for 'xid' attributes

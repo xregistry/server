@@ -347,21 +347,21 @@ var Type2Error = map[string]*XRError{
 	"extra_xregistry_header": &XRError{
 		Type:  HTTP_SPECURL + "#extra_xregistry_header",
 		Code:  400,
-		Title: `xRegistry HTTP header "<name>" is not allowed on this request: <error_detail>.`,
+		Title: `For "<subject>", xRegistry HTTP header "<name>" is not allowed on this request: <error_detail>.`,
 	},
 	"header_error": &XRError{
 		Type:  HTTP_SPECURL + "#header_error",
 		Code:  400,
-		Title: `There was an error processing HTTP header "<name>": <error_detail>.`,
+		Title: `For "<subject>", there was an error processing HTTP header "<name>": <error_detail>.`,
 	},
 	"missing_body": &XRError{
 		Type:  HTTP_SPECURL + "#missing_body",
 		Code:  400,
-		Title: `The request is missing an HTTP body - try '{}'.`,
+		Title: `For "<subject>", the request is missing an HTTP body - try '{}'.`,
 	},
 	"missing_versions": &XRError{
 		Code:  400,
-		Title: `At least one Version needs to be included in the request to process "<subject>".`,
+		Title: `For "<subject>", at least one Version needs to be included in the request.`,
 	},
 	// end-spec: http.md
 

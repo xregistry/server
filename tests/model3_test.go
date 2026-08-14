@@ -2958,9 +2958,9 @@ func TestModelSourceSpecCompliance(t *testing.T) {
 	// Test missing body
 	XHTTP(t, reg, "PUT", "/modelsource", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
-  "title": "The request is missing an HTTP body - try '{}'.",
+  "title": "For \"/modelsource\", the request is missing an HTTP body - try '{}'.",
   "subject": "/modelsource",
-  "source": "445837e170ad:registry:httpStuff:1683"
+  "source": "dc6f67fbba78:registry:httpStuff:1928"
 }
 `)
 

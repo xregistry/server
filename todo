@@ -118,6 +118,6 @@ TODOs:
 ** add support for excludeall and add it to filter results
 - clean-up design of model save/apply
 - make sure we support ?ignore  w/o value (or "*") to mean all possible
-** support "instance" in errors
+** support "instance/tx" in errors
 ** in dlog, sync the write to the output
-** put tx in the error messages
+-- make sure conflicting ifvalue attrs are detected, model define time and runtime

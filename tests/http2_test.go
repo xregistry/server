@@ -82,13 +82,13 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 		Code: 400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
-  "title": "xRegistry HTTP header \"xregistry-barid\" is not allowed on this request: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed.",
+  "title": "For \"/dirs/d1/bars\", xRegistry HTTP header \"xregistry-barid\" is not allowed on this request: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed.",
   "subject": "/dirs/d1/bars",
   "args": {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
     "name": "xregistry-barid"
   },
-  "source": ":registry:httpStuff:3145"
+  "source": "dc6f67fbba78:registry:httpStuff:2458"
 }
 `,
 	})
@@ -3295,13 +3295,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResHeaders: []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
-  "title": "xRegistry HTTP header \"xregistry-description\" is not allowed on this request: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed.",
+  "title": "For \"/dirs/dir1/files/f8$details\", xRegistry HTTP header \"xregistry-description\" is not allowed on this request: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed.",
   "subject": "/dirs/dir1/files/f8$details",
   "args": {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
     "name": "xregistry-description"
   },
-  "source": ":registry:httpStuff:3145"
+  "source": "dc6f67fbba78:registry:httpStuff:2458"
 }
 `,
 	})
@@ -3362,9 +3362,9 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#missing_versions",
-  "title": "At least one Version needs to be included in the request to process \"/dirs/dir1/files/f99/versions\".",
+  "title": "For \"/dirs/dir1/files/f99/versions\", at least one Version needs to be included in the request.",
   "subject": "/dirs/dir1/files/f99/versions",
-  "source": ":registry:httpStuff:2320"
+  "source": "dc6f67fbba78:registry:httpStuff:1677"
 }
 `,
 	})
@@ -9893,8 +9893,8 @@ func TestHTTPMissingBody(t *testing.T) {
 	fn := func(i string) string {
 		xErr := &XRError{
 			Type:    "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
+			Title:   "For \"" + i + "\", the request is missing an HTTP body - try '{}'.",
 			Subject: i,
-			Title:   "The request is missing an HTTP body - try '{}'.",
 			Source:  "xyz",
 		}
 		return xErr.ToJSON("http://localhost:8181") + "\n"
@@ -9981,7 +9981,7 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
 		{`[]`, `path '': expected \"map\", got \"array\"`},
 		{``, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
-  "title": "The request is missing an HTTP body - try '{}'.",
+  "title": "For \"/\", the request is missing an HTTP body - try '{}'.",
   "subject": "/",
   "source": ":registry:httpStuff:3119"
 }
