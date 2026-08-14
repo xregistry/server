@@ -510,7 +510,8 @@ func TestExportBasic(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -2932,7 +2933,7 @@ func TestExportImportModel(t *testing.T) {
     }`
 
 	XHTTP(t, reg, "PUT", "/?inline", src, 200, `{
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportImportModel",
   "self": "http://localhost:8181/",
   "xid": "/",

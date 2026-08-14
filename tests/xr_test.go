@@ -127,7 +127,7 @@ ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
 ├ registryid      string       y     y    -
 ├ self            url          y     y    -
 ├ shortself       url          -     y    -
-├ specversion     string       y     y    y
+├ specversion     string       y     y    y     "1.0-rc3"
 └ xid             xid          y     y    -
 
 GROUP: dirs / dir
@@ -573,7 +573,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "modifiedat": "2026-06-27T18:24:46.505533726Z",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, "", true)
@@ -619,7 +619,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "name": "xxx",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, "", true)
@@ -665,7 +665,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "name": "nam",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, "", true)
@@ -689,7 +689,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, "", true)
@@ -717,7 +717,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "obj": {},
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, "", true)
@@ -743,7 +743,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "obj": {},
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, ``, true)
@@ -769,7 +769,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "obj": {},
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, ``, true)
@@ -786,7 +786,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "modifiedat": "2026-06-27T20:13:02.574334308Z",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, ``, true)
@@ -802,7 +802,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "obj": {},
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, ``, true)
@@ -822,7 +822,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   },
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
 `, ``, true)

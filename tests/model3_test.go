@@ -474,7 +474,8 @@ func TestModelResourceAttrs(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -1095,7 +1096,8 @@ func TestModelResourceAttrs(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -1970,7 +1972,8 @@ func TestModelFullModel(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",

@@ -49,7 +49,8 @@ func TestModelLabels(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -696,7 +697,8 @@ func TestModelLabels(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -1366,7 +1368,8 @@ func TestModelLabels(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -2244,7 +2247,8 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -3789,7 +3793,8 @@ func TestModelCompatibleWith(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -6173,7 +6178,8 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -7415,7 +7421,8 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -8563,7 +8570,8 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -9711,7 +9719,8 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -10853,7 +10862,8 @@ func TestModelMissingFields(t *testing.T) {
     "specversion": {
 	  "type": "string",
 	  "readonly": true,
-	  "required": true
+	  "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "regext": {
       "type": "string"
@@ -10907,7 +10917,8 @@ func TestModelMissingFields(t *testing.T) {
     "specversion": {
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "regext": {
       "type": "string"
@@ -10965,7 +10976,8 @@ func TestModelMissingFields(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",

@@ -148,6 +148,7 @@ var OrderedSpecProps = []*Attribute{
 		Type:     STRING,
 		ReadOnly: true,
 		Required: true,
+		Default:  SPECVERSION,
 
 		internals: &AttrInternals{
 			types:       StrTypes(ENTITY_REGISTRY),

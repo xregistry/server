@@ -17,7 +17,8 @@ func TestModelNoModel(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -136,7 +137,8 @@ func TestModelNoModel(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -263,7 +265,8 @@ func TestModelGroupCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -523,7 +526,8 @@ func TestModelGroupCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -783,7 +787,8 @@ func TestModelGroupCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -1100,7 +1105,8 @@ func TestModelResourceCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -2237,7 +2243,8 @@ func TestModelResourceCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -3009,7 +3016,8 @@ func TestModelResourceCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -3782,7 +3790,8 @@ func TestModelResourceCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -4406,7 +4415,8 @@ func TestModelResourceCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -5058,7 +5068,8 @@ func TestModelResourceCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -5701,7 +5712,8 @@ func TestModelResourceCreate(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -6387,7 +6399,8 @@ func TestModelResourceCreate(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -7033,7 +7046,8 @@ func TestModelResourceCreate(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -7335,7 +7349,8 @@ func TestModelResourceCreate(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -7624,7 +7639,8 @@ func TestModelMultCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
@@ -9673,7 +9689,8 @@ func TestModelMult2Create(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",

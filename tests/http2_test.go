@@ -9729,7 +9729,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
 `
 
 	// Exact specversion match
-	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0-rc3", ``, 200, caps)
+	XHTTP(t, reg, "GET", "/capabilities?specversion="+SPECVERSION, ``, 200, caps)
 
 	// Patch version component is ignored: "1.0.5-rc3" -> "1.0-rc3"
 	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0.5-rc3", ``, 200, caps)
@@ -9737,16 +9737,16 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
 	// Patch version zero is ignored: "1.0.0-rc3" -> "1.0-rc3"
 	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0.0-rc3", ``, 200, caps)
 
-	// Case-insensitive: "1.0-RC3" -> "1.0-rc3"
-	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0-RC3", ``, 200, caps)
+	// Case-insensitive: "`+SPECVERSION+`" -> "1.0-rc3"
+	XHTTP(t, reg, "GET", "/capabilities?specversion="+SPECVERSION, ``, 200, caps)
 
 	// Different suffix is rejected
 	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0-rc1", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unsupported_specversion",
-  "title": "The specified \"specversion\" value (1.0-rc1) is not supported. Supported versions: 1.0-rc3.",
+  "title": "The specified \"specversion\" value (1.0-rc1) is not supported. Supported versions: `+SPECVERSION+`.",
   "subject": "/capabilities",
   "args": {
-    "list": "1.0-rc3",
+    "list": "`+SPECVERSION+`",
     "specversion": "1.0-rc1"
   },
   "source": "xxx"
@@ -9756,10 +9756,10 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
 	// Different minor version is rejected
 	XHTTP(t, reg, "GET", "/capabilities?specversion=1.1-rc3", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unsupported_specversion",
-  "title": "The specified \"specversion\" value (1.1-rc3) is not supported. Supported versions: 1.0-rc3.",
+  "title": "The specified \"specversion\" value (1.1-rc3) is not supported. Supported versions: `+SPECVERSION+`.",
   "subject": "/capabilities",
   "args": {
-    "list": "1.0-rc3",
+    "list": "`+SPECVERSION+`",
     "specversion": "1.1-rc3"
   },
   "source": "xxx"
@@ -9769,10 +9769,10 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
 	// No suffix is rejected when current version has a suffix
 	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unsupported_specversion",
-  "title": "The specified \"specversion\" value (1.0) is not supported. Supported versions: 1.0-rc3.",
+  "title": "The specified \"specversion\" value (1.0) is not supported. Supported versions: `+SPECVERSION+`.",
   "subject": "/capabilities",
   "args": {
-    "list": "1.0-rc3",
+    "list": "`+SPECVERSION+`",
     "specversion": "1.0"
   },
   "source": "xxx"
@@ -9845,7 +9845,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
 	XHTTP(t, reg, "GET",
 		"/capabilities?specversion=1.0.5-rc3", ``, 200, afterCaps)
 	XHTTP(t, reg, "GET",
-		"/capabilities?specversion=1.0-rc3", ``, 200, afterCaps)
+		"/capabilities?specversion="+SPECVERSION, ``, 200, afterCaps)
 }
 
 func TestHTTPMissingBody(t *testing.T) {
