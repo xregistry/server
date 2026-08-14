@@ -232,7 +232,8 @@ func TestHTTPModelSource(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -891,7 +892,8 @@ func TestHTTPModelSource(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -1032,7 +1034,8 @@ func TestHTTPModelSource(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -1173,7 +1176,8 @@ func TestHTTPModelSource(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "required": true
+        "required": true,
+        "default": "`+SPECVERSION+`"
       },
       "registryid": {
         "name": "registryid",
@@ -5000,7 +5004,7 @@ func TestHTTPShortSelf(t *testing.T) {
 
 	// Make sure shortself on Registry == self because it's actually shorts
 	XHTTP(t, reg, "GET", "/", "", 200, `{
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPShortSelf",
   "self": "http://localhost:8181/",
   "shortself": "http://localhost:8181/",

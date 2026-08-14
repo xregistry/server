@@ -3012,7 +3012,8 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "required": true
+      "required": true,
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",
