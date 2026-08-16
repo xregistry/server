@@ -664,6 +664,13 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		Write(dir+"/capabilities.hdr", []byte("content-type: application/json"))
 	}
 
+	data, _ = Download(reg, "/capabilitiesoffered")
+	if len(data) > 0 {
+		Write(dir+"/capabilitiesoffered", data)
+		Write(dir+"/capabilitiesoffered.hdr",
+			[]byte("content-type: application/json"))
+	}
+
 	// Just incase the queue is still processing
 	wg.Wait()
 }
