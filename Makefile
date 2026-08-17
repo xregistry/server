@@ -118,8 +118,7 @@ benchmark:
 	@sed "s/XXX/xrlib/g" common/shared_model > cmds/xr/xrlib/shared_model.go
 	@touch .sharedfiles
 
-registry/ui/specattrs.js: cmds/genspecattrs/* common/shared_entity \
-	registry/entity.go
+registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@echo
 	@echo "# Rebuilding registry/ui/specattrs.js"
 	@go run ./cmds/genspecattrs
