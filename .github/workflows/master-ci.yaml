@@ -7,6 +7,10 @@ env:
   FOSSA_API_KEY: ${{ secrets.FOSSA_API_KEY }}
   SOAPHUB_SSH_KEY: ${{ secrets.SOAPHUB_SSH_KEY }}
 
+concurrency:
+  group: rebuild-master
+  cancel-in-progress: false   # Force serialization of requests
+
 jobs:
   fossa:
     runs-on: ubuntu-latest
@@ -71,3 +75,18 @@ jobs:
         # Github SSH KEY is the private key!
         run: misc/restart SOAPHUB_SSH_KEY ubuntu@soaphub.org
 
+      - name: Send regen event to api.xreg.io repo
+        run: |
+          curl -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
+          https://api.github.com/repos/xregistry/api.xregistry.io/dispatches \
+          -d '{"event_type": "server_updated"}'
+
+      - name: Send regen event to hub.xreg.io repo
+        run: |
+          curl -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
+          https://api.github.com/repos/xregistry/hub.xregistry.io/dispatches \
+          -d '{"event_type": "server_updated"}'
