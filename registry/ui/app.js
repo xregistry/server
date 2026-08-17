@@ -43,7 +43,10 @@ var DEFAULT_SERVER_ORIGIN = window.location.origin;
 //                  order, used to seed the Home page's server list the
 //                  FIRST time the UI runs in a given browser — see
 //                  loadUIConfig(). Renamed/replaces the old singular
-//                  `defaultServer` string override.
+//                  `defaultServer` string override. When provided, the
+//                  UI's own hosting origin ("this server") is NOT
+//                  auto-added unless it's explicitly included in this
+//                  list.
 //   headerHTML   - relative/absolute URL to an HTML fragment fetched
 //                  once at startup and inserted on Home, below the
 //                  header's button bar and above the registries
@@ -97,11 +100,23 @@ function loadUIConfig() {
       // skipped here so it's never duplicated into LS_SERVERS.
       if (Array.isArray(cfg.servers) && loadServers().length === 0) {
         var origin = normalizeURL(DEFAULT_SERVER_ORIGIN);
+        var includesOrigin = false;
         cfg.servers.forEach(function(u) {
           if (typeof u !== 'string' || !u.trim()) return;
           var norm = normalizeURL(u.trim());
-          if (norm && norm !== origin) addServer(norm);
+          if (!norm) return;
+          if (norm === origin) { includesOrigin = true; return; }
+          addServer(norm);
         });
+        // The site owner gave us an explicit list — if it doesn't
+        // include the UI's own hosting origin ("this server"), don't let
+        // it auto-appear anyway; hide it via the same "delete this
+        // server" flag the Config page's manual toggle uses (see
+        // isLocalServerDeleted()/allKnownServerUrls()). Only applied on
+        // this first-run seed (same `loadServers().length === 0` guard
+        // as above), so it never fights with a later manual Config-page
+        // choice to re-add/remove "this server".
+        if (!includesOrigin) setLocalServerDeleted(true);
       }
 
       return Promise.all([loadUIHeaderConfig(cfg), loadUIFooterConfig(cfg)]);
