@@ -2353,6 +2353,19 @@ function setDataView(v) {
   // changed.
   renderHeader();
 
+  // The sibling-switcher panel + its toggle icon (#sibling-panel /
+  // #sibling-toggle-fixed) aren't part of renderHeader() — they depend on
+  // getSiblingContext(), which returns null whenever _state.dataView ===
+  // 'json' (already updated above). Without this, switching into/out of
+  // JSON view left the icon (and, if it was open, the panel itself)
+  // showing their stale pre-switch state until the next full refresh()/
+  // pushState() cycle (e.g. a manual page reload) — mirrors the same
+  // trio of calls refresh() makes at the end of a full render.
+  var sibApplicableDV = _state.view !== 'json' && _state.dataView !== 'json';
+  setSiblingPanelVisible(sibApplicableDV && _siblingPanelOpen);
+  if (sibApplicableDV) renderSiblingPanel();
+  updateSiblingToggleBtn();
+
   if (_state.view === 'home') {
     renderHome();
     return;
