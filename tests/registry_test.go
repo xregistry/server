@@ -140,15 +140,20 @@ func TestRegistryProps(t *testing.T) {
 	reg := NewRegistry("TestRegistryProps")
 	defer PassDeleteReg(t, reg)
 
-	XHTTP(t, reg, "PUT", "/", `{"specversion":"x.y"}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"specversion\" for \"/\" is not valid: invalid value: x.y.",
-  "subject": "/",
-  "args": {
-    "error_detail": "invalid value: x.y",
-    "name": "specversion"
-  },
-  "source": ":registry:entity:1200"
+	XHTTP(t, reg, "PUT", "/", `{
+      "specversion":"x.y",
+      "xid": "/boo",
+      "self": "not real",
+      "shortself": "me either",
+      "model": "bogus too"
+  }`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestRegistryProps",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-08-17T20:23:49.547293236Z",
+  "modifiedat": "2026-08-17T20:23:49.556662831Z"
 }
 `)
 
@@ -164,7 +169,7 @@ func TestRegistryProps(t *testing.T) {
   "registryid": "TestRegistryProps",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "name": "nameIt",
   "description": "a very cool reg",
   "documentation": "https://docs.com",

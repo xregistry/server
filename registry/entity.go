@@ -2783,6 +2783,37 @@ func (e *Entity) GetBaseAttributes() Attributes {
 	panic(fmt.Sprintf("Bad type: %v", e.Type))
 }
 
+func (e *Entity) RemoveReadOnlyImmutable(obj Object) {
+	// Don't touch what was passed in
+	attrs := e.GetAttributes(obj)
+	singular := e.Singular
+
+	if e.Type == ENTITY_VERSION {
+		singular = e.Self.(*Version).Resource.Singular
+	} else if e.Type == ENTITY_META {
+		singular = e.Self.(*Meta).Resource.Singular
+	}
+	singular += "id"
+
+	for _, attr := range attrs {
+		if attr.ReadOnly == false && attr.Immutable == false {
+			continue
+		}
+		key := attr.Name
+
+		if key == "versionid" || key == singular || key == "epoch" {
+			// epoch and ID are special, we do need to check their values later
+			continue
+		}
+
+		if _, keyPresent := obj[key]; !keyPresent {
+			continue
+		}
+
+		delete(obj, key)
+	}
+}
+
 // Doesn't fully validate in the sense that it'll assume read-only fields
 // are not worth checking since the server generated them.
 // This is mainly used for validating input from a client.

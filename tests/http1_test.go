@@ -3403,20 +3403,17 @@ func TestHTTPRegistry(t *testing.T) {
 		URL:        "/",
 		Method:     "PUT",
 		ReqHeaders: []string{},
-		ReqBody: `{
-  "self": 123
-}`,
-		Code:       400,
-		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
+		ReqBody:    `{ "self": 123 }`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \" self\" for \"/\" is not valid: must be a url.",
-  "subject": "/",
-  "args": {
-    "error_detail": "must be a url",
-    "name": " self"
-  },
-  "source": ":registry:entity:2545"
+  "specversion": "1.0-rc3",
+  "registryid": "TestHTTPRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 7,
+  "createdat": "2026-08-17T20:01:37.909791073Z",
+  "modifiedat": "2026-08-17T20:01:38.164136876Z"
 }
 `,
 	})
@@ -3426,20 +3423,17 @@ func TestHTTPRegistry(t *testing.T) {
 		URL:        "/",
 		Method:     "PUT",
 		ReqHeaders: []string{},
-		ReqBody: `{
-  "xid": 123
-}`,
-		Code:       400,
-		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
+		ReqBody:    `{ "xid": 123 }`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"xid\" for \"/\" is not valid: must be an xid.",
-  "subject": "/",
-  "args": {
-    "error_detail": "must be an xid",
-    "name": "xid"
-  },
-  "source": ":registry:entity:2419"
+  "specversion": "1.0-rc3",
+  "registryid": "TestHTTPRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 8,
+  "createdat": "2026-08-17T20:05:41.293063326Z",
+  "modifiedat": "2026-08-17T20:05:41.573742703Z"
 }
 `,
 	})
@@ -3496,9 +3490,7 @@ func TestHTTPRegistry(t *testing.T) {
 		URL:        "/",
 		Method:     "PUT",
 		ReqHeaders: []string{},
-		ReqBody: `{
-  "documentation": "docs"
-}`,
+		ReqBody:    `{ "documentation": "docs" }`,
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
@@ -3506,7 +3498,7 @@ func TestHTTPRegistry(t *testing.T) {
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 7,
+  "epoch": 9,
   "documentation": "docs",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z"
@@ -3530,7 +3522,7 @@ func TestHTTPRegistry(t *testing.T) {
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 8,
+  "epoch": 10,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z"
 }
@@ -3556,7 +3548,7 @@ func TestHTTPRegistry(t *testing.T) {
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 9,
+  "epoch": 11,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "myany": 5.5,
@@ -3586,7 +3578,7 @@ func TestHTTPRegistry(t *testing.T) {
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 10,
+  "epoch": 12,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "myany": "foo",
