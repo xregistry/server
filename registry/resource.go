@@ -2450,16 +2450,11 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 	}
 
 	for _, mv := range mvs {
-		binary := ""
-		if mv.MatchCase {
-			binary = "BINARY"
-		}
-
-		query := fmt.Sprintf(`
+		query := `
             SELECT count(*),p.PropName,p.PropValue FROM Entities e
             LEFT JOIN Props AS p ON ( p.eSID=e.eSID AND p.PropName=?)
             WHERE e.RegSID = ?  AND e.ParentSID = ?  AND e.Type = ?
-            GROUP BY %s PropValue`+lockExpr, binary)
+            GROUP BY PropValue` + lockExpr
 
 		results := Query(r.tx, query, mv.Path.DB(),
 			r.Registry.DbSID, r.DbSID, ENTITY_VERSION)

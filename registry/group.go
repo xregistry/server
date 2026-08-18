@@ -817,9 +817,6 @@ func (g *Group) Validate() *XRError {
 		resPlural, attrPath, _ := strings.Cut(key, ".")
 		pp, _ := PropPathFromUI(attrPath)
 
-		// set to BINARY for case sensitive search
-		binary := ""
-
 		if constraint.attr == nil {
 			constraint.rm = g.GroupModel.Resources[resPlural]
 			attrStack, xErr :=
@@ -828,20 +825,14 @@ func (g *Group) Validate() *XRError {
 			constraint.attr = attrStack[len(attrStack)-1]
 		}
 
-		if constraint.attr.GetMatchCase() {
-			binary = "BINARY"
-		}
-
 		if constraint.Equals != "" {
-			if xErr := g.validateEquals(constraint, resPlural, pp,
-				binary); xErr != nil {
+			if xErr := g.validateEquals(constraint, resPlural, pp); xErr != nil {
 				return xErr
 			}
 		}
 
 		if len(constraint.Enum) > 0 {
-			if xErr := g.validateEnum(constraint, resPlural, pp,
-				binary); xErr != nil {
+			if xErr := g.validateEnum(constraint, resPlural, pp); xErr != nil {
 				return xErr
 			}
 		}
@@ -865,7 +856,7 @@ func (g *Group) Validate() *XRError {
 // combined. FOR UPDATE forces this read to see latest-committed data
 // and to block on any in-flight conflicting Tx, closing that gap.
 func (g *Group) validateEquals(constraint *Constraint, resPlural string,
-	pp *PropPath, binary string) *XRError {
+	pp *PropPath) *XRError {
 
 	// groupAttr parsed into a PP
 	gPP, _ := PropPathFromUI(constraint.Equals)
@@ -899,9 +890,8 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
                 r.RegistrySID=? AND
                 r.GroupSID=? AND
                 r.Plural=? AND
-                (vp.PropValue IS NULL OR %s vp.PropValue<>gp.PropValue)
-            FOR UPDATE
-            `, binary)
+                (vp.PropValue IS NULL OR vp.PropValue<>gp.PropValue)
+            FOR UPDATE`)
 
 	// log.Printf("%q vs %q", gPP.DB(), pp.DB())
 	results := Query(g.tx, query,
@@ -950,7 +940,7 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 // See validateEquals()'s comment above for why this must be a FOR
 // UPDATE (locking) read rather than a plain SELECT.
 func (g *Group) validateEnum(constraint *Constraint, resPlural string,
-	pp *PropPath, binary string) *XRError {
+	pp *PropPath) *XRError {
 
 	// Encode each enum value the same way prepDBProperty() encodes a
 	// real attribute value before it's written to PropValue (booleans
@@ -985,9 +975,9 @@ func (g *Group) validateEnum(constraint *Constraint, resPlural string,
                 r.GroupSID=? AND
                 r.Plural=? AND
                 vp.PropValue IS NOT NULL AND
-                %s vp.PropValue NOT IN (%s)
+                vp.PropValue NOT IN (%s)
             FOR UPDATE
-            `, binary, strings.Join(placeholders, ","))
+            `, strings.Join(placeholders, ","))
 
 	results := Query(g.tx, query, args...)
 	defer results.Close()

@@ -1,0 +1,236 @@
+{
+  "available": {
+    "type": "object",
+    "attributes": {
+      ".xregistry": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "capabilities": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "capabilitiesoffered": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "entities": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "export": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "model": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "modelsource": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "compatibilities": {
+    "type": "object",
+    "attributes": {
+      "avro*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "jsonschema*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "jsonstructure*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "numbers": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "protobuf*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "xmlschema*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "flags": {
+    "type": "array",
+    "enum": [
+      "binary",
+      "collections",
+      "doc",
+      "epoch",
+      "filter",
+      "ignore",
+      "inline",
+      "setdefaultversionid",
+      "sort",
+      "specversion"
+    ],
+    "item": {
+      "type": "string"
+    }
+  },
+  "formats": {
+    "type": "array",
+    "enum": [
+      "avro*",
+      "jsonschema*",
+      "jsonstructure*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
+    "item": {
+      "type": "string"
+    }
+  },
+  "ignores": {
+    "type": "array",
+    "enum": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
+    "item": {
+      "type": "string"
+    }
+  },
+  "pagination": {
+    "type": "boolean",
+    "enum": [
+      false
+    ]
+  },
+  "shortself": {
+    "type": "boolean"
+  },
+  "specversions": {
+    "type": "array",
+    "enum": [
+      "1.0-rc3"
+    ],
+    "item": {
+      "type": "string"
+    }
+  },
+  "versionmodes": {
+    "type": "array",
+    "enum": [
+      "createdat",
+      "manual"
+    ],
+    "item": {
+      "type": "string"
+    }
+  }
+}

@@ -516,7 +516,6 @@ func TestExportBasic(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -646,7 +645,6 @@ func TestExportBasic(t *testing.T) {
           "dirid": {
             "name": "dirid",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -802,14 +800,12 @@ func TestExportBasic(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
               "versionid": {
                 "name": "versionid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -882,7 +878,6 @@ func TestExportBasic(t *testing.T) {
               "ancestorid": {
                 "name": "ancestorid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "contenttype": {
@@ -934,7 +929,6 @@ func TestExportBasic(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -1006,7 +1000,6 @@ func TestExportBasic(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -1106,7 +1099,6 @@ func TestExportBasic(t *testing.T) {
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "defaultversionurl": {

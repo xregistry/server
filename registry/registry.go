@@ -1138,7 +1138,6 @@ ft.eSID IN ( -- eSID from query
 			for _, filter := range OrFilters { // AndFilters
 				propNameSearch := "PropName=?"
 				filterPropName := filter.PropName
-				binary := "BINARY" // BINARY = case-sensitive for that operand
 
 				if filter.PP.HasWild {
 					// mysql format: column_name REGEXP 'pattern'
@@ -1157,12 +1156,6 @@ ft.eSID IN ( -- eSID from query
 					PanicIf(!has, "Must have *") // Sanity check
 					// log.Printf("fpn: %q", filterPropName)
 					// log.Printf("fpn: %s", filter.PP.Debug())
-
-					// When just checking against NULL we can't use "binary"
-					if filter.Operator == FILTER_PRESENT ||
-						filter.Operator == FILTER_ABSENT {
-						binary = ""
-					}
 				} else {
 					if filter.Operator == FILTER_PRESENT ||
 						filter.Operator == FILTER_ABSENT {
@@ -1182,9 +1175,7 @@ ft.eSID IN ( -- eSID from query
 				firstAnd = false
 
 				if filter.Operator == FILTER_PRESENT { // ?filter=xxx
-					// BINARY means case-sensitive for that operand
-					check := "(" + binary + " Abstract=? AND " +
-						propNameSearch + " AND "
+					check := "(Abstract=? AND " + propNameSearch + " AND "
 
 					args = append(args, reg.DbSID, filter.Abstract,
 						filterPropName)
@@ -1202,19 +1193,16 @@ ft.eSID IN ( -- eSID from query
 					args = append(args, reg.DbSID, filter.Abstract,
 						filterPropName)
 
-					// BINARY means case-sensitive for that operand
 					query += `
           -- Entities that don't have the specified prop
           SELECT e.eSID,e.Type,e.Path FROM Entities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
             NOT EXISTS (SELECT 1 FROM Props WHERE
-              RegSID=e.RegSID AND eSID=e.eSID AND (` + binary + ` ` +
+              RegSID=e.RegSID AND eSID=e.eSID AND ( ` +
 						propNameSearch + `))`
 
 				} else if filter.Operator == FILTER_EQUAL { // ?filter=xxx=zzz
-					// BINARY means case-sensitive for that operand
-					check := "(" + binary + " Abstract=? AND " +
-						propNameSearch + " AND "
+					check := "(Abstract=? AND " + propNameSearch + " AND "
 
 					args = append(args, reg.DbSID, filter.Abstract,
 						filterPropName)
@@ -1240,13 +1228,12 @@ ft.eSID IN ( -- eSID from query
 				} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
 					args = append(args, reg.DbSID, filter.Abstract,
 						filterPropName)
-					// BINARY means case-sensitive for that operand
 					query += `
           -- Entities that don't have the specified prop
           SELECT e.eSID,e.Type,e.Path FROM Entities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
             NOT EXISTS (SELECT 1 FROM Props WHERE
-              RegSID=e.RegSID AND eSID=e.eSID AND (` + binary + ` ` +
+              RegSID=e.RegSID AND eSID=e.eSID AND (` +
 						propNameSearch + ` AND `
 
 					value, wildcard := LikeWildcardIt(filter.Value)
@@ -1282,12 +1269,12 @@ ft.eSID IN ( -- eSID from query
 						sqlOp = ">="
 					}
 
-					check := "(" + binary + " Abstract=? AND " +
-						propNameSearch + " AND "
+					check := "(Abstract=? AND " + propNameSearch + " AND "
 					args = append(args, reg.DbSID, filter.Abstract,
 						filterPropName)
 
-					// Numeric: numeric comparison; string and others: case-insensitive string comparison
+					// Numeric: numeric comparison
+					// String and others: case-insensitive string comparison
 					args = append(args, filter.Value, filter.Value)
 					check += "(CASE WHEN PropType IN ('integer','decimal','uinteger')" +
 						" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +

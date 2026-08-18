@@ -3214,7 +3214,6 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 		Attributes: mapAttr.Item.Attributes,
 		Enum:       mapAttr.Enum,
 		Strict:     mapAttr.Strict,
-		MatchCase:  mapAttr.MatchCase,
 	}
 
 	for _, k := range valValue.MapKeys() {
@@ -3278,7 +3277,6 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 		Attributes: arrayAttr.Item.Attributes,
 		Enum:       arrayAttr.Enum,
 		Strict:     arrayAttr.Strict,
-		MatchCase:  arrayAttr.MatchCase,
 	}
 
 	for i := 0; i < valValue.Len(); i++ {
@@ -3536,7 +3534,7 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 	// data) via Group.validateEnum(), not here.
 	enums, strict := attr.Enum, attr.GetStrict()
 	// log.Printf("Checking: %q: %q vs %q", attr.Name, val, EnumAsString(enums))
-	if strict && !IsValidEnum(val, enums, attr.GetMatchCase()) {
+	if strict && !IsValidEnum(val, enums) {
 		return NewXRError("invalid_attribute", e.XID,
 			"name="+path.UI(),
 			"error_detail="+

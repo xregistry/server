@@ -74,7 +74,6 @@ func TestHTTPModel(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -197,7 +196,6 @@ func TestHTTPModel(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -355,7 +353,6 @@ func TestHTTPModel(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -515,7 +512,6 @@ func TestHTTPModel(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -645,7 +641,6 @@ func TestHTTPModel(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -801,14 +796,12 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -881,7 +874,6 @@ func TestHTTPModel(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -933,7 +925,6 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1005,7 +996,6 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1105,7 +1095,6 @@ func TestHTTPModel(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -1203,7 +1192,6 @@ func TestHTTPModel(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -1333,7 +1321,6 @@ func TestHTTPModel(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -1489,14 +1476,12 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1569,7 +1554,6 @@ func TestHTTPModel(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -1605,7 +1589,6 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1677,7 +1660,6 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1777,7 +1759,6 @@ func TestHTTPModel(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -1876,7 +1857,6 @@ func TestHTTPModel(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -2011,7 +1991,6 @@ func TestHTTPModel(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -2167,14 +2146,12 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -2247,7 +2224,6 @@ func TestHTTPModel(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -2299,7 +2275,6 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -2371,7 +2346,6 @@ func TestHTTPModel(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -2471,7 +2445,6 @@ func TestHTTPModel(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -13162,11 +13135,10 @@ func TestHTTPIfValuesValuesCase(t *testing.T) {
 
 }
 
-func TestHTTPMatchCaseEnum(t *testing.T) {
-	reg := NewRegistry("TestHTTPMatchCaseEnum")
+func TestHTTPIgnoreCaseEnum(t *testing.T) {
+	reg := NewRegistry("TestHTTPIgnoreCaseEnum")
 	defer PassDeleteReg(t, reg)
 
-	// description has matchcase = false (default)
 	XHTTP(t, reg, "PUT", "/modelsource", `{
   "attributes": {
     "description": {
@@ -13177,73 +13149,6 @@ func TestHTTPMatchCaseEnum(t *testing.T) {
 
 	XHTTP(t, reg, "PATCH", "/", `{"description":"one"}`, 200, `*`)
 	XHTTP(t, reg, "PATCH", "/", `{"description":"OnE"}`, 200, `*`)
-
-	// now set matchcase to true - and watch it fail due to the Registry.desc
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-  "attributes": {
-    "description": {
-      "name": "description",
-      "type": "string",
-      "matchcase": true,
-      "enum": [ "oNe", "TWO" ]
-    }}}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"description\" for \"/\" is not valid: value (OnE) must be one of the enum values: oNe, TWO.",
-  "subject": "/",
-  "args": {
-    "error_detail": "value (OnE) must be one of the enum values: oNe, TWO",
-    "name": "description"
-  },
-  "source": "b1fcff68b7f8:registry:entity:2857"
-}
-`)
-
-	// now set matchcase to true AND set Registry.desc to a valid value
-	XHTTP(t, reg, "PUT", "/", `{
-  "description": "TWO",
-  "modelsource": {
-    "attributes": {
-      "description": {
-        "name": "description",
-        "type": "string",
-        "matchcase": true,
-        "enum": [ "oNe", "TWO" ]
-      }
-    }
-  }
-}`, 200, `*`)
-
-	XHTTP(t, reg, "PATCH", "/", `{"description":"oNe"}`, 200, `*`)
-	XHTTP(t, reg, "PATCH", "/", `{"description":"OnE"}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"description\" for \"/\" is not valid: value (OnE) must be one of the enum values: oNe, TWO.",
-  "subject": "/",
-  "args": {
-    "error_detail": "value (OnE) must be one of the enum values: oNe, TWO",
-    "name": "description"
-  },
-  "source": "c30ebf8b495a:registry:entity:2664"
-}
-`)
-
-	// not allowed to change a spec defined matchcase attribute
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-  "attributes": {
-    "registryid": {
-      "type": "string",
-      "matchcase": false,
-      "required": true,
-      "readonly": true
-    }}}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.registryid\" can not change its \"matchcase\" property, it must be \"true\".",
-  "subject": "/model",
-  "args": {
-    "error_detail": "\"model.registryid\" can not change its \"matchcase\" property, it must be \"true\""
-  },
-  "source": "c30ebf8b495a:registry:shared_model:1796"
-}
-`)
 
 }
 

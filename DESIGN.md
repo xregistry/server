@@ -168,8 +168,7 @@ PUT /
   "modelsource": {
     "attributes": {
       "description": {
-        "enum": ["oNe", "TWO"],
-        "matchcase": true
+        "enum": ["oNe", "TWO"]
       }
     }
   }

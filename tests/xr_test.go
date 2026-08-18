@@ -924,7 +924,6 @@ func TestXRGroupType(t *testing.T) {
     "dir3id": {
       "name": "dir3id",
       "type": "string",
-      "matchcase": true,
       "immutable": true,
       "required": true
     },
@@ -1110,7 +1109,6 @@ func TestXRGroupType(t *testing.T) {
     "dir2id": {
       "name": "dir2id",
       "type": "string",
-      "matchcase": true,
       "immutable": true,
       "required": true
     },
@@ -1236,7 +1234,6 @@ func TestXRGroupType(t *testing.T) {
       "dir2id": {
         "name": "dir2id",
         "type": "string",
-        "matchcase": true,
         "immutable": true,
         "required": true
       },
@@ -1358,7 +1355,6 @@ func TestXRGroupType(t *testing.T) {
       "dirid": {
         "name": "dirid",
         "type": "string",
-        "matchcase": true,
         "immutable": true,
         "required": true
       },
@@ -1493,7 +1489,6 @@ files2 / file2   true      0
       "ancestorid": {
         "name": "ancestorid",
         "type": "string",
-        "matchcase": true,
         "required": true
       },
       "compatibilityvalidated": {
@@ -1540,7 +1535,6 @@ files2 / file2   true      0
       "file2id": {
         "name": "file2id",
         "type": "string",
-        "matchcase": true,
         "immutable": true,
         "required": true
       },
@@ -1609,7 +1603,6 @@ files2 / file2   true      0
       "versionid": {
         "name": "versionid",
         "type": "string",
-        "matchcase": true,
         "immutable": true,
         "required": true
       },
@@ -1625,7 +1618,6 @@ files2 / file2   true      0
       "file2id": {
         "name": "file2id",
         "type": "string",
-        "matchcase": true,
         "immutable": true,
         "required": true
       },
@@ -1715,7 +1707,6 @@ files2 / file2   true      0
       "defaultversionid": {
         "name": "defaultversionid",
         "type": "string",
-        "matchcase": true,
         "required": true
       },
       "defaultversionsticky": {
@@ -1765,7 +1756,6 @@ files2 / file2   true      0
       "file2id": {
         "name": "file2id",
         "type": "string",
-        "matchcase": true,
         "immutable": true,
         "required": true
       },

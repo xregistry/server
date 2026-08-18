@@ -160,29 +160,25 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name:      "id",
 		Type:      STRING,
-		MatchCase: true,
 		Immutable: true,
 		Required:  true,
 
 		internals: &AttrInternals{
 			types:        "", // Yes even ENTITY_RESOURCE
 			xrefrequired: true,
-			cantOverride: []string{"MatchCase"},
 			uiMonospace:  true,
 		},
 	},
 	{
 		Name:      "versionid",
 		Type:      STRING,
-		MatchCase: true,
 		Immutable: true,
 		Required:  true,
 
 		internals: &AttrInternals{
-			types:        StrTypes(ENTITY_VERSION),
-			cantOverride: []string{"MatchCase"},
-			uiMonospace:  true,
-			uiLabel:      "Version ID",
+			types:       StrTypes(ENTITY_VERSION),
+			uiMonospace: true,
+			uiLabel:     "Version ID",
 		},
 	},
 	{
@@ -451,16 +447,14 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:      "ancestorid",
-		Type:      STRING,
-		MatchCase: true,
-		Required:  true,
+		Name:     "ancestorid",
+		Type:     STRING,
+		Required: true,
 
 		internals: &AttrInternals{
-			types:        StrTypes(ENTITY_VERSION),
-			cantOverride: []string{"MatchCase"},
-			uiMonospace:  true,
-			uiLabel:      "Ancestor Version ID",
+			types:       StrTypes(ENTITY_VERSION),
+			uiMonospace: true,
+			uiLabel:     "Ancestor Version ID",
 		},
 	},
 	{
@@ -613,16 +607,14 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:      "defaultversionid",
-		Type:      STRING,
-		MatchCase: true,
-		Required:  true,
+		Name:     "defaultversionid",
+		Type:     STRING,
+		Required: true,
 
 		internals: &AttrInternals{
-			types:        StrTypes(ENTITY_META),
-			cantOverride: []string{"MatchCase"},
-			uiMonospace:  true,
-			uiLabel:      "Default Version ID",
+			types:       StrTypes(ENTITY_META),
+			uiMonospace: true,
+			uiLabel:     "Default Version ID",
 		},
 	},
 	{

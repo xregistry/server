@@ -1713,7 +1713,7 @@ function saveAttrFrom(attrsObj, origKey) {
   if (ncs && ncsEl && !ncsEl.disabled) attr.namecharset = ncs ;
   var enm = collectEnum('ef_enum') ;
   if (enm.length) attr.enum = enm ;
-  ['required','readonly','immutable','matchcase','matchversions','strict'].forEach(function(f) {
+  ['required','readonly','immutable','matchversions','strict'].forEach(function(f) {
     var v = fvBool('ef_'+f) ;
     if (v === true) attr[f] = true ;
     else if (v === false) attr[f] = false ;
@@ -1964,7 +1964,6 @@ function renderAttrForm(div, attr) {
   div.appendChild(optSec) ;
   var optList = [
     ['immutable',  'Immutable',  attr.immutable],
-    ['matchcase',  'Match Case', attr.matchcase],
     ['readonly',   'Read Only',  attr.readonly],
     ['required',   'Required',   attr.required],
     ['strict',     'Strict',     attr.strict]
