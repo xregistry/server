@@ -421,6 +421,8 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		resourceDefaultVersionID = meta.GetAsString("defaultversionid")
 	}
 
+	meta.RemoveReadOnlyImmutable(metaObj)
+
 	if ru.DefaultVersionID != "" {
 		meta.JustSet("defaultversionid", ru.DefaultVersionID)
 		meta.JustSet("defaultversionsticky", true)

@@ -561,6 +561,8 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 
 	PanicIf(mu.obj == nil, "obj is nil")
 
+	meta.RemoveReadOnlyImmutable(mu.obj)
+
 	// Just in case we need it, save the Resource's epoch value. If this
 	// is an xref'd Resource then it'll actually be the target's epoch.
 	// Use meta.Object because it's possible that upsertResource changed
@@ -1108,6 +1110,8 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			}
 		}
 	}
+
+	v.RemoveReadOnlyImmutable(vu.Obj)
 
 	// Apply properties
 	if vu.Obj != nil {

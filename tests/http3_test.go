@@ -5017,5 +5017,149 @@ func TestHTTPShortSelf(t *testing.T) {
   "dirscount": 1
 }
 `)
+}
+
+func TestHTTPReadOnlyImmutable(t *testing.T) {
+	// Basically ignore all of these attributes
+	reg := NewRegistry("TestHTTPReadonlyImmutable")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
+
+	XHTTP(t, reg, "PUT", "/?inline", `{
+      "specversion": "x.y",
+      "self": "xxx",
+      "shortself": "yyy",
+      "xid": "zzz",
+      "model": 124,
+
+      "dirsurl": 124,
+      "dirscount": "hello",
+      "dirs": {
+        "d1": {
+          "self": 123,
+          "shortself": 123,
+          "xid": 123,
+
+          "filesurl": 123,
+          "filescount": "hi",
+          "files": {
+            "f1": {
+              "versionid": "v1",
+              "self": "123",
+              "shortself": "123",
+              "xid": 123,
+              "isdefault": "hi",
+              "formatvalidated": 123,
+              "formatvalidatedreason": 123,
+              "compatibilityvalidated": 123,
+              "compatibilityvalidatedreason": 123,
+
+              "metaurl": 123,
+              "meta": {
+                "self": 123,
+                "shortself": 123,
+                "xid": 123,
+                "defaultversionurl": 123
+              },
+
+              "versionsurl": 123,
+              "versionscount": "hi",
+              "versions": {
+                "v2": {
+                  "self": 123,
+                  "shortself": 123,
+                  "xid": 234,
+                  "isdefault": 1234,
+                  "formatvalidated": 123,
+                  "formatvalidatedreason": 123,
+                  "compatibilityvalidated": 123,
+                  "compatibilityvalidatedreason": 123
+                }
+              }
+            }
+          }
+        }
+      }
+    }`, 200, `{
+  "specversion": "1.0-rc3",
+  "registryid": "TestHTTPReadonlyImmutable",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2026-08-18T15:03:31.097818353Z",
+  "modifiedat": "2026-08-18T15:03:31.121660147Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "2026-08-18T15:03:31.121660147Z",
+      "modifiedat": "2026-08-18T15:03:31.121660147Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "v2",
+          "self": "http://localhost:8181/dirs/d1/files/f1$details",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2026-08-18T15:03:31.121660147Z",
+          "modifiedat": "2026-08-18T15:03:31.121660147Z",
+          "ancestorid": "v1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 1,
+            "createdat": "2026-08-18T15:03:31.121660147Z",
+            "modifiedat": "2026-08-18T15:03:31.121660147Z",
+            "readonly": false,
+
+            "defaultversionid": "v2",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f1",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+              "xid": "/dirs/d1/files/f1/versions/v1",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-08-18T15:03:31.121660147Z",
+              "modifiedat": "2026-08-18T15:03:31.121660147Z",
+              "ancestorid": "v1"
+            },
+            "v2": {
+              "fileid": "f1",
+              "versionid": "v2",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+              "xid": "/dirs/d1/files/f1/versions/v2",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2026-08-18T15:03:31.121660147Z",
+              "modifiedat": "2026-08-18T15:03:31.121660147Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionscount": 2
+        }
+      },
+      "filescount": 1
+    }
+  },
+  "dirscount": 1
+}
+`)
 
 }

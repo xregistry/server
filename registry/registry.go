@@ -555,6 +555,8 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 		return xErr
 	}
 
+	reg.RemoveReadOnlyImmutable(obj)
+
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
 	// for writing until later in the process. So instead of forcing the
@@ -862,6 +864,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		g.Registry.Touch()
 		g.tx.AddGroup(g)
 	}
+
+	g.RemoveReadOnlyImmutable(obj)
 
 	// Remove all Resource collections from obj before we process it
 	objColls := map[string]map[string]any{}
