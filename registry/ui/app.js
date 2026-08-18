@@ -62,8 +62,18 @@ var DEFAULT_SERVER_ORIGIN = window.location.origin;
 //                  with `footer` — see loadUIFooterConfig().
 //   footer       - plain string (markdown links honored) shown in place
 //                  of footerHTML when footerHTML isn't set.
-//   footerAlign  - 'left' | 'center' | 'right' (default 'center'):
+//   footerAlign  - 'left' | 'center' | 'right' (default 'right'):
 //                  text-alignment for `footer`/footerHTML's container.
+//
+// In `title`/`summary`/`footer` and the fetched headerHTML/footerHTML
+// bodies, every literal "$COMMIT" is replaced with the first 12 chars of
+// XREG_UI_COMMIT (the UI build's commit hash, defined in specattrs.js) —
+// see replaceCommitPlaceholder().
+//
+// xrui.json may also contain full-line `//` comments (a line that, after
+// stripping leading whitespace, starts with "//") — see
+// stripJsonCommentLines(). This is the only deviation from standard JSON
+// it supports.
 var UI_CONFIG_FILE = 'xrui.json';
 
 // Resolved header/footer customization from xrui.json — populated by
@@ -84,11 +94,40 @@ var _uiFooterConfig = null;
 // the rest of the app boots (see init()). Always resolves (never
 // rejects), so a missing/invalid config file, or a missing/failed
 // headerHTML/footerHTML fetch, can never block startup.
+// Top-level xrui.json fields recognized by loadUIConfig() — anything
+// else present is very likely a typo (e.g. "title2", "footerAligns") or
+// a field from a different/future version of this file, so it's flagged
+// via console.warn() rather than silently ignored — see loadUIConfig().
+// The file/fields are otherwise entirely optional, so an unrecognized
+// field is a warning, not an error; it never blocks startup.
+var UI_CONFIG_KNOWN_KEYS = ['servers', 'headerHTML', 'title', 'summary', 'footerHTML', 'footer', 'footerAlign'];
+
+// Strips full-line `//` comments from xrui.json's raw text before
+// JSON.parse() — a line is a comment (and replaced with a blank line, to
+// keep line numbers accurate for any JSON.parse() error) only if,
+// ignoring leading whitespace, it starts with "//"; a trailing/inline
+// "//" elsewhere on an otherwise-real JSON line is left alone (so it's
+// never mistaken for a comment inside a string value). This is the only
+// non-standard-JSON leniency xrui.json supports — see loadUIConfig().
+function stripJsonCommentLines(text) {
+  return text.split(/\r\n|\r|\n/).map(function(line) {
+    return /^\s*\/\//.test(line) ? '' : line;
+  }).join('\n');
+}
+
 function loadUIConfig() {
   return fetch(UI_CONFIG_FILE, {cache: 'no-store'})
-    .then(function(resp) { return resp.ok ? resp.json() : null; })
-    .then(function(cfg) {
+    .then(function(resp) { return resp.ok ? resp.text() : null; })
+    .then(function(text) {
+      if (text == null) return;
+      var cfg = JSON.parse(stripJsonCommentLines(text));
       if (!cfg || typeof cfg !== 'object') return;
+
+      Object.keys(cfg).forEach(function(k) {
+        if (UI_CONFIG_KNOWN_KEYS.indexOf(k) === -1) {
+          console.warn(UI_CONFIG_FILE + ': unrecognized field "' + k + '" — ignored. Known fields: ' + UI_CONFIG_KNOWN_KEYS.join(', ') + '.');
+        }
+      });
 
       // `servers` — ordered list of registry root URLs used to seed the
       // Home page's server list the FIRST time the UI runs in a given
@@ -121,7 +160,15 @@ function loadUIConfig() {
 
       return Promise.all([loadUIHeaderConfig(cfg), loadUIFooterConfig(cfg)]);
     })
-    .catch(function() { /* no config file, or invalid JSON — ignore */ });
+    .catch(function(err) {
+      // A missing file (resp.ok false, above) resolves to `cfg === null`
+      // and never reaches here — this only fires for a genuine problem
+      // (the file exists but isn't valid JSON, or the fetch itself
+      // failed, e.g. a network/CORS error) — surfaced to the console so
+      // a broken xrui.json isn't silently mistaken for "no file", while
+      // still never blocking startup.
+      console.warn(UI_CONFIG_FILE + ': failed to load or parse — ignoring.', err);
+    });
 }
 
 // Resolves _uiHeaderConfig from the parsed xrui.json — see UI_CONFIG_FILE
@@ -129,6 +176,18 @@ function loadUIConfig() {
 // are mutually exclusive; specifying both is a configuration error that's
 // surfaced on Home (via uiHeaderBlockHTML()) instead of silently
 // preferring one.
+// Replaces every literal "$COMMIT" occurrence in an xrui.json text field
+// (title/summary/footer) or fetched headerHTML/footerHTML body with the
+// UI build's commit hash (XREG_UI_COMMIT, defined in specattrs.js, loaded
+// before app.js — see index.html) — lets a hosted xrui.json reference
+// exactly which UI build it's talking about (e.g. in a footer/version
+// note) without hard-coding it.
+function replaceCommitPlaceholder(s) {
+  if (s == null) return s;
+  var commit = (typeof XREG_UI_COMMIT === 'string') ? XREG_UI_COMMIT.slice(0, 12) : '';
+  return String(s).split('$COMMIT').join(commit);
+}
+
 function loadUIHeaderConfig(cfg) {
   var hasHTML    = typeof cfg.headerHTML === 'string' && cfg.headerHTML.trim();
   var hasTitle   = typeof cfg.title === 'string' && cfg.title.trim();
@@ -140,23 +199,27 @@ function loadUIHeaderConfig(cfg) {
   if (hasHTML) {
     return fetch(cfg.headerHTML.trim(), {cache: 'no-store'})
       .then(function(resp) { return resp.ok ? resp.text() : Promise.reject(); })
-      .then(function(html) { _uiHeaderConfig = {type: 'html', html: html}; })
+      .then(function(html) { _uiHeaderConfig = {type: 'html', html: replaceCommitPlaceholder(html)}; })
       .catch(function() {
         _uiHeaderConfig = {type: 'error', message: 'xrui.json: failed to load "headerHTML" from "' + cfg.headerHTML + '".'};
       });
   }
   if (hasTitle || hasSummary) {
-    _uiHeaderConfig = {type: 'text', title: hasTitle ? cfg.title.trim() : '', summary: hasSummary ? cfg.summary.trim() : ''};
+    _uiHeaderConfig = {
+      type: 'text',
+      title:   hasTitle   ? replaceCommitPlaceholder(cfg.title.trim())   : '',
+      summary: hasSummary ? replaceCommitPlaceholder(cfg.summary.trim()) : '',
+    };
   }
 }
 
 // Resolves _uiFooterConfig from the parsed xrui.json — mirror of
-// loadUIHeaderConfig() above, plus `footerAlign` (defaults to 'center'
+// loadUIHeaderConfig() above, plus `footerAlign` (defaults to 'right'
 // when missing/invalid).
 function loadUIFooterConfig(cfg) {
   var hasHTML   = typeof cfg.footerHTML === 'string' && cfg.footerHTML.trim();
   var hasFooter = typeof cfg.footer === 'string' && cfg.footer.trim();
-  var align = ['left', 'center', 'right'].indexOf(cfg.footerAlign) !== -1 ? cfg.footerAlign : 'center';
+  var align = ['left', 'center', 'right'].indexOf(cfg.footerAlign) !== -1 ? cfg.footerAlign : 'right';
   if (hasHTML && hasFooter) {
     _uiFooterConfig = {type: 'error', message: 'xrui.json: "footerHTML" cannot be combined with "footer" — remove one or the other.'};
     return;
@@ -164,13 +227,13 @@ function loadUIFooterConfig(cfg) {
   if (hasHTML) {
     return fetch(cfg.footerHTML.trim(), {cache: 'no-store'})
       .then(function(resp) { return resp.ok ? resp.text() : Promise.reject(); })
-      .then(function(html) { _uiFooterConfig = {type: 'html', html: html, align: align}; })
+      .then(function(html) { _uiFooterConfig = {type: 'html', html: replaceCommitPlaceholder(html), align: align}; })
       .catch(function() {
         _uiFooterConfig = {type: 'error', message: 'xrui.json: failed to load "footerHTML" from "' + cfg.footerHTML + '".'};
       });
   }
   if (hasFooter) {
-    _uiFooterConfig = {type: 'text', footer: cfg.footer.trim(), align: align};
+    _uiFooterConfig = {type: 'text', footer: replaceCommitPlaceholder(cfg.footer.trim()), align: align};
   }
 }
 

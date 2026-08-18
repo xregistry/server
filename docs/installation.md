@@ -48,6 +48,15 @@ See the [`xrserver`](xrserver_help.md) docs for details.
 
 WIP
 
+## Configuring the xRegistry Explorer UI
+
+Modify the xrui.json file to configure the look-n-feel of the xRegistry
+Explorer web page. See the comments at the top of the file for allowable
+fields.
+
+Access to the UI default to `URL-TO-SERVER/ui`.
+E.g. `http://localhost:8080/ui`.
+
 ## Next Steps
 
 See the [`samples/doc-store`](../samples/doc-store) script for a quick setup

@@ -2957,26 +2957,15 @@ tr.cfg-row-drop-after { box-shadow: inset 0 -2px 0 0 #4a90d9; }
 .eg-version-selector select:disabled {
   color: #999; background: #eee; border-color: #ddd; cursor: not-allowed;
 }
-/* Experiment: the "Versions List" tab's own button is hidden (see
+/* The "Versions List" tab's own button is hidden (see
    renderSingleEntity()'s tab-button loop) — its panel/logic are otherwise
    unchanged, reached instead via the "View All" option in the Version:
-   dropdown (see onVersionSelectChange()). The dropdown itself gets this
-   border/glow highlight whenever it shows any real selection (a version,
-   "Default", or "View All") — i.e. every tab except Metadata, whose blank
-   "\u2014 Select \u2014" placeholder has nothing meaningful selected to
-   highlight. See syncVersionSelectorForTab() (kept in sync on every tab
-   switch) and the initial-render seeding in renderSingleEntity().
-   Kept to a border/glow rather than a solid background+white text fill
-   (as .eg-doc-tab.active uses): a <select>'s own background/color also
-   governs its native options popup, and on Linux that popup is often
-   drawn by the OS/GTK theme rather than Blink's own CSS-aware popup — so
-   giving the closed control a solid color made the open list unreadable
-   (solid dark) on at least one such setup, with no CSS override
-   available. Reverting this experiment entirely: delete this rule + the
-   two toggle sites + the tab-hiding class below. */
-.eg-version-selector.eg-tab-active select {
-  border: 2px solid #2060a0; box-shadow: 0 0 0 2px rgba(32, 96, 160, 0.25);
-}
+   dropdown (see onVersionSelectChange()). The dropdown previously grew a
+   border/glow highlight here whenever it showed a real selection, but
+   that's been removed per request — the .eg-tab-active class is still
+   toggled in app.js (syncVersionSelectorForTab()/renderSingleEntity())
+   but no longer has any visual effect; the dropdown always uses its
+   plain base style (see .eg-version-selector select above). */
 .eg-doc-tab-hidden { display: none; }
 /* overflow-x: auto scopes the horizontal scrollbar (needed when a
    Property table's Value column holds long text — see .xr-table-props

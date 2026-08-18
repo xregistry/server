@@ -124,7 +124,7 @@ registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@go run ./cmds/genspecattrs
 
 xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
-	registry/* common/*
+	registry/* common/* registry/ui/*
 	@echo
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \

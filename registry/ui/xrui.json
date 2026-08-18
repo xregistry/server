@@ -1,0 +1,19 @@
+// Only // style of comments are supported
+// Allowable attributes:
+// - servers : Array of URLs to xRegistry servers
+// - headerHTML : location of file with HTML inserted at top of page
+// - title : HTML for top of page - ignored when headerHTML is used
+// - summary : Summary HTML for before 'title' - ignored when headerHTML is used
+// - footerHTML : location of file with HTML inserted at bottom of page
+// - footer : HTML inserted at bottom of page - ignored when footerHTML is used
+// - footerAlign: left, center, right (default) - used when 'footer' is used
+// Substitution variables:
+// - $COMMIT - First 12 chars of the git commit of the UI code
+// - [text](url) - Markdown URL reference - for summary, footer
+
+{
+  "title": "xRegistry Server",
+  "summary": "An xRegistry explorer. Add more xRegistry servers via the \"Config\" menu",
+  "footer": "Version: $COMMIT",
+  "footerAlign": "right"
+}

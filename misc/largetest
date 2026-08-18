@@ -18,6 +18,7 @@
 # c4be9c4f3fdc 11m21s  2m51s  43s     ValidateRes cleanup/group constraints
 # f819d7594a64 2m20s   2m50s  44s     phase 3 of tx fixes
 # 43c279ee4284 2m22s   2m46s  44s
+# 7a2f960cb6c0 2m21s   2m49s  43s     Remove readonly/immutable attrs
 
 set -e
  
