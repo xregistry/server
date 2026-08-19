@@ -82,7 +82,7 @@
     "pagination": false,
     "shortself": false,
     "specversions": [
-      "1.0-rc3"
+      "1.0-rc4"
     ],
     "versionmodes": [
       "createdat",
@@ -602,6 +602,6 @@
   "name": "Hard-Coded xReg Sample",
   "registryid": "HardCoded",
   "self": "#/",
-  "specversion": "1.0-rc3",
+  "specversion": "1.0-rc4",
   "xid": "/"
 }

@@ -91,7 +91,7 @@ var SupportedIgnores = ArrayToLower([]string{
 	"capabilities", "defaultversionid", "defaultversionsticky", "epoch", "id",
 	"modelsource", "readonly"})
 
-var SupportedSpecVersions = ArrayToLower([]string{"1.0-rc3", SPECVERSION})
+var SupportedSpecVersions = ArrayToLower([]string{"1.0-rc4", SPECVERSION})
 
 var SupportedVersionModes = ArrayToLower([]string{"manual", "createdat"})
 

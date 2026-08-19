@@ -127,7 +127,7 @@ ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
 ├ registryid      string       y     y    -
 ├ self            url          y     y    -
 ├ shortself       url          -     y    -
-├ specversion     string       y     y    y     "1.0-rc3"
+├ specversion     string       y     y    y     "`+SPECVERSION+`"
 └ xid             xid          y     y    -
 
 GROUP: dirs / dir
