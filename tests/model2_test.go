@@ -55,7 +55,6 @@ func TestModelLabels(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -188,7 +187,6 @@ func TestModelLabels(t *testing.T) {
         "gm1id": {
           "name": "gm1id",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -347,14 +345,12 @@ func TestModelLabels(t *testing.T) {
             "rmid": {
               "name": "rmid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -427,7 +423,6 @@ func TestModelLabels(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -479,7 +474,6 @@ func TestModelLabels(t *testing.T) {
             "rmid": {
               "name": "rmid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -551,7 +545,6 @@ func TestModelLabels(t *testing.T) {
             "rmid": {
               "name": "rmid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -651,7 +644,6 @@ func TestModelLabels(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -703,7 +695,6 @@ func TestModelLabels(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -833,7 +824,6 @@ func TestModelLabels(t *testing.T) {
         "gm1id": {
           "name": "gm1id",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -989,14 +979,12 @@ func TestModelLabels(t *testing.T) {
             "rmid": {
               "name": "rmid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1069,7 +1057,6 @@ func TestModelLabels(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -1121,7 +1108,6 @@ func TestModelLabels(t *testing.T) {
             "rmid": {
               "name": "rmid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1193,7 +1179,6 @@ func TestModelLabels(t *testing.T) {
             "rmid": {
               "name": "rmid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1293,7 +1278,6 @@ func TestModelLabels(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -1374,7 +1358,6 @@ func TestModelLabels(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -1507,7 +1490,6 @@ func TestModelLabels(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -1666,14 +1648,12 @@ func TestModelLabels(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1746,7 +1726,6 @@ func TestModelLabels(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -1798,7 +1777,6 @@ func TestModelLabels(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1870,7 +1848,6 @@ func TestModelLabels(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1970,7 +1947,6 @@ func TestModelLabels(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -2253,7 +2229,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -2533,7 +2508,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
           "dirid": {
             "name": "dirid",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -2847,14 +2821,12 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
               "versionid": {
                 "name": "versionid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -2927,7 +2899,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "ancestorid": {
                 "name": "ancestorid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "contenttype": {
@@ -3133,7 +3104,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -3205,7 +3175,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -3475,7 +3444,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "defaultversionurl": {
@@ -3799,7 +3767,6 @@ func TestModelCompatibleWith(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -3931,7 +3898,6 @@ func TestModelCompatibleWith(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -4140,14 +4106,12 @@ func TestModelCompatibleWith(t *testing.T) {
             "dataid": {
               "name": "dataid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4220,7 +4184,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -4272,7 +4235,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "dataid": {
               "name": "dataid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4344,7 +4306,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "dataid": {
               "name": "dataid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4444,7 +4405,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -4478,14 +4438,12 @@ func TestModelCompatibleWith(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4558,7 +4516,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -4610,7 +4567,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4682,7 +4638,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4782,7 +4737,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -4815,14 +4769,12 @@ func TestModelCompatibleWith(t *testing.T) {
             "fooid": {
               "name": "fooid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4895,7 +4847,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -4947,7 +4898,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "fooid": {
               "name": "fooid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5019,7 +4969,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "fooid": {
               "name": "fooid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5119,7 +5068,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -5163,7 +5111,6 @@ func TestModelIncludes(t *testing.T) {
     },
     "registryid": {
       "type": "string",
-      "matchcase": true,
       "immutable": true,
       "readonly": true,
       "required": true
@@ -5261,7 +5208,6 @@ func TestModelIncludes(t *testing.T) {
       "attributes": {
         "dirid": {
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -5342,13 +5288,11 @@ func TestModelIncludes(t *testing.T) {
           "attributes": {
             "fileid": {
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5438,7 +5382,6 @@ func TestModelIncludes(t *testing.T) {
           "metaattributes": {
             "fileid": {
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5507,7 +5450,6 @@ func TestModelIncludes(t *testing.T) {
             },
             "defaultversionid": {
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -5540,7 +5482,6 @@ func TestModelIncludes(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -5670,7 +5611,6 @@ func TestModelIncludes(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -5826,14 +5766,12 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5906,7 +5844,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -5958,7 +5895,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -6030,7 +5966,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -6130,7 +6065,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -6184,7 +6118,6 @@ func TestModelIncludes(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -6340,7 +6273,6 @@ func TestModelIncludes(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -6496,14 +6428,12 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -6576,7 +6506,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -6628,7 +6557,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -6700,7 +6628,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -6800,7 +6727,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -6826,7 +6752,6 @@ func TestModelIncludes(t *testing.T) {
         "docid": {
           "name": "docid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -6982,14 +6907,12 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -7062,7 +6985,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -7114,7 +7036,6 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -7186,7 +7107,6 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -7286,7 +7206,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -7427,7 +7346,6 @@ func TestModelIncludes(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -7583,7 +7501,6 @@ func TestModelIncludes(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -7739,14 +7656,12 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -7819,7 +7734,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -7871,7 +7785,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -7943,7 +7856,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8043,7 +7955,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -8069,7 +7980,6 @@ func TestModelIncludes(t *testing.T) {
         "docid": {
           "name": "docid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -8225,14 +8135,12 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8305,7 +8213,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -8357,7 +8264,6 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8429,7 +8335,6 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8529,7 +8434,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -8576,7 +8480,6 @@ func TestModelIncludes(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -8732,7 +8635,6 @@ func TestModelIncludes(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -8888,14 +8790,12 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8968,7 +8868,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -9020,7 +8919,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9092,7 +8990,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9192,7 +9089,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -9218,7 +9114,6 @@ func TestModelIncludes(t *testing.T) {
         "docid": {
           "name": "docid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -9374,14 +9269,12 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9454,7 +9347,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -9506,7 +9398,6 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9578,7 +9469,6 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9678,7 +9568,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -9725,7 +9614,6 @@ func TestModelIncludes(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -9881,7 +9769,6 @@ func TestModelIncludes(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -10037,14 +9924,12 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -10117,7 +10002,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -10169,7 +10053,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -10241,7 +10124,6 @@ func TestModelIncludes(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -10341,7 +10223,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -10367,7 +10248,6 @@ func TestModelIncludes(t *testing.T) {
         "docid": {
           "name": "docid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -10523,14 +10403,12 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -10603,7 +10481,6 @@ func TestModelIncludes(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -10655,7 +10532,6 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -10727,7 +10603,6 @@ func TestModelIncludes(t *testing.T) {
             "typeid": {
               "name": "typeid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -10827,7 +10702,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -10875,7 +10749,6 @@ func TestModelMissingFields(t *testing.T) {
       "attributes": {
         "dirid": {
 		  "type": "string",
-          "matchcase": true,
 		  "immutable": true,
 		  "required": true
         },
@@ -10889,7 +10762,6 @@ func TestModelMissingFields(t *testing.T) {
           "attributes": {
             "fileid": {
 			  "type": "string",
-              "matchcase": true,
 		      "immutable": true,
 		      "required": true
             },
@@ -10900,7 +10772,6 @@ func TestModelMissingFields(t *testing.T) {
           "metaattributes": {
             "fileid": {
 			  "type": "string",
-              "matchcase": true,
 		      "immutable": true,
 		      "required": true
             },
@@ -10930,7 +10801,6 @@ func TestModelMissingFields(t *testing.T) {
       "attributes": {
         "dirid": {
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -10944,7 +10814,6 @@ func TestModelMissingFields(t *testing.T) {
           "attributes": {
             "fileid": {
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -10955,7 +10824,6 @@ func TestModelMissingFields(t *testing.T) {
           "metaattributes": {
             "fileid": {
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -10982,7 +10850,6 @@ func TestModelMissingFields(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -11116,7 +10983,6 @@ func TestModelMissingFields(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -11276,14 +11142,12 @@ func TestModelMissingFields(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -11356,7 +11220,6 @@ func TestModelMissingFields(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -11412,7 +11275,6 @@ func TestModelMissingFields(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -11484,7 +11346,6 @@ func TestModelMissingFields(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -11588,7 +11449,6 @@ func TestModelMissingFields(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {

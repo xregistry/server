@@ -480,7 +480,6 @@ func TestModelResourceAttrs(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -610,7 +609,6 @@ func TestModelResourceAttrs(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -742,14 +740,12 @@ func TestModelResourceAttrs(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -822,7 +818,6 @@ func TestModelResourceAttrs(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -838,7 +833,6 @@ func TestModelResourceAttrs(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -932,7 +926,6 @@ func TestModelResourceAttrs(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1032,7 +1025,6 @@ func TestModelResourceAttrs(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -1102,7 +1094,6 @@ func TestModelResourceAttrs(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -1232,7 +1223,6 @@ func TestModelResourceAttrs(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -1364,14 +1354,12 @@ func TestModelResourceAttrs(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1444,7 +1432,6 @@ func TestModelResourceAttrs(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -1476,7 +1463,6 @@ func TestModelResourceAttrs(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1552,7 +1538,6 @@ func TestModelResourceAttrs(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1652,7 +1637,6 @@ func TestModelResourceAttrs(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -1978,7 +1962,6 @@ func TestModelFullModel(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -2120,7 +2103,6 @@ func TestModelFullModel(t *testing.T) {
           "dirid": {
             "name": "dirid",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -2291,14 +2273,12 @@ func TestModelFullModel(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
               "versionid": {
                 "name": "versionid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -2371,7 +2351,6 @@ func TestModelFullModel(t *testing.T) {
               "ancestorid": {
                 "name": "ancestorid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "contenttype": {
@@ -2411,7 +2390,6 @@ func TestModelFullModel(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -2483,7 +2461,6 @@ func TestModelFullModel(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -2587,7 +2564,6 @@ func TestModelFullModel(t *testing.T) {
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "defaultversionurl": {
@@ -3903,171 +3879,6 @@ func TestModelStrictEnum(t *testing.T) {
     "error_detail": "\"model.compatibility\" has an \"enum\" val (foo) that isn't allowed. Must be one of: backward, backward_transitive, forward, forward_transitive, full, full_transitive"
   },
   "source": "9263661f51d9:registry:shared_model:1779"
-}
-`)
-}
-
-func TestModelMatchCase(t *testing.T) {
-	reg := NewRegistry("TestModelMatchCase")
-	defer PassDeleteReg(t, reg)
-
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-        "attributes": {
-          "str": {
-            "type": "string",
-            "item": {}
-          }
-        }
-    }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"str\" must not have \"item\" set because it's a scalar.",
-  "subject": "/model",
-  "args": {
-    "error_detail": "\"str\" must not have \"item\" set because it's a scalar"
-  },
-  "source": "637a8784fa0d:registry:shared_model:3412"
-}
-`)
-
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-        "attributes": {
-          "str": {
-            "type": "integer",
-            "matchcase": true
-          }
-        }
-    }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"str\" must not have \"matchcase\" set to \"true\" unless it's of type \"string\".",
-  "subject": "/model",
-  "args": {
-    "error_detail": "\"str\" must not have \"matchcase\" set to \"true\" unless it's of type \"string\""
-  },
-  "source": "637a8784fa0d:registry:shared_model:3424"
-}
-`)
-
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-        "attributes": {
-          "str": {
-            "type": "array",
-            "matchcase": true,
-            "item": {
-              "type": "integer"
-            }
-          }
-        }
-    }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"str\" must not have \"matchcase\" set to \"true\" unless it's of type \"string\".",
-  "subject": "/model",
-  "args": {
-    "error_detail": "\"str\" must not have \"matchcase\" set to \"true\" unless it's of type \"string\""
-  },
-  "source": "637a8784fa0d:registry:shared_model:3424"
-}
-`)
-
-	model1 := `{
-  "attributes": {
-    "str": {
-      "type": "string",
-      "matchcase": true
-    }
-  }
-}`
-	XHTTP(t, reg, "PUT", "/modelsource", model1, 200, model1+"\n")
-
-	model2 := `{
-  "attributes": {
-    "str": {
-      "type": "array",
-      "matchcase": true,
-      "item": {
-        "type": "string"
-      }
-    }
-  }
-}`
-	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
-
-	model3 := `{
-  "attributes": {
-    "str": {
-      "type": "string",
-      "matchcase": true,
-      "enum": [
-        "YeS",
-        "no"
-      ]
-    }
-  }
-}`
-	XHTTP(t, reg, "PUT", "/modelsource", model3, 200, model3+"\n")
-
-	XHTTP(t, reg, "PUT", "/", `{ "str": "YeS" }`, 200, `*`)
-	XHTTP(t, reg, "PUT", "/", `{ "str": "yes" }`, 400,
-		`^(?s)^.*"value \(yes\) must be one of the enum values: YeS, no"`)
-	XHTTP(t, reg, "PUT", "/", `{ "str": null }`, 200, `*`)
-
-	model4 := `{
-  "attributes": {
-    "str": {
-      "type": "array",
-      "matchcase": true,
-      "item": {
-        "type": "string"
-      },
-      "enum": [
-        "YeS",
-        "no"
-      ]
-    }
-  }
-}`
-	XHTTP(t, reg, "PUT", "/modelsource", model4, 200, model4+"\n")
-
-	XHTTP(t, reg, "PUT", "/", `{ "str": [ "YeS", "no" ] }`, 200, `*`)
-	XHTTP(t, reg, "PUT", "/", `{ "str": [ "yeS", "no" ] }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"str[0]\" for \"/\" is not valid: value (yeS) must be one of the enum values: YeS, no.",
-  "subject": "/",
-  "args": {
-    "error_detail": "value (yeS) must be one of the enum values: YeS, no",
-    "name": "str[0]"
-  },
-  "source": "637a8784fa0d:registry:entity:2975"
-}
-`)
-
-	XHTTP(t, reg, "PUT", "/", `{ "str": null }`, 200, `*`)
-	model5 := `{
-  "attributes": {
-    "str": {
-      "type": "map",
-      "matchcase": true,
-      "item": {
-        "type": "string"
-      },
-      "enum": [
-        "YeS",
-        "no"
-      ]
-    }
-  }
-}`
-	XHTTP(t, reg, "PUT", "/modelsource", model5, 200, model5+"\n")
-
-	XHTTP(t, reg, "PUT", "/", `{ "str": { "1": "YeS", "2": "no" } }`, 200, `*`)
-	XHTTP(t, reg, "PUT", "/", `{ "str": { "1": "yeS", "2": "no" } }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"str.1\" for \"/\" is not valid: value (yeS) must be one of the enum values: YeS, no.",
-  "subject": "/",
-  "args": {
-    "error_detail": "value (yeS) must be one of the enum values: YeS, no",
-    "name": "str.1"
-  },
-  "source": "637a8784fa0d:registry:entity:2976"
 }
 `)
 }

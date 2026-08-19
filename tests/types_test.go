@@ -1308,7 +1308,6 @@ func TestTypesNameCharSet(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true

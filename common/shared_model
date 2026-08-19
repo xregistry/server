@@ -132,7 +132,6 @@ type Attribute struct {
 	Description   string `json:"description,omitempty"`
 	Enum          []any  `json:"enum,omitempty"` // just scalars though
 	Strict        *bool  `json:"strict,omitempty"`
-	MatchCase     bool   `json:"matchcase,omitempty"`
 	MatchVersions bool   `json:"matchversions,omitempty"`
 	ReadOnly      bool   `json:"readonly,omitempty"`
 	Immutable     bool   `json:"immutable,omitempty"`
@@ -214,7 +213,6 @@ func (c *Constraint) Clone() *Constraint {
 
 type MatchVersionsInfo struct {
 	Path      *PropPath
-	MatchCase bool
 	Attribute *Attribute
 }
 
@@ -1675,10 +1673,6 @@ func (a *Attribute) GetStrict() bool {
 	return a.Strict == nil || *a.Strict == true
 }
 
-func (a *Attribute) GetMatchCase() bool {
-	return a.MatchCase
-}
-
 func (a *Attribute) GetMatchVersions() bool {
 	return a.MatchVersions
 }
@@ -1723,13 +1717,6 @@ func (a *Attribute) SetModel(m *Model) {
 func (a *Attribute) SetStrict(val bool) {
 	if IsNil(a.Strict) || *(a.Strict) != val {
 		a.Strict = PtrBool(val)
-		a.Model.SetChanged(true)
-	}
-}
-
-func (a *Attribute) SetMatchCase(val bool) {
-	if a.MatchCase != val {
-		a.MatchCase = val
 		a.Model.SetChanged(true)
 	}
 }
@@ -1901,14 +1888,16 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
 	if specAttr.internals != nil {
 		for _, attrName := range specAttr.internals.cantOverride {
 			switch attrName {
-			case "MatchCase":
-				if specAttr.MatchCase != userAttr.MatchCase {
-					return NewXRError("model_error", "/model",
-						"error_detail="+
-							fmt.Sprintf(`"model.%s" can not `+
-								`change its "matchcase" property, it must `+
-								`be "%v"`, userAttr.Name, specAttr.MatchCase))
-				}
+			/*
+				case "MatchCase":
+					if specAttr.MatchCase != userAttr.MatchCase {
+						return NewXRError("model_error", "/model",
+							"error_detail="+
+								fmt.Sprintf(`"model.%s" can not `+
+									`change its "matchcase" property, it must `+
+									`be "%v"`, userAttr.Name, specAttr.MatchCase))
+					}
+			*/
 			default:
 				panic(attrName)
 			}
@@ -3156,7 +3145,6 @@ func (rm *ResourceModel) GetMatchVersionAttributes() []*MatchVersionsInfo {
 			if attr.GetMatchVersions() {
 				*mvi = append(*mvi, &MatchVersionsInfo{
 					Path:      path.P(attr.Name),
-					MatchCase: attr.MatchCase,
 					Attribute: attr,
 				})
 			}
@@ -3480,19 +3468,6 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 						tmpLD.UI()))
 		}
 
-		if attr.GetMatchCase() {
-			// Only allow matchcase for strings
-			if attr.Type != STRING &&
-				(attr.Item == nil || attr.Item.Type != STRING) {
-
-				return NewXRError("model_error", "/model",
-					"error_detail="+
-						fmt.Sprintf("%q must not have \"matchcase\" set "+
-							"to \"true\" unless it's of type \"string\"",
-							tmpLD.UI()))
-			}
-		}
-
 		// check enum values
 		/* Not true
 		if attr.Enum != nil && len(attr.Enum) == 0 {
@@ -3550,7 +3525,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 			}
 
 			if attr.GetStrict() &&
-				!IsValidEnum(val, attr.Enum, attr.GetMatchCase()) {
+				!IsValidEnum(val, attr.Enum) {
 
 				return NewXRError("model_error", "/model",
 					"error_detail="+
@@ -4024,33 +3999,30 @@ func EnumAsString(enum []any) string {
 }
 
 // Note that an empty enum will always return 'true'
-func IsValidEnum(val any, enum []any, matchCase bool) bool {
+func IsValidEnum(val any, enum []any) bool {
 	if len(enum) == 0 {
 		return true
 	}
 
-	// matchCase should only be false for string types
-	if !matchCase {
-		if reflect.ValueOf(val).Kind() == reflect.String {
-			val = strings.ToLower(val.(string))
-		}
-
-		// Don't touch original enum
-		tmpEnum := make([]any, len(enum))
-		for i, v := range enum {
-			if reflect.ValueOf(v).Kind() == reflect.String {
-				tmpEnum[i] = strings.ToLower(v.(string))
-			} else {
-				tmpEnum[i] = enum[i]
-			}
-		}
-		enum = tmpEnum
+	if reflect.ValueOf(val).Kind() == reflect.String {
+		val = strings.ToLower(val.(string))
 	}
+
+	// Don't touch original enum
+	tmpEnum := make([]any, len(enum))
+	for i, v := range enum {
+		if reflect.ValueOf(v).Kind() == reflect.String {
+			tmpEnum[i] = strings.ToLower(v.(string))
+		} else {
+			tmpEnum[i] = enum[i]
+		}
+	}
+	enum = tmpEnum
 
 	for _, v := range enum {
 		b := (v == val)
-		log.KPrintf("IsValidEnum", "IsValidEnum(case:%v): %q vs %q: %v",
-			matchCase, val, v, b)
+		log.KPrintf("IsValidEnum", "IsValidEnum: %q vs %q: %v",
+			val, v, b)
 		if b {
 			return true
 		}
@@ -4181,7 +4153,7 @@ func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XR
 				}
 
 				// Check for proper subset (note if effective=[] then it's ok)
-				if !IsValidEnum(cVal, effectiveEnum, attr.GetMatchCase()) {
+				if !IsValidEnum(cVal, effectiveEnum) {
 					return NewXRError(errType, subject, "error_detail="+
 						fmt.Sprintf(prefix+" has an enum value (%v) that "+
 							"isn't part of the inherited attribute's enum "+
@@ -4204,8 +4176,7 @@ func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XR
 			}
 
 			// Check it's in enum (note if effective=[] then it's ok)
-			if !IsValidEnum(constraint.Default, effectiveEnum,
-				attr.GetMatchCase()) {
+			if !IsValidEnum(constraint.Default, effectiveEnum) {
 
 				return NewXRError(errType, subject, "error_detail="+
 					fmt.Sprintf(prefix+" has a default value (%v) "+
@@ -4221,8 +4192,7 @@ func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XR
 				// If GroupModel has same constraint(by key) & default value,
 				// check it
 				if gmConstraint != nil && !IsNil(gmConstraint.Default) {
-					if !IsValidEnum(gmConstraint.Default, constraint.Enum,
-						attr.MatchCase) {
+					if !IsValidEnum(gmConstraint.Default, constraint.Enum) {
 
 						return NewXRError(errType, subject, "error_detail="+
 							fmt.Sprintf(prefix+" has an enum set (%v) that "+
@@ -4233,8 +4203,7 @@ func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XR
 					}
 				} else if !IsNil(attr.Default) {
 					// Otherwise check against attr's default value (if there)
-					if !IsValidEnum(attr.Default, constraint.Enum,
-						attr.MatchCase) {
+					if !IsValidEnum(attr.Default, constraint.Enum) {
 
 						return NewXRError(errType, subject, "error_detail="+
 							fmt.Sprintf(prefix+" has an enum set (%v) that "+

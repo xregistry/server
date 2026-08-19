@@ -23,7 +23,6 @@ func TestModelNoModel(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -143,7 +142,6 @@ func TestModelNoModel(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -271,7 +269,6 @@ func TestModelGroupCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -401,7 +398,6 @@ func TestModelGroupCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -532,7 +528,6 @@ func TestModelGroupCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -662,7 +657,6 @@ func TestModelGroupCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -793,7 +787,6 @@ func TestModelGroupCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -923,7 +916,6 @@ func TestModelGroupCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -1111,7 +1103,6 @@ func TestModelResourceCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -1267,7 +1258,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -1423,14 +1413,12 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1503,7 +1491,6 @@ func TestModelResourceCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -1555,7 +1542,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1627,7 +1613,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1727,7 +1712,6 @@ func TestModelResourceCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -1753,7 +1737,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dir2id": {
           "name": "dir2id",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -1909,14 +1892,12 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -1989,7 +1970,6 @@ func TestModelResourceCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -2041,7 +2021,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -2113,7 +2092,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -2213,7 +2191,6 @@ func TestModelResourceCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -2249,7 +2226,6 @@ func TestModelResourceCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -2405,7 +2381,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -2561,14 +2536,12 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -2641,7 +2614,6 @@ func TestModelResourceCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -2693,7 +2665,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -2765,7 +2736,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -2865,7 +2835,6 @@ func TestModelResourceCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -2891,7 +2860,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dir2id": {
           "name": "dir2id",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -3022,7 +2990,6 @@ func TestModelResourceCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -3178,7 +3145,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -3334,14 +3300,12 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -3414,7 +3378,6 @@ func TestModelResourceCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -3466,7 +3429,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -3538,7 +3500,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -3638,7 +3599,6 @@ func TestModelResourceCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -3664,7 +3624,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dir2id": {
           "name": "dir2id",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -3796,7 +3755,6 @@ func TestModelResourceCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -3926,7 +3884,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -4082,14 +4039,12 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4162,7 +4117,6 @@ func TestModelResourceCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -4214,7 +4168,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4286,7 +4239,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4386,7 +4338,6 @@ func TestModelResourceCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -4421,7 +4372,6 @@ func TestModelResourceCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -4551,7 +4501,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -4707,14 +4656,12 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4787,7 +4734,6 @@ func TestModelResourceCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -4839,7 +4785,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -4911,7 +4856,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5011,7 +4955,6 @@ func TestModelResourceCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -5074,7 +5017,6 @@ func TestModelResourceCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -5208,7 +5150,6 @@ func TestModelResourceCreate(t *testing.T) {
         "dirid": {
           "name": "dirid",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -5364,14 +5305,12 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5444,7 +5383,6 @@ func TestModelResourceCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -5480,7 +5418,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5552,7 +5489,6 @@ func TestModelResourceCreate(t *testing.T) {
             "fileid": {
               "name": "fileid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -5652,7 +5588,6 @@ func TestModelResourceCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -5718,7 +5653,6 @@ func TestModelResourceCreate(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -5852,7 +5786,6 @@ func TestModelResourceCreate(t *testing.T) {
           "dirid": {
             "name": "dirid",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -6008,14 +5941,12 @@ func TestModelResourceCreate(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
               "versionid": {
                 "name": "versionid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -6088,7 +6019,6 @@ func TestModelResourceCreate(t *testing.T) {
               "ancestorid": {
                 "name": "ancestorid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "contenttype": {
@@ -6124,7 +6054,6 @@ func TestModelResourceCreate(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -6196,7 +6125,6 @@ func TestModelResourceCreate(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -6296,7 +6224,6 @@ func TestModelResourceCreate(t *testing.T) {
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "defaultversionurl": {
@@ -6405,7 +6332,6 @@ func TestModelResourceCreate(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -6535,7 +6461,6 @@ func TestModelResourceCreate(t *testing.T) {
           "dirid": {
             "name": "dirid",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -6691,14 +6616,12 @@ func TestModelResourceCreate(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
               "versionid": {
                 "name": "versionid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -6771,7 +6694,6 @@ func TestModelResourceCreate(t *testing.T) {
               "ancestorid": {
                 "name": "ancestorid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "contenttype": {
@@ -6807,7 +6729,6 @@ func TestModelResourceCreate(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -6879,7 +6800,6 @@ func TestModelResourceCreate(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -6979,7 +6899,6 @@ func TestModelResourceCreate(t *testing.T) {
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "defaultversionurl": {
@@ -7052,7 +6971,6 @@ func TestModelResourceCreate(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -7182,7 +7100,6 @@ func TestModelResourceCreate(t *testing.T) {
           "dirid": {
             "name": "dirid",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -7355,7 +7272,6 @@ func TestModelResourceCreate(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -7485,7 +7401,6 @@ func TestModelResourceCreate(t *testing.T) {
           "dir2id": {
             "name": "dir2id",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -7645,7 +7560,6 @@ func TestModelMultCreate(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
-      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true
@@ -7801,7 +7715,6 @@ func TestModelMultCreate(t *testing.T) {
         "gm1id": {
           "name": "gm1id",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -7983,14 +7896,12 @@ func TestModelMultCreate(t *testing.T) {
             "rm1id": {
               "name": "rm1id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8063,7 +7974,6 @@ func TestModelMultCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -8115,7 +8025,6 @@ func TestModelMultCreate(t *testing.T) {
             "rm1id": {
               "name": "rm1id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8187,7 +8096,6 @@ func TestModelMultCreate(t *testing.T) {
             "rm1id": {
               "name": "rm1id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8287,7 +8195,6 @@ func TestModelMultCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -8319,14 +8226,12 @@ func TestModelMultCreate(t *testing.T) {
             "rm2id": {
               "name": "rm2id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8399,7 +8304,6 @@ func TestModelMultCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -8451,7 +8355,6 @@ func TestModelMultCreate(t *testing.T) {
             "rm2id": {
               "name": "rm2id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8523,7 +8426,6 @@ func TestModelMultCreate(t *testing.T) {
             "rm2id": {
               "name": "rm2id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8623,7 +8525,6 @@ func TestModelMultCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -8653,7 +8554,6 @@ func TestModelMultCreate(t *testing.T) {
         "gm2id": {
           "name": "gm2id",
           "type": "string",
-          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -8835,14 +8735,12 @@ func TestModelMultCreate(t *testing.T) {
             "rm1id": {
               "name": "rm1id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -8915,7 +8813,6 @@ func TestModelMultCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -8967,7 +8864,6 @@ func TestModelMultCreate(t *testing.T) {
             "rm1id": {
               "name": "rm1id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9039,7 +8935,6 @@ func TestModelMultCreate(t *testing.T) {
             "rm1id": {
               "name": "rm1id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9139,7 +9034,6 @@ func TestModelMultCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -9171,14 +9065,12 @@ func TestModelMultCreate(t *testing.T) {
             "rm2id": {
               "name": "rm2id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "name": "versionid",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9251,7 +9143,6 @@ func TestModelMultCreate(t *testing.T) {
             "ancestorid": {
               "name": "ancestorid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "contenttype": {
@@ -9303,7 +9194,6 @@ func TestModelMultCreate(t *testing.T) {
             "rm2id": {
               "name": "rm2id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9375,7 +9265,6 @@ func TestModelMultCreate(t *testing.T) {
             "rm2id": {
               "name": "rm2id",
               "type": "string",
-              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -9475,7 +9364,6 @@ func TestModelMultCreate(t *testing.T) {
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
-              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
@@ -9695,7 +9583,6 @@ func TestModelMult2Create(t *testing.T) {
       "registryid": {
         "name": "registryid",
         "type": "string",
-        "matchcase": true,
         "readonly": true,
         "immutable": true,
         "required": true
@@ -9851,7 +9738,6 @@ func TestModelMult2Create(t *testing.T) {
           "dir1id": {
             "name": "dir1id",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -10007,14 +9893,12 @@ func TestModelMult2Create(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
               "versionid": {
                 "name": "versionid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -10087,7 +9971,6 @@ func TestModelMult2Create(t *testing.T) {
               "ancestorid": {
                 "name": "ancestorid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "contenttype": {
@@ -10139,7 +10022,6 @@ func TestModelMult2Create(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -10211,7 +10093,6 @@ func TestModelMult2Create(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -10311,7 +10192,6 @@ func TestModelMult2Create(t *testing.T) {
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "defaultversionurl": {
@@ -10341,7 +10221,6 @@ func TestModelMult2Create(t *testing.T) {
           "dir2id": {
             "name": "dir2id",
             "type": "string",
-            "matchcase": true,
             "immutable": true,
             "required": true
           },
@@ -10497,14 +10376,12 @@ func TestModelMult2Create(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
               "versionid": {
                 "name": "versionid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -10577,7 +10454,6 @@ func TestModelMult2Create(t *testing.T) {
               "ancestorid": {
                 "name": "ancestorid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "contenttype": {
@@ -10629,7 +10505,6 @@ func TestModelMult2Create(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -10701,7 +10576,6 @@ func TestModelMult2Create(t *testing.T) {
               "fileid": {
                 "name": "fileid",
                 "type": "string",
-                "matchcase": true,
                 "immutable": true,
                 "required": true
               },
@@ -10801,7 +10675,6 @@ func TestModelMult2Create(t *testing.T) {
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
-                "matchcase": true,
                 "required": true
               },
               "defaultversionurl": {

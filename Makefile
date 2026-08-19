@@ -1,4 +1,4 @@
-all: mysql cmds docs test images run
+all: mysql cmds docs test images xreg run
 
 MAKEFLAGS  += --no-print-directory
 SHELL      := /bin/bash -o pipefail
@@ -124,7 +124,7 @@ registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@go run ./cmds/genspecattrs
 
 xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
-	registry/* common/* registry/ui/*
+	common/* $(filter-out registry/ui/xreg/%, registry/*)
 	@echo
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \
@@ -147,15 +147,14 @@ xr: .sharedfiles cmds/xr/* common/*
 		go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
 
 xreg: cmds mysql registry/ui/xreg/index.html
-registry/ui/xreg/index.html: cmds/xrserver/test-reg.json
+registry/ui/xreg/index.html: cmds/xrserver/test-reg.json xrserver
 	@-pkill -f "[x]rserver.*8181" || true
 	@echo Starting temp server
 	@xrserver -p 8181 -r HardCoded --recreatereg &
 	@sleep 1
 	@echo Uploading registry data
 	@xr -s localhost:8181 update / -d @cmds/xrserver/test-reg.json
-	@rm -r registry/ui/xreg
-	@mkdir -p registry/ui/xreg
+	@rm -r registry/ui/xreg/*
 	@echo Downloading files
 	@cd registry/ui/xreg && ../../../misc/errOutput @xr -s localhost:8181 \
 		download . --nodiff=* -c -u '$$HOST/ui/xreg'
