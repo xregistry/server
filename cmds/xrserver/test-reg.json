@@ -1,5 +1,5 @@
 {
-  "specversion": "1.0-rc3",
+  "specversion": "1.0-rc4",
   "capabilities": {
     "available": {
       "capabilities":        { "mutable": true  },
@@ -26,7 +26,7 @@
     "ignores":      [ "*" ],
     "pagination":   false,
     "shortself":    true,
-    "specversions": [ "1.0-rc3" ],
+    "specversions": [ "1.0-rc4" ],
     "versionmodes": [ "createdat", "manual" ]
   },
 

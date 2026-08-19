@@ -5071,7 +5071,7 @@ func TestHTTPReadOnlyImmutable(t *testing.T) {
         }
       }
     }`, 200, `{
-  "specversion": "1.0-rc3",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPReadonlyImmutable",
   "self": "http://localhost:8181/",
   "xid": "/",

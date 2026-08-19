@@ -3380,7 +3380,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc3",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3400,7 +3400,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc3",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
