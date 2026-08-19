@@ -2220,4 +2220,7 @@ Pass: 16   Fail: 17   Warn: 1   Skip: 3
 Pass: 4   Fail: 3   Warn: 0   Skip: 0
 `, ``, false)
 
+	XCLI(t, "conform --run TestTDUtils", "",
+		`
+`, ``, false)
 }

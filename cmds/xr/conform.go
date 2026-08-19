@@ -38,6 +38,7 @@ func conformFunc(cmd *cobra.Command, args []string) {
 			"TestTDAllPass": TestTDAllPass,
 			"TestTDDepFail": TestTDDepFail,
 			"TestTDMixture": TestTDMixture,
+			"TestTDUtils":   TestTDUtils,
 		}
 		fn := funcs[runFunc]
 		if fn == nil {
@@ -155,4 +156,146 @@ func TestTDDepDepFail(td *TD) { td.DependsOn(TestTDLevel3DepF) }
 func TestTDDepCacheFail(td *TD) {
 	td.DependsOn(TestTDSimpleFail)
 	td.Pass("Should never see this")
+}
+
+func TestTDUtils(td *TD) {
+	reg := td.GetRegistry()
+	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
+
+	td.Log("==== PASSing tests ====")
+	td.HTTPStatusMustEqual(res, 200, "GET /")
+	td.HTTPBodyMustJSON(res, "GET /")
+
+	td.ObjCheck(res.JSON, "specversion", TD_REQUIRED, TD_MUST, TD_EQ, SPECVERSION)
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_NE, "")
+	td.ObjCheck(res.JSON, "self", TD_REQUIRED, TD_MUST, TD_NE, "")
+	td.ObjCheck(res.JSON, "xid", TD_REQUIRED, TD_MUST, TD_EQ, "/")
+	td.ObjCheck(res.JSON, "epoch", TD_REQUIRED, TD_MUST, TD_GE, 0)
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MUST, TD_EQ, "ts")
+	td.ObjCheck(res.JSON, "modifiedat", TD_REQUIRED, TD_MUST, TD_EQ, "ts")
+
+	if reg.Capabilities == nil {
+		td.Skip("\"shortself\" capability found")
+	} else {
+		if reg.Capabilities.ShortSelf {
+			td.ObjCheck(res.JSON, "shortself", TD_REQUIRED, TD_MUST, TD_NE, "")
+		} else {
+			td.ObjCheck(res.JSON, "shortself", TD_MUST, TD_NOT_EXIST)
+		}
+	}
+
+	// String checks
+	// //////////////////////////////////////////////////
+	// testing: EQ & must/should/may
+	td.Log("==== String tests ====")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_EQ, "hi")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_SHOULD, TD_EQ, "hi")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MAY, TD_EQ, "hi")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_EQ, "hi") // def=MAY
+
+	// testing: NE
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_NE, "")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_NE, "hi")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_NE, "TestXRConformBasic")
+
+	// testing: LT
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_LT, "")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_LT, "ZZ")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_LT, "TestXRConformBasic")
+
+	// testing: LE
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_LE, "")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_LE, "ZZ")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_LE, "TestXRConformBasic")
+
+	// testing: GT
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_GT, "")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_GT, "ZZ")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_GT, "TestXRConformBasic")
+
+	// testing: GE
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_GE, "")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_GE, "ZZ")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_GE, "TestXRConformBasic")
+
+	// testing: EXIST
+	td.ObjCheck(res.JSON, "registryid", TD_MUST, TD_EXIST)
+	td.ObjCheck(res.JSON, "name", TD_MUST, TD_EXIST)
+
+	// testing: OPTIONAL
+	td.ObjCheck(res.JSON, "registryid", TD_OPTIONAL, TD_MUST, TD_NE, "")
+	td.ObjCheck(res.JSON, "name", TD_OPTIONAL, TD_MUST, TD_NE, "")
+
+	// testing: REQUIRED
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_NE, "")
+	td.ObjCheck(res.JSON, "name", TD_REQUIRED, TD_MUST, TD_NE, "")
+
+	// Timestamp checks
+	// //////////////////////////////////////////////////
+	td.Log("==== Timestamp tests ====")
+	// testing: EQ
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MUST, TD_EQ, "ts")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_SHOULD, TD_EQ, "ts")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MAY, TD_EQ, "ts")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_EQ, "ts") // def=MAY
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MUST, TD_EQ, "YYYY-MM-DD")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_SHOULD, TD_EQ, "YYYY-MM-DD")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MAY, TD_EQ, "YYYY-MM-DD")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_EQ, "YYYY-MM-DD")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MUST, TD_EQ, "")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_SHOULD, TD_EQ, "")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MAY, TD_EQ, "")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_EQ, "")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MUST, TD_EQ, "2026-01-01T12:00:00Z")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_SHOULD, TD_EQ, "2026-01-01T12:00:00Z")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MAY, TD_EQ, "2026-01-01T12:00:00Z")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_EQ, "2026-01-01T12:00:00Z")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MUST, TD_EQ, "2026/01/01T12:00:00")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_EQ, "ts")
+	td.ObjCheck(res.JSON, "description", TD_REQUIRED, TD_MUST, TD_EQ, "ts")
+
+	// testing: NE
+
+	// testing: LT
+
+	// testing: LE
+
+	// testing: GT
+
+	// testing: GE
+
+	// testing: EXIST
+
+	// testing: OPTIONAL
+
+	// testing: REQUIRED
+
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MUST, TD_EQ, "hi")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_SHOULD, TD_EQ, "hi")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MAY, TD_EQ, "hi")
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_EQ, "hi")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_EQ, "ts")
+	td.ObjCheck(res.JSON, "registryid", TD_REQUIRED, TD_MUST, TD_EQ, "2026/01/01T12:00:00Z")
+
+	td.ObjCheck(res.JSON, "epoch", TD_REQUIRED, TD_MUST, TD_EQ, 3)
+
+	td.ObjCheck(res.JSON, "name", TD_REQUIRED, TD_MUST, TD_EQ, "")
+	td.ObjCheck(res.JSON, "name", TD_REQUIRED, TD_MUST, TD_EXIST)
+	td.ObjCheck(res.JSON, "name", TD_REQUIRED, TD_MUST, TD_NOT_EXIST)
+	td.ObjCheck(res.JSON, "name", TD_REQUIRED, TD_MAY, TD_EXIST)
+	td.ObjCheck(res.JSON, "name", TD_REQUIRED, TD_MAY, TD_NOT_EXIST)
+	td.ObjCheck(res.JSON, "name", TD_OPTIONAL, TD_MUST, TD_EXIST)
+	td.ObjCheck(res.JSON, "name", TD_OPTIONAL, TD_MUST, TD_NOT_EXIST)
+	td.ObjCheck(res.JSON, "label.f", TD_REQUIRED, TD_MUST, TD_EQ, "")
+	td.ObjCheck(res.JSON, "label.f", TD_REQUIRED, TD_MUST, TD_EXIST)
+	td.ObjCheck(res.JSON, "label.f", TD_REQUIRED, TD_MUST, TD_NOT_EXIST)
+	td.ObjCheck(res.JSON, "label.f", TD_REQUIRED, TD_MAY, TD_EXIST)
+	td.ObjCheck(res.JSON, "label.f", TD_REQUIRED, TD_MAY, TD_NOT_EXIST)
+	td.ObjCheck(res.JSON, "label.f", TD_OPTIONAL, TD_MUST, TD_EXIST)
+	td.ObjCheck(res.JSON, "label.f", TD_OPTIONAL, TD_MUST, TD_NOT_EXIST)
+
+	td.ObjCheck(res.JSON, "createdat", TD_REQUIRED, TD_MUST, TD_EQ, "ts")
+	td.ObjCheck(res.JSON, "modifiedat", TD_REQUIRED, TD_MUST, TD_EQ, "ts")
+	td.ObjCheck(res.JSON, "modifiedat", TD_REQUIRED, TD_MUST, TD_EQ, "YYYY-MM-DD")
+	td.ObjCheck(res.JSON, "modifiedat", TD_REQUIRED, TD_MUST, TD_NE, "YYYY-MM-DD")
 }

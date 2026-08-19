@@ -101,9 +101,21 @@ func TestRoot(td *TD) {
 	td.HTTPPropMustEqual(res, "specversion", SPECVERSION)
 	td.HTTPPropMustNotEqual(res, "registryid", "")
 	td.HTTPPropMustNotEqual(res, "self", "")
-	td.HTTPPropMustNotEqual(res, "epoch", "")
+	td.HTTPPropMustEqual(res, "xid", "/")
 
-	epoch, err := AnyToUInt(td.HTTPGetProp(res, "epoch"))
-	td.NoError(err, "Attribute %q %s(%v)", "epoch", err, epoch)
-	td.Must(epoch >= 0, "\"epoch\" (%v) must be >= 0", epoch)
+	td.ObjPropMustBeGreaterEqualInt(res.JSON, "epoch", 0)
+
+	td.HTTPPropMustBeTimestamp(res, "createdat")
+	td.HTTPPropMustBeTimestamp(res, "modifiedat")
+
+	if reg.Capabilities == nil {
+		td.Skip("\"shortself\" capability found")
+	} else {
+		if reg.Capabilities.ShortSelf {
+			td.HTTPPropMustNotEqual(res, "shortself", "")
+		} else {
+			td.ObjPropMustNotExist(res.JSON, "shortself")
+			td.ObjCheck(res.JSON, "shortself", TD_NOT_EXIST)
+		}
+	}
 }
