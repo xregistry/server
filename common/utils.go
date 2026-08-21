@@ -43,6 +43,41 @@ func IsURL(str string) bool {
 	return strings.HasPrefix(str, "http:") || strings.HasPrefix(str, "https:")
 }
 
+func MakeURL(strs ...string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+
+	base, query, _ := strings.Cut(strs[0], "?")
+	base = strings.TrimSpace(base)
+	base = strings.Trim(base, "/")
+	query = strings.TrimSpace(query)
+
+	for i := 1; i < len(strs); i++ {
+		str := strings.Trim(strings.TrimSpace(strs[i]), "/")
+		if len(str) == 0 {
+			continue
+		}
+
+		if str[0] == '?' {
+			if query == "" {
+				query = "?" + str
+			} else {
+				query += "&" + str
+			}
+			continue
+		}
+
+		if base == "" {
+			base = str
+		} else {
+			base += "/" + str
+		}
+	}
+
+	return base + query
+}
+
 func Must(err any) {
 	if !IsNil(err) {
 		panic(err)

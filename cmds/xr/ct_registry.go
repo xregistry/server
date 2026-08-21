@@ -47,21 +47,22 @@ func TestCapabilities(td *TD) {
 	td.MustEqual(ok, false, "'GET /' MUST NOT include 'capabilities' attribute")
 
 	// If ?inline is supported then make sure it's the same capabilities
+	td.Msg("Testing ?inline=capabilities")
 	if reg.Capabilities.FlagEnabled("inline") {
 		// Load from / and look for "capabilities" attribute
 		res2, _ = reg.HttpDo(VerboseCount > 2, "GET", "/?inline=capabilities", nil)
 		// td.Log("Capabilities: %s", string(res2.Body))
 		td.HTTPStatusMustEqual(res2, 200, "GET /?inline=capabilities")
 		td.HTTPBodyMustJSON(res2, "GET /?inline=capabilities")
-		val, ok := td.GetObjProp(res2.JSON, "capabilities")
-		td.MustEqual(ok, true,
-			"'GET /?inline=capabilities' MUST include 'capabilities' attribute")
+
+		td.ObjMustExist(res2.JSON, "capabilities")
 
 		// Both capabilities MUST be the same JSON
 		// We may need to do a sorted-json-diff instead at some point
-		td.MustEqual(res1.JSON, val, "Both 'capabilities' JSON MUST be the same")
+		td.ObjReqMustEq(res2.JSON, "capabilities", res1.JSON,
+			"/capabilities MUST = ?inline=capabilities")
 	} else {
-		td.Skip("?inline=capabilities not supported")
+		td.Skip("?inline not supported")
 	}
 
 	_, xErr = ParseCapabilities(res1.Body) // caps, xErr := ...
@@ -94,16 +95,43 @@ func TestRoot(td *TD) {
 
 	// Get the root so we can check its attributes
 	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
+
 	td.HTTPStatusMustEqual(res, 200, "GET /")
 	td.HTTPBodyMustJSON(res, "GET /")
 
 	td.Log("Root: %s", string(res.Body))
-	td.HTTPPropMustEqual(res, "specversion", SPECVERSION)
-	td.HTTPPropMustNotEqual(res, "registryid", "")
-	td.HTTPPropMustNotEqual(res, "self", "")
-	td.HTTPPropMustNotEqual(res, "epoch", "")
+	td.ObjReqMustGt(res.JSON, "specversion", "1.0")
+	td.ObjReqMustNe(res.JSON, "registryid", "")
+	td.ObjReqMustNe(res.JSON, "self", "")
 
-	epoch, err := AnyToUInt(td.HTTPGetProp(res, "epoch"))
-	td.NoError(err, "Attribute %q %s(%v)", "epoch", err, epoch)
-	td.Must(epoch >= 0, "\"epoch\" (%v) must be >= 0", epoch)
+	if reg.Capabilities == nil {
+		td.Skip("\"shortself\" - Capabilities not available")
+	} else {
+		if reg.Capabilities.ShortSelf {
+			td.ObjReqMustNe(res.JSON, "shortself", "")
+		} else {
+			td.ObjMustNotExist(res.JSON, "shortself")
+		}
+	}
+
+	td.ObjReqMustEq(res.JSON, "xid", "/")
+	td.ObjReqMustGe(res.JSON, "epoch", 0)
+	td.ObjMayExist(res.JSON, "name", "")
+	td.ObjMayExist(res.JSON, "description", "")
+	td.ObjMayExist(res.JSON, "documentation", "")
+	td.ObjOptMustNe(res.JSON, "icon", "")
+	td.ObjMayExist(res.JSON, "labels")
+	td.ObjReqMustEq(res.JSON, "createdat", "ts")
+	td.ObjReqMustEq(res.JSON, "modifiedat", "ts")
+
+	td.ObjMustNotExist(res.JSON, "capabilities")
+	td.ObjMustNotExist(res.JSON, "model")
+	td.ObjMustNotExist(res.JSON, "modelsource")
+
+	self := res.JSON["self"].(string)
+
+	for _, gm := range reg.Model.Groups {
+		td.ObjMustExist(res.JSON, gm.Plural+"count", 0)
+		td.ObjReqMustEq(res.JSON, gm.Plural+"url", MakeURL(self, gm.Plural))
+	}
 }

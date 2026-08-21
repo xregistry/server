@@ -180,7 +180,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 					base := k[:len(k)-3]
 					if _, ok := obj[base+"count"]; ok {
-						obj[k] = host + xid.String()[1:] + "/" + base
+						tmp := host + xid.String()[1:]
+						if tmp[len(tmp)-1] != '/' {
+							tmp += "/"
+						}
+						obj[k] = tmp + base
 					} else if base == "meta" {
 						obj[k] = host + xid.String()[1:] + "/" + base
 					} else if base == "defaultversion" {
