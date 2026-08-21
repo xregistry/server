@@ -4133,6 +4133,22 @@ function cfgSetFavorite(url, on) {
 // longer specially pinned.
 var _cfgDragUrl = null;
 
+// Flips the row to draggable="true" only for the duration of a press on
+// its \u2261 handle (see cfgServerRowHTML() for why the row isn't
+// draggable all the time). If a real drag follows, cfgRowDragEnd() flips
+// it back off; if the mouse is just released (a plain click on the
+// handle, no drag), native dragstart/dragend never fire at all, so a
+// one-shot mouseup fallback below handles that case too.
+function cfgRowHandleDown(e) {
+  var tr = e.currentTarget.closest('tr');
+  if (!tr) return;
+  tr.draggable = true;
+  document.addEventListener('mouseup', function onUp() {
+    document.removeEventListener('mouseup', onUp);
+    if (!_cfgDragUrl) tr.draggable = false;
+  });
+}
+
 function cfgRowDragStart(e, url) {
   _cfgDragUrl = url;
   if (e.dataTransfer) {
@@ -4143,10 +4159,10 @@ function cfgRowDragStart(e, url) {
 }
 
 function cfgRowDragEnd() {
-  document.querySelectorAll('.cfg-row-dragging, .cfg-row-drop-before, .cfg-row-drop-after')
-    .forEach(function(tr) {
-      tr.classList.remove('cfg-row-dragging', 'cfg-row-drop-before', 'cfg-row-drop-after');
-    });
+  document.querySelectorAll('tr[data-cfg-url]').forEach(function(tr) {
+    tr.classList.remove('cfg-row-dragging', 'cfg-row-drop-before', 'cfg-row-drop-after');
+    tr.draggable = false;
+  });
   _cfgDragUrl = null;
 }
 
@@ -4262,11 +4278,21 @@ function cfgFavoriteCellHTML(url, isFav) {
 // cfgDeleteSelected()).
 function cfgServerRowHTML(url, isLocal, draggable) {
   var isFav = isFavorite(url);
+  // The row itself starts non-draggable (draggable="false") — a `<tr
+  // draggable="true">` ancestor breaks click-to-position-cursor in any
+  // descendant <input>/<textarea> in Chrome/Edge (the browser suppresses
+  // native caret placement on mousedown to allow for a possible native
+  // drag gesture), which made the Name/URL edit fields only navigable via
+  // the keyboard. Instead, the row is flipped to draggable="true" only
+  // while the mouse is down on the \u2261 handle itself (see
+  // cfgRowHandleDown()/cfgRowDragEnd()), so text inputs elsewhere in the
+  // row keep normal click-to-place-cursor behavior.
   var dragCell = draggable
-    ? '<td class="cfg-drag-cell" title="Drag to reorder">\u2261</td>'
+    ? '<td class="cfg-drag-cell" title="Drag to reorder" '
+      + 'onmousedown="cfgRowHandleDown(event)">\u2261</td>'
     : '';
   var dragAttrs = draggable
-    ? ' draggable="true"'
+    ? ' draggable="false"'
       + ' ondragstart="cfgRowDragStart(event,' + esc(JSON.stringify(url)) + ')"'
       + ' ondragover="cfgRowDragOver(event)"'
       + ' ondragleave="this.classList.remove(\'cfg-row-drop-before\',\'cfg-row-drop-after\')"'
@@ -4294,7 +4320,11 @@ function cfgServerRowHTML(url, isLocal, draggable) {
       + '</td>'
       + '<td class="cfg-name">' + cfgNameCellHTML(url) + '</td>'
       + '<td><span class="cfg-url-display">' + esc(url)
-      + ' <span class="config-local-badge">this server</span></span></td>'
+      + ' <span class="config-local-badge" title="This is the registry the'
+      + ' UI is currently hosted/running from, so its URL can\u2019t be'
+      + ' changed here \u2014 only its display Name can be edited. Add a'
+      + ' different URL as a new row below to configure another'
+      + ' registry.">(this server)</span></span></td>'
       + '<td></td>'
       + '<td class="cfg-hide-cell">'
       +   '<input type="checkbox" class="cfg-hide-input"'
@@ -4628,16 +4658,25 @@ function cfgSave(el) {
     var oldProxied  = isProxied(oldUrl);
     var oldHidden   = isHidden(oldUrl);
     var oldDiscFrom = getDiscoveredFrom(oldUrl);
+    var oldFav      = isFavorite(oldUrl);
+    var order       = loadServerOrder();
+    var orderIdx    = order.indexOf(normalizeURL(oldUrl));
     removeServer(oldUrl);
     addServer(newUrl);
     // Carry every per-URL flag over to the renamed URL — each is keyed by
     // URL (like the name override above), so a rename would otherwise
-    // silently lose it. discoveredFrom is provenance (set once, "first
-    // seen wins" — see setDiscoveredFrom()), so it's only copied when the
-    // renamed URL doesn't already have one of its own.
+    // silently lose it (including dropping out of Favorites and losing
+    // its manual drag position there). discoveredFrom is provenance (set
+    // once, "first seen wins" — see setDiscoveredFrom()), so it's only
+    // copied when the renamed URL doesn't already have one of its own.
     setProxied(newUrl, oldProxied);
     setHidden(newUrl, oldHidden);
     if (oldDiscFrom) setDiscoveredFrom(newUrl, oldDiscFrom);
+    if (oldFav) setFavorite(newUrl, true);
+    if (orderIdx !== -1) {
+      order[orderIdx] = normalizeURL(newUrl);
+      saveServerOrder(order);
+    }
   }
   if (nameInp) setNameOverride(newUrl, nameInp.value.trim());
   renderConfig();

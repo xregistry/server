@@ -1693,6 +1693,7 @@ tr.cfg-row-drop-after { box-shadow: inset 0 -2px 0 0 #4a90d9; }
   padding: 1px 5px;
   margin-left: 6px;
   font-weight: normal;
+  cursor: help;
 }
 .cfg-option-row {
   display: grid;
