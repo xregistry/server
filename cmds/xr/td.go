@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"golang.org/x/term"
 )
 
 var PASS = 1
@@ -24,9 +26,20 @@ var StatusText = []string{"", "PASS", "FAIL", "WARN", "SKIP", "LOG", "MSG"}
 
 var FailFast = false
 var IgnoreWarn = true
+var WrapAt = 79
 var TestsRun = map[string]*TD{}
 
 type TestFn func(td *TD)
+
+func init() {
+	fd := int(os.Stdout.Fd())
+	if term.IsTerminal(fd) {
+		w, _, err := term.GetSize(fd)
+		if err == nil && w > 20 {
+			WrapAt = w - 1
+		}
+	}
+}
 
 func (fn TestFn) Name() string {
 	name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
@@ -59,13 +72,29 @@ type TD struct {
 	NumSkip int
 }
 
-func NewTD(name string, parent ...*TD) *TD {
+func NewTD(parent *TD, args ...any) *TD {
+	name := ""
+	// p := (*TD)(nil)
+
+	if len(args) > 0 {
+		if f, ok := args[0].(string); !ok {
+			panic("initial arg must be a string")
+		} else {
+			name = fmt.Sprintf(f, args[1:]...)
+		}
+	}
+
+	return oldNewTD(name, parent)
+}
+
+func oldNewTD(name string, parents ...*TD) *TD {
 	p := (*TD)(nil)
-	if len(parent) > 0 {
-		if len(parent) > 1 {
+
+	if len(parents) > 0 {
+		if len(parents) > 1 {
 			panic("too many parents")
 		}
-		p = parent[0]
+		p = parents[0]
 	}
 
 	newTD := &TD{
@@ -300,15 +329,39 @@ func (td *TD) AddStatus(status int) {
 	}
 }
 
+var nextStatus = 0
+
+func (td *TD) Expect(status int) {
+	nextStatus = status
+}
+
 // PASS|FAIL|WARN|SKIP, testNameText, substitute args for testName
 func (td *TD) Report(status int, args ...any) {
 	// fmt.Printf("Report: %q %s : %v\n", td.TestName, StatusText[status], args)
+
+	line := ""
+	if len(args) > 0 {
+		line = fmt.Sprintf(args[0].(string), args[1:]...)
+	}
+
+	// Strictly for testing of TD itself
+	if nextStatus != 0 {
+		if nextStatus == status {
+			line = StatusText[status] + ": " + line
+			status = PASS
+		} else {
+			line = fmt.Sprintf("Expected %q, got: %s: %s",
+				StatusText[nextStatus], StatusText[status], line)
+			status = FAIL
+		}
+		nextStatus = 0
+	}
 
 	if len(args) > 0 {
 		td.Logs = append(td.Logs, &LogEntry{
 			Date:    time.Now(),
 			Type:    status,
-			Text:    fmt.Sprintf(args[0].(string), args[1:]...),
+			Text:    line,
 			Subtest: nil,
 		})
 	} /* else {
@@ -356,7 +409,7 @@ func (td *TD) Run(fn TestFn) *TD {
 	if name == "" {
 		name = before
 	}
-	newTD := NewTD(name, td)
+	newTD := NewTD(td, name)
 
 	// Save in the cache
 	TestsRun[fn.Name()] = newTD
@@ -391,10 +444,13 @@ func (td *TD) MustEqual(exp any, got any, args ...any) {
 	gotJSON := ToJSON(got)
 
 	if expJSON != gotJSON {
-		td.Log("Exp(%T): %s", exp, expJSON)
-		td.Log("Got(%T): %s", got, gotJSON)
-		td.Log("Diff(exp/got): %s", Diff(expJSON, gotJSON))
-		td.Fail(args...)
+		// Created nested TD to indent diff
+		nTD := NewTD(td, args...)
+		nTD.Log("Exp(%T): %s", exp, expJSON)
+		nTD.Log("Got(%T): %s", got, gotJSON)
+		nTD.Log("Diff(exp/got): %s", Diff(expJSON, gotJSON))
+		nTD.FailNow()
+		// td.Fail(args...)
 		return
 	}
 	td.Pass(args...)
@@ -710,7 +766,7 @@ func PrettyPrint(indent string, prefix string, text string) string {
 
 	cIndent := append([]rune{}, rIndent...) // clean-Indent
 	cIndent = append(cIndent, []rune(strings.Repeat(" ", len(rPrefix)))...)
-	width := 79 - len(cIndent)
+	width := WrapAt - len(cIndent)
 
 	// Just for first line, then use cIndent
 	rIndent = append(rIndent, rPrefix...)
@@ -744,12 +800,12 @@ func PrettyPrint(indent string, prefix string, text string) string {
 			// Normally we'd check this before the \n and ' ' but if the next
 			// char (the one we want to skip on at the end of the line) is a
 			// space then go ahead and break on that instead
-			if chopAt+1 > width {
+			if (WrapAt > 20) && chopAt+1 > width {
 				break
 			}
 		}
 		if !skip {
-			if chopAt+1 > width && lastSpace >= 0 {
+			if (WrapAt > 20) && chopAt+1 > width && lastSpace >= 0 {
 				chopAt = lastSpace
 			}
 			str = append(str, rIndent...)
@@ -822,6 +878,7 @@ func (td *TD) SetCapabilities(c *Capabilities) *TD {
 
 var TD_OPTIONAL = "optional" // MAY be present
 var TD_REQUIRED = "required" // MUST be present
+var TD_RE = ".re."
 var TD_EQ = "="
 var TD_NE = "!="
 var TD_LT = "<"
@@ -837,8 +894,11 @@ var TD_SHOULD = "SHOULD" // SHOULD meet the op criteria ("must" var)
 func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 	required := false
 	op := TD_EQ
-	must := TD_MAY
+	must := TD_MUST
 	expAny := any(nil)
+	expAnySet := false
+	textArgs := []any{}
+	text := ""
 
 	if obj == nil {
 		panic("obj is nil")
@@ -849,23 +909,48 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 			required = (arg == TD_REQUIRED)
 		} else if arg == TD_MUST || arg == TD_SHOULD || arg == TD_MAY {
 			must = arg.(string)
-		} else if arg == TD_EQ || arg == TD_NE || arg == TD_LT ||
-			arg == TD_LE || arg == TD_GT || arg == TD_GE ||
+		} else if arg == TD_RE || arg == TD_EQ || arg == TD_NE ||
+			arg == TD_LT || arg == TD_LE || arg == TD_GT || arg == TD_GE ||
 			arg == TD_EXIST || arg == TD_NOT_EXIST {
 			op = arg.(string)
 		} else {
-			expAny = arg
+			if !expAnySet {
+				expAny = arg
+				expAnySet = true
+			} else {
+				textArgs = append(textArgs, arg)
+			}
 		}
+	}
+
+	expNice := expAny
+
+	if len(textArgs) > 0 {
+		f, ok := textArgs[0].(string)
+		if !ok {
+			panic(fmt.Sprintf("first text arg (%v) must be a string",
+				textArgs[0]))
+		}
+		text = fmt.Sprintf(f, textArgs[1:]...)
+		// text = ". " + text
 	}
 
 	attrAny, ok := obj[attr]
 	if !ok {
 		if required || (op == TD_EXIST && must == TD_MUST) {
-			td.Fail("%q MUST be present, but is missing", attr)
+			if text != "" {
+				td.Fail(text)
+			} else {
+				td.Fail("%q MUST be present, but is missing", attr)
+			}
 			return
 		}
 		if op == TD_NOT_EXIST {
-			td.Pass("%q MUST NOT exist", attr)
+			if text != "" {
+				td.Pass(text)
+			} else {
+				td.Pass("%q %s NOT be present, and isn't", attr, must)
+			}
 			return
 		}
 
@@ -873,13 +958,16 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 			op = "be present"
 		} else {
 			if expStr, ok := expAny.(string); ok {
-				expAny = `"` + expStr + `"`
+				expNice = `"` + expStr + `"`
 			}
-			op = fmt.Sprintf("%s %v", op, expAny)
+			op = fmt.Sprintf("%s %v (if present)", op, expNice)
 		}
-		what := fmt.Sprintf("%q %s %s (if present), but is missing",
+		what := fmt.Sprintf("%q %s %s, but is missing",
 			attr, must, op)
 
+		if text != "" {
+			what = text
+		}
 		if must == TD_SHOULD {
 			td.Warn(what)
 		} else {
@@ -887,6 +975,7 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 		}
 		return
 	}
+	attrNice := attrAny
 
 	daType := ""
 	expStr := ""
@@ -900,7 +989,7 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 			if expStr == "ts" || expStr == "YYYY-MM-DD" {
 				daType = "timestamp"
 				expTS = ""
-				op = TD_EQ
+				// op = TD_EQ
 				expStr = "<timestamp>"
 			} else if expStr == "any" {
 				daType = "any"
@@ -921,7 +1010,7 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 		} else if expBool, ok = expAny.(bool); ok {
 			daType = "bool"
 		} else {
-			panic(fmt.Sprintf("Unknown exp type: %#v", expAny))
+			daType = "any"
 		}
 	}
 
@@ -976,19 +1065,32 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 	}
 
 	if typeMismatch {
-		td.Fail("%q (%v) MUST be of type %q", attr, attrAny, daType)
+		if text != "" {
+			td.Fail(text)
+		} else {
+			td.Fail("%q (%v) MUST be of type %q", attr, attrAny, daType)
+		}
 		return
 	}
 
 	if op == TD_EXIST {
-		// td.Pass(fmt.Sprintf("%q %s be present", attr, must))
-		td.Pass("%q %s be present", attr, must)
+		if text != "" {
+			td.Pass(text)
+		} else {
+			// td.Pass(fmt.Sprintf("%q %s be present", attr, must))
+			td.Pass("%q %s be present", attr, must)
+		}
 		return
 	}
 
 	if op == TD_NOT_EXIST {
 		what := fmt.Sprintf("%q %s NOT be present, but is", attr, must)
-		if must == TD_SHOULD || must == TD_MUST {
+		if text != "" {
+			what = text
+		}
+		if must == TD_MUST {
+			td.Fail(what)
+		} else if must == TD_SHOULD {
 			td.Warn(what)
 		} else {
 			td.Pass(what)
@@ -997,23 +1099,54 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 	}
 
 	passed := false
+	nestedTD := (*TD)(nil)
 
 	switch op {
+	case TD_RE:
+		switch daType {
+		case "string":
+			re := regexp.MustCompile(expStr)
+			passed = re.MatchString(attrStr)
+			op = "~="
+			expNice = "\"" + expStr + "\""
+		default:
+			panic(daType)
+		}
 	case TD_EQ:
 		switch daType {
 		case "string":
 			passed = (attrStr == expStr)
-			expAny = "\"" + expStr + "\""
+			expNice = "\"" + expStr + "\""
 		case "timestamp":
 			passed = (expTS == "" || (attrTS == expTS))
-			expAny = "\"" + expStr + "\"" // expStr not expTS
+			expNice = "\"" + expStr + "\"" // expStr not expTS
 		case "int":
 			passed = (attrInt == expInt)
 		case "float":
 			passed = (attrFloat == expFloat)
 		case "bool":
 			passed = (attrBool == expBool)
-			expAny = fmt.Sprintf("%v", expBool)
+			expNice = fmt.Sprintf("%v", expBool)
+		case "any":
+			passed = reflect.DeepEqual(attrAny, expAny)
+			expNice = reflect.ValueOf(expAny).Kind().String()
+			attrNice = reflect.ValueOf(attrAny).Kind().String()
+			/*
+				if !passed {
+					// Created nested TD to indent diff
+					nestedTD = NewTD(td)
+					expJSON := ToJSON(expAny)
+					attrJSON := ToJSON(attrAny)
+					nestedTD.Log("Exp(%T): %s", expAny, expJSON)
+					nestedTD.Log("Got(%T): %s", attrAny, attrJSON)
+					nestedTD.Log("Diff(exp/got): %s", Diff(expJSON, attrJSON))
+					nestedTD.Fail()
+				}
+			*/
+
+			// attrAny = fmt.Sprintf("%q", reflect.ValueOf(attrAny).Kind())
+			// expAny = fmt.Sprintf("%q", reflect.ValueOf(expAny).Kind().String())
+
 		default:
 			panic(daType)
 		}
@@ -1021,17 +1154,21 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 		switch daType {
 		case "string":
 			passed = (attrStr != expStr)
-			expAny = "\"" + expStr + "\""
+			expNice = "\"" + expStr + "\""
 		case "timestamp":
-			passed = (expTS == "" || (attrTS != expTS))
-			expAny = "\"" + expStr + "\"" // expStr not expTS
+			passed = (expTS != "" && (attrTS != expTS))
+			expNice = "\"" + expStr + "\"" // expStr not expTS
 		case "int":
 			passed = (attrInt != expInt)
 		case "float":
 			passed = (attrFloat != expFloat)
 		case "bool":
 			passed = (attrBool != expBool)
-			expAny = fmt.Sprintf("%v", expBool)
+			expNice = fmt.Sprintf("%v", expBool)
+		case "any":
+			passed = !reflect.DeepEqual(attrAny, expAny)
+			attrNice = fmt.Sprintf("%q", reflect.ValueOf(attrAny).Kind())
+			expNice = fmt.Sprintf("%q", reflect.ValueOf(expAny).Kind())
 		default:
 			panic(daType)
 		}
@@ -1039,17 +1176,17 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 		switch daType {
 		case "string":
 			passed = (attrStr < expStr)
-			expAny = "\"" + expStr + "\""
+			expNice = "\"" + expStr + "\""
 		case "timestamp":
-			passed = (expTS == "" || (attrTS < expTS))
-			expAny = "\"" + expStr + "\"" // expStr not expTS
+			passed = (expTS != "" && (attrTS < expTS))
+			expNice = "\"" + expStr + "\"" // expStr not expTS
 		case "int":
 			passed = (attrInt < expInt)
 		case "float":
 			passed = (attrFloat < expFloat)
 		case "bool":
 			passed = (!attrBool && expBool)
-			expAny = fmt.Sprintf("%v", expBool)
+			expNice = fmt.Sprintf("%v", expBool)
 		default:
 			panic(daType)
 		}
@@ -1057,17 +1194,17 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 		switch daType {
 		case "string":
 			passed = (attrStr <= expStr)
-			expAny = "\"" + expStr + "\""
+			expNice = "\"" + expStr + "\""
 		case "timestamp":
-			passed = (expTS == "" || (attrTS <= expTS))
-			expAny = "\"" + expStr + "\"" // expStr not expTS
+			passed = (expTS != "" && (attrTS <= expTS))
+			expNice = "\"" + expStr + "\"" // expStr not expTS
 		case "int":
 			passed = (attrInt <= expInt)
 		case "float":
 			passed = (attrFloat <= expFloat)
 		case "bool":
 			passed = (!attrBool && expBool) || (attrBool == expBool)
-			expAny = fmt.Sprintf("%v", expBool)
+			expNice = fmt.Sprintf("%v", expBool)
 		default:
 			panic(daType)
 		}
@@ -1075,17 +1212,17 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 		switch daType {
 		case "string":
 			passed = (attrStr > expStr)
-			expAny = "\"" + expStr + "\""
+			expNice = "\"" + expStr + "\""
 		case "timestamp":
-			passed = (expTS == "" || (attrTS > expTS))
-			expAny = "\"" + expStr + "\"" // expStr not expTS
+			passed = (expTS != "" && (attrTS > expTS))
+			expNice = "\"" + expStr + "\"" // expStr not expTS
 		case "int":
 			passed = (attrInt > expInt)
 		case "float":
 			passed = (attrFloat > expFloat)
 		case "bool":
 			passed = (attrBool && !expBool)
-			expAny = fmt.Sprintf("%v", expBool)
+			expNice = fmt.Sprintf("%v", expBool)
 		default:
 			panic(daType)
 		}
@@ -1093,17 +1230,17 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 		switch daType {
 		case "string":
 			passed = (attrStr >= expStr)
-			expAny = "\"" + expStr + "\""
+			expNice = "\"" + expStr + "\""
 		case "timestamp":
-			passed = (expTS == "" || (attrTS >= expTS))
-			expAny = "\"" + expStr + "\"" // expStr not expTS
+			passed = (expTS != "" && (attrTS >= expTS))
+			expNice = "\"" + expStr + "\"" // expStr not expTS
 		case "int":
 			passed = (attrInt >= expInt)
 		case "float":
 			passed = (attrFloat >= expFloat)
 		case "bool":
 			passed = (attrBool && !expBool) || (attrBool == expBool)
-			expAny = fmt.Sprintf("%v", expBool)
+			expNice = fmt.Sprintf("%v", expBool)
 		default:
 			panic(daType)
 		}
@@ -1111,14 +1248,179 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 		panic(op)
 	}
 
+	if !passed && daType == "any" {
+		// Created nested TD to indent diff
+		nestedTD = NewTD(td)
+		expJSON := ToJSON(expAny)
+		attrJSON := ToJSON(attrAny)
+		nestedTD.Log("Exp(%T): %s", expAny, expJSON)
+		nestedTD.Log("Got(%T): %s", attrAny, attrJSON)
+		nestedTD.Log("Diff(exp/got): %s", Diff(expJSON, attrJSON))
+		nestedTD.Fail()
+	}
+
+	if text == "" {
+		text = fmt.Sprintf("%q (%v) %s %s %v",
+			attr, attrNice, must, op, expNice)
+	}
+
+	if nestedTD != nil {
+		nestedTD.TestName = text
+		return
+	}
+
 	if !passed {
 		if must == TD_MUST {
-			td.Fail("%q (%v) %s %s %v", attr, attrAny, must, op, expAny)
+			td.Fail(text)
 			return
 		} else if must == TD_SHOULD {
-			td.Warn("%q (%v) %s %s %v", attr, attrAny, must, op, expAny)
+			td.Warn(text)
 			return
 		}
 	}
-	td.Pass("%q (%v) %v %s %v", attr, attrAny, must, op, expAny)
+
+	td.Pass(text)
+}
+
+// -------
+func (td *TD) ObjReqMustRe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MUST, TD_RE, val)
+}
+func (td *TD) ObjReqMustEq(obj map[string]any, attr string, val any, args ...any) {
+	args = append([]any{TD_REQUIRED, TD_MUST, TD_EQ, val}, args...)
+	td.ObjCheck(obj, attr, args...)
+}
+func (td *TD) ObjReqMustNe(obj map[string]any, attr string, val any, args ...any) {
+	args = append([]any{TD_REQUIRED, TD_MUST, TD_NE, val}, args...)
+	td.ObjCheck(obj, attr, args...)
+}
+func (td *TD) ObjReqMustLt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MUST, TD_LT, val)
+}
+func (td *TD) ObjReqMustLe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MUST, TD_LE, val)
+}
+func (td *TD) ObjReqMustGt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MUST, TD_GT, val)
+}
+func (td *TD) ObjReqMustGe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MUST, TD_GE, val)
+}
+
+// -------
+func (td *TD) ObjOptMustRe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MUST, TD_RE, val)
+}
+func (td *TD) ObjOptMustEq(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MUST, TD_EQ, val)
+}
+func (td *TD) ObjOptMustNe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MUST, TD_NE, val)
+}
+func (td *TD) ObjOptMustLt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MUST, TD_LT, val)
+}
+func (td *TD) ObjOptMustLe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MUST, TD_LE, val)
+}
+func (td *TD) ObjOptMustGt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MUST, TD_GT, val)
+}
+func (td *TD) ObjOptMustGe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MUST, TD_GE, val)
+}
+
+// -------
+func (td *TD) ObjReqShouldRe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_SHOULD, TD_RE, val)
+}
+func (td *TD) ObjReqShouldEq(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_SHOULD, TD_EQ, val)
+}
+func (td *TD) ObjReqShouldNe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_SHOULD, TD_NE, val)
+}
+func (td *TD) ObjReqShouldLt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_SHOULD, TD_LT, val)
+}
+func (td *TD) ObjReqShouldLe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_SHOULD, TD_LE, val)
+}
+func (td *TD) ObjReqShouldGt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_SHOULD, TD_GT, val)
+}
+func (td *TD) ObjReqShouldGe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_SHOULD, TD_GE, val)
+}
+
+// -------
+func (td *TD) ObjReqMayRe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MAY, TD_RE, val)
+}
+func (td *TD) ObjReqMayEq(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MAY, TD_EQ, val)
+}
+func (td *TD) ObjReqMayNe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MAY, TD_NE, val)
+}
+func (td *TD) ObjReqMayLt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MAY, TD_LT, val)
+}
+func (td *TD) ObjReqMayLe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MAY, TD_LE, val)
+}
+func (td *TD) ObjReqMayGt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MAY, TD_GT, val)
+}
+func (td *TD) ObjReqMayGe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_REQUIRED, TD_MAY, TD_GE, val)
+}
+
+// -------
+func (td *TD) ObjOptMayRe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MAY, TD_RE, val)
+}
+func (td *TD) ObjOptMayEq(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MAY, TD_EQ, val)
+}
+func (td *TD) ObjOptMayNe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MAY, TD_NE, val)
+}
+func (td *TD) ObjOptMayLt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MAY, TD_LT, val)
+}
+func (td *TD) ObjOptMayLe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MAY, TD_LE, val)
+}
+func (td *TD) ObjOptMayGt(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MAY, TD_GT, val)
+}
+func (td *TD) ObjOptMayGe(obj map[string]any, attr string, val any) {
+	td.ObjCheck(obj, attr, TD_OPTIONAL, TD_MAY, TD_GE, val)
+}
+
+// -------
+func (td *TD) ObjMustExist(obj map[string]any, attr string, args ...any) {
+	args = append([]any{TD_MUST, TD_EXIST}, args...)
+	td.ObjCheck(obj, attr, args...)
+}
+func (td *TD) ObjMustNotExist(obj map[string]any, attr string, args ...any) {
+	args = append([]any{TD_MUST, TD_NOT_EXIST}, args...)
+	td.ObjCheck(obj, attr, args...)
+}
+func (td *TD) ObjShouldExist(obj map[string]any, attr string, args ...any) {
+	args = append([]any{TD_SHOULD, TD_EXIST}, args...)
+	td.ObjCheck(obj, attr, args...)
+}
+func (td *TD) ObjShouldNotExist(obj map[string]any, attr string, args ...any) {
+	args = append([]any{TD_SHOULD, TD_NOT_EXIST}, args...)
+	td.ObjCheck(obj, attr, args...)
+}
+func (td *TD) ObjMayExist(obj map[string]any, attr string, args ...any) {
+	args = append([]any{TD_MAY, TD_EXIST}, args...)
+	td.ObjCheck(obj, attr, args...)
+}
+func (td *TD) ObjMayNotExist(obj map[string]any, attr string, args ...any) {
+	args = append([]any{TD_MAY, TD_NOT_EXIST}, args...)
+	td.ObjCheck(obj, attr, args...)
 }
