@@ -96,8 +96,8 @@ func (e *Entity) SetStuff(key string, val any) {
 
 type Registry struct {
 	Entity
-	Capabilities *Capabilities `json"-"`
 	Model        *Model        `json:"-"`
+	Capabilities *Capabilities `json"-"`
 
 	oldCapabilities *Capabilities // as seen at the start of the tx
 
@@ -736,47 +736,67 @@ func (e *Entity) GetModels() (*GroupModel, *ResourceModel) {
 	return e.GroupModel, e.ResourceModel
 }
 
-func LoadRemoteRegistry(url string) (*Registry, *XRError) {
-	url = strings.TrimSpace(url)
-	if url == "" {
-		return nil, NewXRError("client_error", "", "No Server address provided")
-	}
-
-	if !strings.HasPrefix(url, "http") {
-		url = "http://" + strings.TrimLeft(url, "/")
-	}
-
+func DefineRegistry(url string) *Registry {
 	reg := &Registry{
 		Entity: Entity{
+			Plural:   "registries",
+			Singular: "registry",
+
 			Type:     ENTITY_REGISTRY,
 			Path:     "", // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
+			XID:      "/",
 			Abstract: "", // [GROUPS[/RESOURCES[/versions]]]
 		},
 	}
 
-	rootObj := map[string]json.RawMessage(nil)
+	reg.Entity.Registry = reg
+
+	url = strings.TrimSpace(url)
+	if url != "" {
+		if !strings.HasPrefix(url, "http") {
+			url = "http://" + strings.Trim(url, "/")
+		}
+		reg.SetStuff("server", url)
+	}
+
+	return reg
+}
+
+func (reg *Registry) LoadRemoteModel(tryInline bool) *XRError {
+	url := reg.GetStuffAsString("server")
+	if url == "" {
+		return NewXRError("client_error", "", "No Server address provided")
+	}
 
 	// Download model
 	data, err := DownloadURL(url + "/model")
 	if err != nil {
-		data, err2 := DownloadURL(url + "?inline=model,capabilities")
-		if err2 != nil {
-			return nil, NewXRError("bad_request",
+		if !tryInline {
+			return NewXRError("bad_request",
 				url+"?inline=model,capabilities",
 				"error_detail="+
 					fmt.Sprintf("Error getting (%s/model: %s", url, err))
 		}
 
+		data, err2 := DownloadURL(url + "?inline=model")
+		if err2 != nil {
+			return NewXRError("bad_request",
+				url+"?inline=model,capabilities",
+				"error_detail="+
+					fmt.Sprintf("Error getting (%s/model: %s", url, err))
+		}
+
+		rootObj := map[string]json.RawMessage(nil)
 		err = json.Unmarshal(data, &rootObj)
 		if err != nil {
-			return nil, NewXRError("parsing_response", url,
+			return NewXRError("parsing_response", url,
 				"error_detail="+
 					fmt.Sprintf("Error parsing Registry root(%s): %s", url,
 						err))
 		}
 		tmp, ok := rootObj["model"]
 		if !ok {
-			return nil, NewXRError("bad_request", url,
+			return NewXRError("bad_request", url,
 				"error_detail="+
 					fmt.Sprintf("Unable to find the model for %q from either "+
 						"/model or the \"model\" attribute", url))
@@ -787,50 +807,79 @@ func LoadRemoteRegistry(url string) (*Registry, *XRError) {
 	var xErr *XRError
 	reg.Model, xErr = ParseModel(data, reg)
 	if xErr != nil {
-		return nil, xErr.SetDetail("Model:\n" + string(data) + ".")
+		return xErr.SetDetail("Model:\n" + string(data) + ".")
+	}
+
+	return nil
+}
+
+func (reg *Registry) LoadRemoteCapabilities(tryInline bool) *XRError {
+	url := reg.GetStuffAsString("server")
+	if url == "" {
+		return NewXRError("client_error", "", "No Server address provided")
 	}
 
 	// Download capabilities
-	data, err = DownloadURL(url + "/capabilities")
+	data, err := DownloadURL(url + "/capabilities")
 	if err != nil {
-		if rootObj == nil {
-			data, err2 := DownloadURL(url + "?inline=capabilities")
-			if err2 != nil {
-				return nil, NewXRError("bad_request",
-					url+"?inline=capabilities",
-					"error_detail="+
-						fmt.Sprintf("Error getting capabilities "+
-							"(%s/capabilities): %s", url, err))
-			}
-
-			err = json.Unmarshal(data, &rootObj)
-			if err != nil {
-				return nil, NewXRError("parsing_response", url,
-					"error_detail="+
-						fmt.Sprintf("Error parsing Registry root(%s): %s", url,
-							err))
-			}
+		if !tryInline {
+			return NewXRError("bad_request",
+				url+"?inline=capabilities",
+				"error_detail="+
+					fmt.Sprintf("Error getting capabilities "+
+						"(%s/capabilities): %s", url, err))
 		}
+
+		data, err2 := DownloadURL(url + "?inline=capabilities")
+		if err2 != nil {
+			return NewXRError("bad_request",
+				url+"?inline=capabilities",
+				"error_detail="+
+					fmt.Sprintf("Error getting capabilities "+
+						"(%s/capabilities): %s", url, err))
+		}
+
+		rootObj := map[string]json.RawMessage(nil)
+		err = json.Unmarshal(data, &rootObj)
+		if err != nil {
+			return NewXRError("parsing_response", url,
+				"error_detail="+
+					fmt.Sprintf("Error parsing Registry root(%s): %s", url,
+						err))
+		}
+
 		tmp, ok := rootObj["capabilities"]
 		if !ok {
-			return nil, NewXRError("bad_request", url,
+			return NewXRError("bad_request", url,
 				"error_detail="+
 					fmt.Sprintf("Unable to find the capabilities for %q "+
 						"from either /capabilities or the \"capabilities\" "+
 						"attribute", url))
 		}
+
 		data = []byte(tmp)
 	}
 
+	var xErr *XRError
 	reg.Capabilities, xErr = ParseCapabilities(data)
 	if xErr != nil {
+		return xErr
+	}
+
+	reg.oldCapabilities = reg.Capabilities.Clone()
+	return nil
+}
+
+func LoadRemoteRegistry(url string) (*Registry, *XRError) {
+	reg := DefineRegistry(url)
+
+	if xErr := reg.LoadRemoteModel(true); xErr != nil {
 		return nil, xErr
 	}
 
-	reg.Entity.Registry = reg
-	reg.SetStuff("server", url)
-
-	reg.oldCapabilities = reg.Capabilities.Clone()
+	if xErr := reg.LoadRemoteCapabilities(true); xErr != nil {
+		return nil, xErr
+	}
 
 	return reg, nil
 }

@@ -267,14 +267,14 @@ type ResourceModel struct {
 func ParseModel(buf []byte, reg *Registry) (*Model, *XRError) {
 	buf, err := RemoveSchema(buf)
 	if err != nil {
-		return nil, NewXRError("parsing_data", "/model",
+		return nil, NewXRError("parsing_data", "model",
 			"error_detail="+err.Error())
 	}
 
 	// Now do the real work
 	model := Model{}
 	if err := Unmarshal(buf, &model); err != nil {
-		return nil, NewXRError("parsing_data", "/model",
+		return nil, NewXRError("parsing_data", "model",
 			"error_detail="+err.Error())
 	}
 	model.ApplyDefaults(reg)
@@ -315,7 +315,7 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 	type tmpResourceModel ResourceModel
 	err := Unmarshal(data, (*tmpResourceModel)(r))
 	if err != nil {
-		return NewXRError("parsing_data", "/model",
+		return NewXRError("parsing_data", "model",
         "error_detail=" + err.Error())
 	}
 

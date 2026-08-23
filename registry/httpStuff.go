@@ -1872,7 +1872,7 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 
 	reqBody, err := RemoveSchema(info.Body)
 	if err != nil {
-		return NewXRError("parsing_data", info.GetParts(0),
+		return NewXRError("parsing_data", "request JSON",
 			"error_detail="+err.Error())
 	}
 
@@ -1888,7 +1888,7 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 		// Now override wth anything new
 		err := Unmarshal(reqBody, &tmp)
 		if err != nil {
-			return NewXRError("parsing_data", "/capabilities",
+			return NewXRError("parsing_data", "request JSON",
 				"error_detail="+err.Error())
 		}
 
@@ -2135,7 +2135,7 @@ func LoadEpochMap(info *RequestInfo) (EpochEntryMap, *XRError) {
 	if len(bodyStr) > 0 {
 		err := Unmarshal([]byte(bodyStr), &res)
 		if err != nil {
-			return nil, NewXRError("parsing_data", info.GetParts(0),
+			return nil, NewXRError("parsing_data", "request JSON",
 				"error_detail="+err.Error())
 		}
 	} else {
@@ -2466,7 +2466,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 
 		err := Unmarshal(body, &IncomingObj)
 		if err != nil {
-			return nil, NewXRError("parsing_data", info.GetParts(0),
+			return nil, NewXRError("parsing_data", "request JSON",
 				"error_detail="+err.Error())
 		}
 
@@ -2481,7 +2481,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 				ModelSource json.RawMessage
 			}{}
 			if err := json.Unmarshal(body, &tmpReg); err != nil {
-				return nil, NewXRError("parsing_data", info.GetParts(0),
+				return nil, NewXRError("parsing_data", "request JSON",
 					"error_detail="+err.Error())
 			}
 			IncomingObj["modelsource"] = tmpReg.ModelSource

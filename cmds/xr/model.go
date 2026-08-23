@@ -931,7 +931,7 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
-	model, xErr := reg.GetModelSource()
+	modelSrc, xErr := reg.GetModelSource()
 	Error(xErr)
 
 	verMsg := ""
@@ -943,16 +943,16 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 			Error("Group type name must be of the form: PLURAL:SINGULAR")
 		}
 
-		Error(ValidateNewGroup(model, parts[0], parts[1]))
+		Error(ValidateNewGroup(modelSrc, parts[0], parts[1]))
 
-		if model.Groups == nil {
-			model.Groups = map[string]*xrlib.GroupModel{}
+		if modelSrc.Groups == nil {
+			modelSrc.Groups = map[string]*xrlib.GroupModel{}
 		}
 
 		gmNames = append(gmNames, parts[0])
 
-		model.Groups[parts[0]] = &xrlib.GroupModel{
-			Model:    model,
+		modelSrc.Groups[parts[0]] = &xrlib.GroupModel{
+			Model:    modelSrc,
 			Plural:   parts[0],
 			Singular: parts[1],
 		}
@@ -962,7 +962,7 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 
 	}
 
-	buf, xErr := model.SerializeForUser()
+	buf, xErr := modelSrc.SerializeForUser()
 	if xErr != nil {
 		Error(xErr)
 	}

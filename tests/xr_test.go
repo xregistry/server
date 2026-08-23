@@ -2145,18 +2145,23 @@ func TestXRConformBasic(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 	XHTTP(t, reg, "PUT", "/", `{"dec":1.1,"bool":true}`, 200, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, "*")
 
 	os.Setenv("XR_SERVER", "localhost:8181")
 
 	// Make sure the minimumal looks ok
 	// Also verifies the default Registry is conformant
-	XCLI(t, "conform -d2", "", `PASS: http://localhost:8181
-└─ PASS: TestRegistry
-
+	XCLI(t, "conform", "", `PASS: http://localhost:8181
+├─ PASS: TestSniff
+├─ PASS: TestModel
+├─ PASS: TestCapabilities
+├─ PASS: TestRegistryRoot
+├─ PASS: TestGroups
+└─ PASS: TestResources
 Pass: 99   Fail: 0   Warn: 0   Skip: 0
 `, ``, true, MASK_CONFORM_PASS)
 
-	XCLI(t, "conform --run TestTDAllPass", "", `PASS: http://localhost:8181
+	XCLI(t, "conform --run TestTDAllPass -d0", "", `PASS: http://localhost:8181
 └─ PASS: TestTDAllPass
    ├─ PASS: TestTDInit
    │  └─ PASS: Init
@@ -2174,20 +2179,18 @@ Pass: 99   Fail: 0   Warn: 0   Skip: 0
    │  └─ PASS: Init
    └─ PASS: TestTDLevel2a
       └─ PASS: Level2a
-
 Pass: 18   Fail: 0   Warn: 0   Skip: 0
 `, ``, true)
 
-	XCLI(t, "conform --run TestTDDepFail", "", `FAIL: http://localhost:8181
+	XCLI(t, "conform --run TestTDDepFail -d0", "", `FAIL: http://localhost:8181
 └─ FAIL: TestTDDepFail
    ├─ FAIL: TestTDInitFail
    │  └─ FAIL: Init
    └─ Dependency "TestTDInitFail" failed, leaving
-
 Pass: 0   Fail: 4   Warn: 0   Skip: 0
 `, ``, false)
 
-	XCLI(t, "conform --run TestTDMixture", "", `FAIL: http://localhost:8181 (skip:3,warn:1)
+	XCLI(t, "conform --run TestTDMixture -d0", "", `FAIL: http://localhost:8181 (skip:3,warn:1)
 └─ FAIL: TestTDMixture (skip:3,warn:1)
    ├─ PASS: TestTDInit
    │  └─ PASS: Init
@@ -2228,11 +2231,10 @@ Pass: 0   Fail: 4   Warn: 0   Skip: 0
       ├─ FAIL: TestTDLevel3Fail
       │  └─ FAIL: Level3Fail
       └─ PASS: Level2Pass
-
 Pass: 16   Fail: 17   Warn: 1   Skip: 3
 `, ``, false)
 
-	XCLI(t, "conform --run TestTDMixture --failfast", "",
+	XCLI(t, "conform --run TestTDMixture -d0 --failfast", "",
 		`FAIL: http://localhost:8181
 └─ FAIL: TestTDMixture
    ├─ PASS: TestTDInit
@@ -2240,11 +2242,44 @@ Pass: 16   Fail: 17   Warn: 1   Skip: 3
    ├─ PASS: TestTDSimple1
    │  └─ PASS: Simple1
    └─ FAIL: Local fail test
-
 Pass: 4   Fail: 3   Warn: 0   Skip: 0
 `, ``, false)
 
-	XCLI(t, "conform --run TestTDUtils --nowrap", "",
+	XCLI(t, "conform --run TestTDMixture --failfast", "",
+		`FAIL: http://localhost:8181
+└─ FAIL: TestTDMixture
+   └─ FAIL: Local fail test
+Pass: 4   Fail: 3   Warn: 0   Skip: 0
+`, ``, false)
+
+	XCLI(t, "conform --run TestTDMixture", "",
+		`FAIL: http://localhost:8181 (skip:3,warn:1)
+└─ FAIL: TestTDMixture (skip:3,warn:1)
+   ├─ FAIL: Local fail test
+   ├─ FAIL: TestTDSimpleFail
+   │  └─ FAIL: SimpleFail
+   ├─ SKIP: Top-level-skip
+   ├─ FAIL: TestTDDepDepFail
+   │  ├─ FAIL: TestTDLevel3DepF
+   │  │  ├─ FAIL: TestTDInitFail
+   │  │  │  └─ FAIL: Init
+   │  │  └─ Dependency "TestTDInitFail" failed, leaving
+   │  └─ Dependency "TestTDLevel3DepF" failed, leaving
+   ├─ FAIL: TestTDLevel2DepF
+   │  └─ FAIL: TestTDLevel3DepF
+   │     ├─ FAIL: TestTDInitFail (cached)
+   │     └─ Dependency "TestTDInitFail" failed, leaving
+   ├─ FAIL: TestTDDepCacheFail
+   │  ├─ FAIL: TestTDSimpleFail (cached)
+   │  └─ Dependency "TestTDSimpleFail" failed, leaving
+   └─ FAIL: TestTDLevel23Fail
+      ├─ FAIL: TestTDLevel3Fail
+      │  └─ FAIL: Level3Fail
+      └─ PASS: Level2Pass
+Pass: 16   Fail: 17   Warn: 1   Skip: 3
+`, ``, false)
+
+	XCLI(t, "conform --run TestTDUtils  -d0 --nowrap", "",
 		`PASS: http://localhost:8181
 └─ PASS: TestTDUtils
    ├─ PASS: 'GET /' MUST return 200
@@ -2254,313 +2289,363 @@ Pass: 4   Fail: 3   Warn: 0   Skip: 0
    ├─ PASS: "registryid" (TestXRConformBasic) MUST != ""
    ├─ PASS: "self" (http://localhost:8181/) MUST != ""
    ├─ PASS: "xid" (/) MUST = "/"
-   ├─ PASS: "epoch" (3) MUST >= 0
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = "<timestamp>"
-   ├─ PASS: "modifiedat" (2026-08-21T10:42:18.672456465Z) MUST = "<timestamp>"
+   ├─ PASS: "epoch" (4) MUST >= 0
+   ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = "<timestamp>"
+   ├─ PASS: "modifiedat" (2026-08-23T02:04:59.300338744Z) MUST = "<timestamp>"
    ├─ PASS: "shortself" MUST NOT be present, and isn't
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "int"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "int"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "int"
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST ~= ".*"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST ~= ".*zBOGUSz*"
-   ├─ PASS: "registryid" (TestXRConformBasic) SHOULD ~= ".*"
-   ├─ PASS: WARN: "registryid" (TestXRConformBasic) SHOULD ~= ".*zBOGUSz*"
-   ├─ PASS: "registryid" (TestXRConformBasic) MAY ~= ".*"
-   ├─ PASS: "registryid" (TestXRConformBasic) MAY ~= ".*zBOGUSz*"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST = "hi"
-   ├─ PASS: WARN: "registryid" (TestXRConformBasic) SHOULD = "hi"
-   ├─ PASS: "registryid" (TestXRConformBasic) MAY = "hi"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST = "hi"
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST != ""
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST != "hi"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST != "TestXRConformBasic"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST < ""
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST < "ZZ"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST < "TestXRConformBasic"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST <= ""
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST <= "ZZ"
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST <= "TestXRConformBasic"
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST > ""
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST > "ZZ"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST > "TestXRConformBasic"
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST >= ""
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST >= "ZZ"
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST >= "TestXRConformBasic"
-   ├─ PASS: "registryid" MUST be present
-   ├─ PASS: FAIL: "name" MUST be present, but is missing
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "int"
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST = "TestXRConformBasic"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST = ""
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST != ""
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST != "TestXRConformBasic"
-   ├─ PASS: "name" MUST != "" (if present), but is missing
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST != ""
-   ├─ PASS: "registryid" (TestXRConformBasic) MUST = "TestXRConformBasic"
-   ├─ PASS: FAIL: "name" MUST be present, but is missing
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) SHOULD = "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MAY = "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) SHOULD = "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MAY = "<timestamp>"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = ""
-   ├─ PASS: WARN: "createdat" (2026-08-21T10:42:18.647990232Z) SHOULD = ""
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MAY = ""
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = "2026-01-01T12:00:00Z"
-   ├─ PASS: WARN: "createdat" (2026-08-21T10:42:18.647990232Z) SHOULD = "2026-01-01T12:00:00Z"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MAY = "2026-01-01T12:00:00Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = "2026/01/01T12:00:00"
-   ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "timestamp"
-   ├─ PASS: FAIL: "description" MUST be present, but is missing
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST != "2026-01-01T12:00:00Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST != "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST != "<timestamp>"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST != "<timestamp>"
-   ├─ PASS: FAIL: "foo" MUST be present, but is missing
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) SHOULD != "2026-01-01T12:00:00Z"
-   ├─ PASS: WARN: "createdat" (2026-08-21T10:42:18.647990232Z) SHOULD != "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: WARN: "createdat" (2026-08-21T10:42:18.647990232Z) SHOULD != "<timestamp>"
-   ├─ PASS: WARN: "createdat" (2026-08-21T10:42:18.647990232Z) SHOULD != "<timestamp>"
-   ├─ PASS: FAIL: "foo" MUST be present, but is missing
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MAY != "2026-01-01T12:00:00Z"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MAY != "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MAY != "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MAY != "<timestamp>"
-   ├─ PASS: FAIL: "foo" MUST be present, but is missing
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST < "3026-01-01T12:00:00Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST < "2026-01-01T12:00:00Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST < "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST < "<timestamp>"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST != "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST <= "3026-01-01T12:00:00Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST <= "2026-01-01T12:00:00Z"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST <= "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST <= "<timestamp>"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST <= "<timestamp>"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST > "3026-01-01T12:00:00Z"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST > "2026-01-01T12:00:00Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST > "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST > "<timestamp>"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST > "<timestamp>"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST >= "3026-01-01T12:00:00Z"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST >= "2026-01-01T12:00:00Z"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST >= "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST >= "<timestamp>"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST >= "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = "<timestamp>"
-   ├─ PASS: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST = "2026-01-01T12:00:00Z"
-   ├─ PASS: FAIL: "createdat" (2026-08-21T10:42:18.647990232Z) MUST != "2026-08-21T10:42:18.647990232Z"
-   ├─ PASS: "foo" MUST != "ts" (if present), but is missing
-   ├─ PASS: "epoch" (3) MUST = 3
-   ├─ PASS: "epoch" (3) SHOULD = 3
-   ├─ PASS: "epoch" (3) MAY = 3
-   ├─ PASS: FAIL: "epoch" (3) MUST = 0
-   ├─ PASS: WARN: "epoch" (3) SHOULD = 0
-   ├─ PASS: "epoch" (3) MAY = 0
-   ├─ PASS: FAIL: "epoch" (3) MUST be of type "string"
-   ├─ PASS: FAIL: "epoch" (3) MUST be of type "string"
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "int"
-   ├─ PASS: "epoch" (3) MUST != 0
-   ├─ PASS: FAIL: "epoch" (3) MUST != 3
-   ├─ PASS: "epoch" (3) SHOULD != 0
-   ├─ PASS: WARN: "epoch" (3) SHOULD != 3
-   ├─ PASS: "epoch" (3) MAY != 0
-   ├─ PASS: "epoch" (3) MAY != 3
-   ├─ PASS: "epoch" (3) MUST < 100000
-   ├─ PASS: FAIL: "epoch" (3) MUST < 0
-   ├─ PASS: "epoch" (3) SHOULD < 100000
-   ├─ PASS: WARN: "epoch" (3) SHOULD < 0
-   ├─ PASS: "epoch" (3) MAY < 100000
-   ├─ PASS: "epoch" (3) MAY < 0
-   ├─ PASS: "epoch" (3) MUST <= 100000
-   ├─ PASS: "epoch" (3) MUST <= 3
-   ├─ PASS: FAIL: "epoch" (3) MUST <= 0
-   ├─ PASS: "epoch" (3) SHOULD <= 100000
-   ├─ PASS: "epoch" (3) SHOULD <= 3
-   ├─ PASS: WARN: "epoch" (3) SHOULD <= 0
-   ├─ PASS: "epoch" (3) MAY <= 100000
-   ├─ PASS: "epoch" (3) MAY <= 3
-   ├─ PASS: "epoch" (3) MAY <= 0
-   ├─ PASS: FAIL: "epoch" (3) MUST > 10000
-   ├─ PASS: FAIL: "epoch" (3) MUST > 3
-   ├─ PASS: "epoch" (3) MUST > 0
-   ├─ PASS: WARN: "epoch" (3) SHOULD > 100000
-   ├─ PASS: WARN: "epoch" (3) SHOULD > 3
-   ├─ PASS: "epoch" (3) SHOULD > 0
-   ├─ PASS: "epoch" (3) MAY > 100000
-   ├─ PASS: "epoch" (3) MAY > 3
-   ├─ PASS: "epoch" (3) MAY > 0
-   ├─ PASS: FAIL: "epoch" (3) MUST >= 10000
-   ├─ PASS: "epoch" (3) MUST >= 3
-   ├─ PASS: "epoch" (3) MUST >= 0
-   ├─ PASS: WARN: "epoch" (3) SHOULD >= 10000
-   ├─ PASS: "epoch" (3) SHOULD >= 3
-   ├─ PASS: "epoch" (3) SHOULD >= 0
-   ├─ PASS: "epoch" (3) MAY >= 10000
-   ├─ PASS: "epoch" (3) MAY >= 3
-   ├─ PASS: "epoch" (3) MAY >= 0
-   ├─ PASS: FAIL: "epoch" (3) MUST = 10000
-   ├─ PASS: "epoch" (3) MUST = 3
-   ├─ PASS: FAIL: "epoch" (3) MUST != 3
-   ├─ PASS: "foo" MUST != 1 (if present), but is missing
-   ├─ PASS: "dec" (1.1) MUST = 1.1
-   ├─ PASS: "dec" (1.1) SHOULD = 1.1
-   ├─ PASS: "dec" (1.1) MAY = 1.1
-   ├─ PASS: FAIL: "dec" (1.1) MUST = 0
-   ├─ PASS: WARN: "dec" (1.1) SHOULD = 0
-   ├─ PASS: "dec" (1.1) MAY = 0
-   ├─ PASS: FAIL: "dec" (1.1) MUST be of type "string"
-   ├─ PASS: FAIL: "dec" (1.1) MUST be of type "string"
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "float"
-   ├─ PASS: "dec" (1.1) MUST != 0
-   ├─ PASS: FAIL: "dec" (1.1) MUST != 1.1
-   ├─ PASS: "dec" (1.1) SHOULD != 0
-   ├─ PASS: WARN: "dec" (1.1) SHOULD != 1.1
-   ├─ PASS: "dec" (1.1) MAY != 0
-   ├─ PASS: "dec" (1.1) MAY != 1.1
-   ├─ PASS: "dec" (1.1) MUST < 100000
-   ├─ PASS: FAIL: "dec" (1.1) MUST < 0
-   ├─ PASS: "dec" (1.1) SHOULD < 100000
-   ├─ PASS: WARN: "dec" (1.1) SHOULD < 0
-   ├─ PASS: "dec" (1.1) MAY < 100000
-   ├─ PASS: "dec" (1.1) MAY < 0
-   ├─ PASS: "dec" (1.1) MUST <= 100000
-   ├─ PASS: "dec" (1.1) MUST <= 1.1
-   ├─ PASS: FAIL: "dec" (1.1) MUST <= 0
-   ├─ PASS: "dec" (1.1) SHOULD <= 100000
-   ├─ PASS: "dec" (1.1) SHOULD <= 1.1
-   ├─ PASS: WARN: "dec" (1.1) SHOULD <= 0
-   ├─ PASS: "dec" (1.1) MAY <= 100000
-   ├─ PASS: "dec" (1.1) MAY <= 1.1
-   ├─ PASS: "dec" (1.1) MAY <= 0
-   ├─ PASS: FAIL: "dec" (1.1) MUST > 10000
-   ├─ PASS: FAIL: "dec" (1.1) MUST > 1.1
-   ├─ PASS: "dec" (1.1) MUST > 0
-   ├─ PASS: WARN: "dec" (1.1) SHOULD > 100000
-   ├─ PASS: WARN: "dec" (1.1) SHOULD > 1.1
-   ├─ PASS: "dec" (1.1) SHOULD > 0
-   ├─ PASS: "dec" (1.1) MAY > 100000
-   ├─ PASS: "dec" (1.1) MAY > 1.1
-   ├─ PASS: "dec" (1.1) MAY > 0
-   ├─ PASS: FAIL: "dec" (1.1) MUST >= 10000
-   ├─ PASS: "dec" (1.1) MUST >= 1.1
-   ├─ PASS: "dec" (1.1) MUST >= 0
-   ├─ PASS: WARN: "dec" (1.1) SHOULD >= 10000
-   ├─ PASS: "dec" (1.1) SHOULD >= 1.1
-   ├─ PASS: "dec" (1.1) SHOULD >= 0
-   ├─ PASS: "dec" (1.1) MAY >= 10000
-   ├─ PASS: "dec" (1.1) MAY >= 1.1
-   ├─ PASS: "dec" (1.1) MAY >= 0
-   ├─ PASS: FAIL: "dec" (1.1) MUST = 10000
-   ├─ PASS: "dec" (1.1) MUST = 1.1
-   ├─ PASS: FAIL: "dec" (1.1) MUST != 1.1
-   ├─ PASS: "foo" MUST != 0 (if present), but is missing
-   ├─ PASS: "bool" (true) MUST = true
-   ├─ PASS: "bool" (true) SHOULD = true
-   ├─ PASS: "bool" (true) MAY = true
-   ├─ PASS: FAIL: "bool" (true) MUST = false
-   ├─ PASS: WARN: "bool" (true) SHOULD = false
-   ├─ PASS: "bool" (true) MAY = false
-   ├─ PASS: FAIL: "bool" (true) MUST be of type "string"
-   ├─ PASS: FAIL: "bool" (true) MUST be of type "string"
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "bool"
-   ├─ PASS: "bool" (true) MUST != false
-   ├─ PASS: FAIL: "bool" (true) MUST != true
-   ├─ PASS: "bool" (true) SHOULD != false
-   ├─ PASS: WARN: "bool" (true) SHOULD != true
-   ├─ PASS: "bool" (true) MAY != false
-   ├─ PASS: "bool" (true) MAY != true
-   ├─ PASS: FAIL: "bool" (true) MUST < false
-   ├─ PASS: FAIL: "bool" (true) MUST < true
-   ├─ PASS: WARN: "bool" (true) SHOULD < false
-   ├─ PASS: WARN: "bool" (true) SHOULD < true
-   ├─ PASS: "bool" (true) MAY < false
-   ├─ PASS: "bool" (true) MAY < true
-   ├─ PASS: FAIL: "bool" (true) MUST <= false
-   ├─ PASS: "bool" (true) MUST <= true
-   ├─ PASS: WARN: "bool" (true) SHOULD <= false
-   ├─ PASS: "bool" (true) SHOULD <= true
-   ├─ PASS: "bool" (true) MAY <= false
-   ├─ PASS: "bool" (true) MAY <= true
-   ├─ PASS: "bool" (true) MUST > false
-   ├─ PASS: FAIL: "bool" (true) MUST > true
-   ├─ PASS: "bool" (true) SHOULD > false
-   ├─ PASS: WARN: "bool" (true) SHOULD > true
-   ├─ PASS: "bool" (true) MAY > false
-   ├─ PASS: "bool" (true) MAY > true
-   ├─ PASS: "bool" (true) MUST >= false
-   ├─ PASS: "bool" (true) MUST >= true
-   ├─ PASS: "bool" (true) SHOULD >= false
-   ├─ PASS: "bool" (true) SHOULD >= true
-   ├─ PASS: "bool" (true) MAY >= false
-   ├─ PASS: "bool" (true) MAY >= true
-   ├─ PASS: FAIL: "bool" (true) MUST = false
-   ├─ PASS: "bool" (true) MUST = true
-   ├─ PASS: FAIL: "bool" (true) MUST != true
-   ├─ PASS: "foo" MUST != true (if present), but is missing
-   ├─ PASS: "xid" MUST be present
-   ├─ PASS: "registryid" MUST be present
-   ├─ PASS: "epoch" MUST be present
-   ├─ PASS: "createdat" MUST be present
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
-   ├─ PASS: FAIL: "foo" MUST be present, but is missing
-   ├─ PASS: FAIL: "name" MUST be present, but is missing
-   ├─ PASS: FAIL: "name" MUST be present, but is missing
-   ├─ PASS: FAIL: "foo" MUST be present, but is missing
-   ├─ PASS: FAIL: "foo" MUST be present, but is missing
-   ├─ PASS: FAIL: "epoch" (3) MUST be of type "string"
-   ├─ PASS: "xid" SHOULD be present
-   ├─ PASS: "registryid" SHOULD be present
-   ├─ PASS: "epoch" SHOULD be present
-   ├─ PASS: "createdat" SHOULD be present
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
-   ├─ PASS: WARN: "foo" SHOULD be present, but is missing
-   ├─ PASS: WARN: "name" SHOULD be present, but is missing
-   ├─ PASS: WARN: "name" SHOULD be present, but is missing
-   ├─ PASS: WARN: "foo" SHOULD be present, but is missing
-   ├─ PASS: WARN: "foo" SHOULD be present, but is missing
-   ├─ PASS: FAIL: "epoch" (3) MUST be of type "string"
-   ├─ PASS: "xid" MAY be present
-   ├─ PASS: "registryid" MAY be present
-   ├─ PASS: "epoch" MAY be present
-   ├─ PASS: "createdat" MAY be present
-   ├─ PASS: "foo" MAY be present, but is missing
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
-   ├─ PASS: "name" MAY be present, but is missing
-   ├─ PASS: "name" MAY be present, but is missing
-   ├─ PASS: "foo" MAY be present, but is missing
-   ├─ PASS: "foo" MAY be present, but is missing
-   ├─ PASS: FAIL: "epoch" (3) MUST be of type "string"
-   ├─ PASS: FAIL: "xid" MUST NOT be present, but is
-   ├─ PASS: FAIL: "registryid" MUST NOT be present, but is
-   ├─ PASS: FAIL: "epoch" MUST NOT be present, but is
-   ├─ PASS: FAIL: "createdat" MUST NOT be present, but is
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
-   ├─ PASS: "foo" MUST NOT be present, and isn't
-   ├─ PASS: "name" MUST NOT be present, and isn't
-   ├─ PASS: "name" MUST NOT be present, and isn't
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "int"
-   ├─ PASS: WARN: "xid" SHOULD NOT be present, but is
-   ├─ PASS: WARN: "registryid" SHOULD NOT be present, but is
-   ├─ PASS: WARN: "epoch" SHOULD NOT be present, but is
-   ├─ PASS: WARN: "createdat" SHOULD NOT be present, but is
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
-   ├─ PASS: "foo" SHOULD NOT be present, and isn't
-   ├─ PASS: "name" SHOULD NOT be present, and isn't
-   ├─ PASS: "name" SHOULD NOT be present, and isn't
-   ├─ PASS: WARN: "xid" SHOULD NOT be present, but is
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "int"
-   ├─ PASS: "xid" MAY NOT be present, but is
-   ├─ PASS: "registryid" MAY NOT be present, but is
-   ├─ PASS: "epoch" MAY NOT be present, but is
-   ├─ PASS: "createdat" MAY NOT be present, but is
-   ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
-   ├─ PASS: "foo" MAY NOT be present, and isn't
-   ├─ PASS: FAIL: "epoch" (3) MUST be of type "string"
-   ├─ PASS: "name" MAY NOT be present, and isn't
-   └─ PASS: "name" MAY NOT be present, and isn't
-
-Pass: 315   Fail: 0   Warn: 0   Skip: 0
+   ├─ PASS: Bad type tests
+   │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "int"
+   │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "int"
+   │  └─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "int"
+   ├─ PASS: String tests
+   │  ├─ PASS: testing RE
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST ~= ".*"
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST ~= ".*zBOGUSz*"
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) SHOULD ~= ".*"
+   │  │  ├─ PASS: WARN: "registryid" (TestXRConformBasic) SHOULD ~= ".*zBOGUSz*"
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MAY ~= ".*"
+   │  │  └─ PASS: "registryid" (TestXRConformBasic) MAY ~= ".*zBOGUSz*"
+   │  ├─ PASS: testing EQ & must/should/may
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST = "hi"
+   │  │  ├─ PASS: WARN: "registryid" (TestXRConformBasic) SHOULD = "hi"
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MAY = "hi"
+   │  │  └─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST = "hi"
+   │  ├─ PASS: testing NE
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST != ""
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST != "hi"
+   │  │  └─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST != "TestXRConformBasic"
+   │  ├─ PASS: testing LT
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST < ""
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST < "ZZ"
+   │  │  └─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST < "TestXRConformBasic"
+   │  ├─ PASS: testing LE
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST <= ""
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST <= "ZZ"
+   │  │  └─ PASS: "registryid" (TestXRConformBasic) MUST <= "TestXRConformBasic"
+   │  ├─ PASS: testing GT
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST > ""
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST > "ZZ"
+   │  │  └─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST > "TestXRConformBasic"
+   │  ├─ PASS: testing GE
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST >= ""
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST >= "ZZ"
+   │  │  └─ PASS: "registryid" (TestXRConformBasic) MUST >= "TestXRConformBasic"
+   │  ├─ PASS: testing EXIST
+   │  │  ├─ PASS: "registryid" MUST be present
+   │  │  ├─ PASS: FAIL: "name" MUST be present, but is missing
+   │  │  └─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "int"
+   │  ├─ PASS: testing OPTIONAL
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST = "TestXRConformBasic"
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST = ""
+   │  │  ├─ PASS: "registryid" (TestXRConformBasic) MUST != ""
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST != "TestXRConformBasic"
+   │  │  └─ PASS: "name" MUST != "" (if present), but is missing
+   │  └─ PASS: testing REQUIRED
+   │     ├─ PASS: "registryid" (TestXRConformBasic) MUST != ""
+   │     ├─ PASS: "registryid" (TestXRConformBasic) MUST = "TestXRConformBasic"
+   │     └─ PASS: FAIL: "name" MUST be present, but is missing
+   ├─ PASS: Timestamp testsQ
+   │  ├─ PASS: EQ
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = "<timestamp>"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) SHOULD = "<timestamp>"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MAY = "<timestamp>"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = "<timestamp>"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) SHOULD = "<timestamp>"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MAY = "<timestamp>"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = ""
+   │  │  ├─ PASS: WARN: "createdat" (2026-08-23T02:04:59.263754424Z) SHOULD = ""
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MAY = ""
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: WARN: "createdat" (2026-08-23T02:04:59.263754424Z) SHOULD = "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MAY = "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = "2026/01/01T12:00:00"
+   │  │  ├─ PASS: FAIL: "registryid" (TestXRConformBasic) MUST be of type "timestamp"
+   │  │  └─ PASS: FAIL: "description" MUST be present, but is missing
+   │  ├─ PASS: NE
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST != "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST != "2026-08-23T02:04:59.263754424Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST != "<timestamp>"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST != "<timestamp>"
+   │  │  ├─ PASS: FAIL: "foo" MUST be present, but is missing
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) SHOULD != "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: WARN: "createdat" (2026-08-23T02:04:59.263754424Z) SHOULD != "2026-08-23T02:04:59.263754424Z"
+   │  │  ├─ PASS: WARN: "createdat" (2026-08-23T02:04:59.263754424Z) SHOULD != "<timestamp>"
+   │  │  ├─ PASS: WARN: "createdat" (2026-08-23T02:04:59.263754424Z) SHOULD != "<timestamp>"
+   │  │  ├─ PASS: FAIL: "foo" MUST be present, but is missing
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MAY != "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MAY != "2026-08-23T02:04:59.263754424Z"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MAY != "<timestamp>"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MAY != "<timestamp>"
+   │  │  └─ PASS: FAIL: "foo" MUST be present, but is missing
+   │  ├─ PASS: LT
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST < "3026-01-01T12:00:00Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST < "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST < "2026-08-23T02:04:59.263754424Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST < "<timestamp>"
+   │  │  └─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST != "<timestamp>"
+   │  ├─ PASS: LE
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST <= "3026-01-01T12:00:00Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST <= "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST <= "2026-08-23T02:04:59.263754424Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST <= "<timestamp>"
+   │  │  └─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST <= "<timestamp>"
+   │  ├─ PASS: GT
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST > "3026-01-01T12:00:00Z"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST > "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST > "2026-08-23T02:04:59.263754424Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST > "<timestamp>"
+   │  │  └─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST > "<timestamp>"
+   │  ├─ PASS: GE
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST >= "3026-01-01T12:00:00Z"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST >= "2026-01-01T12:00:00Z"
+   │  │  ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST >= "2026-08-23T02:04:59.263754424Z"
+   │  │  ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST >= "<timestamp>"
+   │  │  └─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST >= "<timestamp>"
+   │  └─ PASS: OPTIONAL
+   │     ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = "<timestamp>"
+   │     ├─ PASS: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = "2026-08-23T02:04:59.263754424Z"
+   │     ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST = "2026-01-01T12:00:00Z"
+   │     ├─ PASS: FAIL: "createdat" (2026-08-23T02:04:59.263754424Z) MUST != "2026-08-23T02:04:59.263754424Z"
+   │     └─ PASS: "foo" MUST != "ts" (if present), but is missing
+   ├─ PASS: Int checks
+   │  ├─ PASS: EQ
+   │  │  ├─ PASS: "epoch" (4) MUST = 4
+   │  │  ├─ PASS: "epoch" (4) SHOULD = 4
+   │  │  ├─ PASS: "epoch" (4) MAY = 4
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST = 0
+   │  │  ├─ PASS: WARN: "epoch" (4) SHOULD = 0
+   │  │  ├─ PASS: "epoch" (4) MAY = 0
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST be of type "string"
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST be of type "string"
+   │  │  └─ PASS: FAIL: "xid" (/) MUST be of type "int"
+   │  ├─ PASS: NE
+   │  │  ├─ PASS: "epoch" (4) MUST != 0
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST != 4
+   │  │  ├─ PASS: "epoch" (4) SHOULD != 0
+   │  │  ├─ PASS: WARN: "epoch" (4) SHOULD != 4
+   │  │  ├─ PASS: "epoch" (4) MAY != 0
+   │  │  └─ PASS: "epoch" (4) MAY != 4
+   │  ├─ PASS: LT
+   │  │  ├─ PASS: "epoch" (4) MUST < 100000
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST < 0
+   │  │  ├─ PASS: "epoch" (4) SHOULD < 100000
+   │  │  ├─ PASS: WARN: "epoch" (4) SHOULD < 0
+   │  │  ├─ PASS: "epoch" (4) MAY < 100000
+   │  │  └─ PASS: "epoch" (4) MAY < 0
+   │  ├─ PASS: LE
+   │  │  ├─ PASS: "epoch" (4) MUST <= 100000
+   │  │  ├─ PASS: "epoch" (4) MUST <= 4
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST <= 0
+   │  │  ├─ PASS: "epoch" (4) SHOULD <= 100000
+   │  │  ├─ PASS: "epoch" (4) SHOULD <= 4
+   │  │  ├─ PASS: WARN: "epoch" (4) SHOULD <= 0
+   │  │  ├─ PASS: "epoch" (4) MAY <= 100000
+   │  │  ├─ PASS: "epoch" (4) MAY <= 4
+   │  │  └─ PASS: "epoch" (4) MAY <= 0
+   │  ├─ PASS: GT
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST > 10000
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST > 4
+   │  │  ├─ PASS: "epoch" (4) MUST > 0
+   │  │  ├─ PASS: WARN: "epoch" (4) SHOULD > 100000
+   │  │  ├─ PASS: WARN: "epoch" (4) SHOULD > 4
+   │  │  ├─ PASS: "epoch" (4) SHOULD > 0
+   │  │  ├─ PASS: "epoch" (4) MAY > 100000
+   │  │  ├─ PASS: "epoch" (4) MAY > 4
+   │  │  └─ PASS: "epoch" (4) MAY > 0
+   │  ├─ PASS: GE
+   │  │  ├─ PASS: FAIL: "epoch" (4) MUST >= 10000
+   │  │  ├─ PASS: "epoch" (4) MUST >= 4
+   │  │  ├─ PASS: "epoch" (4) MUST >= 0
+   │  │  ├─ PASS: WARN: "epoch" (4) SHOULD >= 10000
+   │  │  ├─ PASS: "epoch" (4) SHOULD >= 4
+   │  │  ├─ PASS: "epoch" (4) SHOULD >= 0
+   │  │  ├─ PASS: "epoch" (4) MAY >= 10000
+   │  │  ├─ PASS: "epoch" (4) MAY >= 4
+   │  │  └─ PASS: "epoch" (4) MAY >= 0
+   │  └─ PASS: OPTIONAL
+   │     ├─ PASS: FAIL: "epoch" (4) MUST = 10000
+   │     ├─ PASS: "epoch" (4) MUST = 4
+   │     ├─ PASS: FAIL: "epoch" (4) MUST != 4
+   │     └─ PASS: "foo" MUST != 1 (if present), but is missing
+   ├─ PASS: Float/decimal tests
+   │  ├─ PASS: EQ
+   │  │  ├─ PASS: "dec" (1.1) MUST = 1.1
+   │  │  ├─ PASS: "dec" (1.1) SHOULD = 1.1
+   │  │  ├─ PASS: "dec" (1.1) MAY = 1.1
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST = 0
+   │  │  ├─ PASS: WARN: "dec" (1.1) SHOULD = 0
+   │  │  ├─ PASS: "dec" (1.1) MAY = 0
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST be of type "string"
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST be of type "string"
+   │  │  └─ PASS: FAIL: "xid" (/) MUST be of type "float"
+   │  ├─ PASS: NE
+   │  │  ├─ PASS: "dec" (1.1) MUST != 0
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST != 1.1
+   │  │  ├─ PASS: "dec" (1.1) SHOULD != 0
+   │  │  ├─ PASS: WARN: "dec" (1.1) SHOULD != 1.1
+   │  │  ├─ PASS: "dec" (1.1) MAY != 0
+   │  │  └─ PASS: "dec" (1.1) MAY != 1.1
+   │  ├─ PASS: LT
+   │  │  ├─ PASS: "dec" (1.1) MUST < 100000
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST < 0
+   │  │  ├─ PASS: "dec" (1.1) SHOULD < 100000
+   │  │  ├─ PASS: WARN: "dec" (1.1) SHOULD < 0
+   │  │  ├─ PASS: "dec" (1.1) MAY < 100000
+   │  │  └─ PASS: "dec" (1.1) MAY < 0
+   │  ├─ PASS: LE
+   │  │  ├─ PASS: "dec" (1.1) MUST <= 100000
+   │  │  ├─ PASS: "dec" (1.1) MUST <= 1.1
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST <= 0
+   │  │  ├─ PASS: "dec" (1.1) SHOULD <= 100000
+   │  │  ├─ PASS: "dec" (1.1) SHOULD <= 1.1
+   │  │  ├─ PASS: WARN: "dec" (1.1) SHOULD <= 0
+   │  │  ├─ PASS: "dec" (1.1) MAY <= 100000
+   │  │  ├─ PASS: "dec" (1.1) MAY <= 1.1
+   │  │  └─ PASS: "dec" (1.1) MAY <= 0
+   │  ├─ PASS: GT
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST > 10000
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST > 1.1
+   │  │  ├─ PASS: "dec" (1.1) MUST > 0
+   │  │  ├─ PASS: WARN: "dec" (1.1) SHOULD > 100000
+   │  │  ├─ PASS: WARN: "dec" (1.1) SHOULD > 1.1
+   │  │  ├─ PASS: "dec" (1.1) SHOULD > 0
+   │  │  ├─ PASS: "dec" (1.1) MAY > 100000
+   │  │  ├─ PASS: "dec" (1.1) MAY > 1.1
+   │  │  └─ PASS: "dec" (1.1) MAY > 0
+   │  ├─ PASS: GE
+   │  │  ├─ PASS: FAIL: "dec" (1.1) MUST >= 10000
+   │  │  ├─ PASS: "dec" (1.1) MUST >= 1.1
+   │  │  ├─ PASS: "dec" (1.1) MUST >= 0
+   │  │  ├─ PASS: WARN: "dec" (1.1) SHOULD >= 10000
+   │  │  ├─ PASS: "dec" (1.1) SHOULD >= 1.1
+   │  │  ├─ PASS: "dec" (1.1) SHOULD >= 0
+   │  │  ├─ PASS: "dec" (1.1) MAY >= 10000
+   │  │  ├─ PASS: "dec" (1.1) MAY >= 1.1
+   │  │  └─ PASS: "dec" (1.1) MAY >= 0
+   │  └─ PASS: OPTIONAL
+   │     ├─ PASS: FAIL: "dec" (1.1) MUST = 10000
+   │     ├─ PASS: "dec" (1.1) MUST = 1.1
+   │     ├─ PASS: FAIL: "dec" (1.1) MUST != 1.1
+   │     └─ PASS: "foo" MUST != 0 (if present), but is missing
+   ├─ PASS: Bool checks
+   │  ├─ PASS: EQ
+   │  │  ├─ PASS: "bool" (true) MUST = true
+   │  │  ├─ PASS: "bool" (true) SHOULD = true
+   │  │  ├─ PASS: "bool" (true) MAY = true
+   │  │  ├─ PASS: FAIL: "bool" (true) MUST = false
+   │  │  ├─ PASS: WARN: "bool" (true) SHOULD = false
+   │  │  ├─ PASS: "bool" (true) MAY = false
+   │  │  ├─ PASS: FAIL: "bool" (true) MUST be of type "string"
+   │  │  ├─ PASS: FAIL: "bool" (true) MUST be of type "string"
+   │  │  └─ PASS: FAIL: "xid" (/) MUST be of type "bool"
+   │  ├─ PASS: NE
+   │  │  ├─ PASS: "bool" (true) MUST != false
+   │  │  ├─ PASS: FAIL: "bool" (true) MUST != true
+   │  │  ├─ PASS: "bool" (true) SHOULD != false
+   │  │  ├─ PASS: WARN: "bool" (true) SHOULD != true
+   │  │  ├─ PASS: "bool" (true) MAY != false
+   │  │  └─ PASS: "bool" (true) MAY != true
+   │  ├─ PASS: LT
+   │  │  ├─ PASS: FAIL: "bool" (true) MUST < false
+   │  │  ├─ PASS: FAIL: "bool" (true) MUST < true
+   │  │  ├─ PASS: WARN: "bool" (true) SHOULD < false
+   │  │  ├─ PASS: WARN: "bool" (true) SHOULD < true
+   │  │  ├─ PASS: "bool" (true) MAY < false
+   │  │  └─ PASS: "bool" (true) MAY < true
+   │  ├─ PASS: LE
+   │  │  ├─ PASS: FAIL: "bool" (true) MUST <= false
+   │  │  ├─ PASS: "bool" (true) MUST <= true
+   │  │  ├─ PASS: WARN: "bool" (true) SHOULD <= false
+   │  │  ├─ PASS: "bool" (true) SHOULD <= true
+   │  │  ├─ PASS: "bool" (true) MAY <= false
+   │  │  └─ PASS: "bool" (true) MAY <= true
+   │  ├─ PASS: GT
+   │  │  ├─ PASS: "bool" (true) MUST > false
+   │  │  ├─ PASS: FAIL: "bool" (true) MUST > true
+   │  │  ├─ PASS: "bool" (true) SHOULD > false
+   │  │  ├─ PASS: WARN: "bool" (true) SHOULD > true
+   │  │  ├─ PASS: "bool" (true) MAY > false
+   │  │  └─ PASS: "bool" (true) MAY > true
+   │  ├─ PASS: GE
+   │  │  ├─ PASS: "bool" (true) MUST >= false
+   │  │  ├─ PASS: "bool" (true) MUST >= true
+   │  │  ├─ PASS: "bool" (true) SHOULD >= false
+   │  │  ├─ PASS: "bool" (true) SHOULD >= true
+   │  │  ├─ PASS: "bool" (true) MAY >= false
+   │  │  └─ PASS: "bool" (true) MAY >= true
+   │  └─ PASS: OPTIONAL
+   │     ├─ PASS: FAIL: "bool" (true) MUST = false
+   │     ├─ PASS: "bool" (true) MUST = true
+   │     ├─ PASS: FAIL: "bool" (true) MUST != true
+   │     └─ PASS: "foo" MUST != true (if present), but is missing
+   └─ PASS: Exists checks
+      ├─ PASS: MUST
+      │  ├─ PASS: "xid" MUST be present
+      │  ├─ PASS: "registryid" MUST be present
+      │  ├─ PASS: "epoch" MUST be present
+      │  ├─ PASS: "createdat" MUST be present
+      │  ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
+      │  ├─ PASS: FAIL: "foo" MUST be present, but is missing
+      │  ├─ PASS: FAIL: "name" MUST be present, but is missing
+      │  ├─ PASS: FAIL: "name" MUST be present, but is missing
+      │  ├─ PASS: FAIL: "foo" MUST be present, but is missing
+      │  ├─ PASS: FAIL: "foo" MUST be present, but is missing
+      │  └─ PASS: FAIL: "epoch" (4) MUST be of type "string"
+      ├─ PASS: SHOULD
+      │  ├─ PASS: "xid" SHOULD be present
+      │  ├─ PASS: "registryid" SHOULD be present
+      │  ├─ PASS: "epoch" SHOULD be present
+      │  ├─ PASS: "createdat" SHOULD be present
+      │  ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
+      │  ├─ PASS: WARN: "foo" SHOULD be present, but is missing
+      │  ├─ PASS: WARN: "name" SHOULD be present, but is missing
+      │  ├─ PASS: WARN: "name" SHOULD be present, but is missing
+      │  ├─ PASS: WARN: "foo" SHOULD be present, but is missing
+      │  ├─ PASS: WARN: "foo" SHOULD be present, but is missing
+      │  └─ PASS: FAIL: "epoch" (4) MUST be of type "string"
+      ├─ PASS: MAY
+      │  ├─ PASS: "xid" MAY be present
+      │  ├─ PASS: "registryid" MAY be present
+      │  ├─ PASS: "epoch" MAY be present
+      │  ├─ PASS: "createdat" MAY be present
+      │  ├─ PASS: "foo" MAY be present, but is missing
+      │  ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
+      │  ├─ PASS: "name" MAY be present, but is missing
+      │  ├─ PASS: "name" MAY be present, but is missing
+      │  ├─ PASS: "foo" MAY be present, but is missing
+      │  ├─ PASS: "foo" MAY be present, but is missing
+      │  └─ PASS: FAIL: "epoch" (4) MUST be of type "string"
+      ├─ PASS: MUST NOT
+      │  ├─ PASS: FAIL: "xid" MUST NOT be present, but is
+      │  ├─ PASS: FAIL: "registryid" MUST NOT be present, but is
+      │  ├─ PASS: FAIL: "epoch" MUST NOT be present, but is
+      │  ├─ PASS: FAIL: "createdat" MUST NOT be present, but is
+      │  ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
+      │  ├─ PASS: "foo" MUST NOT be present, and isn't
+      │  ├─ PASS: "name" MUST NOT be present, and isn't
+      │  ├─ PASS: "name" MUST NOT be present, and isn't
+      │  └─ PASS: FAIL: "xid" (/) MUST be of type "int"
+      ├─ PASS: SHOULD NOT
+      │  ├─ PASS: WARN: "xid" SHOULD NOT be present, but is
+      │  ├─ PASS: WARN: "registryid" SHOULD NOT be present, but is
+      │  ├─ PASS: WARN: "epoch" SHOULD NOT be present, but is
+      │  ├─ PASS: WARN: "createdat" SHOULD NOT be present, but is
+      │  ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
+      │  ├─ PASS: "foo" SHOULD NOT be present, and isn't
+      │  ├─ PASS: "name" SHOULD NOT be present, and isn't
+      │  ├─ PASS: "name" SHOULD NOT be present, and isn't
+      │  ├─ PASS: WARN: "xid" SHOULD NOT be present, but is
+      │  └─ PASS: FAIL: "xid" (/) MUST be of type "int"
+      └─ PASS: MAY NOT
+         ├─ PASS: "xid" MAY NOT be present, but is
+         ├─ PASS: "registryid" MAY NOT be present, but is
+         ├─ PASS: "epoch" MAY NOT be present, but is
+         ├─ PASS: "createdat" MAY NOT be present, but is
+         ├─ PASS: FAIL: "xid" (/) MUST be of type "timestamp"
+         ├─ PASS: "foo" MAY NOT be present, and isn't
+         ├─ PASS: FAIL: "epoch" (4) MUST be of type "string"
+         ├─ PASS: "name" MAY NOT be present, and isn't
+         └─ PASS: "name" MAY NOT be present, and isn't
+Pass: 366   Fail: 0   Warn: 0   Skip: 0
 `, ``, true)
 }

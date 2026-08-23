@@ -129,7 +129,7 @@ func TestSetAttributeNames(t *testing.T) {
 		if test.msg == "" && xErr != nil {
 			t.Fatalf("Name: %q failed: %s", test.name, xErr)
 		}
-		if test.msg != "" && (xErr == nil || xErr.String() != test.msg) {
+		if test.msg != "" && (xErr == nil || xErr.ToJSON("") != test.msg) {
 			XCheckErr(t, xErr, test.msg)
 		}
 
@@ -834,7 +834,7 @@ func TestSetNameUser(t *testing.T) {
 				xrErr := NewXRError("invalid_attribute", tmpPath,
 					"name="+name,
 					"error_detail=\""+name+"\" must match: ^[a-z_][a-z_0-9]{0,62}$")
-				msg = xrErr.String() + "\n"
+				msg = xrErr.ToJSON("") + "\n"
 			}
 
 			XEqual(t, "", string(resBody), msg)

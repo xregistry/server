@@ -31,7 +31,8 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 	PanicIf(err == nil, "Unknown error type: %s", daType)
 
 	if subject != "" && !strings.HasPrefix(subject, "http") &&
-		daType != "client_error" && subject[0] != '/' {
+		daType != "client_error" && daType != "parsing_data" &&
+		subject[0] != '/' {
 
 		// Show us who isn't setting 'subject' correctly so we can fix it.
 		// But don't stop process, just log it
@@ -266,7 +267,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"parsing_data": &XRError{
 		Code:  400,
-		Title: `There was an error parsing the data: <error_detail>.`,
+		Title: `There was an error parsing "<subject>": <error_detail>.`,
 	},
 	"readonly": &XRError{
 		Code:  400,
@@ -493,7 +494,7 @@ func (xErr *XRError) SetHeader(name, value string) *XRError {
 }
 
 func (xErr *XRError) String() string {
-	return xErr.ToJSON("")
+	return xErr.GetTitle()
 }
 
 func (xErr *XRError) ToJSON(baseURL string) string {
@@ -510,10 +511,12 @@ func (xErr *XRError) ToJSON(baseURL string) string {
 	sub := xErr.Subject
 	if len(sub) == 0 {
 		// sub = "/"
-	} else if sub[0] != '/' && !strings.HasPrefix(sub, "http") {
-		// If we ever change e.Path so it starts with "/" then we should
-		// be able to stop looking for "http" as a special case
-		sub = "/" + sub
+		/*
+			} else if sub[0] != '/' && !strings.HasPrefix(sub, "http") {
+				// If we ever change e.Path so it starts with "/" then we should
+				// be able to stop looking for "http" as a special case
+				sub = "/" + sub
+		*/
 	}
 	// sub = strings.TrimRight(baseURL, "/") + sub
 

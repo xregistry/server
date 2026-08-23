@@ -176,6 +176,8 @@ func XCheckErr(t *testing.T, errAny any, errStr string) {
 			return
 		}
 		t.Fatalf("\nGot:<no err>\nExp: %s", errStr)
+	} else if xErr, ok := errAny.(*XRError); ok {
+		errAny = xErr.ToJSON("")
 	}
 
 	if errStr == "" {
@@ -204,6 +206,8 @@ func XCheckErrFold(t *testing.T, errAny any, errStr string) {
 			return
 		}
 		t.Fatalf("\nGot:<no err>\nExp: %s", errStr)
+	} else if xErr, ok := errAny.(*XRError); ok {
+		errAny = xErr.ToJSON("")
 	}
 
 	if errStr == "" {

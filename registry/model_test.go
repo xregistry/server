@@ -222,7 +222,7 @@ func TestModelVerifySimple(t *testing.T) {
 				test.name, test.err)
 		}
 		if xErr != nil {
-			XEqual(t, test.name, xErr.String(), test.err)
+			XEqual(t, test.name, xErr.ToJSON(""), test.err)
 		}
 	}
 }
@@ -667,7 +667,7 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				test.name, test.err)
 		}
 		if xErr != nil {
-			XEqual(t, test.name, xErr.String(), test.err)
+			XEqual(t, test.name, xErr.ToJSON(""), test.err)
 		}
 	}
 }
@@ -915,7 +915,7 @@ func TestModelVerifyEnum(t *testing.T) {
 				test.name, test.err)
 		}
 		if xErr != nil {
-			XEqual(t, test.name, xErr.String(), test.err)
+			XEqual(t, test.name, xErr.ToJSON(""), test.err)
 		}
 	}
 }
@@ -1067,7 +1067,7 @@ func TestValidChars(t *testing.T) {
 		xErr := IsValidModelName(test.input)
 		got := ""
 		if xErr != nil {
-			got = xErr.String()
+			got = xErr.ToJSON("")
 		}
 		XEqual(t, test.input, got, test.result)
 	}
@@ -1170,7 +1170,7 @@ func TestValidChars(t *testing.T) {
 		xErr := IsValidAttributeName(test.input, "/model", "")
 		got := ""
 		if xErr != nil {
-			got = xErr.String()
+			got = xErr.ToJSON("")
 		}
 		XEqual(t, test.input, got, test.result)
 	}
@@ -1329,7 +1329,7 @@ func TestValidChars(t *testing.T) {
 		xErr := IsValidID(test.input, "")
 		got := ""
 		if xErr != nil {
-			got = xErr.String()
+			got = xErr.ToJSON("")
 		}
 		XEqual(t, "Input: "+test.input, got, test.result)
 	}
@@ -1385,7 +1385,7 @@ func TestValidChars(t *testing.T) {
 		xErr := IsValidMapKey(test.input, "/model", "")
 		got := ""
 		if xErr != nil {
-			got = xErr.String()
+			got = xErr.ToJSON("")
 		}
 		XEqual(t, test.input, got, test.result)
 	}

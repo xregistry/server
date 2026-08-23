@@ -50,7 +50,6 @@ func MakeURL(strs ...string) string {
 
 	base, query, _ := strings.Cut(strs[0], "?")
 	base = strings.TrimSpace(base)
-	base = strings.Trim(base, "/")
 	query = strings.TrimSpace(query)
 
 	for i := 1; i < len(strs); i++ {
@@ -68,11 +67,10 @@ func MakeURL(strs ...string) string {
 			continue
 		}
 
-		if base == "" {
-			base = str
-		} else {
-			base += "/" + str
+		if len(base) > 0 && base[len(base)-1] != '/' {
+			base += "/"
 		}
+		base += str
 	}
 
 	return base + query
@@ -82,6 +80,11 @@ func Must(err any) {
 	if !IsNil(err) {
 		panic(err)
 	}
+}
+
+func MustString(val any) string {
+	str, _ := val.(string)
+	return str
 }
 
 // TestPanicIf will always log the error but will only panic if the

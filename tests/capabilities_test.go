@@ -391,7 +391,7 @@ func TestCapabilitySimple(t *testing.T) {
 		}
 		res := ""
 		if xErr != nil {
-			res = xErr.String()
+			res = xErr.ToJSON("")
 		} else {
 			buf, _ := json.MarshalIndent(c, "", "  ")
 			res = string(buf)

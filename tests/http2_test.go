@@ -1640,12 +1640,12 @@ func TestHTTPContent(t *testing.T) {
 		Code: 400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#parsing_data",
-  "title": "There was an error parsing the data: path '.file': parsing object key: expected string starting with '\"', got 'b' instead.",
-  "subject": "/dirs/d1/files/f1$details",
+  "title": "There was an error parsing \"request JSON\": path '.file': parsing object key: expected string starting with '\"', got 'b' instead.",
+  "subject": "request JSON",
   "args": {
     "error_detail": "path '.file': parsing object key: expected string starting with '\"', got 'b' instead"
   },
-  "source": ":registry:httpStuff:3156"
+  "source": "ea3e12b9fede:registry:httpStuff:2469"
 }
 `,
 	})
@@ -9959,9 +9959,9 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
 
 	m1 := `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#parsing_data",
-  "title": "There was an error parsing the data: `
+  "title": "There was an error parsing \"request JSON\": `
 	m2 := `.",
-  "subject": "/",
+  "subject": "request JSON",
   "args": {
     "error_detail": "`
 	m3 := `"

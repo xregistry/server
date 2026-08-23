@@ -16,10 +16,10 @@ xr [command]
   -v, --verbose         Be chatty
       --version         Print command version string
 
-xr conform
+xr conform [URL...]
   # xRegistry Conformance Tester
       --config string   Config file ($HOME/.xrconfig)
-  -d, --depth int       Console depth
+  -d, --depth int       Console depth (default 2)
       --errjson         Print errors as json
       --failfast        Stop on first failure
   -?, --help            Help for xr

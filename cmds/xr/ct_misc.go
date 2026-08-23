@@ -94,10 +94,10 @@ func TestFunc7(td *TD) {
 }
 
 func TestAll2(td *TD) {
-	td.Run(TestGroups)
+	td.Run(TestGroupsABC)
 }
 
-func TestGroups(td *TD) {
+func TestGroupsABC(td *TD) {
 	td.Should(false, "A should fail test")
 	td.Should(true, "A should pass test")
 	td.ShouldEqual(1, 2, "A shouldEqual fail test")

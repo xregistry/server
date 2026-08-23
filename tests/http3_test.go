@@ -2955,12 +2955,12 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#parsing_data",
-  "title": "There was an error parsing the data: path '.groups[\"dirs\"].attributes[\"strs\"].enum': expected \"slice\", got \"object\".",
-  "subject": "/model",
+  "title": "There was an error parsing \"model\": path '.groups[\"dirs\"].attributes[\"strs\"].enum': expected \"slice\", got \"object\".",
+  "subject": "model",
   "args": {
     "error_detail": "path '.groups[\"dirs\"].attributes[\"strs\"].enum': expected \"slice\", got \"object\""
   },
-  "source": "08e2e2f5ead9:registry:shared_model:242"
+  "source": "ea3e12b9fede:registry:shared_model:277"
 }
 `)
 

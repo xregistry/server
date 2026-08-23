@@ -148,14 +148,13 @@ xr: .sharedfiles cmds/xr/* common/*
 
 xreg: cmds mysql registry/ui/xreg/index.html
 registry/ui/xreg/index.html: cmds/xrserver/test-reg.json xrserver
+	@echo
+	@echo "# Regenerating the xreg static site"
 	@-pkill -f "[x]rserver.*8181" || true
-	@echo Starting temp server
 	@xrserver -p 8181 -r HardCoded --recreatereg &
 	@sleep 1
-	@echo Uploading registry data
 	@xr -s localhost:8181 update / -d @cmds/xrserver/test-reg.json
-	@rm -r registry/ui/xreg/*
-	@echo Downloading files
+	@rm -rf registry/ui/xreg/*
 	@cd registry/ui/xreg && ../../../misc/errOutput @xr -s localhost:8181 \
 		download . --nodiff=* -c -u '$$HOST/ui/xreg'
 	@pkill -f xrserver.*8181

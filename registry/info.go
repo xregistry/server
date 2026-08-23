@@ -362,7 +362,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	var err error
 	info.Body, err = io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		return info, NewXRError("parsing_data", "/"+info.OriginalPath,
+		return info, NewXRError("parsing_data", "request JSON",
 			"error_detail="+err.Error())
 	}
 	if len(info.Body) == 0 {
@@ -1198,7 +1198,8 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 
 	err := Unmarshal(info.Body, &obj)
 	if err != nil {
-		return NewXRError("parsing_data", "/", "error_detail="+err.Error())
+		return NewXRError("parsing_data", "request JSON",
+			"error_detail="+err.Error())
 	}
 
 	// Grab the ?ignore query parameter from THIS request to know if we
@@ -1292,7 +1293,7 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 				ModelSource json.RawMessage
 			}{}
 			if err := json.Unmarshal(info.Body, &tmpReg); err != nil {
-				return NewXRError("parsing_data", "/",
+				return NewXRError("parsing_data", "request JSON",
 					"error_detail="+err.Error())
 			}
 

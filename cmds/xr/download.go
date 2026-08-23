@@ -87,6 +87,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
+	_, xErr = reg.GetModel()
+	Error(xErr)
+
 	dir := args[0]
 	stat, err := os.Stat(dir)
 	if os.IsNotExist(err) || !stat.IsDir() {

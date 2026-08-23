@@ -6350,12 +6350,12 @@ func TestHTTPCases(t *testing.T) {
 		`{"vv":{"versionid":"vv}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#parsing_data",
-  "title": "There was an error parsing the data: path '.vv.versionid': unterminated string.",
-  "subject": "/dirs/d1/files/f1/versions",
+  "title": "There was an error parsing \"request JSON\": path '.vv.versionid': unterminated string.",
+  "subject": "request JSON",
   "args": {
     "error_detail": "path '.vv.versionid': unterminated string"
   },
-  "source": ":registry:httpStuff:3154"
+  "source": "ea3e12b9fede:registry:httpStuff:2469"
 }
 `) // just a typo first
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions$details",
@@ -6978,12 +6978,12 @@ func TestHTTPVersions(t *testing.T) {
 		ResHeaders:  []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#parsing_data",
-  "title": "There was an error parsing the data: path '': invalid boolean.",
-  "subject": "/dirs/d1/files/f1-proxy/versions",
+  "title": "There was an error parsing \"request JSON\": path '': invalid boolean.",
+  "subject": "request JSON",
   "args": {
     "error_detail": "path '': invalid boolean"
   },
-  "source": ":registry:httpStuff:3154"
+  "source": "ea3e12b9fede:registry:httpStuff:2469"
 }
 `,
 	})

@@ -28,6 +28,8 @@ var FailFast = false
 var IgnoreWarn = true
 var WrapAt = 79
 var TestsRun = map[string]*TD{}
+var nextStatus = 0
+var tdDebug = false
 
 type TestFn func(td *TD)
 
@@ -39,6 +41,11 @@ func init() {
 			WrapAt = w - 1
 		}
 	}
+}
+
+func TDClear() {
+	TestsRun = map[string]*TD{}
+	nextStatus = 0
 }
 
 func (fn TestFn) Name() string {
@@ -154,14 +161,11 @@ func (td *TD) Dump(indent string) {
 func (td *TD) Print(out io.Writer, indent string, showLogs bool, depth int) {
 	if depth >= 0 || td.Status == FAIL {
 		td.write(out, indent, showLogs, depth)
-		fmt.Print("\n")
 	}
 
 	fmt.Printf(indent+"Pass: %d   Fail: %d   Warn: %d   Skip: %d\n",
 		td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
 }
-
-var tdDebug = false
 
 func Debug(out io.Writer, fmtStr string, args ...any) {
 	if tdDebug {
@@ -329,8 +333,8 @@ func (td *TD) AddStatus(status int) {
 	}
 }
 
-var nextStatus = 0
-
+// For testing of TD itself. Tell the system what the next status is meant
+// to be, and if it matches then it passed.
 func (td *TD) Expect(status int) {
 	nextStatus = status
 }
@@ -431,6 +435,33 @@ func (td *TD) Run(fn TestFn) *TD {
 	return newTD
 }
 
+func (td *TD) Include(fn TestFn) *TD {
+	before, name, _ := strings.Cut(fn.Name(), ".")
+	if name == "" {
+		name = before
+	}
+	newTD := td // NewTD(td, name)
+
+	// Save in the cache
+	TestsRun[fn.Name()] = newTD
+
+	// Run it and catch any panic()
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Do nothing
+				// Just allow the panic() caller to exit immediately
+				if r != "stop" {
+					panic(r)
+				}
+			}
+		}()
+		fn(newTD)
+	}()
+
+	return newTD
+}
+
 func (td *TD) Must(expr bool, args ...any) {
 	if !expr {
 		td.Fail(args...)
@@ -449,7 +480,8 @@ func (td *TD) MustEqual(exp any, got any, args ...any) {
 		nTD.Log("Exp(%T): %s", exp, expJSON)
 		nTD.Log("Got(%T): %s", got, gotJSON)
 		nTD.Log("Diff(exp/got): %s", Diff(expJSON, gotJSON))
-		nTD.FailNow()
+		nTD.Fail()
+		// nTD.FailNow()
 		// td.Fail(args...)
 		return
 	}
@@ -503,7 +535,7 @@ func (td *TD) NoError(errAny any, args ...any) {
 	if IsNil(errAny) {
 		return
 	}
-	td.Log("Unexcepted error: %s", errAny)
+	td.Log("Unexpected error: %s", errAny)
 	td.Fail(args...)
 }
 
@@ -511,7 +543,7 @@ func (td *TD) NoErrorStop(errAny any, args ...any) {
 	if IsNil(errAny) {
 		return
 	}
-	td.Log("Unexcepted error: %s", errAny)
+	td.Log("Unexpected error: %s", errAny)
 	td.FailNow(args...)
 }
 
@@ -754,7 +786,9 @@ func (td *TD) HTTPBodyMustJSON(res *xrlib.HttpResponse, args ...any) {
 		str = "'" + fmt.Sprintf(args[0].(string), args[1:]...) + "' "
 	}
 
-	td.Log("%sBody:\n%s", str, string(res.Body))
+	if len(res.Body) < 140 {
+		td.Log("%sBody:\n%s", str, string(res.Body))
+	}
 	td.Must(len(res.Body) > 0, "%sMUST return a non-empty body", str)
 	td.Must(res.JSON != nil, "%sMUST return a JSON body", str)
 }
