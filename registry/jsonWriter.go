@@ -17,7 +17,7 @@ import (
 type JsonWriter struct {
 	info        *RequestInfo
 	indent      string
-	collPaths   map[int]string   // [eType] URL path to the root of Colls
+	collXIDs    map[int]string   // [eType] XID path+/ to the root of Colls
 	unusedColls map[int][]string // [eType][remaining coll names on this eType]
 
 	results *Result // results of DB query
@@ -38,7 +38,7 @@ func NewJsonWriter(info *RequestInfo, results *Result) *JsonWriter {
 	return &JsonWriter{
 		info:        info,
 		indent:      "",
-		collPaths:   map[int]string{},
+		collXIDs:    map[int]string{},
 		unusedColls: map[int][]string{},
 		results:     results,
 		hasData:     false,
@@ -111,14 +111,14 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 
 	if jw.info.DoDocView() && inlineCollection {
 		// remove GET's base path
-		path := path.Dir(jw.Entity.Path)
-		path = path[len(jw.info.Root):]
-		if strings.HasPrefix(path, "/") {
-			path = path[1:]
+		path := path.Dir(jw.Entity.XID)
+		path = path[1+len(jw.info.Root):]
+		if len(path) == 0 || path[0] != '/' {
+			path = "/" + path
 		}
-		baseURL = "#/" + path
+		baseURL = "#" + path
 	} else {
-		baseURL = jw.info.BaseURL + "/" + path.Dir(jw.Entity.Path)
+		baseURL = jw.info.BaseURL + path.Dir(jw.Entity.XID)
 		filterString = jw.info.FiltersRelativeToAbstract(jw.Entity.Abstract)
 	}
 
@@ -353,7 +353,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 
 	// Skip serializing the root entity's attributes if ?collections is set
 	// AND we're on the root entity of the response
-	if !jw.info.HasFlag("collections") || jw.info.Root != jw.Entity.Path {
+	if !jw.info.HasFlag("collections") || jw.info.Root != jw.Entity.XID[1:] {
 		xErr := jw.Entity.SerializeProps(jw.info, jsonIt)
 		if xErr != nil {
 			panic(xErr)
@@ -572,11 +572,11 @@ func (jw *JsonWriter) LoadCollections(eType int) {
 	}
 	jw.unusedColls[eType] = names
 
-	p := jw.Entity.Path + "/"
-	if p == "/" {
-		p = ""
+	p := jw.Entity.XID
+	if p != "/" {
+		p += "/"
 	}
-	jw.collPaths[eType] = p
+	jw.collXIDs[eType] = p
 }
 
 func (jw *JsonWriter) WritePreCollections(hasXref bool, extra string, plural string, eType int) string {
@@ -595,7 +595,7 @@ func (jw *JsonWriter) WritePostCollections(hasXref bool, extra string, eType int
 		extra = jw.WriteEmptyCollection(hasXref, extra, eType, collName)
 	}
 
-	delete(jw.collPaths, eType)
+	delete(jw.collXIDs, eType)
 	delete(jw.unusedColls, eType)
 	return extra
 }
@@ -606,11 +606,11 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 		return extra
 	}
 
-	p := Path2Abstract(jw.collPaths[eType] + collName)
+	p := XID2Abstract(jw.collXIDs[eType] + collName)
 
 	inlineCollection := jw.info.ShouldInline(p)
 	baseURL := ""
-	path := jw.collPaths[eType]
+	path := jw.collXIDs[eType]
 
 	filterString := ""
 	if len(jw.info.Filters) > 0 {
@@ -623,15 +623,15 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 		baseURL = DOCVIEW_BASE
 
 		// remove GET's base path
-		path = path[len(jw.info.Root):]
-		if strings.HasPrefix(path, "/") {
-			path = path[1:]
+		path = path[1+len(jw.info.Root):]
+		if len(path) == 0 || path[0] != '/' {
+			path = "/" + path
 		}
 		// filterString = jw.info.FiltersRelativeToAbstract(p)
 	}
 
-	jw.Printf("%s\n%s\"%surl\": \"%s/%s%s%s\",\n", extra, jw.indent,
-		collName, baseURL, path, collName, filterString)
+	jw.Printf("%s\n%s\"%surl\": \"%s%s%s%s\",\n", extra, jw.indent, collName,
+		baseURL, path, collName, filterString)
 
 	if inlineCollection {
 		jw.Printf("%s\"%s\": {},\n", jw.indent, collName)
@@ -643,9 +643,9 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 	return extra
 }
 
-func Path2Abstract(path string) string {
-	parts := strings.Split(path, "/")
-	addSlash := strings.HasSuffix(path, "/")
+func XID2Abstract(xid string) string {
+	parts := strings.Split(xid[1:], "/")
+	addSlash := strings.HasSuffix(xid, "/")
 	res := ""
 	for i, part := range parts {
 		if i%2 == 0 {

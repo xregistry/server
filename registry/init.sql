@@ -38,7 +38,7 @@ CREATE TABLE Registries (
     UID     VARCHAR(255) NOT NULL,  # User defined
 
     # Internal fast-path flag: true if this Registry currently has AT
-    # LEAST ONE xref set anywhere in it (Metas.xRefPath IS NOT NULL for
+    # LEAST ONE xref set anywhere in it (Metas.xRefXID IS NOT NULL for
     # some row). NOT a model/user-visible attribute - it's a plain
     # column, never surfaced via Object/System/Props, so it's
     # never serialized in any response and never bumps the Registry's
@@ -122,7 +122,7 @@ CREATE TABLE "Groups" (
     UID             VARCHAR(64) NOT NULL,   # User defined
     RegistrySID     VARCHAR(64) NOT NULL,
     ModelSID        VARCHAR(64) NOT NULL,
-    Path            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+    XID             VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Plural          VARCHAR(64) NOT NULL,
     Singular        VARCHAR(64) NOT NULL,
@@ -145,14 +145,14 @@ CREATE TABLE Resources (
     RegistrySID     VARCHAR(64) NOT NULL,
     GroupSID        VARCHAR(64) NOT NULL,   # System ID
     ModelSID        VARCHAR(64) NOT NULL,
-    Path            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+    XID             VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Plural          VARCHAR(64) NOT NULL,
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
     INDEX(RegistrySID),
-    INDEX(RegistrySID, Path),
+    INDEX(RegistrySID, XID),
     UNIQUE INDEX (GroupSID, ModelSID, UID)
 );
 
@@ -171,38 +171,38 @@ BEGIN
     DECLARE CONTINUE HANDLER FOR 1442 BEGIN END $$
 
     # Clear the stale xref mirror on every source Meta that points at
-    # this Resource's Path, since Metas.xRefPath is a plain path string
+    # this Resource's XID, since Metas.xRefXID is a plain XID string
     # (not a SID) that ISN'T touched by the eSID/ParentSID=OLD.SID
     # deletes below - a source's synthetic mirror rows live under ITS
     # OWN ParentSID (its own owning Resource's SID), not the target's.
-    # This single trigger fires for every deletion path (direct
+    # This single trigger fires for every deletion XID (direct
     # Resource delete, whole-Group delete via GroupTrigger, whole-
     # Registry delete), so it's the one place this needs to be handled
     # - no Go-level call site needs to remember to do it. Each source's
-    # own xRefPath is left untouched, so if a new Resource is later
-    # created at this same Path, its own creation-time Go-level fan-out
+    # own xRefXID is left untouched, so if a new Resource is later
+    # created at this same XID, its own creation-time Go-level fan-out
     # (fullSaveXrefFanOutForTargetMeta/Version) naturally re-populates
     # these sources again.
     DELETE ft FROM Props AS ft
     JOIN Metas AS srcM ON (ft.eSID=srcM.SID)
-    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefXID=OLD.XID
           AND ft.IsXrefPropCopy=true $$
 
     DELETE ft FROM Props AS ft
     JOIN Metas AS srcM ON (ft.RegSID=srcM.RegistrySID AND
                             ft.ParentSID=srcM.ResourceSID)
-    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefXID=OLD.XID
           AND ft.IsXrefVerCopy=true $$
 
     DELETE fe FROM Entities AS fe
     JOIN Metas AS srcM ON (fe.RegSID=srcM.RegistrySID AND
                             fe.ParentSID=srcM.ResourceSID)
-    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefXID=OLD.XID
           AND fe.IsXrefVerCopy=true $$
 
     DELETE ft FROM Props AS ft
     JOIN Metas AS srcM ON (ft.eSID=srcM.ResourceSID)
-    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefXID=OLD.XID
           AND ft.IsDefaultVerCopy=true $$
 
     DELETE FROM Metas WHERE ResourceSID=OLD.SID $$
@@ -219,7 +219,7 @@ BEGIN
     # executes when there's something to potentially clear.
     UPDATE Registries SET UsesXref = EXISTS(
         SELECT 1 FROM Metas WHERE RegistrySID=OLD.RegistrySID
-                             AND xRefPath IS NOT NULL)
+                             AND xRefXID IS NOT NULL)
     WHERE SID=OLD.RegistrySID AND UsesXref=true $$
 END ;
 
@@ -227,24 +227,24 @@ CREATE TABLE Metas (
     SID             VARCHAR(64) NOT NULL,   # System ID
     RegistrySID     VARCHAR(64) NOT NULL,
     ResourceSID     VARCHAR(64) NOT NULL,   # System ID
-    Path            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+    XID             VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Plural          VARCHAR(64) NOT NULL,
     Singular        VARCHAR(64) NOT NULL,
 
-    xRefPath        VARCHAR(255) COLLATE utf8mb4_bin, # Generated
+    xRefXID         VARCHAR(255) COLLATE utf8mb4_bin, # Generated
     defaultVID      VARCHAR(64),           # Generated
 
     PRIMARY KEY (SID),
     INDEX(ResourceSID),
-    INDEX(RegistrySID, Path),
+    INDEX(RegistrySID, XID),
     INDEX(RegistrySID),
-    INDEX(xRefPath),
+    INDEX(xRefXID),
     # Speeds up the "who currently xrefs me" fan-out query
     # (fullSaveXrefFanOutForTarget: SELECT ResourceSID FROM Metas WHERE
-    # RegistrySID=? AND xRefPath=?) with a single composite lookup
-    # instead of relying on the single-column xRefPath index above.
-    INDEX(RegistrySID, xRefPath)
+    # RegistrySID=? AND xRefXID=?) with a single composite lookup
+    # instead of relying on the single-column xRefXID index above.
+    INDEX(RegistrySID, xRefXID)
 );
 
 # Can't use this because we get recursive triggers on meta.delete()
@@ -259,7 +259,7 @@ CREATE TABLE Versions (
     UID                 VARCHAR(64) NOT NULL,   # User defined
     RegistrySID         VARCHAR(64) NOT NULL,
     ResourceSID         VARCHAR(64) NOT NULL,   # System ID
-    Path                VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+    XID                 VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
 
     AncestorID          VARCHAR(65) NOT NULL COLLATE utf8mb4_bin,  # Generated
@@ -293,8 +293,8 @@ CREATE TABLE Props (
   ParentSID  VARCHAR(64) NULL,
   eSID       VARCHAR(64) NOT NULL,      # Reg,Group,Res,Ver System ID
   UID        VARCHAR(255) NOT NULL,      # User Defined
-  Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
-  LowerPath  VARCHAR(329) GENERATED ALWAYS AS (LOWER(Path)) STORED,
+  XID        VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  LowerXID   VARCHAR(329) GENERATED ALWAYS AS (LOWER(XID)) STORED,
   PropName   VARCHAR($MAX_PROPNAME) NOT NULL,
   PropValue  MEDIUMTEXT NULL, # VARCHAR($MAX_VARCHAR),
   PropType   CHAR(64) NOT NULL,          # string, boolean, int, ...
@@ -345,7 +345,7 @@ CREATE TABLE Props (
   IsCalcStatic     BOOL NOT NULL DEFAULT false, # xid, Version.RESOURCEid
   IsCalcDynamic    BOOL NOT NULL DEFAULT false, # Version.isdefault
 
-  PRIMARY KEY(RegSID, Path, PropName),
+  PRIMARY KEY(RegSID, XID, PropName),
   UNIQUE INDEX(eSID, PropName),
   INDEX(ParentSID) # for cascade-copy cleanup (e.g.
                    # fullSaveXrefCascadeDelete's ParentSID scan)
@@ -364,8 +364,8 @@ CREATE TABLE Entities (
                                           # synthetic "-<srcRSID>-<verSID>")
   UID        VARCHAR(255) NOT NULL,
   Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
-  Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
-  LowerPath  VARCHAR(329) GENERATED ALWAYS AS (LOWER(Path)) STORED,
+  XID        VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  LowerXID   VARCHAR(329) GENERATED ALWAYS AS (LOWER(XID )) STORED,
 
   # True for the synthetic Version rows added because a Resource
   # xref's another Resource (mirrors the "-" eSID prefix convention
@@ -376,27 +376,27 @@ CREATE TABLE Entities (
   # PK - RegSID would be redundant there. RegSID is kept as its own
   # index so RegistryTrigger's bulk "DELETE FROM Entities WHERE
   # RegSID=..." stays fast. ParentSID is also a real (globally unique)
-  # SID, so it needs no RegSID qualifier either. Path is NOT globally
+  # SID, so it needs no RegSID qualifier either. XID  is NOT globally
   # unique (only unique per-Registry), so RegSID must stay paired with
   # it.
   PRIMARY KEY(eSID),
   INDEX(RegSID),
   INDEX(ParentSID),
-  UNIQUE INDEX (RegSID, Path),
-  UNIQUE INDEX (RegSID, LowerPath)
+  UNIQUE INDEX (RegSID, XID ),
+  UNIQUE INDEX (RegSID, LowerXID )
 );
 
-# These maintain Versions.AncestorID/CreatedAt and Metas.xRefPath/
+# These maintain Versions.AncestorID/CreatedAt and Metas.xRefXID /
 # defaultVID whenever the corresponding OWN (non-cascaded, non-
 # calculated) property row is written/removed on Props, which
 # is the sole authoritative store for entity properties now (see
 # fulltree.go) - those DB columns are relied on throughout the codebase
 # (ancestor-chain resolution, xref detection, default-version lookups)
-# and are otherwise never set anywhere else. xRefPath stores the raw
-# xref target path text (not a resolved SID) so it never needs to be
+# and are otherwise never set anywhere else. xRefXID  stores the raw
+# xref target XID  text (not a resolved SID) so it never needs to be
 # re-resolved/self-healed: it stays correct even if the target
 # Resource doesn't exist yet (or existed, was deleted, and later gets
-# recreated) - every consumer joins against Resources.Path live, at
+# recreated) - every consumer joins against Resources.XID  live, at
 # query time, instead of relying on a point-in-time-resolved SID.
 CREATE TRIGGER FullTreeAncestor BEFORE INSERT ON Props
 FOR EACH ROW
@@ -416,8 +416,7 @@ BEGIN
     IF (NEW.Type=$ENTITY_META AND NEW.IsDefaultVerCopy=false AND
         NEW.IsXrefPropCopy=false AND NEW.IsXrefVerCopy=false) THEN
         IF (NEW.PropName='xref$DB_IN') THEN
-          # Remove leading / - store the path text as-is, no lookup.
-          UPDATE Metas AS m SET xRefPath=SUBSTRING(NEW.PropValue,2)
+          UPDATE Metas AS m SET xRefXID=NEW.PropValue
             WHERE m.SID=NEW.eSID $$
         END IF $$
         IF (NEW.PropName='defaultversionid$DB_IN') THEN
@@ -440,7 +439,7 @@ BEGIN
     IF (OLD.Type=$ENTITY_META AND OLD.IsDefaultVerCopy=false AND
         OLD.IsXrefPropCopy=false AND OLD.IsXrefVerCopy=false) THEN
         IF (OLD.PropName='xref$DB_IN') THEN
-          UPDATE Metas SET xRefPath=NULL
+          UPDATE Metas SET xRefXID=NULL
           WHERE SID=OLD.eSID $$
 
           # Lazily clear Registries.UsesXref if this was the last
@@ -448,7 +447,7 @@ BEGIN
           # comment for why this is safe/cheap to run unconditionally.
           UPDATE Registries SET UsesXref = EXISTS(
               SELECT 1 FROM Metas WHERE RegistrySID=OLD.RegSID
-                                   AND xRefPath IS NOT NULL)
+                                   AND xRefXID IS NOT NULL)
           WHERE SID=OLD.RegSID AND UsesXref=true $$
         END IF $$
         IF (OLD.PropName='defaultversionid$DB_IN') THEN
@@ -497,13 +496,13 @@ SELECT
     p.RegSID,
     p.eSID,
     e.Abstract,
-    e.Path,
+    e.XID ,
     p.PropName,
     p.PropValue,
     p.PropType
 FROM Props as p
 JOIN Entities as e ON (e.eSID=p.eSID)
-ORDER by Path ;
+ORDER by XID  ;
 
 CREATE VIEW NewVAs AS
 SELECT

@@ -422,7 +422,7 @@ func checkHasDocumentEnableViolation(reg *Registry, oldRM *ResourceModel) *XRErr
 	}
 
 	query := `
-		SELECT v.Path, p.PropName FROM Versions v
+		SELECT v.XID, p.PropName FROM Versions v
 		JOIN Resources r ON v.ResourceSID = r.SID
 		JOIN Props p ON p.eSID = v.SID
 		WHERE r.ModelSID = ?
@@ -436,10 +436,10 @@ func checkHasDocumentEnableViolation(reg *Registry, oldRM *ResourceModel) *XRErr
 
 	row := results.NextRow()
 	if row != nil {
-		versionPath := "/" + string((*(row[0])).([]byte))
+		versionXID := string((*(row[0])).([]byte))
 		propName := strings.TrimRight(string((*(row[1])).([]byte)),
 			string(DB_IN))
-		return NewXRError("hasdocument_enable_violation", versionPath,
+		return NewXRError("hasdocument_enable_violation", versionXID,
 			"name="+propName)
 	}
 

@@ -494,6 +494,7 @@ func (xErr *XRError) SetHeader(name, value string) *XRError {
 }
 
 func (xErr *XRError) String() string {
+	// return xErr.ToJSON("")
 	return xErr.GetTitle()
 }
 
@@ -538,7 +539,7 @@ func (xErr *XRError) ToJSON(baseURL string) string {
 	encoder.SetIndent("", "  ")
 	encoder.Encode(tmpErr)
 
-	// Why Encode() add a \n when Marshal() doesn't is beyond me!
+	// Why Encode() adds a \n when Marshal() doesn't is beyond me!
 	res := strings.TrimRight(buf.String(), "\n")
 
 	return res

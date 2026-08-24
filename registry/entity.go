@@ -359,20 +359,20 @@ func lockResourceFamily(tx *Tx, resourceSID string) {
 	*/
 }
 
-func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMode int) (*Entity, *XRError) {
-	log.VPrintf(3, ">Enter: RawEntityFromPath(%s)", path)
-	defer log.VPrintf(3, "<Exit: RawEntityFromPath")
+func RawEntityFromXID(tx *Tx, regID string, xid string, anyCase bool, accessMode int) (*Entity, *XRError) {
+	log.VPrintf(3, ">Enter: RawEntityFromXID(%s)", xid)
+	defer log.VPrintf(3, "<Exit: RawEntityFromXID")
 
-	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
 	//   0     1     2       3         4      5   6     7      8
 	//     9        10         11         12
 
-	Path := "Path"
+	XID := "XID"
 
 	if anyCase {
-		Path = "LowerPath"
-		path = strings.ToLower(path)
+		XID = "LowerXID"
+		xid = strings.ToLower(xid)
 	}
 
 	// If the caller already wants FOR_WRITE on this (not-yet-cached)
@@ -398,7 +398,7 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             e.eSID as eSID,
             e.UID as UID,
             e.Abstract as Abstract,
-            e.Path as Path,
+            e.XID as XID,
             p.PropName as PropName,
             p.PropValue as PropValue,
             p.PropType as PropType,
@@ -409,10 +409,10 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
             AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
             AND p.IsCalcDynamic=false)
-        WHERE e.RegSID=? AND e.` + Path + `=?
-        ORDER BY Path` + lockExpr
+        WHERE e.RegSID=? AND e.` + XID + `=?
+        ORDER BY XID` + lockExpr
 
-	results := Query(tx, queryString, regID, path)
+	results := Query(tx, queryString, regID, xid)
 	defer results.Close()
 
 	ent, xErr := readNextEntity(tx, results, accessMode)
@@ -549,7 +549,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 	log.VPrintf(3, ">Enter: RawEntititiesFromQuery(%s)", query)
 	defer log.VPrintf(3, "<Exit: RawEntitiesFromQuery")
 
-	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
 	//   0     1     2       3         4      5   6     7      8
 	//     9        10         11         12
@@ -560,7 +560,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 
 	args = append(append([]any{}, regID), args...)
 
-	// See RawEntityFromPath()'s matching comment - without this, a
+	// See RawEntityFromXID()'s matching comment - without this, a
 	// FOR_WRITE caller's very first (not-yet-cached) fetch would never
 	// actually lock these rows, yet Entity.Lock() would believe it's
 	// already locked (AccessMode == FOR_WRITE, stamped by
@@ -580,7 +580,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
             e.eSID as eSID,
             e.UID as UID,
             e.Abstract as Abstract,
-            e.Path as Path,
+            e.XID as XID,
             p.PropName as PropName,
             p.PropValue as PropValue,
             p.PropType as PropType,
@@ -590,7 +590,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
             e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
             AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
             AND p.IsCalcDynamic=false)
-        WHERE e.RegSID=? `+query+` ORDER BY Path`+lockExpr, args...)
+        WHERE e.RegSID=? `+query+` ORDER BY XID`+lockExpr, args...)
 	defer results.Close()
 
 	entities := []*Entity{}
@@ -605,7 +605,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 		entities = append(entities, e)
 	}
 
-	// See RawEntityFromPath()'s matching comment: lock each returned
+	// See RawEntityFromXID()'s matching comment: lock each returned
 	// entity's Resource+Meta+Versions family too, if applicable.
 	if accessMode == FOR_WRITE {
 		for _, e := range entities {
@@ -617,7 +617,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 }
 
 // Update the entity's Object - not the other props in Entity. Similar to
-// RawEntityFromPath
+// RawEntityFromXID
 func (e *Entity) Refresh(accessMode int) *XRError {
 	log.VPrintf(3, ">Enter: Refresh(%s)", e.DbSID)
 	defer log.VPrintf(3, "<Exit: Refresh")
@@ -1299,7 +1299,7 @@ func (e *Entity) setFromDBNameInto(dest *map[string]any, name string, val *strin
 func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError) {
 	entity := (*Entity)(nil)
 
-	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
 	//   0     1     2       3         4      5   6     7      8
 	//     9        10         11         12
@@ -1335,8 +1335,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 				UID:       uid,
 
 				Type:     eType,
-				Path:     NotNilString(row[8]),
-				XID:      "/" + NotNilString(row[8]),
+				XID:      NotNilString(row[8]),
 				Abstract: NotNilString(row[7]),
 			}
 
@@ -1418,8 +1417,8 @@ var PropsFuncs = []*Attribute{
 				oldID := any(e.UID)
 				if e.Type == ENTITY_VERSION || e.Type == ENTITY_META {
 					// Grab rID from /GROUPs/gID/RESOURCEs/rID/versions/vID
-					parts := strings.Split(e.Path, "/")
-					oldID = parts[3]
+					parts := strings.Split(e.XID, "/")
+					oldID = parts[4]
 				}
 				newID := any(e.NewObject[singular])
 
@@ -1533,16 +1532,16 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{
 			getFn: func(e *Entity) any {
 				base := ""
-				path := e.Path
+				xid := e.XID
 				isAbs := false
 
 				info := e.GetRequestInfo()
 				if info != nil {
 					if info.DoDocView() {
 						// remove GET's base path
-						path = path[len(info.Root):]
-						if strings.HasPrefix(path, "/") {
-							path = path[1:]
+						xid = xid[1+len(info.Root):] // 1+ for leading /
+						if len(xid) == 0 || xid[0] != '/' {
+							xid = "/" + xid
 						}
 						base = DOCVIEW_BASE
 					} else {
@@ -1561,10 +1560,10 @@ var PropsFuncs = []*Attribute{
 					}
 
 					if details {
-						path += "$details"
+						xid += "$details"
 					}
 				}
-				return base + "/" + path
+				return base + xid
 			},
 		},
 	},
@@ -2093,7 +2092,7 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{
 			getFn: func(e *Entity) any {
 				base := ""
-				path := e.Path
+				xid := e.XID
 
 				info := e.GetRequestInfo()
 				if info != nil {
@@ -2106,17 +2105,15 @@ var PropsFuncs = []*Attribute{
 						base = DOCVIEW_BASE
 
 						// remove GET's base path
-						path = path[len(info.Root):]
-						if strings.HasPrefix(path, "/") {
-							path = path[1:]
+						xid = xid[1+len(info.Root):]
+						// Not sure this is ever true
+						if len(xid) > 0 && xid[0] != '/' {
+							xid = "/" + xid
 						}
 					}
 				}
-				if path != "" {
-					path = "/" + path
-				}
 
-				return base + path + "/meta"
+				return base + xid + "/meta"
 			},
 		},
 	},
@@ -2182,7 +2179,7 @@ var PropsFuncs = []*Attribute{
 				valStr := val.(string)
 
 				// replace "meta" with "versions/VID"
-				path := e.Path[:len(e.Path)-4] + "versions/" + valStr
+				xid := e.XID[:len(e.XID)-4] + "versions/" + valStr
 				result := ""
 				isAbsURL := false
 				suffix := ""
@@ -2220,16 +2217,16 @@ var PropsFuncs = []*Attribute{
 							result = DOCVIEW_BASE
 
 							// remove GET's base path
-							path = path[len(info.Root):]
-							if strings.HasPrefix(path, "/") {
-								path = path[1:]
+							xid = xid[1+len(info.Root):]
+							if len(xid) == 0 || xid[0] != '/' {
+								xid = "/" + xid
 							}
 						}
 					}
 				}
 
 				// remove "/meta" so we can add "/versions/vID"
-				result += "/" + path + suffix
+				result += xid + suffix
 
 				return result
 			},
@@ -2611,7 +2608,7 @@ func (e *Entity) Save() *XRError {
 				}
 			}()
 			rows := Query(e.tx, `
-            SELECT ent.eSID, ent.Path, p.PropName
+            SELECT ent.eSID, ent.XID, p.PropName
             FROM Entities AS ent
             LEFT JOIN Props AS p ON (
                 ent.eSID=p.eSID AND p.IsDefaultVerCopy=false AND
@@ -2629,7 +2626,7 @@ func (e *Entity) Save() *XRError {
 				if row[2] == nil {
 					sawNullProp = true
 					log.Printf("tx: %s DIAG POST-SAVE empty-Props: eSID=%v "+
-						"Path=%v has NO Props row",
+						"XID=%v has NO Props row",
 						e.tx.uuid, NotNilString(row[0]), NotNilString(row[1]))
 				}
 			}
@@ -2877,8 +2874,6 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 	log.VPrintf(3, ">Enter: ValidateObject(path: %s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateObject")
-
-	PanicIf(e.XID != "/"+e.Path, "E:%s", ToJSON(e))
 
 	if log.GetVerbose() > 2 {
 		log.VPrintf(0, "Check Obj:\n%s", ToJSON(val))
@@ -3803,10 +3798,10 @@ func (e *Entity) EntityInsert() {
 	DoOne(e.tx, `
         REPLACE INTO Entities(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID,
-            Abstract, Path, IsXrefVerCopy)
+            Abstract, XID, IsXrefVerCopy)
         VALUES(?,?,?,?,?,?,?,?,?,false)`,
 		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
-		e.UID, e.Abstract, e.Path)
+		e.UID, e.Abstract, e.XID)
 
 	e.SaveCalcStaticInsert()
 }
@@ -3820,7 +3815,7 @@ func (e *Entity) EntityInsert() {
 func (e *Entity) DBWriteProp(name string, propValue *string,
 	propType string, docView bool, isSystem bool) {
 
-	// defer log.Trace("FullTree", "%s/%s", e.Path, name)()
+	// defer log.Trace("FullTree", "%s/%s", e.XID, name)()
 
 	if propValue == nil {
 		// The prop row may or may not exist yet (e.g. deleting a prop
@@ -3842,13 +3837,13 @@ func (e *Entity) DBWriteProp(name string, propValue *string,
 	// replaced an existing row.
 	DoOneTwo(e.tx, `
         REPLACE INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
             IsSystemProp, IsCalcStatic, IsCalcDynamic)
         VALUES(?,?,?,?,?,?,?,?, ?,?,?,?,?, false,false,false, ?,false,false)`,
 		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
-		e.UID, e.Path, name, *propValue, propType, e.Abstract, docView,
+		e.UID, e.XID, name, *propValue, propType, e.Abstract, docView,
 		isSystem)
 }
 
@@ -3891,13 +3886,13 @@ func (e *Entity) DBWritePropsBatch(rows []dbPropRow, isSystem bool) {
 			placeholders[i] = rowPlaceholder
 			args = append(args,
 				e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
-				e.DbSID, e.UID, e.Path,
+				e.DbSID, e.UID, e.XID,
 				row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
 		}
 
 		Do(e.tx, `
             REPLACE INTO Props(
-                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
                 PropName, PropValue, PropType, Abstract, DocView,
                 IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
                 IsSystemProp, IsCalcStatic, IsCalcDynamic)
@@ -4041,7 +4036,7 @@ func (e *Entity) SaveSystemProps() {
 // SaveCalcStaticInsert writes e's write-once calculated attributes:
 // xid (every entity type) and Version.RESOURCEid (e.g. "fileid",
 // pointing at the owning Resource's UID). Neither can ever change
-// after creation: an entity's UID/Path is immutable (no rename API -
+// after creation: an entity's UID/XID is immutable (no rename API -
 // reusing an existing ID just errors instead of renaming), and a
 // Version's owning Resource never changes. So these only need to be
 // computed once - here, called from EntityInsert() right after
@@ -4059,7 +4054,7 @@ func (e *Entity) SaveSystemProps() {
 // isdefault attribute at all until something else happened to trigger
 // a recompute.
 func (e *Entity) SaveCalcStaticInsert() {
-	defer log.Trace("FullTree", e.Path)()
+	defer log.Trace("FullTree", e.XID)()
 
 	var parentArg any
 	if e.ParentSID != "" {
@@ -4070,14 +4065,14 @@ func (e *Entity) SaveCalcStaticInsert() {
 	// 1 (this is called once, at creation, on a brand-new eSID).
 	DoOne(e.tx, `
         INSERT INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
             IsCalcStatic, IsCalcDynamic)
         VALUES(?,?,?,?,?,?,?,?, ?, ?, 'string', ?, true,
                false, false, false, true, false)`,
 		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
-		e.UID, e.Path, "xid"+string(DB_IN), "/"+e.Path, e.Abstract)
+		e.UID, e.XID, "xid"+string(DB_IN), e.XID, e.Abstract)
 
 	if e.Type == ENTITY_VERSION {
 		// e is always a real, in-memory Version, which always has a
@@ -4087,7 +4082,7 @@ func (e *Entity) SaveCalcStaticInsert() {
 		// exactly 1 row.
 		DoOne(e.tx, `
             INSERT INTO Props(
-                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
                 PropName, PropValue, PropType, Abstract, DocView,
                 IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
                 IsCalcStatic, IsCalcDynamic)
@@ -4095,7 +4090,7 @@ func (e *Entity) SaveCalcStaticInsert() {
                    true, false, false, false, true, false
             FROM Resources AS r WHERE r.SID=?`,
 			e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
-			e.DbSID, e.UID, e.Path, "id"+string(DB_IN), e.Abstract,
+			e.DbSID, e.UID, e.XID, "id"+string(DB_IN), e.Abstract,
 			e.ParentSID)
 
 		// Give this brand-new Version its first isdefault row. Its
@@ -4122,7 +4117,7 @@ func (e *Entity) SaveCalcStaticInsert() {
 // UPDATE. This func itself is only ever called from
 // SaveCalcStaticInsert(), for that one initial insert.
 func (e *Entity) SaveVersionCalc() {
-	defer log.Trace("FullTree", e.Path)()
+	defer log.Trace("FullTree", e.XID)()
 
 	// isdefault - true only if this Version is the owning Resource's
 	// current default (via its Meta.defaultVID), or - for a Resource
@@ -4132,7 +4127,7 @@ func (e *Entity) SaveVersionCalc() {
 	// is guaranteed to exist, so this always inserts exactly 1 row.
 	DoOne(e.tx, `
         INSERT INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
             IsCalcStatic, IsCalcDynamic)
@@ -4141,7 +4136,7 @@ func (e *Entity) SaveVersionCalc() {
                'boolean', ?, true, false, false, false, false, true
         FROM Metas AS m WHERE m.ResourceSID=?`,
 		e.Registry.DbSID, e.Type, e.Plural, e.Singular, e.ParentSID, e.DbSID,
-		e.UID, e.Path, "isdefault"+string(DB_IN), e.UID, e.Abstract,
+		e.UID, e.XID, "isdefault"+string(DB_IN), e.UID, e.Abstract,
 		e.ParentSID)
 }
 
@@ -4157,7 +4152,7 @@ func (e *Entity) SaveVersionCalc() {
 // resolved through Registry.FindResourceByXID()+FindMeta() rather than
 // a raw row.
 func (e *Entity) SaveXrefCascade() {
-	defer log.Trace("FullTree", e.Path)()
+	defer log.Trace("FullTree", e.XID)()
 
 	e.SaveXrefCascadeDelete()
 	e.SaveXrefCascadeInsert()
@@ -4187,15 +4182,15 @@ func (e *Entity) SaveXrefCascadeDelete() {
 // correctly, fullSaveOwnPropsDelete) have already run.
 func (e *Entity) SaveXrefCascadeInsert() {
 	results := Query(e.tx, `
-        SELECT xRefPath FROM Metas WHERE SID=?`, e.DbSID)
+        SELECT xRefXID FROM Metas WHERE SID=?`, e.DbSID)
 	row := results.NextRow()
 	results.Close()
 	if row == nil || NotNilString(row[0]) == "" {
 		return
 	}
-	xRefPath := NotNilString(row[0])
+	xRefXID := NotNilString(row[0])
 
-	// Resolve the target live, by RegistrySID+Path (Path alone isn't
+	// Resolve the target live, by RegistrySID+XID (XID alone isn't
 	// unique across the whole DB, only within one Registry) - never by
 	// a cached SID, so this always reflects reality even if the
 	// target didn't exist (or existed under a different SID) the last
@@ -4211,8 +4206,8 @@ func (e *Entity) SaveXrefCascadeInsert() {
 	tResults := Query(e.tx, `
         SELECT m.SID, m.ResourceSID, r.Singular FROM Resources AS r
         JOIN Metas AS m ON (m.ResourceSID=r.SID)
-        WHERE r.RegistrySID=? AND r.Path=?
-        FOR UPDATE`, e.Registry.DbSID, xRefPath)
+        WHERE r.RegistrySID=? AND r.XID=?
+        FOR UPDATE`, e.Registry.DbSID, xRefXID)
 	tRow := tResults.NextRow()
 	tResults.Close()
 	if tRow == nil {
@@ -4232,7 +4227,7 @@ func (e *Entity) SaveXrefCascadeInsert() {
 	// its own xref and "<singular>id" attrs, and any '#' internal props.
 	Do(e.tx, `
         REPLACE INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
         SELECT ?,?,?,?,?,?,?,?, PropName, PropValue, PropType, ?, false,
@@ -4243,7 +4238,7 @@ func (e *Entity) SaveXrefCascadeInsert() {
               AND IsCalcDynamic=false
               AND PropName NOT IN (?, ?) AND LEFT(PropName,1)<>'#'`,
 		e.Registry.DbSID, e.Type, e.Plural, e.Singular, e.ParentSID, e.DbSID,
-		e.UID, e.Path, e.Abstract, targetMetaSID,
+		e.UID, e.XID, e.Abstract, targetMetaSID,
 		"xref"+string(DB_IN), targetSingular+"id"+string(DB_IN))
 
 	if resource != nil {

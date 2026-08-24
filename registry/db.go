@@ -188,7 +188,7 @@ type Tx struct {
 	// Also, consider having Commit() just automatically call ValidateAndSave
 	// for all entities in the Tx - then people don't need to call save
 	// explicitly
-	Cache map[string]*Entity // e.Path
+	Cache map[string]*Entity // e.XID
 
 	// List of Group XIDs of all the Groups we need to run verfication on
 	// w.r.t. constraints. This isn't always the same as "groups that changed"
@@ -336,7 +336,7 @@ func (tx *Tx) EraseCache() {
 func (tx *Tx) AddToCache(e *Entity) {
 	PanicIf(IsNil(e.Self), "tx: %s Self is nil, %s/%s",
 		tx.uuid, e.Singular, e.UID)
-	tx.Cache[e.Registry.UID+"/"+e.Path] = e
+	tx.Cache[e.Registry.UID+e.XID] = e
 }
 
 func (tx *Tx) RemoveFromCache(e *Entity) {
@@ -349,9 +349,9 @@ func (tx *Tx) RemoveFromCache(e *Entity) {
 		log.Printf("OldObject:\n%s", ToJSON(e.Object))
 		log.Printf("NewObject:\n%s", ToJSON(e.NewObject))
 		e.ShowStack()
-		panic(e.Path + " is dirty")
+		panic(e.XID + " is dirty")
 	}
-	delete(tx.Cache, e.Registry.UID+"/"+e.Path)
+	delete(tx.Cache, e.Registry.UID+e.XID)
 }
 
 func (tx *Tx) Lock() {
@@ -406,7 +406,7 @@ func (tx *Tx) IsCacheDirty() bool {
 	dirty := false
 	for _, e := range tx.Cache {
 		if len(e.NewObject) != 0 {
-			log.Printf("Dirty: %q", e.Path)
+			log.Printf("Dirty: %q", e.XID)
 			log.Printf("NewObj:\n%s", ToJSON(e.NewObject))
 			log.Printf("Stack for NewObj:")
 			for _, s := range e.NewObjectStack {
@@ -670,7 +670,7 @@ func (tx *Tx) GetGroup(r *Registry, plural string, gID string) *Group {
 
 func (tx *Tx) AddResource(r *Resource) { tx.AddToCache(&r.Entity) }
 func (tx *Tx) GetResource(g *Group, plural string, rID string) *Resource {
-	entry, ok := tx.Cache[g.Registry.UID+"/"+g.Path+"/"+plural+"/"+rID]
+	entry, ok := tx.Cache[g.Registry.UID+g.XID+"/"+plural+"/"+rID]
 	if !ok {
 		return nil
 	}
@@ -679,7 +679,7 @@ func (tx *Tx) GetResource(g *Group, plural string, rID string) *Resource {
 
 func (tx *Tx) AddMeta(m *Meta) { tx.AddToCache(&m.Entity) }
 func (tx *Tx) GetMeta(r *Resource) *Meta {
-	entry, ok := tx.Cache[r.Registry.UID+"/"+r.Path+"/meta"]
+	entry, ok := tx.Cache[r.Registry.UID+r.XID+"/meta"]
 	if !ok {
 		return nil
 	}
@@ -688,7 +688,7 @@ func (tx *Tx) GetMeta(r *Resource) *Meta {
 
 func (tx *Tx) AddVersion(v *Version) { tx.AddToCache(&v.Entity) }
 func (tx *Tx) GetVersion(r *Resource, vID string) *Version {
-	entry, ok := tx.Cache[r.Registry.UID+"/"+r.Path+"/versions/"+vID]
+	entry, ok := tx.Cache[r.Registry.UID+r.XID+"/versions/"+vID]
 	if !ok {
 		return nil
 	}
@@ -908,7 +908,7 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 		pTime = time.Now()
 	}
 	PanicIf(xErr != nil, "tx: %s Error Prepping query (%s): %s\n",
-		tx.uuid, cmd, xErr)
+		tx.uuid, cmd, ToJSON(xErr))
 	defer ps.Close()
 
 	rows, err := ps.Query(args...)
@@ -971,7 +971,7 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 
 	ps, xErr := tx.Prepare(cmd)
 	PanicIf(xErr != nil, "tx:%s CMD: %q args: %v  err: %s",
-		tx.uuid, cmd, args, xErr)
+		tx.uuid, cmd, args, ToJSON(xErr))
 	defer ps.Close()
 
 	result, err := ps.Exec(args...)

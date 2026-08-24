@@ -191,6 +191,7 @@ func (r *Resource) GetXref() (string, *Resource, *XRError) {
 			"error_detail=must start with '/'")
 	}
 
+	// xref: /gType/gID/rType/rID
 	parts := strings.Split(xref, "/")
 	if len(parts) != 5 || len(parts[0]) != 0 {
 		return "", nil, NewXRError("malformed_xref", meta.XID,
@@ -212,7 +213,7 @@ func (r *Resource) GetXref() (string, *Resource, *XRError) {
 	}
 
 	// If pointing to ourselves, don't recurse, just exit
-	if res.Path == r.Path {
+	if res.XID == r.XID {
 		return xref, nil, nil
 	}
 
@@ -326,13 +327,12 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 		return m, nil
 	}
 
-	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
-		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/meta",
-		anyCase, r.AccessMode)
+	ent, xErr := RawEntityFromXID(r.tx, r.Group.Registry.DbSID,
+		r.XID+"/meta", anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/meta").
 			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s.",
-				r.Path, xErr.GetTitle()))
+				r.XID, xErr.GetTitle()))
 	}
 	if ent == nil {
 		log.VPrintf(3, "None found")
@@ -366,13 +366,12 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 		return v, nil
 	}
 
-	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
-		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+id,
-		anyCase, r.AccessMode)
+	ent, xErr := RawEntityFromXID(r.tx, r.Group.Registry.DbSID,
+		r.XID+"/versions/"+id, anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
 			SetDetail(fmt.Sprintf("Error finding Version %s: %s.",
-				r.Path+"/versions/"+id, xErr.GetTitle()))
+				r.XID+"/versions/"+id, xErr.GetTitle()))
 	}
 	if ent == nil {
 		log.VPrintf(3, "None found")
@@ -740,7 +739,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				UID:       r.UID,
 
 				Type:     ENTITY_META,
-				Path:     r.Path + "/meta",
 				XID:      r.XID + "/meta",
 				Abstract: r.Abstract + string(DB_IN) + "meta",
 			},
@@ -750,10 +748,10 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 
 		DoOne(r.tx, `
         INSERT INTO Metas(SID, RegistrySID, ResourceSID,
-            Path, Abstract, Plural, Singular)
+            XID, Abstract, Plural, Singular)
         SELECT ?,?,?,?,?,?`,
 			meta.DbSID, r.Registry.DbSID, r.DbSID,
-			meta.Path, meta.Abstract, r.Plural, r.Singular)
+			meta.XID, meta.Abstract, r.Plural, r.Singular)
 
 		meta.EntityInsert()
 
@@ -1077,7 +1075,6 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 				UID:       vu.Id,
 
 				Type:     ENTITY_VERSION,
-				Path:     r.Path + "/versions/" + vu.Id,
 				XID:      r.XID + "/versions/" + vu.Id,
 				Abstract: r.Group.Plural + string(DB_IN) + r.Plural + string(DB_IN) + "versions",
 
@@ -1089,10 +1086,10 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		v.Self = v
 
 		DoOne(r.tx, `
-        INSERT INTO Versions(SID, UID, RegistrySID, ResourceSID, Path, Abstract)
+        INSERT INTO Versions(SID, UID, RegistrySID, ResourceSID, XID, Abstract)
         VALUES(?,?,?,?,?,?)`,
 			v.DbSID, vu.Id, r.Registry.DbSID, r.DbSID,
-			r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+v.UID,
+			r.XID+"/versions/"+v.UID,
 			r.Group.Plural+string(DB_IN)+r.Plural+string(DB_IN)+"versions")
 
 		v.EntityInsert()
@@ -1304,7 +1301,7 @@ func (r *Resource) checkHasDocumentViolation() *XRError {
 	// this investigation, e.g. the VersionAncestors view bug), so
 	// lockExpr must be applied to the subquery explicitly too.
 	query := `
-		SELECT v.Path FROM Versions v
+		SELECT v.XID FROM Versions v
 		WHERE v.ResourceSID = ?
 		AND EXISTS (
 			SELECT 1 FROM ResourceContents rc
@@ -1318,8 +1315,8 @@ func (r *Resource) checkHasDocumentViolation() *XRError {
 	row := results.NextRow()
 	if row != nil {
 		// Found a version with document content
-		versionPath := "/" + string((*(row[0])).([]byte))
-		return NewXRError("hasdocument_violation", versionPath,
+		versionXID := string((*(row[0])).([]byte))
+		return NewXRError("hasdocument_violation", versionXID,
 			"plural="+r.ResourceModel.Plural)
 	}
 
@@ -1515,7 +1512,7 @@ func (r *Resource) runCascade() {
 			// runCascade(), whenever it runs (later in this same
 			// batch), unconditionally fans out to every current xref
 			// source via SaveXrefFanOutForTarget (which re-queries
-			// Metas.xRefPath fresh, so it'll pick us up), making our own
+			// Metas.xRefXID fresh, so it'll pick us up), making our own
 			// insert here redundant work that would just get
 			// immediately rebuilt anyway.
 			skipInsert := false
@@ -2558,7 +2555,7 @@ func (r *Resource) SaveDefaultVersionCascade() {
 		tResults := Query(r.tx, `
             SELECT v.SID FROM Metas AS srcM
             JOIN Resources AS tr ON (tr.RegistrySID=srcM.RegistrySID AND
-                                      tr.Path=srcM.xRefPath)
+                                      tr.XID=srcM.xRefXID)
             JOIN Metas AS m ON (m.ResourceSID=tr.SID)
             JOIN Versions AS v ON (v.ResourceSID=m.ResourceSID AND
                                     v.UID=m.defaultVID)
@@ -2584,7 +2581,7 @@ func (r *Resource) SaveDefaultVersionCascade() {
 		// Resource with no default Version at all.
 		Do(r.tx, `
             REPLACE INTO Props(
-                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
                 PropName, PropValue, PropType, Abstract, DocView,
                 IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
             SELECT ?,?,?,?,?,?,?,?, PropName, PropValue, PropType, ?, false,
@@ -2592,7 +2589,7 @@ func (r *Resource) SaveDefaultVersionCascade() {
             FROM Props WHERE eSID=? AND IsXrefVerCopy=true
                   AND IsCalcStatic=false`,
 			r.Registry.DbSID, r.Type, r.Plural, r.Singular, r.ParentSID,
-			r.DbSID, r.UID, r.Path, r.Abstract, synthESID)
+			r.DbSID, r.UID, r.XID, r.Abstract, synthESID)
 		return
 	}
 
@@ -2619,7 +2616,7 @@ func (r *Resource) SaveDefaultVersionCascade() {
 	// nil branch above).
 	Do(r.tx, `
         REPLACE INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
         SELECT ?,?,?,?,?,?,?,?, PropName, PropValue, PropType, ?, false,
@@ -2628,7 +2625,7 @@ func (r *Resource) SaveDefaultVersionCascade() {
         WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
               AND IsXrefVerCopy=false AND IsCalcStatic=false`,
 		r.Registry.DbSID, r.Type, r.Plural, r.Singular, r.ParentSID, r.DbSID,
-		r.UID, r.Path, r.Abstract, ver.DbSID)
+		r.UID, r.XID, r.Abstract, ver.DbSID)
 }
 
 // SaveXrefVersionCopies (re)creates the synthetic Entities/
@@ -2664,7 +2661,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
 		return
 	}
 
-	defer log.Trace("FullTree", "%s,%s", srcResource.Path, targetResourceSID)()
+	defer log.Trace("FullTree", "%s,%s", srcResource.XID, targetResourceSID)()
 
 	sourceResourceSID := srcResource.DbSID
 	synthAbstract := srcResource.Abstract + string(DB_IN) + "versions"
@@ -2689,12 +2686,12 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
 	Do(srcResource.tx, `
         REPLACE INTO Entities(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID,
-            Abstract, Path, IsXrefVerCopy)
+            Abstract, XID, IsXrefVerCopy)
         SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID, ?,
                CONCAT(?, '/versions/', v.UID), true
         FROM Versions AS v WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
-		sourceResourceSID, sourceResourceSID, synthAbstract, srcResource.Path,
+		sourceResourceSID, sourceResourceSID, synthAbstract, srcResource.XID,
 		targetResourceSID)
 
 	// Copy each target Version's own props onto its corresponding
@@ -2703,7 +2700,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
 	// parity with the old per-row exclusion).
 	Do(srcResource.tx, `
         INSERT INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
         SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID,
@@ -2717,7 +2714,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
               AND ft.IsCalcStatic=false AND ft.IsCalcDynamic=false
               AND ft.PropName<>? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
-		sourceResourceSID, sourceResourceSID, srcResource.Path, synthAbstract,
+		sourceResourceSID, sourceResourceSID, srcResource.XID, synthAbstract,
 		targetResourceSID, "xref"+string(DB_IN))
 
 	// Calculated attrs for every synthetic version at once: xid and
@@ -2729,22 +2726,22 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
 	// dynamic (mirrors the target's own per-Version isdefault).
 	Do(srcResource.tx, `
         INSERT INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
             IsCalcStatic, IsCalcDynamic)
         SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID,
                CONCAT(?, '/versions/', v.UID),
-               ?, CONCAT('/', ?, '/versions/', v.UID), 'string', ?, false,
+               ?, CONCAT(?, '/versions/', v.UID), 'string', ?, false,
                false, false, true, true, false
         FROM Versions AS v WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
-		sourceResourceSID, sourceResourceSID, srcResource.Path,
-		"xid"+string(DB_IN), srcResource.Path, synthAbstract, targetResourceSID)
+		sourceResourceSID, sourceResourceSID, srcResource.XID,
+		"xid"+string(DB_IN), srcResource.XID, synthAbstract, targetResourceSID)
 
 	Do(srcResource.tx, `
         INSERT INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
             IsCalcStatic, IsCalcDynamic)
@@ -2756,13 +2753,13 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
         JOIN Resources AS r ON (r.SID=?)
         WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
-		sourceResourceSID, sourceResourceSID, srcResource.Path,
+		sourceResourceSID, sourceResourceSID, srcResource.XID,
 		"id"+string(DB_IN), synthAbstract, sourceResourceSID,
 		targetResourceSID)
 
 	Do(srcResource.tx, `
         INSERT INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
             PropName, PropValue, PropType, Abstract, DocView,
             IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
             IsCalcStatic, IsCalcDynamic)
@@ -2774,7 +2771,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
         JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
         WHERE v.ResourceSID=? FOR UPDATE`,
 		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
-		sourceResourceSID, sourceResourceSID, srcResource.Path,
+		sourceResourceSID, sourceResourceSID, srcResource.XID,
 		"isdefault"+string(DB_IN), synthAbstract, targetResourceSID)
 }
 
@@ -2791,7 +2788,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
 // query and its own SaveDefaultVersionCascade(sourceResource) call, so
 // merging them halves both the query count and the redundant
 // per-source default-version cascade work. The query below joins
-// straight through to Resources to grab each source's own Path
+// straight through to Resources to grab each source's own XID
 // (already exactly "groupPlural/groupUID/resPlural/resUID" - see
 // where it's written at Resource creation), rather than just
 // returning its SID and needing a separate lookup query to turn that
@@ -2809,7 +2806,7 @@ func (r *Resource) SaveXrefFanOutForTarget() {
 	defer log.Trace("FullTree", r.XID)()
 
 	// FOR UPDATE: this is r (the target) reading the "who xrefs me" set
-	// from Metas.xRefPath - a plain SELECT here would still be pinned
+	// from Metas.xRefXID - a plain SELECT here would still be pinned
 	// to this Tx's original RR snapshot, and could miss a source Meta
 	// that set its xref to r AND committed after this Tx began (e.g. a
 	// brand new source Resource created and xref'd to r by a concurrent
@@ -2817,17 +2814,17 @@ func (r *Resource) SaveXrefFanOutForTarget() {
 	// here means that source's mirrored Props never get refreshed to
 	// reflect r's just-saved change, even though r is committing last.
 	results := Query(r.tx, `
-        SELECT res.Path
+        SELECT res.XID
         FROM Metas AS m
         JOIN Resources AS res ON (res.SID=m.ResourceSID)
-        WHERE m.RegistrySID=? AND m.xRefPath=?  FOR UPDATE`,
-		r.Registry.DbSID, r.Path)
+        WHERE m.RegistrySID=? AND m.xRefXID=?  FOR UPDATE`,
+		r.Registry.DbSID, r.XID)
 	defer results.Close()
 
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		sourceXID := "/" + NotNilString(row[0])
+		sourceXID := NotNilString(row[0])
 		sourceResource, xErr := r.tx.Registry.FindResourceByXID(
-			sourceXID, r.Path, FOR_WRITE)
+			sourceXID, r.XID, FOR_WRITE)
 		if xErr != nil || sourceResource == nil {
 			continue
 		}

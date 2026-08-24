@@ -37,7 +37,7 @@ func (g *Group) Delete() *XRError {
 	results := Query(g.tx, `
 	    SELECT EXISTS(SELECT 1 FROM Props
 		WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
-		  Path LIKE '`+g.Path+`/%' AND
+		  XID LIKE '`+g.XID+`/%' AND
 		  PropName='readonly`+string(DB_IN)+`' AND
 		  PropValue='true') FOR UPDATE`,
 		g.Registry.DbSID)
@@ -80,8 +80,8 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 		return r, nil
 	}
 
-	ent, xErr := RawEntityFromPath(g.tx, g.Registry.DbSID,
-		g.Plural+"/"+g.UID+"/"+rType+"/"+id, anyCase, accessMode)
+	ent, xErr := RawEntityFromXID(g.tx, g.Registry.DbSID,
+		g.XID+"/"+rType+"/"+id, anyCase, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", g.XID+"/"+rType+"/"+id).
 			SetDetail(fmt.Sprintf("Error finding Resource %q(%s): %s",
@@ -305,7 +305,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				UID:       ru.Id,
 
 				Type:     ENTITY_RESOURCE,
-				Path:     g.Path + "/" + ru.RType + "/" + ru.Id,
 				XID:      g.XID + "/" + ru.RType + "/" + ru.Id,
 				Abstract: g.Plural + string(DB_IN) + ru.RType,
 
@@ -320,7 +319,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
         INSERT INTO Resources(
             SID, UID, RegistrySID,
             GroupSID, ModelSID,
-            Path, Abstract,
+            XID, Abstract,
             Plural, Singular)
         SELECT ?,?,?,?,SID,?,?,?,?
         FROM ModelEntities
@@ -334,7 +333,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 			r.DbSID, r.UID, g.Registry.DbSID,
 			g.DbSID, /* , ModelSID */
-			r.Path, r.Abstract,
+			r.XID, r.Abstract,
 			r.Plural, r.Singular,
 
 			g.Registry.DbSID, g.Registry.DbSID, g.Plural,
@@ -371,7 +370,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				UID:       r.UID,
 
 				Type:     ENTITY_META,
-				Path:     r.Path + "/meta",
 				XID:      r.XID + "/meta",
 				Abstract: r.Abstract + string(DB_IN) + "meta",
 
@@ -383,11 +381,11 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		meta.Self = meta
 
 		DoOne(r.tx, `
-                INSERT INTO Metas(SID, RegistrySID, ResourceSID, Path,
+                INSERT INTO Metas(SID, RegistrySID, ResourceSID, XID,
                             Abstract, Plural, Singular)
                 SELECT ?,?,?,?,?,?,?`,
 			meta.DbSID, g.Registry.DbSID, r.DbSID,
-			meta.Path, meta.Abstract, r.Plural, r.Singular)
+			meta.XID, meta.Abstract, r.Plural, r.Singular)
 
 		meta.EntityInsert()
 
@@ -869,7 +867,7 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 
 	query := fmt.Sprintf(`
             SELECT
-                r.Path, v.UID, vp.PropValue
+                r.XID, v.UID, vp.PropValue
             FROM Resources r
             JOIN Entities AS v ON (
                 v.RegSID=r.RegistrySID AND
@@ -899,7 +897,7 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 		g.Registry.DbSID, g.DbSID, resPlural)
 	defer results.Close()
 
-	rID := ""
+	rXID := ""
 	failures := []string{}
 
 	for {
@@ -913,16 +911,16 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 		// NotNilString(row[2]))
 
 		// Stop on 2nd Resource
-		if rID != "" && rID != NotNilString(row[0]) {
+		if rXID != "" && rXID != NotNilString(row[0]) {
 			break
 		}
-		rID = NotNilString(row[0])
+		rXID = NotNilString(row[0])
 		failures = append(failures, NotNilString(row[1]))
 
 	}
 
 	if len(failures) > 0 {
-		return NewXRError("constraint_failure", "/"+rID,
+		return NewXRError("constraint_failure", rXID,
 			"path="+pp.UI(), "kind=equals").SetDetailf("Versions: %s.",
 			strings.Join(failures, ","))
 	}
@@ -958,7 +956,7 @@ func (g *Group) validateEnum(constraint *Constraint, resPlural string,
 
 	query := fmt.Sprintf(`
             SELECT
-                r.Path, v.UID, vp.PropValue
+                r.XID, v.UID, vp.PropValue
             FROM Resources r
             JOIN Entities AS v ON (
                 v.RegSID=r.RegistrySID AND
@@ -982,7 +980,7 @@ func (g *Group) validateEnum(constraint *Constraint, resPlural string,
 	results := Query(g.tx, query, args...)
 	defer results.Close()
 
-	rID := ""
+	rXID := ""
 	failures := []string{}
 
 	for {
@@ -992,15 +990,15 @@ func (g *Group) validateEnum(constraint *Constraint, resPlural string,
 		}
 
 		// Stop on 2nd Resource
-		if rID != "" && rID != NotNilString(row[0]) {
+		if rXID != "" && rXID != NotNilString(row[0]) {
 			break
 		}
-		rID = NotNilString(row[0])
+		rXID = NotNilString(row[0])
 		failures = append(failures, NotNilString(row[1]))
 	}
 
 	if len(failures) > 0 {
-		return NewXRError("constraint_failure", "/"+rID,
+		return NewXRError("constraint_failure", rXID,
 			"path="+pp.UI(), "kind=enum").SetDetailf("Versions: %s. Must "+
 			"be one of: %s.", strings.Join(failures, ","),
 			EnumAsString(constraint.Enum))
