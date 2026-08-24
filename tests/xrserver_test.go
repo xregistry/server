@@ -39,7 +39,7 @@ Usage:
 	lines, _, _ = strings.Cut(string(out), "Available Commands:")
 	exp := `2025/05/21 19:01:39 GitCommit: 8061f34abf
 2025/05/21 19:01:39 DB server: localhost:3306
-2025/05/21 19:01:39 Default(/): reg-xRegistry
+2025/05/21 19:01:39 Default(/): ` + XREG_PREFIX + `xRegistry
 2025/05/21 19:01:39 Done verifying, exiting
 `
 	re := regexp.MustCompile(`(^|\n)\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `)
@@ -74,7 +74,7 @@ func TestXRServerRecreates(t *testing.T) {
 2025/10/14 12:20:01 Deleting DB: registry
 2025/10/14 12:20:01 Creating DB: registry
 2025/10/14 12:20:02 Creating xReg: xRegistry
-2025/10/14 12:20:02 Default(/): reg-xRegistry
+2025/10/14 12:20:02 Default(/): ` + XREG_PREFIX + `xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -104,7 +104,7 @@ func TestXRServerRecreates(t *testing.T) {
 2025/10/14 12:20:01 DB server: localhost:3306
 2025/10/14 12:20:01 Deleting xReg: xRegistry
 2025/10/14 12:20:02 Creating xReg: xRegistry
-2025/10/14 12:20:02 Default(/): reg-xRegistry
+2025/10/14 12:20:02 Default(/): ` + XREG_PREFIX + `xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -136,7 +136,7 @@ func TestXRServerRecreates(t *testing.T) {
 2025/10/14 12:20:01 Deleting DB: registry
 2025/10/14 12:20:01 Creating DB: registry
 2025/10/14 12:20:02 Creating xReg: xRegistry
-2025/10/14 12:20:02 Default(/): reg-xRegistry
+2025/10/14 12:20:02 Default(/): ` + XREG_PREFIX + `xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -262,7 +262,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 			Code:  0,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 				"YYYY/MM/DD HH:MM:SS DB server: localhost:3306\n" +
-				"YYYY/MM/DD HH:MM:SS Default(/): reg-testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Default(/): " + XREG_PREFIX + "testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Done verifying, exiting\n",
 		},
 		{
@@ -271,7 +271,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 			Code:  0,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 				"YYYY/MM/DD HH:MM:SS DB server: localhost:3306\n" +
-				"YYYY/MM/DD HH:MM:SS Default(/): reg-testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Default(/): " + XREG_PREFIX + "testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Done verifying, exiting\n",
 		},
 	}

@@ -5,6 +5,7 @@ var GitCommit = ""
 const SPECVERSION = "1.0-rc4"
 const CORE_SPECURL = "https://github.com/xregistry/spec/blob/main/core/spec.md"
 const HTTP_SPECURL = "https://github.com/xregistry/spec/blob/main/core/http.md"
+const XREG_PREFIX = "xreg-"
 
 // Model attribute default values
 const STRICT = true

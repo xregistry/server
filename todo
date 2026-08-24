@@ -125,6 +125,4 @@ TODOs:
   - support --set on cmd line to set a value
   - support setting default view to be either UI or xreg
   - make sure that xrui.json is part of embedded files for UI
-- xrserver s/reg-/xreg-/ for other registries
-- support /xreg for default reg
 - remove baseURL from xErr.ToJSON()

@@ -239,7 +239,7 @@ func TestMiscCORS(t *testing.T) {
 		{"GET", "/?ui", "", 200},
 		{"GET", "/ui", "", 301},
 		{"GET", "/proxy?host=http://xregistry.io/xreg", "", 200},
-		{"GET", "/reg-TestMiscCORS", "", 200},
+		{"GET", "/" + XREG_PREFIX + "TestMiscCORS", "", 200},
 		{"DELETE", "/", "", 405},
 		{"PUT", "/dirs/d1", "{}", 201},
 		{"PUT", "/dirs/d1", "", 400},
@@ -262,7 +262,7 @@ func TestMiscCORS(t *testing.T) {
 		testLinkHeader := true
 
 		if test.url == "/" || test.url == "/?ui" ||
-			test.url == "/reg-TestMiscCORS" {
+			test.url == "/"+XREG_PREFIX+"TestMiscCORS" {
 
 			// Root doesn't support DELETE
 			expectedMethods = "GET, OPTIONS, PATCH, POST, PUT"
@@ -288,13 +288,90 @@ func TestMiscCORS(t *testing.T) {
 				test.method, test.url)
 
 			expectedURL := "http://localhost:8181"
-			if test.url == "/reg-TestMiscCORS" {
-				expectedURL = "http://localhost:8181/reg-TestMiscCORS"
+			if test.url == "/"+XREG_PREFIX+"TestMiscCORS" {
+				expectedURL = "http://localhost:8181/" + XREG_PREFIX + "TestMiscCORS"
 			}
 			XEqual(t, "link header",
 				linkHeader, fmt.Sprintf("<%s>;rel=xregistry-root", expectedURL))
 		}
 	}
+
+	name := "TestMiscCORS"
+	short := XREG_PREFIX[:len(XREG_PREFIX)-1]
+
+	XHTTP(t, reg, "GET", "/", "", 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestMiscCORS",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "2026-08-24T19:30:39.140681155Z",
+  "modifiedat": "2026-08-24T19:30:39.435861568Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+	XHTTP(t, reg, "GET", "/"+XREG_PREFIX+name, "", 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestMiscCORS",
+  "self": "http://localhost:8181/`+XREG_PREFIX+`TestMiscCORS/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "2026-08-24T19:31:15.798937895Z",
+  "modifiedat": "2026-08-24T19:31:15.948393114Z",
+
+  "dirsurl": "http://localhost:8181/`+XREG_PREFIX+`TestMiscCORS/dirs",
+  "dirscount": 1
+}
+`)
+	XHTTP(t, reg, "GET", "/"+short, "", 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestMiscCORS",
+  "self": "http://localhost:8181/`+short+`/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "2026-08-24T19:31:58.908512761Z",
+  "modifiedat": "2026-08-24T19:31:59.650777231Z",
+
+  "dirsurl": "http://localhost:8181/`+short+`/dirs",
+  "dirscount": 1
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs", "", 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "createdat": "2026-08-24T19:29:16.368544675Z",
+    "modifiedat": "2026-08-24T19:29:16.368544675Z"
+  }
+}
+`)
+	XHTTP(t, reg, "GET", "/"+XREG_PREFIX+name+"/dirs", "", 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/`+XREG_PREFIX+`TestMiscCORS/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "createdat": "2026-08-24T19:32:42.163862006Z",
+    "modifiedat": "2026-08-24T19:32:42.163862006Z"
+  }
+}
+`)
+	XHTTP(t, reg, "GET", "/"+short+"/dirs", "", 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/`+short+`/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "createdat": "2026-08-24T19:32:42.163862006Z",
+    "modifiedat": "2026-08-24T19:32:42.163862006Z"
+  }
+}
+`)
 }
 
 type Job struct {

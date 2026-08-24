@@ -6,3 +6,6 @@ of them.
 
 - When a "format" is registered, (RegisterFormat(NAME, CHECKER{})), the
   NAME is a regexp to it can accept any number of variants. E.g. `jsonSchem.*`.
+- talk about /xreg-XXX and /xreg paths. /xreg-XXX for any Reg, / and /xreg for
+  default Reg
+- talk about ../ui to get to the UI

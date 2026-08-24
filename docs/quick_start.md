@@ -46,16 +46,16 @@ $ xr get
 
 Which shows some top-level metadata about the default Registry, which is in
 this case is empty. Append one of the sample Registry URL paths to explore
-another one:
+another one using the `xreg-` prefix before the Regsitry's name:
 
 ```yaml
-$ export XR_SERVER=localhost:8080/reg-DocStore  # or use -s option on 'xr'
+$ export XR_SERVER=localhost:8080/xreg-DocStore  # or use -s option on 'xr'
 $ xr get
 
 {
   "specversion": "1.0-rc4",
   "registryid": "DocStore",
-  "self": "http://localhost:8080/reg-DocStore/",
+  "self": "http://localhost:8080/xreg-DocStore/",
   "xid": "/",
   "epoch": 1,
   "name": "DocStore Registry",
@@ -64,7 +64,7 @@ $ xr get
   "createdat": "2025-05-20T18:01:45.609185559Z",
   "modifiedat": "2025-05-20T18:01:45.609185559Z",
 
-  "documentsurl": "http://localhost:8080/reg-DocStore/documents",
+  "documentsurl": "http://localhost:8080/xreg-DocStore/documents",
   "documentscount": 2
 }
 ```
@@ -74,7 +74,7 @@ adding the `?ui` query parameter to the URL and putting it into a browser:
 
 ```yaml
 http://localhost:8080?ui
-http://localhost:8080/reg-DocStore?ui
+http://localhost:8080/xreg-DocStore?ui
 ```
 
 ## Try the Sample

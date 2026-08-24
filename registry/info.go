@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"unicode"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
@@ -30,7 +31,7 @@ type RequestInfo struct {
 	// CORS headers need to reflect the original request path.
 	OriginalRootPath string
 	OriginalParts    []string
-	OriginalBaseURL  string // host+path to root of original request (pre reg-xxx)
+	OriginalBaseURL  string // host+path to root of original request (pre XREG_PREFIX-xxx)
 
 	Root          string // GROUPS/gID/..
 	Abstract      string // /GROUPS/RESOUCES (no IDs)
@@ -394,7 +395,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	copy(info.OriginalParts, info.Parts)
 	info.OriginalRootPath = info.RootPath
 
-	// Get root of the overall server - before any reg-XXX processing
+	// Get root of the overall server - before any XREG_PREFIXxxx processing
 	root := "http://" + r.Host
 	if r.TLS != nil {
 		root = "https" + info.BaseURL[4:]
@@ -603,18 +604,29 @@ func SplitProp(reg *Registry, pp *PropPath) (*PropPath, *PropPath) {
 	return abs, pp
 }
 
-// This will extract the "reg-xxx" part of the URL if there and choose the
-// appropriate Registry to use. It'll update info's BaseURL based on reg-
+// This will extract the "xreg-xxx" part of the URL if there and choose the
+// appropriate Registry to use. It'll update info's BaseURL based on xreg-
 // This will populate some initial stuff in the "info" struct too, like
 // Registry.
 func (info *RequestInfo) ParseRegistryURL() *XRError {
 	path := strings.Trim(info.OriginalPath, " /")
 
-	if len(path) > 0 && strings.HasPrefix(path, "reg-") {
+	shortXRegPrefix := ""
+
+	if len(XREG_PREFIX) > 0 {
+		tmpStr := []rune(XREG_PREFIX)
+		ch := tmpStr[len(tmpStr)-1]
+		if !unicode.IsLetter(ch) && !unicode.IsNumber(ch) {
+			shortXRegPrefix = string(tmpStr[:len(tmpStr)-1])
+		}
+	}
+
+	// e.g. localhost:8080/xreg-XXX
+	if len(path) > 0 && strings.HasPrefix(path, XREG_PREFIX) {
 		regName, rest, _ := strings.Cut(path, "/")
 		info.BaseURL += "/" + regName
 		info.OriginalPath = rest
-		name := regName[4:] // remove leading "reg-"
+		name := regName[len(XREG_PREFIX):] // remove leading short prefix
 
 		reg, xErr := FindRegistry(info.tx, name, FOR_READ)
 		if xErr != nil {
@@ -623,11 +635,19 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 				SetDetail(xErr.GetTitle())
 		}
 		if reg == nil {
-			name = "/reg-" + name
-			return NewXRError("not_found", name).
-				SetDetailf("Can't find registry %q.", name)
+			return NewXRError("not_found", info.BaseURL).
+				SetDetailf("Can't find registry %q.", info.BaseURL)
 		}
 		info.Registry = reg
+	} else if len(path) > 0 && shortXRegPrefix != "" &&
+		// e.g. localhost:8080/xreg  (XREG_PREFIX=xreg- shortXRegPrefix=xreg)
+		strings.HasPrefix(path+"/", shortXRegPrefix+"/") {
+
+		regName, rest, _ := strings.Cut(path, "/")
+		info.BaseURL += "/" + regName
+		info.OriginalPath = rest
+
+		info.Registry = GetDefaultReg(info.tx)
 	} else {
 		info.Registry = GetDefaultReg(info.tx)
 	}
@@ -1182,7 +1202,7 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 	}
 
 	// Gotta be a 'write' operation (but NOT POST since that's just for
-	// updating child collections, not Reg-level attributes)
+	// updating child collections, not xreg-level attributes)
 	method := info.OriginalRequest.Method
 	if method != "PUT" && method != "PATCH" {
 		return nil
