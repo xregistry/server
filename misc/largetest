@@ -19,14 +19,14 @@
 # f819d7594a64 2m20s   2m50s  44s     phase 3 of tx fixes
 # 43c279ee4284 2m22s   2m46s  44s
 # 7a2f960cb6c0 2m21s   2m49s  43s     Remove readonly/immutable attrs
-# xxxx         2m15s   2m45s  34s
+# 4831457b2740 2m15s   2m45s  34s
 
 set -e
 
 echo
 echo "# Running the benchmark"
  
-XR_SERVER=http://localhost:8080/reg-Large
+XR_SERVER=http://localhost:8080/xreg-Large
 CMD="curl -s "
 SEARCH="Done loading"
 # SEARCH="Listening" ; CMD="echo $CMD"

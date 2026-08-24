@@ -296,7 +296,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		Stop("No default registry defined")
 	}
 
-	Verbose("Default(/): reg-%s", reg.UID)
+	Verbose("Default(/): " + XREG_PREFIX + reg.UID)
 
 	if val, _ := cmd.Flags().GetBool("verify"); val {
 		Verbose("Done verifying, exiting")
