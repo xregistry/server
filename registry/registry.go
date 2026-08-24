@@ -207,7 +207,6 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 			UID:      id,
 
 			Type:     ENTITY_REGISTRY,
-			Path:     "",
 			XID:      "/",
 			Abstract: "",
 		},
@@ -333,7 +332,7 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 		return tx.Registry, nil
 	}
 
-	ent, xErr := RawEntityFromPath(tx, sid, "", false, accessMode)
+	ent, xErr := RawEntityFromXID(tx, sid, "/", false, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
 			"Error finding Registry %q: %s.", sid, xErr.GetTitle())
@@ -423,7 +422,7 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	id = NotNilString(row[0])
 	results.Close()
 
-	ent, xErr := RawEntityFromPath(tx, id, "", false, accessMode)
+	ent, xErr := RawEntityFromXID(tx, id, "/", false, accessMode)
 
 	if xErr != nil {
 		if newTx {
@@ -717,7 +716,7 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 		return g, nil
 	}
 
-	ent, xErr := RawEntityFromPath(reg.tx, reg.DbSID, gType+"/"+id, anyCase,
+	ent, xErr := RawEntityFromXID(reg.tx, reg.DbSID, "/"+gType+"/"+id, anyCase,
 		accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
@@ -831,7 +830,6 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 				UID:       id,
 
 				Type:     ENTITY_GROUP,
-				Path:     gType + "/" + id,
 				XID:      "/" + gType + "/" + id,
 				Abstract: gType,
 
@@ -842,15 +840,15 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		g.Self = g
 
 		log.VPrintf(3, "tx: %s INSERT INTO Groups %s regSID=%s",
-			reg.tx.uuid, g.Path, g.Registry.DbSID)
+			reg.tx.uuid, g.XID, g.Registry.DbSID)
 		DoOne(reg.tx, `
 			INSERT INTO "Groups"(
                 SID, RegistrySID, UID,
-                ModelSID, Path, Abstract,
+                ModelSID, XID, Abstract,
                 Plural, Singular)
 			SELECT ?,?,?,?,?,?,?,?`,
 			g.DbSID, g.Registry.DbSID, g.UID,
-			gm.SID, g.Path, g.Abstract,
+			gm.SID, g.XID, g.Abstract,
 			g.Plural, g.Singular)
 
 		g.EntityInsert()
@@ -1006,7 +1004,7 @@ func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[stri
 }
 
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
-func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*FilterExpr, docView bool, sortKey string) (string, []interface{}, *XRError) {
+func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*FilterExpr, docView bool, sortKey string) (string, []interface{}, *XRError) {
 	query := ""
 	args := []any{}
 
@@ -1038,13 +1036,13 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 			sortKey = sortKey[1:]
 		}
 
-		count := strings.Count(paths[0], "/")
-		if count == 0 {
-			count = 2
-		} else if count == 2 {
-			count = 4
-		} else {
-			count = 6
+		count := strings.Count(XIDs[0], "/")
+		if count == 1 { // e.g /dirs
+			count = 3 // want substring below as: /dirs/d1
+		} else if count == 3 { // e.g. /dirs/d1/files
+			count = 5 // want substring below as: /dirs/d1/files/f1
+		} else { // e.g. /dirs/d1/files/f1/versions
+			count = 7 // want substring below as: /dirs/d1/files/f1/versions/v1
 		}
 		slashCount := fmt.Sprintf("%d", count)
 
@@ -1072,7 +1070,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 		sortJoin = `
   LEFT JOIN Props AS sj ON (
     sj.RegSID = ft.RegSID AND
-    sj.Path = substring_index(ft.Path, '/', ` + slashCount + `) AND
+    sj.XID = substring_index(ft.XID, '/', ` + slashCount + `) AND
     sj.PropName = '` + sortKey + `')
 `
 	}
@@ -1080,7 +1078,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 	args = []interface{}{reg.DbSID}
 	query = `
 SELECT
-  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.Path,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp
+  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.XID,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp
   FROM Props AS ft` + sortJoin + `
   WHERE ft.RegSID=?
 `
@@ -1094,13 +1092,13 @@ SELECT
 	}
 
 	// Remove entities that are higher than the GET PATH specified
-	if what != "Registry" && len(paths) > 0 {
+	if what != "Registry" && len(XIDs) > 0 {
 		query += "  AND ("
-		for i, p := range paths {
+		for i, p := range XIDs {
 			if i > 0 {
 				query += " OR "
 			}
-			query += "ft.Path=? OR ft.Path LIKE ?"
+			query += "ft.XID=? OR ft.XID LIKE ?"
 			args = append(args, p, p+"/%")
 		}
 		query += ")\n"
@@ -1114,9 +1112,9 @@ AND
 ft.eSID IN ( -- eSID from query
   -- Find all entities that match the filters, and then grab all parents
   -- This "RECURSIVE" stuff finds all parents
-  WITH RECURSIVE cte(eSID,Type,ParentSID,Path) AS (
+  WITH RECURSIVE cte(eSID,Type,ParentSID,XID) AS (
     -- This defines the init set of rows of the query. We'll recurse later on
-    SELECT eSID,Type,ParentSID,Path FROM Entities
+    SELECT eSID,Type,ParentSID,XID FROM Entities
     WHERE eSID in ( -- start of the OR Filter groupings`
 		// This section will find all matching entities
 		firstOr := true
@@ -1130,7 +1128,7 @@ ft.eSID IN ( -- eSID from query
       -- start of one Filter AND grouping (expr1 AND expr2).
       -- Find all SIDs for the leaves for entities (SIDs) of interest.
       SELECT list.eSID FROM (
-        SELECT count(*) as cnt,e2.eSID,e2.Path FROM Entities AS e1
+        SELECT count(*) as cnt,e2.eSID,e2.XID FROM Entities AS e1
         RIGHT JOIN (
           -- start of expr1 - below finds SearchNodes/SIDs of interest`
 			firstAnd := true
@@ -1185,7 +1183,7 @@ ft.eSID IN ( -- eSID from query
 					// 2+ rows at matching more than one filter expression
 					check += " GROUP BY eSID" // " LIMIT 1"
 					query += `
-          (SELECT eSID,Type,Path FROM Props  -- FILTER_PRESENT
+          (SELECT eSID,Type,XID,ParentSID FROM Props  -- FILTER_PRESENT
            WHERE RegSID=? AND ` + check + ")" // Need () for groupBy/limit
 
 				} else if filter.Operator == FILTER_ABSENT { // ?filter=xxx=null
@@ -1195,7 +1193,7 @@ ft.eSID IN ( -- eSID from query
 
 					query += `
           -- Entities that don't have the specified prop
-          SELECT e.eSID,e.Type,e.Path FROM Entities AS e
+          SELECT e.eSID,e.Type,e.XID,ParentSID FROM Entities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
             NOT EXISTS (SELECT 1 FROM Props WHERE
               RegSID=e.RegSID AND eSID=e.eSID AND ( ` +
@@ -1222,7 +1220,7 @@ ft.eSID IN ( -- eSID from query
 					}
 					check += ")"
 					query += `
-          SELECT eSID,Type,Path FROM Props
+          SELECT eSID,Type,XID,ParentSID FROM Props
             WHERE RegSID=? AND ` + check
 
 				} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
@@ -1230,7 +1228,7 @@ ft.eSID IN ( -- eSID from query
 						filterPropName)
 					query += `
           -- Entities that don't have the specified prop
-          SELECT e.eSID,e.Type,e.Path FROM Entities AS e
+          SELECT e.eSID,e.Type,e.XID,e.ParentSID FROM Entities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
             NOT EXISTS (SELECT 1 FROM Props WHERE
               RegSID=e.RegSID AND eSID=e.eSID AND (` +
@@ -1280,7 +1278,7 @@ ft.eSID IN ( -- eSID from query
 						" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +
 						" ELSE PropValue " + FILTER_CI_COLLATE + " " + sqlOp + " ? END))"
 					query += `
-          SELECT eSID,Type,Path FROM Props
+          SELECT eSID,Type,XID,ParentSID FROM Props
             WHERE RegSID=? AND ` + check
 
 				} else {
@@ -1293,24 +1291,26 @@ ft.eSID IN ( -- eSID from query
         -- For each result found, find all Leaves under the matching entity.
         -- The Leaves that show up 'cnt' times, where cnt is the # of
         -- expressions in each filter (the ANDs), are branches to return.
-        -- Note we return the Path of each Leaf, not the path of the matching
+        -- Note we return the XID of each Leaf, not the XID of the matching
         -- entity. The entity that matches isn't important.
         JOIN Entities AS e2 ON (
           (
             (
-              -- Non-meta objects, just compare the Path
+              -- Non-meta objects, just compare the XID
               result.Type<>` + StrTypes(ENTITY_META) + ` AND
-              ( e2.Path=result.Path OR
-                e2.Path LIKE CONCAT(IF(result.Path<>'',CONCAT(result.Path,'/'),''),'%')
+              ( result.XID = '/' OR
+                e2.XID=result.XID OR
+                e2.XID LIKE CONCAT(result.XID,'/%')
               )
             )
             OR
             (
-              -- For 'meta' objects, compare it's parent's Path
+              -- For 'meta' objects, compare it's parent's XID
               result.Type=` + StrTypes(ENTITY_META) + ` AND
-              ( e2.Path=TRIM(TRAILING '/meta' FROM result.Path) OR
-                e2.Path LIKE CONCAT(TRIM(TRAILING 'meta' FROM result.Path),'%')
-              )
+              (e2.eSID = result.ParentSID OR e2.ParentSID = result.ParentSID)
+              -- ( e2.XID=TRIM(TRAILING '/meta' FROM result.XID) OR
+                -- e2.XID LIKE CONCAT(TRIM(TRAILING 'meta' FROM result.XID),'%')
+              -- )
             )
           )
           AND e2.eSID IN (SELECT * from Leaves)
@@ -1329,7 +1329,7 @@ ft.eSID IN ( -- eSID from query
     -- Find all of the parents (and 'meta' sub-objects) of the found
     -- entities, up to root of Reg.
     UNION DISTINCT SELECT
-      e.eSID,e.Type,e.ParentSID,e.Path
+      e.eSID,e.Type,e.ParentSID,e.XID
     FROM Entities AS e
     INNER JOIN cte ON
       (
@@ -1349,7 +1349,7 @@ ft.eSID IN ( -- eSID from query
 	}
 
 	query += `  ORDER BY ` + sortOrder +
-		`    ft.LowerPath ASC;`
+		`    ft.LowerXID ASC;`
 
 	if log.GetVerbose() > 3 || log.HasKeyword("genq") {
 		log.Printf("Query:\n%s\n\n", SubQuery(query, args))

@@ -59,7 +59,7 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
 		return NewXRError("bad_request", v.XID,
 			"error_detail="+
 				fmt.Sprintf(`Can't delete "versions" of a Resource `+
-					`(/%s) that uses "xref"`, v.Resource.Path))
+					`(%s) that uses "xref"`, v.Resource.XID))
 	}
 
 	if nextVersionID == v.UID {

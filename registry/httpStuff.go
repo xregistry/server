@@ -676,23 +676,23 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 
 	query := `
 SELECT
-  RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,PropName,
+  RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,PropName,
   PropValue,PropType,IsSystemProp
 FROM Props WHERE RegSID=? AND `
 	args := []any{info.Registry.DbSID}
 
-	path := strings.Join(info.Parts, "/")
+	XID := "/" + strings.Join(info.Parts, "/")
 
 	// TODO consider excluding the META object from the query instead of
 	// dropping it via the if-statement below in the versioncount logic
 	if info.VersionUID == "" {
-		query += `(Path=? OR Path LIKE ?)`
-		args = append(args, path, path+"/%")
+		query += `(XID=? OR XID LIKE ?)`
+		args = append(args, XID, XID+"/%")
 	} else {
-		query += `Path=?`
-		args = append(args, path)
+		query += `XID=?`
+		args = append(args, XID)
 	}
-	query += " ORDER BY Path"
+	query += " ORDER BY XID"
 
 	log.VPrintf(3, "Query:\n%s", SubQuery(query, args))
 
@@ -704,10 +704,10 @@ FROM Props WHERE RegSID=? AND `
 	if entity == nil {
 		if xErr != nil {
 			log.Printf("Error loading entity: %s", xErr)
-			return NewXRError("server_error", "/"+path).SetDetailf(
+			return NewXRError("server_error", XID).SetDetailf(
 				"error loading entity: %s.", xErr.GetTitle())
 		} else {
-			return NewXRError("not_found", "/"+path)
+			return NewXRError("not_found", XID)
 		}
 	}
 
@@ -813,9 +813,9 @@ FROM Props WHERE RegSID=? AND `
 		info.SetHeader("xRegistry-versionscount",
 			fmt.Sprintf("%d", versionsCount))
 		info.SetHeader("xRegistry-versionsurl",
-			info.BaseURL+"/"+entity.Path+"/versions")
+			info.BaseURL+entity.XID+"/versions")
 	}
-	info.SetHeader("Content-Location", info.BaseURL+"/"+version.Path)
+	info.SetHeader("Content-Location", info.BaseURL+version.XID)
 	info.SetHeader("Content-Disposition", info.ResourceUID)
 
 	url := ""
@@ -953,13 +953,13 @@ func HTTPGet(info *RequestInfo) *XRError {
 	}
 
 	// Serialize the xReg metadata
-	resPaths := map[string][]string{
-		"": []string{strings.Join(info.Parts, "/")},
+	resXIDs := map[string][]string{
+		"": []string{"/" + strings.Join(info.Parts, "/")},
 	}
-	return SerializeQuery(info, resPaths, info.What, info.Filters)
+	return SerializeQuery(info, resXIDs, info.What, info.Filters)
 }
 
-func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
+func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 	what string, filters [][]*FilterExpr) *XRError {
 
 	// Make sure everything is ok before we send back the results
@@ -967,26 +967,26 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		return xErr
 	}
 
-	// resPaths is used to group the items we want to return. In most cases
+	// resXIDs is used to group the items we want to return. In most cases
 	// the items will all be part of one group where that group name doesn't
 	// need to be returned - e.g. POST /schemagroup where the response will
 	// just be a map of gIDs.
 	// However, there are cases where we want to return multiple groupings
 	// and each group has a different grouping name. For example:
 	// POST / +   { "schemagroups": { "sg1"...}, "messagegroups": { "mg1"...}}
-	// In this case the "paths" within each group are all processed as a
+	// In this case the "XIDs" within each group are all processed as a
 	// single query but the normal jwWriter stuff won't show the parent
 	// group (schemagroups) because to do so would mean to also so the
 	// attributes at that level (meaning the Registry attrs in this case).
-	// To avoid this we pass in resPaths which is a map of groupings for
-	// each "paths" (IDs) we want to serialize.
+	// To avoid this we pass in resXIDs which is a map of groupings for
+	// each "XIDs" (IDs) we want to serialize.
 	// Each key in the map becomes the grouping key/name.
 	// When the key is "" then there shouldn't be any other keys and we
 	// won't wrapper it at all.
 	// So, "" is for things like:  POST .../rID/versions + map[vID]{version}
 	// And "xxx" is for things like POST /  + map[GROUPS]map[gID]{group}
-	if resPaths == nil {
-		resPaths = map[string][]string{"": nil}
+	if resXIDs == nil {
+		resXIDs = map[string][]string{"": nil}
 	}
 
 	start := time.Now()
@@ -1013,17 +1013,17 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 	info.SetHeader("Content-Type", "application/json")
 	var jw *JsonWriter
 	hasData := false
-	keys := SortedKeys(resPaths)
+	keys := SortedKeys(resXIDs)
 	for i, key := range keys {
-		paths, ok := resPaths[key]
+		XIDs, ok := resXIDs[key]
 		PanicIf(!ok, "can't find %q", key)
 
 		var xErr *XRError
 		var results *Result
 
 		// "!" is special - it means skip the query and just produce: {}
-		if len(paths) != 1 || paths[0] != "!" {
-			query, args, err := GenerateQuery(info.Registry, what, paths,
+		if len(XIDs) != 1 || XIDs[0] != "!" {
+			query, args, err := GenerateQuery(info.Registry, what, XIDs,
 				filters, info.DoDocView(), info.SortKey)
 			if err != nil {
 				return err
@@ -1050,10 +1050,10 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 				// check to see if Resource has xref set, if so then the error
 				// is 400, not 404
 				if info.VersionUID != "" && info.DoDocView() {
-					path := strings.Join(info.Parts[:len(info.Parts)-2], "/")
-					path += "/meta"
-					entity, err := RawEntityFromPath(info.tx,
-						info.Registry.DbSID, path, false, FOR_READ)
+					xid := "/" + strings.Join(info.Parts[:len(info.Parts)-2], "/")
+					xid += "/meta"
+					entity, err := RawEntityFromXID(info.tx,
+						info.Registry.DbSID, xid, false, FOR_READ)
 					if err != nil {
 						return err
 					}
@@ -1073,16 +1073,16 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		// Special case, if we're doing a collection, let's make sure we didn't
 		// get an empty result due to it's parent not even existing - for
 		// example the user used the wrong case (or even name) in the parent's
-		// Path
+		// XID
 		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
-			path := strings.Join(info.Parts[:len(info.Parts)-1], "/")
-			entity, xErr := RawEntityFromPath(info.tx, info.Registry.DbSID,
-				path, false, FOR_READ)
+			xid := "/" + strings.Join(info.Parts[:len(info.Parts)-1], "/")
+			entity, xErr := RawEntityFromXID(info.tx, info.Registry.DbSID,
+				xid, false, FOR_READ)
 			if xErr != nil {
 				return xErr
 			}
 			if IsNil(entity) {
-				return NewXRError("not_found", "/"+path)
+				return NewXRError("not_found", xid)
 			}
 		}
 
@@ -1094,7 +1094,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 			// Should be our case since "versions" can never be empty except
 			// when xref is set. If this is not longer true then we'll need to
 			// check this Resource's xref to see if it's set.
-			// Can copy the RawEntityFromPath... stuff above
+			// Can copy the RawEntityFromXID... stuff above
 			return NewXRError("cannot_doc_xref", "/"+info.OriginalPath)
 		}
 
@@ -1155,7 +1155,7 @@ func init() {
 func HTTPPutPost(info *RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
 	isNew := false
-	paths := ([]string)(nil)
+	XIDs := ([]string)(nil)
 	what := "Entity"
 	numParts := len(info.Parts)
 
@@ -1251,8 +1251,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			// Return HTTP GET of Registry root
-			resPaths := map[string][]string{"": []string{""}}
-			return SerializeQuery(info, resPaths, "Registry", info.Filters)
+			resXIDs := map[string][]string{"": []string{""}}
+			return SerializeQuery(info, resXIDs, "Registry", info.Filters)
 		}
 
 		// Must be POST /    + body:map[GROUPS]map[id]Group
@@ -1262,25 +1262,25 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		resPaths := map[string][]string{}
+		resXIDs := map[string][]string{}
 		// Special case - if req is {} then make response {}
 		if len(newGs) == 0 {
-			resPaths = map[string][]string{"": []string{"!"}}
+			resXIDs = map[string][]string{"": []string{"!"}}
 		} else {
 			for gType, groups := range newGs {
-				resPaths[gType] = []string{}
+				resXIDs[gType] = []string{}
 				for _, g := range groups {
-					resPaths[gType] = append(resPaths[gType], g.Path)
+					resXIDs[gType] = append(resXIDs[gType], g.XID)
 				}
-				if len(resPaths[gType]) == 0 {
+				if len(resXIDs[gType]) == 0 {
 					// Force an empty collection to be returned
-					resPaths[gType] = []string{"!"}
+					resXIDs[gType] = []string{"!"}
 				}
 			}
 		}
 
 		// Return HTTP GET of Groups created or updated
-		return SerializeQuery(info, resPaths, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
 	}
 
 	// URL: /GROUPs[/gID]...
@@ -1308,16 +1308,16 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-			paths = append(paths, g.Path)
+			XIDs = append(XIDs, g.XID)
 		}
 
-		if len(paths) == 0 {
-			paths = []string{"!"} // Force an empty collection to be returned
+		if len(XIDs) == 0 {
+			XIDs = []string{"!"} // Force an empty collection to be returned
 		}
 
 		// Return HTTP GET of Groups created or updated
-		resPaths := map[string][]string{"": paths}
-		return SerializeQuery(info, resPaths, "Coll", info.Filters)
+		resXIDs := map[string][]string{"": XIDs}
+		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
 	}
 
 	if numParts == 2 {
@@ -1338,13 +1338,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			if isNew { // 201, else let it default to 200
-				info.SetHeader("Location", info.BaseURL+"/"+group.Path)
+				info.SetHeader("Location", info.BaseURL+group.XID)
 				info.StatusCode = http.StatusCreated
 			}
 
 			// Return HTTP GET of Group
-			resPaths := map[string][]string{"": []string{group.Path}}
-			return SerializeQuery(info, resPaths, "Entity", info.Filters)
+			resXIDs := map[string][]string{"": []string{group.XID}}
+			return SerializeQuery(info, resXIDs, "Entity", info.Filters)
 		}
 
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
@@ -1368,25 +1368,25 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		resPaths := map[string][]string{}
+		resXIDs := map[string][]string{}
 
 		// Special case - if req is {} then make response {}
 		if len(IncomingObj) == 0 {
-			resPaths = map[string][]string{"": []string{"!"}}
+			resXIDs = map[string][]string{"": []string{"!"}}
 		} else {
 			for rType, resources := range newRs {
-				resPaths[rType] = []string{}
+				resXIDs[rType] = []string{}
 				for _, r := range resources {
-					resPaths[rType] = append(resPaths[rType], r.Path)
+					resXIDs[rType] = append(resXIDs[rType], r.XID)
 				}
-				if len(resPaths[rType]) == 0 {
-					resPaths[rType] = []string{"!"}
+				if len(resXIDs[rType]) == 0 {
+					resXIDs[rType] = []string{"!"}
 				}
 			}
 		}
 
 		// Return HTTP GET of Resources created or updated
-		return SerializeQuery(info, resPaths, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
 	}
 
 	// Must be PUT/POST /GROUPs/gID/...
@@ -1442,7 +1442,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		// For each Resource in the map, upsert it and add it's path to result
+		// For each Resource in the map, upsert it and add it's XID to result
 		addType := ADD_UPSERT
 		if method == "PATCH" {
 			addType = ADD_PATCH
@@ -1461,16 +1461,16 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-			paths = append(paths, r.Path)
+			XIDs = append(XIDs, r.XID)
 		}
 
-		if len(paths) == 0 {
-			paths = []string{"!"} // Force an empty collection to be returned
+		if len(XIDs) == 0 {
+			XIDs = []string{"!"} // Force an empty collection to be returned
 		}
 
 		// Return HTTP GET of Resources created or modified
-		resPaths := map[string][]string{"": paths}
-		return SerializeQuery(info, resPaths, "Coll", info.Filters)
+		resXIDs := map[string][]string{"": XIDs}
+		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
 	}
 
 	if numParts > 3 {
@@ -1629,12 +1629,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Return HTTP GET of 'meta'
 		if isNew { // 201, else let it default to 200
-			info.SetHeader("Location", info.BaseURL+"/"+meta.Path)
+			info.SetHeader("Location", info.BaseURL+meta.XID)
 			info.StatusCode = http.StatusCreated
 		}
 
-		resPaths := map[string][]string{"": []string{meta.Path}}
-		return SerializeQuery(info, resPaths, "Entity", info.Filters)
+		resXIDs := map[string][]string{"": []string{meta.XID}}
+		return SerializeQuery(info, resXIDs, "Entity", info.Filters)
 	}
 
 	// Just double-check
@@ -1707,7 +1707,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			// Remove the newly created default version from objMap so we
 			// won't process it again, but add it to the reuslts collection
 			for id, _ := range objMap {
-				paths = append(paths, strings.Join(
+				XIDs = append(XIDs, "/"+strings.Join(
 					[]string{info.GroupType, info.GroupUID, info.ResourceType,
 						info.ResourceUID, "versions", id},
 					"/"))
@@ -1719,9 +1719,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				if resource.tx.RequestInfo.HasIgnore("readonly") {
 					// ?ignore=readonly so just stop w/o error
 					// Force an empty collection to be returned
-					paths = []string{"!"}
-					resPaths := map[string][]string{"": paths}
-					return SerializeQuery(info, resPaths, "Coll", info.Filters)
+					XIDs = []string{"!"}
+					resXIDs := map[string][]string{"": XIDs}
+					return SerializeQuery(info, resXIDs, "Coll", info.Filters)
 				} else {
 					return NewXRError("readonly", resource.XID)
 				}
@@ -1754,15 +1754,15 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 					return xErr
 				}
 
-				paths = append(paths, v.Path)
+				XIDs = append(XIDs, v.XID)
 			}
 		}
 
-		if len(paths) == 0 {
-			paths = []string{"!"} // Force an empty collection to be returned
+		if len(XIDs) == 0 {
+			XIDs = []string{"!"} // Force an empty collection to be returned
 		}
-		resPaths := map[string][]string{"": paths}
-		return SerializeQuery(info, resPaths, "Coll", info.Filters)
+		resXIDs := map[string][]string{"": XIDs}
+		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
 	}
 
 	if numParts == 6 {
@@ -1835,7 +1835,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	info.GroupUID = groupUID
 	info.ResourceUID = resourceUID // needed for $details in URLs
 
-	location := info.BaseURL + "/" + resource.Path
+	location := info.BaseURL + resource.XID
 	if originalLen > 4 || (originalLen == 4 && method == "POST") {
 		info.VersionUID = locationVersionUID
 		info.Parts = append(info.Parts, "versions", info.VersionUID)
@@ -1857,12 +1857,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	// Return the xReg metadata of the entity processed
-	if paths == nil {
-		paths = []string{strings.Join(info.Parts, "/")}
+	if XIDs == nil {
+		XIDs = []string{"/" + strings.Join(info.Parts, "/")}
 	}
 
-	resPaths := map[string][]string{"": paths}
-	return SerializeQuery(info, resPaths, what, info.Filters)
+	resXIDs := map[string][]string{"": XIDs}
+	return SerializeQuery(info, resXIDs, what, info.Filters)
 }
 
 func HTTPPUTCapabilities(info *RequestInfo) *XRError {
@@ -2828,7 +2828,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 	}
 
 	query := fmt.Sprintf(`
-        SELECT r.UID, e.Path
+        SELECT r.UID, e.XID
         FROM Entities AS e
         JOIN Registries AS r ON (r.SID = e.RegSID)
         WHERE e.eSID = ?`)
@@ -2840,7 +2840,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 	if row != nil {
 		// found it!
 		regName := string((*(row[0])).([]byte))
-		newPath := "/reg-" + regName + "/" +
+		newPath := "/reg-" + regName +
 			string((*(row[1])).([]byte)) + suffix
 
 		log.KPrintf("ShortSelf", "Redirect: %q -> %q", path, newPath)

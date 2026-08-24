@@ -53,7 +53,6 @@ type Entity struct {
 	// These were added just for convenience and so we can use the same
 	// struct for traversing the SQL results
 	Type     int    // ENTITY_REGISTRY(0)/GROUP(1)/RESOURCE(2)/VERSION(3)/...
-	Path     string // [GROUPS/GID[/RESOURCES/RID[/versions/vID]]]
 	XID      string // /[GROUPS[/GID[/RESOURCES[/RID[/versions[/vID]]]]]]
 	Abstract string // [GROUPS[,RESOURCES[,versions]]]
 	EpochSet bool   `json:"-"` // Has epoch changed this tx?
@@ -743,7 +742,6 @@ func DefineRegistry(url string) *Registry {
 			Singular: "registry",
 
 			Type:     ENTITY_REGISTRY,
-			Path:     "", // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
 			XID:      "/",
 			Abstract: "", // [GROUPS[/RESOURCES[/versions]]]
 		},
