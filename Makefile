@@ -270,13 +270,13 @@ docker: mysql images waitformysql
 mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
 	(echo && echo "# Starting mysql" && \
-	docker run -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
+	docker run -q -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
 		-p $(DBPORT):$(DBPORT) --name mysql $(MYSQL_IMAGE) \
 		--port $(DBPORT) > /dev/null )
 		@ # -e MYSQL_USER=$(DBUSER) \
 
 waitformysql:
-	@while ! docker run --network host $(MYSQL_IMAGE) mysqladmin \
+	@while ! docker run -q --network host $(MYSQL_IMAGE) mysqladmin \
 		-h $(DBHOST) -P $(DBPORT) -s ping ;\
 	do \
 		echo "Waiting for mysql" ; \
