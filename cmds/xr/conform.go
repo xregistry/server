@@ -10,8 +10,8 @@ import (
 )
 
 var depth = 2
-var ConfigFile = EnvString("XR_CONFORM_CONFIG", "")
-var ShowLogs = EnvBool("XR_SHOWLOGS", false)
+
+var ShowLogs = false // EnvBool("XR_SHOWLOGS", false)
 
 func conformFunc(cmd *cobra.Command, args []string) {
 	servers := []string{}
@@ -62,9 +62,11 @@ func conformServer(cmd *cobra.Command, server string) int {
 
 	td.SetRegistry(reg)
 
-	if ConfigFile != "" {
-		Error(reg.LoadConfigFromFile(ConfigFile))
-	}
+	/*
+		if ConfigFile != "" {
+			Error(reg.LoadConfigFromFile(ConfigFile))
+		}
+	*/
 
 	runFunc, _ := cmd.Flags().GetString("run")
 	if runFunc == "" {

@@ -1813,3 +1813,11 @@ func ShowStacksWith(needle string) string {
 
 	return strings.Join(sections, "\n")
 }
+
+func MaxString(val any, maxLen int) string {
+	str := fmt.Sprintf("%v", val)
+	if len(str) > maxLen {
+		str = str[:(maxLen-3)] + "..."
+	}
+	return str
+}

@@ -12,7 +12,25 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+// Server Config
+var DBName = "registry"
+var DBHost = "localhost"
+var DBPort = "3306"
+var DBUser = "root"
+var DBPassword = "password"
+var UISegment = "ui"
+var DefaultRegSegment = "xreg"
+var RegCollectionSegment = "xregs"
+var UIDir = ""    // when set, load UI files from this dir instead of embedded
+var XRUIJSON = "" // location of xrui.json file to return
+
 var DefaultRegDbSID string
+var RootApp string // ui, xreg
+
+func init() {
+	DefaultRegDbSID = ""
+	RootApp = "ui"
+}
 
 func (r *Registry) GetTx() *Tx {
 	return r.tx

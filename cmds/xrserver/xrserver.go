@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -12,25 +11,35 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
+var defPort = 8080
 var defDBHost = "127.0.0.1"
 var defDBPort = 3306
 var defDBName = "registry"
 var defDBUser = "root"
 var defDBPassword = "password"
+var defRegistryName = "xRegistry"
 
-var DBHost = EnvString("DBHOST", defDBHost)
-var DBPort = EnvInt("DBPORT", defDBPort)
-var DBName = EnvString("DBNAME", defDBName)
-var DBUser = EnvString("DBUSER", defDBUser)
-var DBPassword = EnvString("DBPASSWORD", defDBPassword)
-
-var RegistryName = "xRegistry"
-var APIPort = 8080
-var VerboseCount = 0 // to change, do it as definition of -v flag
 var DontCreate = false
 var RecreateDB = false
 var RecreateReg = false
-var UIDir = ""
+var ConfigFileName = ".xrserver"
+var XRServerConfig = NewConfig(ConfigFileName)
+
+func init() {
+	XRServerConfig.Set("defaultreg", defRegistryName)
+	XRServerConfig.Set("rootapp", "ui")
+	XRServerConfig.Set("ui.dir", "")
+	XRServerConfig.Set("verbose", "")
+	XRServerConfig.Set("http.port", fmt.Sprintf("%d", defPort))
+	XRServerConfig.Set("db.name", defDBName)
+	XRServerConfig.Set("db.host", defDBHost)
+	XRServerConfig.Set("db.port", fmt.Sprintf("%d", defDBPort))
+	XRServerConfig.Set("db.user", defDBUser)
+	XRServerConfig.Set("db.password", defDBPassword)
+	XRServerConfig.Set("path.ui", "ui")
+	XRServerConfig.Set("path.defaultreg", "xreg")
+	XRServerConfig.Set("path.regcollection", "xregs")
+}
 
 func ErrStop(errAny any, args ...any) {
 	ErrStopTx(errAny, nil, args...)
@@ -74,7 +83,7 @@ func StopTx(tx *registry.Tx, args ...any) {
 }
 
 func Verbose(args ...any) {
-	if VerboseCount == 0 || len(args) == 0 || IsNil(args[0]) {
+	if log.GetVerbose() == 0 || len(args) == 0 || IsNil(args[0]) {
 		return
 	}
 
@@ -105,54 +114,69 @@ func setupCmds() *cobra.Command {
 		Run:          runFunc, // if we add this, add all of runCmd's flags
 		SilenceUsage: true,
 	}
+
+	// xrserver & xrserver run flags
+	serverCmd.Flags().StringP("registry", "r", defRegistryName,
+		"Default Registry name")
+	serverCmd.Flag("registry").DefValue = ""
+	serverCmd.Flags().IntP("port", "p", defPort,
+		fmt.Sprintf("HTTP Listen port (%d*)", defPort))
+	serverCmd.Flag("port").DefValue = "0"
+	serverCmd.Flags().StringP("root", "", "ui", "Root application (ui,xreg)")
+
 	serverCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
 	serverCmd.Flags().BoolP("samples", "", false, "Load sample registries")
-	serverCmd.Flags().IntVarP(&APIPort, "port", "p", APIPort, "API Listen port")
-	serverCmd.Flag("port").DefValue = "0"
 	serverCmd.Flags().BoolVarP(&RecreateDB, "recreatedb", "", RecreateDB,
 		"Recreate the DB")
 	serverCmd.Flags().BoolVarP(&RecreateReg, "recreatereg", "", RecreateReg,
 		"Recreate registry")
 	serverCmd.Flags().BoolVarP(&DontCreate, "dontcreate", "", DontCreate,
 		"Don't create DB/reg if missing")
-	serverCmd.Flags().StringVarP(&RegistryName, "registry", "r", RegistryName,
-		"Default Registry name")
-	serverCmd.Flag("registry").DefValue = ""
+	serverCmd.Flags().StringP("ui-dir", "", "",
+		"Serve new UI from this directory (dev mode)")
+	serverCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 
+	// global flags
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
-	serverCmd.PersistentFlags().StringVarP(&DBName, "db", "", DBName,
-		"DB name ("+DBName+"*)")
+	serverCmd.PersistentFlags().StringP("config", "", "",
+		"Config file ($HOME/"+ConfigFileName+")")
+	serverCmd.PersistentFlags().StringP("db", "", defDBName,
+		"DB name ("+defDBName+"*)")
 	serverCmd.Flag("db").DefValue = "" // hide default text
-	serverCmd.PersistentFlags().StringVarP(&DBHost, "dbhost", "", defDBHost,
-		"DB host address ("+DBHost+"*)")
+	serverCmd.PersistentFlags().StringP("dbhost", "", defDBHost,
+		"DB host address ("+defDBHost+"*)")
 	serverCmd.Flag("dbhost").DefValue = "" // hide default text
-	serverCmd.PersistentFlags().IntVarP(&DBPort, "dbport", "", defDBPort,
-		fmt.Sprintf("DB host port (%d*)", DBPort))
+	serverCmd.PersistentFlags().IntP("dbport", "", defDBPort,
+		fmt.Sprintf("DB host port (%d*)", defDBPort))
 	serverCmd.Flag("dbport").DefValue = "0" // hide default text
-	serverCmd.PersistentFlags().StringVarP(&DBUser, "dbuser", "", defDBUser,
-		"DB user ("+DBUser+"*)")
+	serverCmd.PersistentFlags().StringP("dbuser", "", defDBUser,
+		"DB user ("+defDBUser+"*)")
 	serverCmd.Flag("dbuser").DefValue = "" // hide default text
-	serverCmd.PersistentFlags().StringVarP(&DBPassword, "dbpassword", "",
-		defDBPassword, "DB password ("+DBPassword+"*)")
+	serverCmd.PersistentFlags().StringP("dbpassword", "",
+		defDBPassword, "DB password ("+defDBPassword+"*)")
 	serverCmd.Flag("dbpassword").DefValue = "" // hide default text
-	serverCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
+	serverCmd.PersistentFlags().CountP("verbose", "v",
 		"Be chatty``")
 	serverCmd.PersistentFlags().BoolP("version", "", false,
 		"Print command version string")
-	serverCmd.Flags().StringVarP(&UIDir, "ui-dir", "", UIDir,
-		"Serve new UI from this directory (dev mode)")
 
-	serverCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
+	serverCmd.PersistentFlags().BoolP("help", "?", false, "Help for commands")
+	serverCmd.SetUsageTemplate(strings.ReplaceAll(serverCmd.UsageTemplate(),
+		"\"help\"", "\"hide-me\""))
+	// serverCmd.SetUsageTemplate(serverCmd.UsageTemplate() + "\nVersion: " +
+	// GitCommit[:min(len(GitCommit), 12)] + "\n")
 
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run server (the default command)",
 		Run:   runFunc,
 	}
+
 	runCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
+	runCmd.Flags().StringP("root", "", "ui", "Root application (ui,xreg)")
 	runCmd.Flags().BoolP("samples", "", false, "Load sample registries")
-	runCmd.Flags().IntVarP(&APIPort, "port", "p", APIPort,
-		fmt.Sprintf("API Listen port (%d*)", APIPort))
+	runCmd.Flags().IntP("port", "p", defPort,
+		fmt.Sprintf("HTTP Listen port (%d*)", defPort))
 	runCmd.Flag("port").DefValue = "0"
 	runCmd.Flags().BoolVarP(&RecreateDB, "recreatedb", "", RecreateDB,
 		"Recreate the DB")
@@ -160,8 +184,8 @@ func setupCmds() *cobra.Command {
 		"Recreate registry")
 	runCmd.Flags().BoolVarP(&DontCreate, "dontcreate", "", DontCreate,
 		"Don't create DB/reg if missing")
-	runCmd.Flags().StringVarP(&RegistryName, "registry", "r", RegistryName,
-		"Default Registry name("+RegistryName+"*)")
+	runCmd.Flags().StringP("registry", "r", defRegistryName,
+		"Default Registry name("+defRegistryName+"*)")
 	runCmd.Flag("registry").DefValue = ""
 
 	serverCmd.AddCommand(runCmd)
@@ -170,21 +194,42 @@ func setupCmds() *cobra.Command {
 	addRegistryCmd(serverCmd)
 
 	serverCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		log.SetVerbose(VerboseCount)
-		registry.DB_Name = DBName
-		registry.UIDir = UIDir
-
 		if b, _ := cmd.Flags().GetBool("version"); b {
 			fmt.Printf("Version: %s\n", GitCommit[:min(len(GitCommit), 12)])
 			os.Exit(0)
 		}
-	}
 
-	serverCmd.PersistentFlags().BoolP("help", "?", false, "Help for commands")
-	serverCmd.SetUsageTemplate(strings.ReplaceAll(serverCmd.UsageTemplate(),
-		"\"help\"", "\"hide-me\""))
-	// serverCmd.SetUsageTemplate(serverCmd.UsageTemplate() + "\nVersion: " +
-	// GitCommit[:min(len(GitCommit), 12)] + "\n")
+		// load .xrserver config file - override fileName from --config
+		fn, _ := cmd.Flags().GetString("config")
+		ErrStop(XRServerConfig.Load(fn))
+
+		// Override with env vars
+		XRServerConfig.SetFromEnv("db.name", "DBNAME")
+		XRServerConfig.SetFromEnv("db.host", "DBHOST")
+		XRServerConfig.SetFromEnv("db.port", "DBPORT")
+		XRServerConfig.SetFromEnv("db.user", "DBUSER")
+		XRServerConfig.SetFromEnv("db.password", "DBPASSWORD")
+
+		//  Override with cmd-line params
+		XRServerConfig.SetFromCmd("db.name", cmd, "db")
+		XRServerConfig.SetFromCmd("db.host", cmd, "dbhost")
+		XRServerConfig.SetFromCmdInt("db.port", cmd, "dbport")
+		XRServerConfig.SetFromCmd("db.user", cmd, "dbuser")
+		XRServerConfig.SetFromCmd("db.password", cmd, "dbpassword")
+
+		// Set the Registry/DB flags
+		registry.DBName = XRServerConfig.Get("db.name")
+		registry.DBHost = XRServerConfig.Get("db.host")
+		registry.DBPort = XRServerConfig.Get("db.port")
+		registry.DBUser = XRServerConfig.Get("db.user")
+		registry.DBPassword = XRServerConfig.Get("db.password")
+
+		tmpV := XRServerConfig.GetAsInt("verbose")
+		if cmd.Flags().Changed("verbose") {
+			tmpV, _ = cmd.Flags().GetCount("verbose")
+		}
+		log.SetVerbose(tmpV)
+	}
 
 	return serverCmd
 }
@@ -196,28 +241,44 @@ func runFunc(cmd *cobra.Command, args []string) {
 		os.Exit(0)
 	}
 
+	// Override with non-global env vars
+	XRServerConfig.SetFromEnv("http.port", "XR_PORT")
+
+	// Override with cmd-line params
+	XRServerConfig.SetFromCmd("defaultreg", cmd, "registry")
+	XRServerConfig.SetFromCmdInt("http.port", cmd, "port")
+	XRServerConfig.SetFromCmd("rootapp", cmd, "root")
+	XRServerConfig.SetFromCmd("ui.dir", cmd, "ui-dir")
+
+	// Set the Registry/DB flags
+	registry.RootApp = XRServerConfig.Get("rootapp")
+	registry.UISegment = XRServerConfig.Get("path.ui")
+	registry.DefaultRegSegment = XRServerConfig.Get("path.defaultreg")
+	registry.RegCollectionSegment = XRServerConfig.Get("path.regcollection")
+	registry.UIDir = XRServerConfig.Get("ui.dir")
+	registry.XRUIJSON = XRServerConfig.Get("ui.xrui.json")
+
 	// Turn on timestamps for our Verbose and Error messages.
 	// UseLogging = true
 
+	if XRServerConfig.FileName != "" {
+		log.Printf("Config: %s", XRServerConfig.FileName)
+	}
+
 	PanicIf(GitCommit == "" || GitCommit == "<n/a>", "GitCommit isn't set")
 	Verbose("GitCommit: %.12s", GitCommit)
-	Verbose("DB server: %s:%s", registry.DBHOST, registry.DBPORT)
-
-	if tmp := os.Getenv("XR_PORT"); tmp != "" {
-		tmpInt, _ := strconv.Atoi(tmp)
-		if tmpInt != 0 {
-			APIPort = tmpInt
-		}
-	}
+	Verbose("DB server: %s:%s", registry.DBHost, registry.DBPort)
 
 	if len(args) > 0 {
 		Stop("Too many arguments on the command line")
 	}
 
-	if RegistryName == "" {
+	regName := XRServerConfig.Get("defaultreg")
+	if regName == "" {
 		Stop("Default Registry name missing, try: -r NAME")
 	}
 
+	DBName := XRServerConfig.Get("db.name")
 	if RecreateDB {
 		if registry.DBExists(DBName) {
 			Verbose("Deleting DB: %s", DBName)
@@ -245,6 +306,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	// Load samples before we look for the default reg because if the default
 	// one points to sample, but it's not there, it might try to create it
 	if val, _ := cmd.Flags().GetBool("samples"); val {
+		// log.Printf("Loading samples")
 		paths := os.Getenv("XR_MODEL_PATH")
 		os.Setenv("XR_MODEL_PATH", ".:"+paths+
 			":http://raw.githubusercontent.com/xregistry/spec/main")
@@ -267,12 +329,12 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	reg, xErr := registry.FindRegistry(nil, RegistryName, registry.FOR_READ)
-	ErrStop(xErr, "Error finding registry(%s): %s", RegistryName, xErr)
+	reg, xErr := registry.FindRegistry(nil, regName, registry.FOR_READ)
+	ErrStop(xErr, "Error finding registry(%s): %s", regName, xErr)
 
 	if reg != nil {
 		if RecreateReg {
-			Verbose("Deleting xReg: %s", RegistryName)
+			Verbose("Deleting xReg: %s", regName)
 			ErrStop(reg.Delete())
 			ErrStop(reg.Commit())
 			reg = nil // force a create below
@@ -280,23 +342,37 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if reg == nil && (!DontCreate || RecreateReg) {
-		Verbose("Creating xReg: %s", RegistryName)
-		reg, xErr = registry.NewRegistry(nil, RegistryName)
+		Verbose("Creating: %s/%s",
+			XRServerConfig.Get("path.regcollection"), regName)
+		reg, xErr = registry.NewRegistry(nil, regName)
 		if IsNil(xErr) {
 			xErr = reg.Commit()
 		}
 
-		ErrStop(xErr, "Error creating new registry(%s): %s", RegistryName, xErr)
+		ErrStop(xErr, "Error creating new registry(%s): %s", regName, xErr)
 	}
 
 	if reg == nil {
-		if RegistryName != "" {
-			Stop("Registry %q does not exist", RegistryName)
+		if regName != "" {
+			Stop("Registry %q does not exist", regName)
 		}
 		Stop("No default registry defined")
 	}
 
-	Verbose("Default(/): " + XREG_PREFIX + reg.UID)
+	Verbose("Path: /%s -> %s/%s",
+		XRServerConfig.Get("path.defaultreg"),
+		XRServerConfig.Get("path.regcollection"), reg.UID)
+
+	if registry.RootApp != "ui" && registry.RootApp != "xreg" {
+		Stop("--root must be either \"ui\" or \"xreg\"")
+	}
+
+	if registry.RootApp == "xreg" {
+		Verbose("Path: / -> %s/%s",
+			XRServerConfig.Get("path.regcollection"), reg.UID)
+	} else {
+		Verbose("Path: / -> %s", XRServerConfig.Get("path.ui"))
+	}
 
 	if val, _ := cmd.Flags().GetBool("verify"); val {
 		Verbose("Done verifying, exiting")
@@ -304,7 +380,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	registry.DefaultRegDbSID = reg.DbSID
-	registry.NewServer(APIPort).Serve()
+	registry.NewServer(XRServerConfig.GetAsInt("http.port")).Serve()
 }
 
 func BufPrintf(buf *strings.Builder, fmtStr string, args ...any) {

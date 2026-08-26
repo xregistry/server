@@ -130,8 +130,34 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if RootApp != "ui" && RootApp != "xreg" {
+		// info isn't set up yet this early (ParseRequest() hasn't run),
+		// so build a minimal one here rather than dereferencing the nil
+		// "info" - otherwise this misconfiguration panics (masked by the
+		// generic panic recover() above into an unhelpful 500, instead of
+		// this specific error message).
+		info = NewRequestInfo(w, r)
+		xErr := NewXRError("server_error", "/"+info.OriginalPath).
+			SetDetailf("Unknown rootapp: %s.", RootApp)
+		HTTPWriteError(info, xErr)
+		return
+	}
+
+	path := r.URL.Path[1:] // remove leading /
+
+	serveUI := (RootApp == "ui")
+
+	if path == UISegment || strings.HasPrefix(path, UISegment+"/") {
+		serveUI = true
+	}
+
+	if path == DefaultRegSegment || strings.HasPrefix(path, DefaultRegSegment+"/") ||
+		path == RegCollectionSegment || strings.HasPrefix(path, RegCollectionSegment+"/") {
+		serveUI = false
+	}
+
 	// Serve the new SPA UI for /ui and /ui/...
-	if r.URL.Path == "/ui" || strings.HasPrefix(r.URL.Path, "/ui/") {
+	if serveUI {
 		ServeUIStatic(w, r)
 		return
 	}
@@ -634,27 +660,28 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 			SetDetail(xErr.GetTitle())
 	}
 
-	// Recover the plain host base (scheme://host, no /xreg-<name> suffix)
-	// regardless of whether THIS request itself came in via a /xreg-<name>
+	// Recover the plain host base (scheme://host, no /xregs/<name> suffix)
+	// regardless of whether THIS request itself came in via a /xregs/<name>
 	// prefixed URL - every sibling registry's URL below is built from this
 	// same host base, not from whatever prefix this particular request
 	// happened to use.
 	hostBase := info.BaseURL
 	if info.Registry != nil {
 		hostBase = strings.TrimSuffix(hostBase,
-			"/"+XREG_PREFIX+info.Registry.UID)
+			"/"+RegCollectionSegment+"/"+info.Registry.UID)
 	}
 
 	registries := make([]string, 0, len(names)+1)
-	// The plain host base URL (no "/xreg-<name>" suffix) is itself a valid
+	// The plain host base URL (no "/xregs/<name>" suffix) is itself a valid
 	// way to reach a registry too - it's just an alias for whichever
 	// registry the server was started with as its default (see
-	// GetDefaultReg()/cmds/xrserver's "Default(/): xreg-<name>" startup
+	// GetDefaultReg()/cmds/xrserver's "Default(/): xregx/<name>" startup
 	// log). Include it so clients relying solely on this discovery doc
 	// don't miss that registry.
 	registries = append(registries, hostBase)
 	for _, name := range names {
-		registries = append(registries, hostBase+"/"+XREG_PREFIX+name)
+		registries = append(registries,
+			hostBase+"/"+RegCollectionSegment+"/"+name)
 	}
 
 	buf, err := json.MarshalIndent(map[string]any{
@@ -2841,7 +2868,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 	if row != nil {
 		// found it!
 		regName := string((*(row[0])).([]byte))
-		newPath := "/" + XREG_PREFIX + regName +
+		newPath := "/" + RegCollectionSegment + "/" + regName +
 			string((*(row[1])).([]byte)) + suffix
 
 		log.KPrintf("ShortSelf", "Redirect: %q -> %q", path, newPath)

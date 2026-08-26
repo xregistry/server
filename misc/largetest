@@ -26,7 +26,7 @@ set -e
 echo
 echo "# Running the benchmark"
  
-XR_SERVER=http://localhost:8080/xreg-Large
+XR_SERVER=http://localhost:8080/xregs/Large
 CMD="curl -s "
 SEARCH="Done loading"
 # SEARCH="Listening" ; CMD="echo $CMD"

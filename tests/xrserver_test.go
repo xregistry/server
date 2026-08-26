@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func TestXRServerBasic(t *testing.T) {
@@ -33,13 +34,14 @@ Usage:
 	// Just look for the first 3 lines
 	XEqual(t, "", lines, "")
 
-	cmd = exec.Command("../xrserver", "-v", "--verify")
+	cmd = exec.Command("../xrserver", "--root=xreg", "-v", "--verify")
 	out, err = cmd.CombinedOutput()
 	XNoErr(t, err)
 	lines, _, _ = strings.Cut(string(out), "Available Commands:")
 	exp := `2025/05/21 19:01:39 GitCommit: 8061f34abf
 2025/05/21 19:01:39 DB server: localhost:3306
-2025/05/21 19:01:39 Default(/): ` + XREG_PREFIX + `xRegistry
+2025/05/21 19:01:39 Path: /` + registry.DefaultRegSegment + ` -> ` + registry.RegCollectionSegment + `/xRegistry
+2025/05/21 19:01:39 Path: / -> ` + registry.RegCollectionSegment + `/xRegistry
 2025/05/21 19:01:39 Done verifying, exiting
 `
 	re := regexp.MustCompile(`(^|\n)\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `)
@@ -63,7 +65,8 @@ func TestXRServerRecreates(t *testing.T) {
 	// Granted we're just checking log messages... maybe one day we'll
 	// check the DB itself to make sure the logs aren't lying
 
-	cmd := exec.Command("../xrserver", "--recreatedb", "-vv", "--verify")
+	cmd := exec.Command("../xrserver", "--recreatedb", "--root=xreg", "-vv",
+		"--verify")
 	buf, err := cmd.CombinedOutput()
 	XNoErr(t, err)
 	out := string(buf)
@@ -73,8 +76,9 @@ func TestXRServerRecreates(t *testing.T) {
 2025/10/14 12:20:01 DB server: localhost:3306
 2025/10/14 12:20:01 Deleting DB: registry
 2025/10/14 12:20:01 Creating DB: registry
-2025/10/14 12:20:02 Creating xReg: xRegistry
-2025/10/14 12:20:02 Default(/): ` + XREG_PREFIX + `xRegistry
+2025/10/14 12:20:02 Creating: ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: /` + registry.DefaultRegSegment + ` -> ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: / -> ` + registry.RegCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -94,7 +98,8 @@ func TestXRServerRecreates(t *testing.T) {
 
 	// --
 
-	cmd = exec.Command("../xrserver", "--recreatereg", "-vv", "--verify")
+	cmd = exec.Command("../xrserver", "--recreatereg", "--root=xreg",
+		"-vv", "--verify")
 	buf, err = cmd.CombinedOutput()
 	XNoErr(t, err)
 	out = string(buf)
@@ -103,8 +108,9 @@ func TestXRServerRecreates(t *testing.T) {
 2025/10/14 12:20:01 GitCommit: f680917749
 2025/10/14 12:20:01 DB server: localhost:3306
 2025/10/14 12:20:01 Deleting xReg: xRegistry
-2025/10/14 12:20:02 Creating xReg: xRegistry
-2025/10/14 12:20:02 Default(/): ` + XREG_PREFIX + `xRegistry
+2025/10/14 12:20:02 Creating: ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: /` + registry.DefaultRegSegment + ` -> ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: / -> ` + registry.RegCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -124,7 +130,8 @@ func TestXRServerRecreates(t *testing.T) {
 
 	// --
 
-	cmd = exec.Command("../xrserver", "--recreatereg", "--recreatedb", "-vv",
+	cmd = exec.Command("../xrserver", "--recreatereg", "--root=xreg",
+		"--recreatedb", "-vv",
 		"--verify")
 	buf, err = cmd.CombinedOutput()
 	XNoErr(t, err)
@@ -135,8 +142,9 @@ func TestXRServerRecreates(t *testing.T) {
 2025/10/14 12:20:01 DB server: localhost:3306
 2025/10/14 12:20:01 Deleting DB: registry
 2025/10/14 12:20:01 Creating DB: registry
-2025/10/14 12:20:02 Creating xReg: xRegistry
-2025/10/14 12:20:02 Default(/): ` + XREG_PREFIX + `xRegistry
+2025/10/14 12:20:02 Creating: ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: /` + registry.DefaultRegSegment + ` -> ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: / -> ` + registry.RegCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -257,21 +265,23 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 `,
 		},
 		{
-			Args:  "-v --verify --dontcreate -r " + TestRegName,
+			Args:  "-v --root=xreg --verify --dontcreate -r " + TestRegName,
 			Stdin: "",
 			Code:  0,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 				"YYYY/MM/DD HH:MM:SS DB server: localhost:3306\n" +
-				"YYYY/MM/DD HH:MM:SS Default(/): " + XREG_PREFIX + "testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: /" + registry.DefaultRegSegment + " -> " + registry.RegCollectionSegment + "/testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: / -> " + registry.RegCollectionSegment + "/testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Done verifying, exiting\n",
 		},
 		{
-			Args:  "-v run --verify -r " + TestRegName,
+			Args:  "-v run --root=xreg --verify -r " + TestRegName,
 			Stdin: "",
 			Code:  0,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 				"YYYY/MM/DD HH:MM:SS DB server: localhost:3306\n" +
-				"YYYY/MM/DD HH:MM:SS Default(/): " + XREG_PREFIX + "testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: /" + registry.DefaultRegSegment + " -> " + registry.RegCollectionSegment + "/testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: / -> " + registry.RegCollectionSegment + "/testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Done verifying, exiting\n",
 		},
 	}

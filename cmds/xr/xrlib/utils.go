@@ -116,12 +116,15 @@ func HttpDo(debug bool, verb string, url string, headers map[string]string, body
 		Debug("Request: %s %s", verb, url)
 		if len(headers) != 0 {
 			for _, key := range SortedKeys(headers) {
-				Debug("Header: %q", key)
+				val := headers[key]
+				Debug("Header: %s: %s", key, MaxString(val, 20))
 			}
 		}
 		if len(body) != 0 {
 			Debug("Body:\n%s", string(body))
 			Debug("--------------------")
+		} else {
+			Debug("Body: <empty>")
 		}
 	}
 

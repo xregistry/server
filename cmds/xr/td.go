@@ -590,14 +590,6 @@ func (td *TD) ObjPropMustNotEqual(obj map[string]any, prop string, exp any) {
 	td.Pass("%q (%s) MUST be != %q", prop, resStr, exp)
 }
 
-func MaxString(val any, maxLen int) string {
-	str := fmt.Sprintf("%v", val)
-	if len(str) > maxLen {
-		str = str[:(maxLen-3)] + "..."
-	}
-	return str
-}
-
 func (td *TD) ObjPropMustExist(obj map[string]any, prop string) {
 	pp, err := PropPathFromUI(prop)
 	if err != nil {

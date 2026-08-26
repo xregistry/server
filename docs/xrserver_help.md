@@ -8,6 +8,7 @@ The `xrserver` CLI boots and manages the API server and backing database:
 ```yaml
 xrserver [command]
   # Global flags:
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -16,10 +17,11 @@ xrserver [command]
       --dontcreate          Don't create DB/reg if missing
   -?, --help                Help for commands
       --help-all            Help for all commands
-  -p, --port int            API Listen port
+  -p, --port int            HTTP Listen port (8080*)
       --recreatedb          Recreate the DB
       --recreatereg         Recreate registry
   -r, --registry string     Default Registry name
+      --root string         Root application (ui,xreg) (default "ui")
       --samples             Load sample registries
       --ui-dir string       Serve new UI from this directory (dev mode)
   -v, --verbose             Be chatty
@@ -28,6 +30,7 @@ xrserver [command]
 
 xrserver db [command]
   # Manage mysql databases
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -39,6 +42,7 @@ xrserver db [command]
 
 xrserver db create NAME
   # Create a new mysql DB
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -51,6 +55,7 @@ xrserver db create NAME
 
 xrserver db delete NAME
   # Delete a mysql DB
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -63,6 +68,7 @@ xrserver db delete NAME
 
 xrserver db get NAME
   # Get details about a mysql DB
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -74,6 +80,7 @@ xrserver db get NAME
 
 xrserver db list
   # List the databases
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -89,6 +96,7 @@ xrserver help [command]
 
 xrserver registry [command]
   # Manage xRegistries
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -100,6 +108,7 @@ xrserver registry [command]
 
 xrserver registry create ID...
   # Create one or more xRegistry
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -112,6 +121,7 @@ xrserver registry create ID...
 
 xrserver registry delete ID...
   # Delete one or more registries
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -124,6 +134,7 @@ xrserver registry delete ID...
 
 xrserver registry get ID
   # Get details about a registry
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -135,6 +146,7 @@ xrserver registry get ID
 
 xrserver registry list
   # List the registries
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -146,6 +158,7 @@ xrserver registry list
 
 xrserver run
   # Run server (the default command)
+      --config string       Config file ($HOME/.xrserver)
       --db string           DB name (registry*)
       --dbhost string       DB host address (127.0.0.1*)
       --dbpassword string   DB password (password*)
@@ -153,10 +166,11 @@ xrserver run
       --dbuser string       DB user (root*)
       --dontcreate          Don't create DB/reg if missing
   -?, --help                Help for commands
-  -p, --port int            API Listen port (8080*)
+  -p, --port int            HTTP Listen port (8080*)
       --recreatedb          Recreate the DB
       --recreatereg         Recreate registry
   -r, --registry string     Default Registry name(xRegistry*)
+      --root string         Root application (ui,xreg) (default "ui")
       --samples             Load sample registries
   -v, --verbose             Be chatty
       --verify              Verify loading and exit

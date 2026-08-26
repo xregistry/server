@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	. "github.com/xregistry/server/common"
-	// "github.com/xregistry/server/registry"
+	"github.com/xregistry/server/registry"
 )
 
 func TestHTTPMixedCase(t *testing.T) {
@@ -4707,13 +4707,13 @@ func TestHTTPLinkHeader(t *testing.T) {
 	// Test Link header with non-default registry (xreg- prefix)
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "Link header with xreg- prefix",
-		URL:        "/" + XREG_PREFIX + "TestHTTPLinkHeader",
+		URL:        "/" + registry.RegCollectionSegment + "/TestHTTPLinkHeader",
 		Method:     "GET",
 		ReqHeaders: []string{},
 		ReqBody:    "",
 
 		Code:       200,
-		ResHeaders: []string{"Link:<http://localhost:8181/" + XREG_PREFIX + "TestHTTPLinkHeader>;rel=xregistry-root"},
+		ResHeaders: []string{"Link:<http://localhost:8181/" + registry.RegCollectionSegment + "/TestHTTPLinkHeader>;rel=xregistry-root"},
 		ResBody:    "*",
 	})
 
@@ -4747,25 +4747,25 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	// Plain (default registry) URL. reg1 is the default registry here
 	// (NewRegistry() sets registry.DefaultRegDbSID to whichever Registry
 	// was created/found most recently - see tests/utils_test.go), so the
-	// bare host base URL (no "/xreg-<name>" suffix - it's just an alias
+	// bare host base URL (no "/xregs/<name>" suffix - it's just an alias
 	// for whichever registry is currently the default) must show up too.
 	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
   "registries": `+esc+`[`+star+`
     "http://localhost:8181",`+star+`
-    "http://localhost:8181/`+XREG_PREFIX+`TestHTTPXRegistryDiscovery1"`+star+`
+    "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPXRegistryDiscovery1"`+star+`
   `+esc+`]
 }
 `)
 
-	// Same, but via the "/xreg-<name>/.xregistry" prefixed form - the
+	// Same, but via the "/xregs/<name>/.xregistry" prefixed form - the
 	// returned URLs must still be built from the plain host base (no
-	// doubled-up "/xreg-.../xreg-..." segment), regardless of which
+	// doubled-up "/xregs/.../xregs/..." segment), regardless of which
 	// registry's prefix the request itself came in through.
-	XHTTP(t, reg1, "GET", "/"+XREG_PREFIX+"TestHTTPXRegistryDiscovery1/.xregistry", ``,
+	XHTTP(t, reg1, "GET", "/"+registry.RegCollectionSegment+"/TestHTTPXRegistryDiscovery1/.xregistry", ``,
 		200, prefix+`{
   "registries": `+esc+`[`+star+`
     "http://localhost:8181",`+star+`
-    "http://localhost:8181/`+XREG_PREFIX+`TestHTTPXRegistryDiscovery1"`+star+`
+    "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPXRegistryDiscovery1"`+star+`
   `+esc+`]
 }
 `)
@@ -4782,8 +4782,8 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
   "registries": `+esc+`[`+star+`
     "http://localhost:8181",`+star+`
-    "http://localhost:8181/`+XREG_PREFIX+`TestHTTPXRegistryDiscovery1",
-    "http://localhost:8181/`+XREG_PREFIX+`TestHTTPXRegistryDiscovery2"`+star+`
+    "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPXRegistryDiscovery1",
+    "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPXRegistryDiscovery2"`+star+`
   `+esc+`]
 }
 `)
@@ -4862,11 +4862,11 @@ func TestHTTPShortSelf(t *testing.T) {
       }
     }`, 200, "*")
 
-	res := XHTTP(t, reg, "PUT", "/"+XREG_PREFIX+rName+"/dirs/d1/files/f1/versions/v1$details", `{"file":"hello world","contenttype":null}`,
+	res := XHTTP(t, reg, "PUT", "/"+registry.RegCollectionSegment+"/"+rName+"/dirs/d1/files/f1/versions/v1$details", `{"file":"hello world","contenttype":null}`,
 		201, `{
   "fileid": "f1",
   "versionid": "v1",
-  "self": "http://localhost:8181/`+XREG_PREFIX+rName+`/dirs/d1/files/f1/versions/v1$details",
+  "self": "http://localhost:8181/`+registry.RegCollectionSegment+"/"+rName+`/dirs/d1/files/f1/versions/v1$details",
   "shortself": "http://localhost:8181/r/2835eb5c12",
   "xid": "/dirs/d1/files/f1/versions/v1",
   "epoch": 1,
@@ -4890,7 +4890,7 @@ func TestHTTPShortSelf(t *testing.T) {
 		"/dirs/d1/files/f1/versions/v1$details",
 		"/dirs/d1/files/f1/meta",
 	} {
-		res = XHTTP(t, reg, "GET", "/"+XREG_PREFIX+rName+daURL, ``, 200, `*`)
+		res = XHTTP(t, reg, "GET", "/"+registry.RegCollectionSegment+"/"+rName+daURL, ``, 200, `*`)
 		ss := res.ToMap()["shortself"].(string)
 		if strings.Contains(daURL, "$details") {
 			ss += "$details"
@@ -4907,12 +4907,12 @@ func TestHTTPShortSelf(t *testing.T) {
 		"/dirs/d1/files/f1",
 		"/dirs/d1/files/f1/versions/v1",
 	} {
-		res = XHTTP(t, reg, "GET", "/"+XREG_PREFIX+rName+daURL, ``, 200, `*`)
+		res = XHTTP(t, reg, "GET", "/"+registry.RegCollectionSegment+"/"+rName+daURL, ``, 200, `*`)
 		ss := res.Header.Get("xregistry-shortself")
 		t.Logf("ss: %q", ss)
 
 		// Get $details version to check against
-		res = XHTTP(t, reg, "GET", "/"+XREG_PREFIX+rName+daURL+"$details", ``, 200, `*`)
+		res = XHTTP(t, reg, "GET", "/"+registry.RegCollectionSegment+"/"+rName+daURL+"$details", ``, 200, `*`)
 
 		XHTTP(t, reg, "GET", ss+"$details", ``, 200, res.body)
 	}
@@ -4923,7 +4923,7 @@ func TestHTTPShortSelf(t *testing.T) {
 	XHTTP(t, reg, "GET", ss+"$details?inline=meta", "", 200, `{
   "fileid": "f1",
   "versionid": "v1",
-  "self": "http://localhost:8181/`+XREG_PREFIX+`TestHTTPShortSelf/dirs/d1/files/f1$details",
+  "self": "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPShortSelf/dirs/d1/files/f1$details",
   "shortself": "http://localhost:8181/r/843008bf10",
   "xid": "/dirs/d1/files/f1",
   "epoch": 3,
@@ -4932,10 +4932,10 @@ func TestHTTPShortSelf(t *testing.T) {
   "modifiedat": "2026-07-21T18:20:58.868468663Z",
   "ancestorid": "v1",
 
-  "metaurl": "http://localhost:8181/`+XREG_PREFIX+`TestHTTPShortSelf/dirs/d1/files/f1/meta",
+  "metaurl": "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPShortSelf/dirs/d1/files/f1/meta",
   "meta": {
     "fileid": "f1",
-    "self": "http://localhost:8181/`+XREG_PREFIX+`TestHTTPShortSelf/dirs/d1/files/f1/meta",
+    "self": "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPShortSelf/dirs/d1/files/f1/meta",
     "shortself": "http://localhost:8181/r/88a9e32f11",
     "xid": "/dirs/d1/files/f1/meta",
     "epoch": 2,
@@ -4944,10 +4944,10 @@ func TestHTTPShortSelf(t *testing.T) {
     "readonly": false,
 
     "defaultversionid": "v1",
-    "defaultversionurl": "http://localhost:8181/`+XREG_PREFIX+`TestHTTPShortSelf/dirs/d1/files/f1/versions/v1$details",
+    "defaultversionurl": "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPShortSelf/dirs/d1/files/f1/versions/v1$details",
     "defaultversionsticky": false
   },
-  "versionsurl": "http://localhost:8181/`+XREG_PREFIX+`TestHTTPShortSelf/dirs/d1/files/f1/versions",
+  "versionsurl": "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPShortSelf/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
 `)

@@ -53,7 +53,8 @@ func init() {
 }
 
 func LoadRegistry(regName string, data string) {
-	req, err := http.NewRequest("PUT", "/"+XREG_PREFIX+regName, strings.NewReader(data))
+	req, err := http.NewRequest("PUT", "/"+registry.RegCollectionSegment+"/"+regName,
+		strings.NewReader(data))
 	if err != nil {
 		ErrFatalf(err)
 	}
@@ -117,7 +118,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		// TODO Support "model" being part of the Registry struct above
 	}
 
-	Verbose("Loading: /" + XREG_PREFIX + reg.UID)
+	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
 
 	newModel := &registry.Model{}
 	g, xErr := newModel.AddGroupModel("apiproviders", "apiprovider")
@@ -239,8 +240,10 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		}
 
 		reg, xErr = registry.NewRegistry(nil, "TestRegistry")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
+		defer reg.Rollback()
 	}
-	Verbose("Loading: /" + XREG_PREFIX + reg.UID)
+	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
 	LoadRegistry("TestRegistry", testRegJson)
 	return reg
 }
@@ -265,7 +268,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 	}
 
-	Verbose("Loading: /" + XREG_PREFIX + reg.UID)
+	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
 	fn, err := common.FindModelFile("endpoint/model.json")
 	ErrFatalf(err)
 	xErr = reg.LoadModelFromFile(fn)
@@ -334,7 +337,7 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading: /" + XREG_PREFIX + reg.UID)
+	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
 	fn, err := common.FindModelFile("message/model.json")
 	ErrFatalf(err)
 	xErr = reg.LoadModelFromFile(fn)
@@ -367,7 +370,7 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading: /" + XREG_PREFIX + reg.UID)
+	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
 	fn, err := common.FindModelFile("schema/model.json")
 	ErrFatalf(err)
 	xErr = reg.LoadModelFromFile(fn)
@@ -401,7 +404,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading: /" + XREG_PREFIX + reg.UID)
+	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
 
 	newModel := &registry.Model{}
 
@@ -463,7 +466,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading: /" + XREG_PREFIX + reg.UID)
+	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
 	// Use JSON for this model so that "modelsource" has something in it
 	ErrFatalf(reg.Model.ApplyNewModelFromJSON([]byte(`{
       "groups": {
@@ -553,7 +556,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading: /" + XREG_PREFIX + reg.UID)
+	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
 	fn, err := common.FindModelFile("cloudevents/model.json")
 	ErrFatalf(err)
 	xErr = reg.LoadModelFromFile(fn)

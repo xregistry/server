@@ -5,17 +5,13 @@ import (
 	"embed"
 	"io"
 	"io/fs"
+	"log"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 )
-
-// UIDir, when non-empty, serves the new SPA UI from this directory on disk
-// (useful during development — no recompile needed after editing JS/CSS/HTML).
-// When empty, the embedded files are used.
-var UIDir string
 
 //go:embed ui
 var uiEmbedded embed.FS
@@ -35,17 +31,11 @@ func uiFileSystem() http.FileSystem {
 // ServeUIStatic handles all requests under /ui/.
 // It strips the /ui prefix and serves from the embedded (or disk) fs.
 func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/ui")
+	path := strings.TrimPrefix(r.URL.Path, "/"+UISegment)
 	if path == "" {
-		// Redirect /ui → /ui/ so relative paths in index.html resolve correctly.
-		http.Redirect(w, r, "/ui/", http.StatusMovedPermanently)
+		// Redirect /ui → /ui/ so relative paths in index.html resolve correctly
+		http.Redirect(w, r, "/"+UISegment+"/", http.StatusMovedPermanently)
 		return
-	}
-
-	// For non-root paths that don't exist as files, fall back to index.html
-	// so the SPA's client-side router can handle deep links.
-	if path != "/" && !uiFileExists(path) {
-		path = "/index.html"
 	}
 
 	// Prevent browsers from caching UI assets — the embedded files change
@@ -54,6 +44,19 @@ func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
+
+	// xrui.json is special-cased so it can be overridden, at runtime, by an
+	// external file (registry.XRUIJSON) without needing a rebuild/restart.
+	if path == "/xrui.json" {
+		serveXRUIJSON(w, r)
+		return
+	}
+
+	// For non-root paths that don't exist as files, fall back to index.html
+	// so the SPA's client-side router can handle deep links.
+	if path != "/" && !uiFileExists(path) {
+		path = "/index.html"
+	}
 
 	// Files under /xreg/ get $HOST substituted with the request's scheme+host.
 	if strings.HasPrefix(path, "/xreg/") {
@@ -71,6 +74,52 @@ func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
 	r2.Header.Del("If-None-Match")
 	r2.Header.Del("If-Range")
 	fileServer.ServeHTTP(w, r2)
+}
+
+// serveXRUIJSON handles GET requests for /xrui.json. If registry.XRUIJSON is
+// set, it's (re-)read from disk on every request (no caching, so edits take
+// effect immediately). If it's unset, can't be found, or fails to load, we
+// log the error (only when XRUIJSON was actually set - i.e. an explicit
+// override was attempted and failed) and fall back to serving the default
+// xrui.json from UIDir/the embedded fs, exactly as if no override existed.
+func serveXRUIJSON(w http.ResponseWriter, r *http.Request) {
+	if XRUIJSON != "" {
+		content, err := os.ReadFile(XRUIJSON)
+		if err == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write(content)
+			return
+		}
+		log.Printf("Error reading xrui.json file %q: %s", XRUIJSON, err)
+		// fall through to default handling below
+	}
+
+	var content []byte
+	var err error
+	if UIDir != "" {
+		content, err = os.ReadFile(UIDir + "/xrui.json")
+	} else {
+		var f fs.File
+		sub, subErr := fs.Sub(uiEmbedded, "ui")
+		if subErr != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		f, err = sub.Open("xrui.json")
+		if err == nil {
+			content, err = io.ReadAll(f)
+			f.Close()
+		}
+	}
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(content)
 }
 
 // serveXregFile reads a file from the ui/xreg directory, replaces $HOST with
