@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -122,7 +123,7 @@ func setupCmds() *cobra.Command {
 	serverCmd.Flags().IntP("port", "p", defPort,
 		fmt.Sprintf("HTTP Listen port (%d*)", defPort))
 	serverCmd.Flag("port").DefValue = "0"
-	serverCmd.Flags().StringP("root", "", "ui", "Root application (ui,xreg)")
+	serverCmd.Flags().StringP("rootapp", "", "ui", "Root application (ui,xreg)")
 
 	serverCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
 	serverCmd.Flags().BoolP("samples", "", false, "Load sample registries")
@@ -140,6 +141,8 @@ func setupCmds() *cobra.Command {
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
 	serverCmd.PersistentFlags().StringP("config", "", "",
 		"Config file ($HOME/"+ConfigFileName+")")
+	serverCmd.PersistentFlags().StringArray("set", nil,
+		"Override configFile property: --set NAME[:VALUE]")
 	serverCmd.PersistentFlags().StringP("db", "", defDBName,
 		"DB name ("+defDBName+"*)")
 	serverCmd.Flag("db").DefValue = "" // hide default text
@@ -173,7 +176,7 @@ func setupCmds() *cobra.Command {
 	}
 
 	runCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
-	runCmd.Flags().StringP("root", "", "ui", "Root application (ui,xreg)")
+	runCmd.Flags().StringP("rootapp", "", "ui", "Root application (ui,xreg)")
 	runCmd.Flags().BoolP("samples", "", false, "Load sample registries")
 	runCmd.Flags().IntP("port", "p", defPort,
 		fmt.Sprintf("HTTP Listen port (%d*)", defPort))
@@ -202,6 +205,17 @@ func setupCmds() *cobra.Command {
 		// load .xrserver config file - override fileName from --config
 		fn, _ := cmd.Flags().GetString("config")
 		ErrStop(XRServerConfig.Load(fn))
+
+		// Override with --set flags
+		sets, _ := cmd.Flags().GetStringArray("set")
+		for _, set := range sets {
+			name, value, ok := strings.Cut(set, ":")
+			if !ok {
+				// Just to be nice
+				name, value, _ = strings.Cut(set, "=")
+			}
+			XRServerConfig.Set(name, value)
+		}
 
 		// Override with env vars
 		XRServerConfig.SetFromEnv("db.name", "DBNAME")
@@ -247,7 +261,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	// Override with cmd-line params
 	XRServerConfig.SetFromCmd("defaultreg", cmd, "registry")
 	XRServerConfig.SetFromCmdInt("http.port", cmd, "port")
-	XRServerConfig.SetFromCmd("rootapp", cmd, "root")
+	XRServerConfig.SetFromCmd("rootapp", cmd, "rootapp")
 	XRServerConfig.SetFromCmd("ui.dir", cmd, "ui-dir")
 
 	// Set the Registry/DB flags
@@ -258,19 +272,32 @@ func runFunc(cmd *cobra.Command, args []string) {
 	registry.UIDir = XRServerConfig.Get("ui.dir")
 	registry.XRUIJSON = XRServerConfig.Get("ui.xrui.json")
 
+	DBName := XRServerConfig.Get("db.name")
+
 	// Turn on timestamps for our Verbose and Error messages.
 	// UseLogging = true
 
 	if XRServerConfig.FileName != "" {
-		log.Printf("Config: %s", XRServerConfig.FileName)
+		Verbose("Config: %s", XRServerConfig.FileName)
 	}
 
 	PanicIf(GitCommit == "" || GitCommit == "<n/a>", "GitCommit isn't set")
 	Verbose("GitCommit: %.12s", GitCommit)
-	Verbose("DB server: %s:%s", registry.DBHost, registry.DBPort)
+	Verbose("DB: %s@%s:%s", DBName, registry.DBHost, registry.DBPort)
 
 	if len(args) > 0 {
 		Stop("Too many arguments on the command line")
+	}
+
+	if registry.UIDir != "" {
+		if _, err := os.Stat(registry.UIDir); err != nil {
+			Stop("Error locating UIDir(%s): %s", registry.UIDir,
+				errors.Unwrap(err))
+		}
+		if _, err := os.Stat(registry.UIDir + "/index.html"); err != nil {
+			Stop("Error locating UIDir(%s)/index.html: %s", registry.UIDir,
+				errors.Unwrap(err))
+		}
 	}
 
 	regName := XRServerConfig.Get("defaultreg")
@@ -278,7 +305,6 @@ func runFunc(cmd *cobra.Command, args []string) {
 		Stop("Default Registry name missing, try: -r NAME")
 	}
 
-	DBName := XRServerConfig.Get("db.name")
 	if RecreateDB {
 		if registry.DBExists(DBName) {
 			Verbose("Deleting DB: %s", DBName)
@@ -358,6 +384,16 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 		Stop("No default registry defined")
 	}
+
+	if registry.UIDir != "" {
+		Verbose("UI Dir: %s", registry.UIDir)
+	}
+
+	if registry.XRUIJSON != "" {
+		Verbose("UI xrui.json: %s", registry.XRUIJSON)
+	}
+
+	Verbose("Path: /%s -> UI", XRServerConfig.Get("path.ui"))
 
 	Verbose("Path: /%s -> %s/%s",
 		XRServerConfig.Get("path.defaultreg"),

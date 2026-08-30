@@ -15,13 +15,16 @@ of them.
 - talk about /xregs/XXX and /xreg paths. /xreg/XXX for any Reg, / and /xreg for
   default Reg
 - talk about ..../ui to get to the UI
+- talk abou thow they can use hub.xregistry.io to load a UI and use it to view
+  any registry, and even delete/hide 'hub'. So just bookmark the URL
+  (hub.xregistry.io) to have a personalized xReg view/browser.
 - talk about --root
 - .xr
   - header.foo: VALUE
   - server.url: URL
 - .xrserver
   - rootapp: ui   allowed: ui|xreg
-  - ui.dir: ""
+  - ui.dir:
   - ui.xrui.json: PATH
   - verbose: 0
   - http.port: 8080

@@ -73,7 +73,7 @@ xr download DIR [XID...]
       --nodiff strings            No-diff attrs: *,epoch,createdat,modifiedat
   -p, --parallel int              Number of items to download in parallel (10*)
   -s, --server string             xRegistry server URL
-  -u, --url string                Host/path to Update xRegistry paths
+  -u, --url string                Host/path to update xRegistry paths
   -v, --verbose                   Be chatty
       --version                   Print command version string
 
@@ -371,7 +371,7 @@ xr update XID
   -o, --output string        Output format (none*, json) when xReg metadata
   -r, --replace              Replace entire entity (all attributes)
   -s, --server string        xRegistry server URL
-      --set stringArray      Set an attribute
+      --set stringArray      Set an attribute: --set NAME[=(VALUE | "STRING")]
   -v, --verbose              Be chatty
       --version              Print command version string
 
@@ -388,7 +388,7 @@ xr upsert XID
   -o, --output string        Output format (none*, json) when xReg metadata
   -r, --replace              Replace entire entity (all attributes)
   -s, --server string        xRegistry server URL
-      --set stringArray      Set an attribute
+      --set stringArray      Set an attribute: --set NAME[=(VALUE | "STRING")]
   -v, --verbose              Be chatty
       --version              Print command version string
 ```

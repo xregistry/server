@@ -21,8 +21,9 @@ xrserver [command]
       --recreatedb          Recreate the DB
       --recreatereg         Recreate registry
   -r, --registry string     Default Registry name
-      --root string         Root application (ui,xreg) (default "ui")
+      --rootapp string      Root application (ui,xreg) (default "ui")
       --samples             Load sample registries
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
       --ui-dir string       Serve new UI from this directory (dev mode)
   -v, --verbose             Be chatty
       --verify              Verify loading and exit
@@ -37,6 +38,7 @@ xrserver db [command]
       --dbport int          DB host port (3306*)
       --dbuser string       DB user (root*)
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -50,6 +52,7 @@ xrserver db create NAME
       --dbuser string       DB user (root*)
   -f, --force               Delete existing DB first
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -63,6 +66,7 @@ xrserver db delete NAME
       --dbuser string       DB user (root*)
   -f, --force               Ignore DB missing error
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -75,6 +79,7 @@ xrserver db get NAME
       --dbport int          DB host port (3306*)
       --dbuser string       DB user (root*)
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -88,6 +93,7 @@ xrserver db list
       --dbuser string       DB user (root*)
   -?, --help                Help for commands
   -o, --output string       Output format: json, table*
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -103,6 +109,7 @@ xrserver registry [command]
       --dbport int          DB host port (3306*)
       --dbuser string       DB user (root*)
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -116,6 +123,7 @@ xrserver registry create ID...
       --dbuser string       DB user (root*)
   -f, --force               Ignore existing registry
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -129,6 +137,7 @@ xrserver registry delete ID...
       --dbuser string       DB user (root*)
   -f, --force               Ignore missing registry
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -141,6 +150,7 @@ xrserver registry get ID
       --dbport int          DB host port (3306*)
       --dbuser string       DB user (root*)
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -153,6 +163,7 @@ xrserver registry list
       --dbport int          DB host port (3306*)
       --dbuser string       DB user (root*)
   -?, --help                Help for commands
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --version             Print command version string
 
@@ -170,8 +181,9 @@ xrserver run
       --recreatedb          Recreate the DB
       --recreatereg         Recreate registry
   -r, --registry string     Default Registry name(xRegistry*)
-      --root string         Root application (ui,xreg) (default "ui")
+      --rootapp string      Root application (ui,xreg) (default "ui")
       --samples             Load sample registries
+      --set stringArray     Override configFile property: --set NAME[:VALUE]
   -v, --verbose             Be chatty
       --verify              Verify loading and exit
       --version             Print command version string

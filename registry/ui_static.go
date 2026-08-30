@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -28,9 +29,22 @@ func uiFileSystem() http.FileSystem {
 	return http.FS(sub)
 }
 
-// ServeUIStatic handles all requests under /ui/.
-// It strips the /ui prefix and serves from the embedded (or disk) fs.
+// ServeUIStatic handles all requests under /ui/ as well as any other
+// unmatched top-level path when --root=ui (so that relative asset requests -
+// e.g. /style.css requested by a page that was itself served at some bad
+// path - still resolve). It determines for itself whether the original
+// request path was actually "/" or "/<UISegment>" or "/<UISegment>/" (a
+// legitimate UI page request) as opposed to some other path that only landed
+// here because it's the catch-all, or a deeper /<UISegment>/xxx path that
+// doesn't correspond to a real asset file; when it's not recognized and this
+// turns out to be an index.html fallback (not a real asset file), it serves
+// the SPA shell but marks it (via HTTP status + an injected JS flag) as an
+// unrecognized path so app.js can render a 404 instead of the normal home
+// page.
 func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
+	reqPath := strings.TrimPrefix(r.URL.Path, "/")
+	isRecognizedPath := (reqPath == "" || reqPath == UISegment || reqPath == UISegment+"/")
+
 	path := strings.TrimPrefix(r.URL.Path, "/"+UISegment)
 	if path == "" {
 		// Redirect /ui → /ui/ so relative paths in index.html resolve correctly
@@ -54,8 +68,19 @@ func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
 
 	// For non-root paths that don't exist as files, fall back to index.html
 	// so the SPA's client-side router can handle deep links.
+	//
+	// NOTE: we deliberately do NOT do this by setting path="/index.html" and
+	// handing it to http.FileServer below - the stdlib's FileServer has a
+	// built-in special case that 301-redirects any request whose path ends
+	// in "/index.html" to "./" (to avoid two URLs serving the same content).
+	// Since "./" is relative, the browser just re-requests the exact same
+	// (still-unmapped) deep-link URL, which falls back to index.html again,
+	// which redirects again, forever - an infinite 301 loop. So instead we
+	// serve the index.html bytes directly here, without ever touching
+	// http.FileServer for this case.
 	if path != "/" && !uiFileExists(path) {
-		path = "/index.html"
+		serveIndexHTML(w, r, isRecognizedPath)
+		return
 	}
 
 	// Files under /xreg/ get $HOST substituted with the request's scheme+host.
@@ -122,6 +147,75 @@ func serveXRUIJSON(w http.ResponseWriter, r *http.Request) {
 	w.Write(content)
 }
 
+// serveIndexHTML writes the ui/index.html bytes directly (bypassing
+// http.FileServer - see the comment where this is called from ServeUIStatic
+// for why: FileServer 301-redirects any "/index.html" path to "./", which
+// would infinite-loop for SPA deep-link fallback requests).
+//
+// When found is false, the requested path wasn't a recognized UI path (e.g.
+// a stale /xreg-XXX URL, or some other unmatched top-level path) - we still
+// serve the SPA shell (so relative asset loading keeps working regardless of
+// what page they were requested from), but respond with an actual HTTP 404
+// status and inject a small flag (window.__XR_NOT_FOUND__) that app.js
+// checks at startup to render a "Not Found" view instead of the normal UI.
+func serveIndexHTML(w http.ResponseWriter, r *http.Request, found bool) {
+	var content []byte
+	var err error
+	if UIDir != "" {
+		content, err = os.ReadFile(UIDir + "/index.html")
+	} else {
+		var f fs.File
+		sub, subErr := fs.Sub(uiEmbedded, "ui")
+		if subErr != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		f, err = sub.Open("index.html")
+		if err == nil {
+			content, err = io.ReadAll(f)
+			f.Close()
+		}
+	}
+	if err != nil {
+		log.Printf("Error loading %q: %s", "inden.html", err)
+		http.NotFound(w, r)
+		return
+	}
+	// index.html's assets (style.css, app.js, etc.) are referenced with
+	// relative paths and there's no <base> tag baked into the static file
+	// (UISegment is only known/configurable at runtime). That's fine when
+	// the browser's current URL is exactly "/" or "/<UISegment>/" (one path
+	// segment deep), but for any deeper/multi-segment fallback path (e.g.
+	// "/ui/rrrr/qweqwe", or "/foo/bar/baz" when RootApp=="ui"), the browser
+	// would resolve "app.js" against the wrong directory and 404, breaking
+	// the page (and silently preventing app.js from ever running its
+	// __XR_NOT_FOUND__ check). Inject an explicit <base> tag anchored at
+	// "/<UISegment>/" so relative asset paths always resolve correctly
+	// regardless of how deep/bad the requested URL was.
+	base := []byte(`<base href="/` + UISegment + `/">`)
+	content = bytes.Replace(content, []byte("<head>"), append([]byte("<head>"), base...), 1)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if !found {
+		// "Home" for the UI is "/" when it's the site root (RootApp=="ui"),
+		// but "/<UISegment>/" when the UI instead lives under its own
+		// segment (RootApp=="xreg") - inject the right one so app.js's
+		// "Go to Home" link on the 404 page doesn't send the user back into
+		// the registry API root.
+		homeHref := "/"
+		if RootApp != "ui" {
+			homeHref = "/" + UISegment + "/"
+		}
+		flag := []byte(`<script>window.__XR_NOT_FOUND__=true;window.__XR_HOME__=` +
+			strconv.Quote(homeHref) + `;</script>`)
+		content = bytes.Replace(content, []byte("</head>"), append(flag, []byte("</head>")...), 1)
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+	w.Write(content)
+}
+
 // serveXregFile reads a file from the ui/xreg directory, replaces $HOST with
 // the incoming request's scheme://host, and writes the result.
 func serveXregFile(w http.ResponseWriter, r *http.Request, path string) {
@@ -161,6 +255,7 @@ func serveXregFile(w http.ResponseWriter, r *http.Request, path string) {
 		}
 	}
 	if err != nil {
+		log.Printf("Error loading %q: %s", path, err)
 		http.NotFound(w, r)
 		return
 	}

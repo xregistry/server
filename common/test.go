@@ -21,7 +21,7 @@ var REG_LOGDATE = `(?m)^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `
 var REG_RFC3339 = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2})`
 var REG_TSSLASH = `\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`
 var REG_COMMIT = `GitCommit: [0-9a-f]*\n`
-var REG_DBHOST = `DB server: .*`
+var REG_DBHOST = `DB: .*`
 var REG_INSTANCE = `"source": "[^"]*"`
 var REG_MASK_CONFORM_PASS = `(?m)^Pass: [0-9]*`
 var REG_SHORTSELF = `"shortself": "[^"]*"`
@@ -88,6 +88,18 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 			exp, got)
 	}
 
+	// Should only be used in extreme cases. By default we should check
+	// all output byte-for-byte
+	if len(exp) > 3 && exp[0] == '^' {
+		if match, _ := regexp.MatchString(exp[1:], got); match {
+			return
+		}
+		t.Fatalf(extra+orig+
+			"\nExpected:\n%s"+
+			"\nGot:\n%s",
+			exp, got)
+	}
+
 	flagsMap := map[string]bool{}
 	for _, f := range flags {
 		flagsMap[f] = true
@@ -116,8 +128,8 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 		got = SavedREs[REG_COMMIT].ReplaceAllString(got, "GitCommit: sha\n")
 		exp = SavedREs[REG_COMMIT].ReplaceAllString(exp, "GitCommit: sha\n")
 
-		got = SavedREs[REG_DBHOST].ReplaceAllString(got, "DB server: host:port")
-		exp = SavedREs[REG_DBHOST].ReplaceAllString(exp, "DB server: host:port")
+		got = SavedREs[REG_DBHOST].ReplaceAllString(got, "DB: name@host:port")
+		exp = SavedREs[REG_DBHOST].ReplaceAllString(exp, "DB: name@host:port")
 	}
 
 	if !flagsMap[NOMASK_INSTANCE] {
