@@ -2037,7 +2037,7 @@ header.bar2: foo2`
 	XCLI(t, "get", "", "", "*localhost:8080*", false)
 
 	// 2 - now add config file to HOME dir, make sure we try example.com
-	XNoErr(t, os.WriteFile(tmphome+"/.xrconfig", []byte(configStr), 0600))
+	XNoErr(t, os.WriteFile(tmphome+"/.xr", []byte(configStr), 0600))
 	// Should fail trying to GET localhost:666
 	XCLI(t, "get", "", "", "*localhost:666*", false)
 
@@ -2064,7 +2064,7 @@ header.foo: bar
 header.bar2: foo2`
 	os.Unsetenv("XR_SERVER")
 
-	XNoErr(t, os.WriteFile(tmphome+"/.xrconfig", []byte(configStr), 0600))
+	XNoErr(t, os.WriteFile(tmphome+"/.xr", []byte(configStr), 0600))
 	XCLI(t, "get", "", "", "*localhost:8080*", false)
 
 	// Make config file point to our test server
@@ -2073,7 +2073,7 @@ server.url: localhost:8181
 header.foo: bar
 # another comment
 header.bar2: foo2`
-	XNoErr(t, os.WriteFile(tmphome+"/.xrconfig", []byte(configStr), 0600))
+	XNoErr(t, os.WriteFile(tmphome+"/.xr", []byte(configStr), 0600))
 
 	// Make sure vanilla GET looks ok
 	XCLI(t, "get", "", `{
@@ -2098,8 +2098,9 @@ header.bar2: foo2`
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
 }
 `, `2026/05/19 18:01:50 Request: GET http://localhost:8181/
-2026/05/19 18:01:50 Header: "bar2"
-2026/05/19 18:01:50 Header: "foo"
+2026/05/19 18:01:50 Header: bar2: foo2
+2026/05/19 18:01:50 Header: foo: bar
+2026/05/19 18:01:50 Body: <empty>
 2026/05/19 18:01:50 Response: 200 OK
 2026/05/19 18:01:50 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
 2026/05/19 18:01:50 access-control-allow-origin: *

@@ -3,9 +3,58 @@
 These need to be added to a real doc, but for now I don't want to lose track
 of them.
 
-
 - When a "format" is registered, (RegisterFormat(NAME, CHECKER{})), the
   NAME is a regexp to it can accept any number of variants. E.g. `jsonSchem.*`.
-- talk about /xreg-XXX and /xreg paths. /xreg-XXX for any Reg, / and /xreg for
+- talk about structure of the server
+  - supports multiple registries & default registry
+  - supports a UI that can be used against any registry (local or remote)
+- talk about the conformance checker
+- talk about CLI (xr)
+  - features
+  - limitations - when to use flags vs raw json
+- talk about /xregs/XXX and /xreg paths. /xreg/XXX for any Reg, / and /xreg for
   default Reg
-- talk about ../ui to get to the UI
+- talk about ..../ui to get to the UI
+- talk abou thow they can use hub.xregistry.io to load a UI and use it to view
+  any registry, and even delete/hide 'hub'. So just bookmark the URL
+  (hub.xregistry.io) to have a personalized xReg view/browser.
+- talk about --root
+- .xr
+  - header.foo: VALUE
+  - server.url: URL
+- .xrserver
+  - rootapp: ui   allowed: ui|xreg
+  - ui.dir:
+  - ui.xrui.json: PATH
+  - verbose: 0
+  - http.port: 8080
+  - db.name: registry
+  - db.host: localhost
+  - db.port: 3306
+  - db.user: root
+  - db.password: password
+  - path.ui: ui
+  - path.defaultreg: xreg
+  - path.regcollection: xregs
+- xr env vars
+  - XR_VERBOSE
+  - XR_SERVER
+  - XR_SHOWLOGS: false
+- xrserver env vars
+  - XR_PORT -> http.port
+  - DBNAME -> db.name
+  - DBHOST -> db.host
+  - DBPORT -> db.port
+  - DBUSER -> db.user
+  - DBPASSWORD -> db.password
+- setting up the server
+  - easy path
+  - setup https, auth, ... - e.g. nginx as a front-end
+  - via docker - all in one & separate DB
+    - persistent volumes for the DB
+- How to use the UI
+  - JSON vs list view
+  - Viewing/hiding xR data
+  - adding servers
+  - finding servers
+  - xrui.json - see registry/ui/xrui.json for fields

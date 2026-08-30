@@ -177,10 +177,13 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 		if info.ProxyHost != "" && strings.Contains(info.ProxyHost, name) {
 			selectedRegistry = name
 			checked = " selected"
-		} else if name == "Default" && !strings.Contains(info.BaseURL, "/"+XREG_PREFIX) && info.ProxyHost == "" {
+		} else if name == "Default" && !strings.Contains(info.BaseURL, "/"+
+			RegCollectionSegment) && info.ProxyHost == "" {
 			selectedRegistry = name
 			checked = " selected"
-		} else if strings.Contains(info.BaseURL, "/"+XREG_PREFIX+name) {
+		} else if strings.Contains(info.BaseURL,
+			"/"+RegCollectionSegment+"/"+name) {
+
 			selectedRegistry = name
 			checked = " selected"
 		}
@@ -2979,7 +2982,7 @@ function changeRegistry(name) {
       document.getElementById('regList').value = "` + selectedRegistry + `";
       return false ;
     }
-  } else loc = "/` + XREG_PREFIX + `" + name + "?ui"
+  } else loc = "/` + RegCollectionSegment + `/" + name + "?ui"
 
 
   window.location = loc

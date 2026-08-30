@@ -26,12 +26,13 @@ set -e
 echo
 echo "# Running the benchmark"
  
-XR_SERVER=http://localhost:8080/xreg-Large
+XR_SERVER=http://localhost:8080/xregs/Large
 CMD="curl -s "
 SEARCH="Done loading"
 # SEARCH="Listening" ; CMD="echo $CMD"
 
 pkill xrserver || echo -n
+./xrserver --verify
 (XR_LOAD_LARGE=1 ./xrserver --recreatedb --samples -v 2>&1 ) | tee server.out &
 trap "pkill xrserver ; rm -f server.out" EXIT
 

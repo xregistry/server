@@ -61,27 +61,20 @@ func isRetryableDBErr(v any) bool {
 }
 
 var DB *sql.DB
-var DB_Name = ""
-var DB_InitFunc func()
-
-var DBUSER = "root"
-var DBHOST = "localhost"
-var DBPORT = "3306"
-var DBPASSWORD = "password"
 
 // TODO load these from a config file
 func init() {
 	if tmp := os.Getenv("DBUSER"); tmp != "" {
-		DBUSER = tmp
+		DBUser = tmp
 	}
 	if tmp := os.Getenv("DBPASSWORD"); tmp != "" {
-		DBPASSWORD = tmp
+		DBPassword = tmp
 	}
 	if tmp := os.Getenv("DBHOST"); tmp != "" {
-		DBHOST = tmp
+		DBHost = tmp
 	}
 	if tmp := os.Getenv("DBPORT"); tmp != "" {
-		DBPORT = tmp
+		DBPort = tmp
 	}
 }
 
@@ -258,10 +251,10 @@ func (tx *Tx) NewTx() *XRError {
 	defer log.VPrintf(4, "<Exit: tx.NewTx")
 
 	if DB == nil {
-		if DB_Name == "" {
-			return NewXRError("server_error", "/").SetDetail("No DB_Name set.")
+		if DBName == "" {
+			return NewXRError("server_error", "/").SetDetail("No DBName set.")
 		}
-		xErr := OpenDB(DB_Name)
+		xErr := OpenDB(DBName)
 		if xErr != nil {
 			return xErr
 		}
@@ -1032,7 +1025,7 @@ func DBExists(name string) bool {
 	log.VPrintf(3, ">Enter: DBExists %q", name)
 	defer log.VPrintf(3, "<Exit: DBExists")
 	db, err := sql.Open("mysql",
-		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/")
+		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
 	PanicIf(err != nil, "Error opening DB: %s", err)
 	defer db.Close()
 
@@ -1054,7 +1047,7 @@ var firstTime = true
 
 func OpenDB(name string) *XRError {
 	if firstTime {
-		log.VPrintf(3, "Open DB: %s:%s", DBHOST, DBPORT)
+		log.VPrintf(3, "Open DB: %s:%s", DBHost, DBPort)
 		firstTime = false
 	}
 
@@ -1062,11 +1055,11 @@ func OpenDB(name string) *XRError {
 	defer log.VPrintf(3, "<Exit: OpenDB")
 
 	// DB, err := sql.Open("mysql",
-	// DBUSER + ":"+DBPASSWORD+"@tcp(localhost:3306)/")
+	// DBUser + ":"+DBPassword+"@tcp(localhost:3306)/")
 	var err error
 
 	DB, err = sql.Open("mysql",
-		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/"+name)
+		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/"+name)
 
 	if err != nil {
 		DB = nil
@@ -1074,13 +1067,9 @@ func OpenDB(name string) *XRError {
 			fmt.Sprintf("Error talking to SQL: %s", err))
 	}
 
-	DB_Name = name
+	DBName = name
 	DB.SetMaxOpenConns(5)
 	DB.SetMaxIdleConns(5)
-
-	if DB_InitFunc != nil {
-		DB_InitFunc()
-	}
 
 	return nil
 }
@@ -1090,7 +1079,7 @@ func ListDBs() ([]string, *XRError) {
 	defer log.VPrintf(3, "<Exit: ListDBs")
 
 	db, err := sql.Open("mysql",
-		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/")
+		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
 	if err != nil {
 		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
@@ -1124,7 +1113,7 @@ func CreateDB(name string) error {
 	defer log.VPrintf(3, "<Exit: CreateDB")
 
 	db, err := sql.Open("mysql",
-		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/")
+		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
 	if err != nil {
 		panic(err)
 	}
@@ -1183,7 +1172,7 @@ func DeleteDB(name string) error {
 	log.VPrintf(3, "Deleting DB %q", name)
 
 	db, err := sql.Open("mysql",
-		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/")
+		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
 	if err != nil {
 		panic(err)
 	}

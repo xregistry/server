@@ -8,7 +8,7 @@ The `xr` CLI lets you interact with an xRegistry server:
 ```yaml
 xr [command]
   # Global flags:
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
       --help-all        Help for all commands
@@ -18,7 +18,7 @@ xr [command]
 
 xr conform [URL...]
   # xRegistry Conformance Tester
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
   -d, --depth int       Console depth (default 2)
       --errjson         Print errors as json
       --failfast        Stop on first failure
@@ -31,7 +31,7 @@ xr conform [URL...]
 
 xr create XID
   # Create a new entity in the registry
-      --config string        Config file ($HOME/.xrconfig)
+      --config string        Config file ($HOME/.xr)
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute: --del NAME
   -m, --details              Data is resource metadata
@@ -48,7 +48,7 @@ xr create XID
 
 xr delete XID...
   # Delete an entity from the registry
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
   -d, --data string     Data(json), @FILE, @URL, @-(stdin)
       --errjson         Print errors as json
   -f, --force           Don't error if doesn't exist
@@ -60,7 +60,7 @@ xr delete XID...
 xr download DIR [XID...] 
   # Download entities from registry as individual files
   -c, --capabilities              Modify capabilities for static site
-      --config string             Config file ($HOME/.xrconfig)
+      --config string             Config file ($HOME/.xr)
       --errjson                   Print errors as json
   -?, --help                      Help for xr
       --import                    Create '/import.json' based on /export
@@ -73,13 +73,13 @@ xr download DIR [XID...]
       --nodiff strings            No-diff attrs: *,epoch,createdat,modifiedat
   -p, --parallel int              Number of items to download in parallel (10*)
   -s, --server string             xRegistry server URL
-  -u, --url string                Host/path to Update xRegistry paths
+  -u, --url string                Host/path to update xRegistry paths
   -v, --verbose                   Be chatty
       --version                   Print command version string
 
 xr get [XID]
   # Retrieve entities from the registry
-      --config string        Config file ($HOME/.xrconfig)
+      --config string        Config file ($HOME/.xr)
   -m, --details              Show resource metadata
       --doc                  Retieve document view of entities
       --errjson              Print errors as json
@@ -93,7 +93,7 @@ xr get [XID]
 
 xr import [XID]
   # Import entities into the registry
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
   -d, --data string     Data(json), @FILE, @URL, @-(stdin)
       --errjson         Print errors as json
   -?, --help            Help for xr
@@ -103,7 +103,7 @@ xr import [XID]
 
 xr model [command]
   # Manage a regsitry's model
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
   -s, --server string   xRegistry server URL
@@ -113,7 +113,7 @@ xr model [command]
 xr model get
   # Retrieve details about the registry's model
   -a, --all             Include default attributes
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
   -o, --output string   Output format: table*, json
@@ -123,7 +123,7 @@ xr model get
 
 xr model group [command]
   # Model Group operations
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
   -s, --server string   xRegistry server URL
@@ -133,7 +133,7 @@ xr model group [command]
 xr model group create PLURAL:SINGULAR...
   # Create a new Model Group type
   -a, --all             Include default attributes in output
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
   -o, --output string   Output format: none*, table, json
@@ -144,7 +144,7 @@ xr model group create PLURAL:SINGULAR...
 
 xr model group delete PLURAL...
   # Delete a Model Group type
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -f, --force           Ignore a "not found" error
   -?, --help            Help for xr
@@ -155,7 +155,7 @@ xr model group delete PLURAL...
 xr model group get PLURAL
   # Retrieve details about a Model Group type
   -a, --all             Include default attributes
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
   -o, --output string   Output format: table*, json
@@ -165,7 +165,7 @@ xr model group get PLURAL
 
 xr model group list
   # List the Group types defined in the model
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
   -o, --output string   Output format: table*, json
@@ -175,7 +175,7 @@ xr model group list
 
 xr model normalize [- | FILE]
   # Parse and resolve 'includes' in an xRegistry model document
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
   -s, --server string   xRegistry server URL
@@ -184,7 +184,7 @@ xr model normalize [- | FILE]
 
 xr model resource [command]
   # Model Resource operations
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -?, --help            Help for xr
   -s, --server string   xRegistry server URL
@@ -194,7 +194,7 @@ xr model resource [command]
 xr model resource create PLURAL:SINGULAR...
   # Create a new Model Resource type
   -a, --all                        Include default attributes in output
-      --config string              Config file ($HOME/.xrconfig)
+      --config string              Config file ($HOME/.xr)
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -227,7 +227,7 @@ xr model resource create PLURAL:SINGULAR...
 
 xr model resource delete PLURAL...
   # Delete a Model Resource type
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -f, --force           Ignore a "not found" error
   -g, --group string    Group type name
@@ -239,7 +239,7 @@ xr model resource delete PLURAL...
 xr model resource get PLURAL
   # Retrieve details about a Model Resource type
   -a, --all             Include default attributes
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -g, --group string    Group type plural name
   -?, --help            Help for xr
@@ -250,7 +250,7 @@ xr model resource get PLURAL
 
 xr model resource list
   # List the Resource types in a Group type
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
   -g, --group string    Group type plural name
   -?, --help            Help for xr
@@ -262,7 +262,7 @@ xr model resource list
 xr model resource update PLURAL...
   # Update a Model Resource type
   -a, --all                        Include default attributes in output
-      --config string              Config file ($HOME/.xrconfig)
+      --config string              Config file ($HOME/.xr)
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -296,7 +296,7 @@ xr model resource update PLURAL...
 xr model resource upsert PLURAL:SINGULAR...
   # UPdate, or inSERT as appropriate, a Model Resource type
   -a, --all                        Include default attributes in output
-      --config string              Config file ($HOME/.xrconfig)
+      --config string              Config file ($HOME/.xr)
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -328,7 +328,7 @@ xr model resource upsert PLURAL:SINGULAR...
 
 xr model update [- | FILE | -d]
   # Update the registry's model
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
   -d, --data string     Data(json), @FILE, @URL, @-(stdin)
       --errjson         Print errors as json
   -?, --help            Help for xr
@@ -338,7 +338,7 @@ xr model update [- | FILE | -d]
 
 xr model verify [- | FILE...]
   # Parse and verify xRegistry model documents
-      --config string   Config file ($HOME/.xrconfig)
+      --config string   Config file ($HOME/.xr)
       --errjson         Print errors as json
       --full-model      Generate full model definition
   -?, --help            Help for xr
@@ -350,7 +350,7 @@ xr model verify [- | FILE...]
 xr serve DIR
   # Run an HTTP file server for a directory
   -a, --address string   address:port of listener (0.0.0.0:8080*)
-      --config string    Config file ($HOME/.xrconfig)
+      --config string    Config file ($HOME/.xr)
   -c, --cors             Send CORS header with '*' value
       --errjson          Print errors as json
   -?, --help             Help for xr
@@ -360,7 +360,7 @@ xr serve DIR
 
 xr update XID
   # Update an entity in the registry
-      --config string        Config file ($HOME/.xrconfig)
+      --config string        Config file ($HOME/.xr)
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute
   -m, --details              Data is resource metadata
@@ -371,13 +371,13 @@ xr update XID
   -o, --output string        Output format (none*, json) when xReg metadata
   -r, --replace              Replace entire entity (all attributes)
   -s, --server string        xRegistry server URL
-      --set stringArray      Set an attribute
+      --set stringArray      Set an attribute: --set NAME[=(VALUE | "STRING")]
   -v, --verbose              Be chatty
       --version              Print command version string
 
 xr upsert XID
   # UPdate, or inSERT as appropriate, an entity in the registry
-      --config string        Config file ($HOME/.xrconfig)
+      --config string        Config file ($HOME/.xr)
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute
   -m, --details              Data is resource metadata
@@ -388,7 +388,7 @@ xr upsert XID
   -o, --output string        Output format (none*, json) when xReg metadata
   -r, --replace              Replace entire entity (all attributes)
   -s, --server string        xRegistry server URL
-      --set stringArray      Set an attribute
+      --set stringArray      Set an attribute: --set NAME[=(VALUE | "STRING")]
   -v, --verbose              Be chatty
       --version              Print command version string
 ```

@@ -73,6 +73,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Start xRegistry HTTP server
+	registry.RootApp = "xreg"
 	server := registry.NewServer(8181).Start()
 
 	// Start testing fileserver

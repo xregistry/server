@@ -67,7 +67,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			if len(args) > 1 {
 				Stop("Too many argument on the command line")
 			}
-			DBName = args[0]
+			DBName := args[0]
 
 			if registry.DBExists(DBName) {
 				if val, _ := cmd.Flags().GetBool("force"); !val {
@@ -97,7 +97,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			if len(args) > 1 {
 				Stop("Too many argument on the command line")
 			}
-			DBName = args[0]
+			DBName := args[0]
 
 			if !registry.DBExists(DBName) {
 				if val, _ := cmd.Flags().GetBool("force"); !val {
@@ -124,7 +124,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			if len(args) > 1 {
 				Stop("Too many argument on the command line")
 			}
-			DBName = args[0]
+			DBName := args[0]
 
 			if !registry.DBExists(DBName) {
 				Stop("DB %q doesn't exist", DBName)

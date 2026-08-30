@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"reflect"
 	"regexp"
@@ -1812,4 +1813,45 @@ func ShowStacksWith(needle string) string {
 	}
 
 	return strings.Join(sections, "\n")
+}
+
+func MaxString(val any, maxLen int) string {
+	str := fmt.Sprintf("%v", val)
+	if len(str) > maxLen {
+		str = str[:(maxLen-3)] + "..."
+	}
+	return str
+}
+
+type RunResult struct {
+	*exec.Cmd
+	Out   []byte
+	Err   []byte
+	Error error
+}
+
+func Run(args ...string) *RunResult {
+	res := &RunResult{
+		Cmd: exec.Command(args[0], args[1:]...),
+	}
+
+	stdout, _ := res.StdoutPipe()
+	stderr, _ := res.StderrPipe()
+
+	res.Error = res.Start()
+	if res.Error != nil {
+		return res
+	}
+
+	res.Start()
+	go func() { res.Out, _ = io.ReadAll(stdout) }()
+	go func() { res.Err, _ = io.ReadAll(stderr) }()
+
+	return res
+}
+
+func (r *RunResult) Kill() *RunResult {
+	r.Process.Kill()
+	r.Wait()
+	return r
 }

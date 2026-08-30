@@ -78,7 +78,8 @@ Notes:
 	upsertCmd.Flags().BoolP("force", "f", false,
 		"Skip pre-flight checks")
 	upsertCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
-	upsertCmd.Flags().StringArray("set", nil, "Set an attribute")
+	upsertCmd.Flags().StringArray("set", nil,
+		"Set an attribute: --set NAME[=(VALUE | \"STRING\")]")
 	upsertCmd.Flags().StringArray("del", nil, "Delete an attribute")
 
 	parent.AddCommand(upsertCmd)
@@ -111,7 +112,8 @@ Notes:
 	updateCmd.Flags().BoolP("force", "f", false,
 		"Force a 'create' if missing, no pre-flight checks")
 	updateCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
-	updateCmd.Flags().StringArray("set", nil, "Set an attribute")
+	updateCmd.Flags().StringArray("set", nil,
+		"Set an attribute: --set NAME[=(VALUE | \"STRING\")]")
 	updateCmd.Flags().StringArray("del", nil, "Delete an attribute")
 
 	parent.AddCommand(updateCmd)

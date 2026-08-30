@@ -120,9 +120,4 @@ TODOs:
 -- make sure conflicting ifvalue attrs are detected, model define time and runtime
 -- add charset to content-type in responses
 - xrserver --downloadUI
-- xrserver's config file 
-  - define it
-  - support --set on cmd line to set a value
-  - support setting default view to be either UI or xreg
-  - make sure that xrui.json is part of embedded files for UI
 - remove baseURL from xErr.ToJSON()

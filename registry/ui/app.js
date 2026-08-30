@@ -52,15 +52,19 @@ var DEFAULT_SERVER_ORIGIN = window.location.origin;
 //                  header's button bar and above the registries
 //                  (grid or list). Mutually exclusive with title/summary
 //                  — see loadUIHeaderConfig().
-//   title        - plain string shown (bold, centered) in place of
-//                  headerHTML when headerHTML isn't set.
+//   title        - string shown (bold, centered) in place of
+//                  headerHTML when headerHTML isn't set. May contain
+//                  [text](url) markdown links and raw HTML tags — see
+//                  mdLinksToHtml().
 //   summary      - plain string (may contain [text](url) markdown
-//                  links — see mdLinksToHtml()) shown below `title`,
+//                  links, and raw HTML tags like <br> — see
+//                  mdLinksToHtml()) shown below `title`,
 //                  centered, when headerHTML isn't set.
 //   footerHTML   - like headerHTML, but fetched/inserted at the bottom
 //                  of Home, below the registries. Mutually exclusive
 //                  with `footer` — see loadUIFooterConfig().
-//   footer       - plain string (markdown links honored) shown in place
+//   footer       - plain string (markdown links and raw HTML tags
+//                  honored) shown in place
 //                  of footerHTML when footerHTML isn't set.
 //   footerAlign  - 'left' | 'center' | 'right' (default 'right'):
 //                  text-alignment for `footer`/footerHTML's container.
@@ -825,7 +829,31 @@ function init() {
   loadUIConfig().then(doInit);
 }
 
+// Renders a minimal "Not Found" page in place of the normal UI. This is
+// used when the server (see ServeUIStatic/serveIndexHTML in httpStuff.go /
+// ui_static.go) served the SPA shell for an unrecognized top-level path
+// (e.g. a stale /xreg-XXX URL, or any other bad path) - it sets
+// window.__XR_NOT_FOUND__ = true and responds with an actual HTTP 404
+// status; we just need to make sure the page itself reflects that instead
+// of silently showing the normal home page.
+function renderNotFoundPage() {
+  var app = el('app');
+  if (!app) return;
+  app.innerHTML = '<div class="state-msg" style="padding:3em;text-align:center">'
+    + '<div>'
+    + '<h2>404 - Not Found</h2>'
+    + '<p>' + esc(window.location.pathname) + ' is not a recognized page.</p>'
+    + '<p><a href="' + esc(window.__XR_HOME__ || '/') + '">Go to Home</a></p>'
+    + '</div>'
+    + '</div>';
+}
+
 function doInit() {
+  if (window.__XR_NOT_FOUND__) {
+    renderNotFoundPage();
+    return;
+  }
+
   _state.homeGroup   = optHomeGroup();
   _state.homeLayouts = optHomeLayouts();
   applyJsonColorMode();
@@ -17647,10 +17675,13 @@ function esc(s) {
                   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// Converts `[text](url)` markdown-style links found in a plain-text
+// Converts `[text](url)` markdown-style links found in a
 // string (e.g. xrui.json's `summary`/`footer` fields) into real <a>
-// anchors, HTML-escaping everything else (including the link text/URL
-// themselves) so the rest of the string can never inject markup — used
+// anchors. The rest of the string is passed through as-is (NOT escaped),
+// so admin-authored xrui.json content can also include raw HTML tags
+// (e.g. <br>, <b>) and have them rendered rather than shown as literal
+// text — xrui.json is trusted, admin-controlled config, same trust level
+// as headerHTML/footerHTML (which are already raw HTML fragments) — used
 // wherever xrui.json's text fields are rendered; see
 // uiHeaderBlockHTML()/uiFooterBlockHTML().
 function mdLinksToHtml(s) {
@@ -17665,7 +17696,7 @@ function mdLinksToHtml(s) {
   var re = /\[([^\]]+)\]\(([^\s)]+)\)/g;
   var out = '', lastIndex = 0, m;
   while ((m = re.exec(text))) {
-    out += esc(text.slice(lastIndex, m.index));
+    out += text.slice(lastIndex, m.index);
     var url = m[2];
     if (SAFE_SCHEME.test(url) || !HAS_SCHEME.test(url)) {
       out += '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(m[1]) + '</a>';
@@ -17674,7 +17705,7 @@ function mdLinksToHtml(s) {
     }
     lastIndex = re.lastIndex;
   }
-  out += esc(text.slice(lastIndex));
+  out += text.slice(lastIndex);
   return out;
 }
 
@@ -17688,7 +17719,7 @@ function uiHeaderBlockHTML() {
   if (cfg.type === 'error') return '<div class="home-config-block home-config-error">' + esc(cfg.message) + '</div>';
   if (cfg.type === 'html')  return '<div class="home-config-block home-header-html">' + cfg.html + '</div>';
   var out = '<div class="home-config-block home-header-text">';
-  if (cfg.title)   out += '<div class="home-header-title">' + esc(cfg.title) + '</div>';
+  if (cfg.title)   out += '<div class="home-header-title">' + mdLinksToHtml(cfg.title) + '</div>';
   if (cfg.summary) out += '<div class="home-header-summary">' + mdLinksToHtml(cfg.summary) + '</div>';
   return out + '</div>';
 }

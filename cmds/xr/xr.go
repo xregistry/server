@@ -18,9 +18,9 @@ var ShowDebug = false
 
 var ErrJson = false
 
+var XRConfigFileName = ".xr"
 var DefaultServer = "localhost:8080"
-var UserConfig = map[string]string{}
-var ConfigFileName = ".xrconfig"
+var XRConfig = NewConfig(XRConfigFileName)
 
 // Error():
 // string, args      -> Title=sprintf(string, args...)
@@ -128,113 +128,8 @@ func Verbose(args ...any) {
 	fmt.Fprintf(os.Stderr, fmtStr, args[1:]...)
 }
 
-// File syntax:
-// prop: value
-// # comment
-func LoadConfigFromFile(fn string) *XRError {
-	if fn == "" {
-		if _, err := os.Stat("./" + ConfigFileName); err == nil {
-			fn = "./" + ConfigFileName
-		} else {
-			path, _ := os.UserHomeDir()
-			if path != "" {
-				path = path + "/" + ConfigFileName
-				if _, err := os.Stat(path); err == nil {
-					fn = path
-				} else {
-					// No config file, just return
-					return nil
-				}
-			}
-		}
-	}
-
-	buf, err := os.ReadFile(fn)
-	if err != nil {
-		return NewXRError("client_error", "",
-			"error_detail="+
-				fmt.Sprintf("Error loading config file (%s): %s",
-					fn, err.Error()))
-	}
-
-	return LoadConfigFromBuffer(string(buf))
-}
-
-// Buffer syntax:
-// prop: value
-// # comment
-func LoadConfigFromBuffer(buffer string) *XRError {
-	lines := strings.Split(buffer, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || line[0] == '#' {
-			continue
-		}
-		name, value, _ := strings.Cut(line, ":")
-		name = strings.TrimSpace(name)
-
-		if name == "" {
-			return NewXRError("client_error", "",
-				"error_detail="+
-					fmt.Sprintf("Error in config data - no name: %q", line))
-		}
-
-		value = strings.TrimSpace(value)
-		SetConfig(name, value)
-	}
-
-	xrlib.HTTPHeaders = GetHeaders()
-
-	return nil
-}
-
-func GetConfig(name string) string {
-	if UserConfig == nil {
-		return ""
-	}
-	return UserConfig[name]
-}
-
 func GetServer() string {
-	return GetConfig("server.url")
-}
-
-func GetHeaders() map[string]string {
-	headers := map[string]string(nil)
-
-	for key, value := range UserConfig {
-		if !strings.HasPrefix(key, "header.") {
-			continue
-		}
-		key = strings.TrimSpace(key[7:])
-		if key != "" {
-			if headers == nil {
-				headers = map[string]string{}
-			}
-			headers[key] = value
-		}
-	}
-	return headers
-}
-
-func SetConfig(name string, value string) *XRError {
-	name = strings.TrimSpace(name)
-	value = strings.TrimSpace(value)
-
-	if name == "" {
-		return NewXRError("client_error", "",
-			"error_detail="+
-				fmt.Sprintf("Config name can't be blank"))
-	}
-	if value == "" {
-		delete(UserConfig, name)
-	} else {
-		if UserConfig == nil {
-			UserConfig = map[string]string{}
-		}
-		UserConfig[name] = value
-	}
-	return nil
+	return XRConfig.Get("server.url")
 }
 
 func mainFunc(cmd *cobra.Command, args []string) {
@@ -388,7 +283,8 @@ func main() {
 
 			// If config FN=="" then we'll look for it in $HOME
 			fn, _ := cmd.Flags().GetString("config")
-			Error(LoadConfigFromFile(fn))
+			Error(XRConfig.Load(fn))
+			xrlib.HTTPHeaders = XRConfig.GetHeaders()
 
 			// Calc Server: cmdline->env->configFile->default
 			server, _ := cmd.Flags().GetString("server")
@@ -410,13 +306,13 @@ func main() {
 				server = "http://" + strings.TrimLeft(server, "/")
 			}
 
-			SetConfig("server.url", server)
+			XRConfig.Set("server.url", server)
 		},
 	}
 
 	xrCmd.CompletionOptions.HiddenDefaultCmd = true
 	xrCmd.PersistentFlags().StringP("config", "", "",
-		"Config file ($HOME/.xrconfig)")
+		"Config file ($HOME/"+XRConfigFileName+")")
 	xrCmd.PersistentFlags().StringP("server", "s", "",
 		"xRegistry server URL")
 	xrCmd.PersistentFlags().BoolVarP(&ErrJson, "errjson", "", false,

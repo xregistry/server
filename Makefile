@@ -151,7 +151,7 @@ registry/ui/xreg/index.html: cmds/xrserver/test-reg.json xrserver
 	@echo
 	@echo "# Regenerating the xreg static site"
 	@-pkill -f "[x]rserver.*8181" || true
-	@xrserver -p 8181 -r HardCoded --recreatereg &
+	@xrserver -p 8181 -r HardCoded --recreatereg --rootapp=xreg &
 	@sleep 1
 	@xr -s localhost:8181 update / -d @cmds/xrserver/test-reg.json
 	@rm -rf registry/ui/xreg/*
@@ -246,16 +246,15 @@ push: .push
 start: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver"
-	./xrserver -vv --ui-dir registry/ui $(VERIFY)
+	./xrserver -vv --rootapp=xreg --ui-dir registry/ui $(VERIFY)
 
 notest run local: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver from scratch"
-	./xrserver -vv --recreatedb --samples --ui-dir registry/ui $(VERIFY)
+	./xrserver -vv --rootapp=xreg --recreatedb --samples --ui-dir registry/ui $(VERIFY)
 
 docker-all: images
-	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -vv \
-		--recreatedb --samples
+	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -vv --recreatedb --samples
 
 large:
 	# Run the xrserver with a ton of data
@@ -264,7 +263,7 @@ large:
 docker: mysql images waitformysql
 	@echo
 	@echo "# Starting xrserver in Docker from scratch"
-	docker run -ti -p 8080:8080 --network host $(XRSERVER_IMAGE) -vv \
+	docker run -ti -p 8080:8080 --network host $(XRSERVER_IMAGE) -vv
 		--recreatedb --samples $(VERIFY)
 
 mysql:

@@ -48,7 +48,7 @@ func addDownloadCmd(parent *cobra.Command) {
 		GroupID: "Entities",
 	}
 	downloadCmd.Flags().StringP("url", "u", "",
-		"Host/path to Update xRegistry paths")
+		"Host/path to update xRegistry paths")
 	downloadCmd.Flags().BoolP("import", "", false,
 		"Create '/import.json' based on /export")
 	downloadCmd.Flags().StringP("index", "i", "index.html",
