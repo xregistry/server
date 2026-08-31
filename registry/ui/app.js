@@ -3029,11 +3029,19 @@ function openHeaderPopup(anchorEl, items, rightAlign) {
     // breadcrumb ellipsis/full popups (openBcEllipsis()/openBcFull()) don't
     // set it, so they render with no icon slot at all (unchanged layout).
     var iconHtml = item.icon ? '<span class="popup-item-icon">' + item.icon + '</span>' : '';
+    var titleAttr = item.title ? ' title="' + esc(item.title) + '"' : '';
+    // item.disabled (URL "..." menu's "Add xReg" when the URL is already a
+    // known server) always wins over item.onclick — an unavailable action
+    // never gets a click handler, regardless of whether the caller still
+    // passed one.
+    if (item.disabled) {
+      return '<span class="' + cls + ' popup-item-disabled"' + titleAttr + '>' + iconHtml + esc(item.label) + '</span>';
+    }
     if (item.onclick) {
-      return '<a class="' + cls + '" href="#" onclick="closeHeaderPopup();' + item.onclick + '">'
+      return '<a class="' + cls + '" href="#"' + titleAttr + ' onclick="closeHeaderPopup();' + item.onclick + '">'
            + iconHtml + esc(item.label) + '</a>';
     }
-    return '<span class="' + cls + ' popup-item-cur">' + iconHtml + esc(item.label) + '</span>';
+    return '<span class="' + cls + ' popup-item-cur"' + titleAttr + '>' + iconHtml + esc(item.label) + '</span>';
   }).join('');
   var rect = anchorEl.getBoundingClientRect();
   popup.style.top = (rect.bottom + 4) + 'px';
@@ -3056,6 +3064,156 @@ function toggleHeaderPopup(anchorEl, items, rightAlign) {
   var popup = el('header-popup');
   if (popup && popup.classList.contains('popup-open')) { closeHeaderPopup(); return; }
   openHeaderPopup(anchorEl, items, rightAlign);
+}
+
+// ---- URL value "..." menu (Add-xReg action) --------------------------------
+//
+// The small "..." button rendered by renderUrlLinkValue() next to
+// qualifying URL-shaped Property-table values (the Registry root's own
+// "self", or any extension attribute explicitly typed as a URI/URL — see
+// isUrlAttrType()). Reuses the exact same shared #header-popup mechanism
+// as the kebab/breadcrumb menus (openHeaderPopup()/toggleHeaderPopup())
+// rather than building a second popup widget. `url` is the raw value as
+// rendered (possibly our own /xrproxy/<base64> form — same as what the
+// sibling <a>'s href/onclick already use), NOT pre-resolved to the real
+// remote URL; "Add xReg" resolves it via toRealURL() itself below since
+// LS_SERVERS/allKnownServerUrls() always deal in real absolute URLs.
+function toggleUrlAddMenu(e, btn, url) {
+  e.stopPropagation();
+  var realUrl = toRealURL(url);
+  var known = allKnownServerUrls().indexOf(normalizeURL(realUrl)) !== -1;
+  var items = [
+    {label: 'Open\u2026', onclick: esc('urlMenuOpen(' + JSON.stringify(url) + ')')},
+    known
+      ? {label: 'Add xReg', disabled: true, title: 'Already a configured registry'}
+      : {label: 'Add xReg', onclick: esc('urlMenuAddXreg(' + JSON.stringify(realUrl) + ')')}
+  ];
+  toggleHeaderPopup(btn, items, true);
+}
+
+// "Open..." menu action — mirrors exactly what clicking the value's own
+// link does (see renderUrlLinkValue()): same-server URLs (including
+// proxy-rewritten ones) navigate within the SPA, everything else opens in
+// a new tab.
+function urlMenuOpen(url) {
+  var svBase = serverBase();
+  var urlPath = url.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
+  if (urlPath.indexOf(svBase) === 0) {
+    navigateJsonUrl(url);
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+
+// "Add xReg" menu action. `url` is already the real (non-proxy) absolute
+// URL — see toggleUrlAddMenu(). Validates the URL is actually an xRegistry
+// server root (same minimal shape check probeRegistry() uses:
+// specversion + registryid present) before adding it, trying a direct
+// fetch first and falling back to this app's own /xrproxy/ passthrough if
+// that fails (e.g. blocked by CORS) — same two-step approach the Home
+// page's server-card probing and the Config page's remote fetches already
+// rely on for registries that don't have CORS enabled for this origin.
+function urlMenuAddXreg(url) {
+  var norm = normalizeURL(url);
+  fetchWithTimeout(norm, PROBE_FETCH_TIMEOUT_MS)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) { finishAddXreg(norm, data, false); })
+    .catch(function() {
+      // Direct fetch failed (most likely CORS) — retry through our own
+      // /xrproxy/ passthrough before giving up.
+      var origin = DEFAULT_SERVER_ORIGIN.replace(/\/$/, '');
+      var proxied = origin + '/xrproxy/' + b64urlEncode(norm);
+      fetchWithTimeout(proxied, PROBE_FETCH_TIMEOUT_MS)
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function(data) { finishAddXreg(norm, data, true); })
+        .catch(function(err2) {
+          showAddXregResultDialog('error', {
+            message: 'Could not reach "' + norm + '" as an xRegistry server: '
+              + ((err2 && err2.message) ? err2.message : String(err2))
+          });
+        });
+    });
+}
+
+// Shared tail of urlMenuAddXreg()'s two fetch attempts — `viaProxy` records
+// which one actually worked, so the newly added server is flagged proxied
+// only when that's genuinely why the direct attempt failed.
+function finishAddXreg(norm, data, viaProxy) {
+  if (!data || !data.specversion || !data.registryid) {
+    showAddXregResultDialog('error', {
+      message: '"' + norm + '" does not look like a valid xRegistry server '
+        + '(missing specversion or registryid).'
+    });
+    return;
+  }
+  // Re-adding "this server" (the local origin) after it was previously
+  // deleted just clears the deleted flag — it's never stored in
+  // LS_SERVERS like a normal remote server (see cfgAddNew()'s matching
+  // special-case).
+  if (normalizeURL(norm) === normalizeURL(DEFAULT_SERVER_ORIGIN)) {
+    setLocalServerDeleted(false);
+  } else if (!addServer(norm)) {
+    // Already known — shouldn't normally happen (the menu item is
+    // disabled in that case), but guards against a stale popup/race.
+    showAddXregResultDialog('error', {message: '"' + norm + '" is already configured.'});
+    return;
+  } else if (viaProxy) {
+    setProxied(norm, true);
+  }
+  invalidateRegistryProbe(norm);
+  showAddXregResultDialog('success', {url: norm, label: data.registryid || data.name || norm});
+}
+
+// Plain overlay+box confirmation/error dialog for the Add-xReg action —
+// follows the same established "no generic modal helper in this codebase"
+// convention as showValidationReasonPopup()/showLeaveEditDialog(), rather
+// than introducing a new modal framework for just this one flow.
+function showAddXregResultDialog(kind, info) {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = function(e) { if (e.target === overlay) document.body.removeChild(overlay); };
+  var box = document.createElement('div');
+  box.style.cssText = 'background:white;border-radius:8px;padding:20px 24px;box-shadow:0 4px 24px rgba(0,0,0,0.25);max-width:420px;width:90%;font-family:sans-serif;';
+  var title = document.createElement('div');
+  title.textContent = (kind === 'success') ? 'Registry Added' : 'Add xReg Failed';
+  title.style.cssText = 'font-weight:bold;font-size:14px;margin-bottom:10px;color:#333;';
+  box.appendChild(title);
+  var msg = document.createElement('p');
+  msg.textContent = (kind === 'success')
+    ? 'Added registry "' + info.label + '" to your configured servers.'
+    : info.message;
+  msg.style.cssText = 'margin:0 0 18px;font-size:13px;color:#333;white-space:pre-wrap;';
+  box.appendChild(msg);
+  var btns = document.createElement('div');
+  btns.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+  if (kind === 'success') {
+    var goBtn = document.createElement('button');
+    goBtn.textContent = 'Go to Registry';
+    goBtn.style.cssText = 'padding:6px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;background:#2060a0;color:white;border:1px solid #2060a0;';
+    goBtn.onclick = function() { document.body.removeChild(overlay); doBrowse(info.url); };
+    btns.appendChild(goBtn);
+  }
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = (kind === 'success') ? 'Done' : 'Close';
+  closeBtn.style.cssText = 'padding:6px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;background:#f0f0f0;color:#333;border:1px solid #ccc;';
+  closeBtn.onclick = function() { document.body.removeChild(overlay); };
+  btns.appendChild(closeBtn);
+  box.appendChild(btns);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  if (kind === 'success') {
+    // Home's server list changed — a subsequent visit there should re-probe
+    // and re-render instead of showing stale "no servers" state, same as
+    // any other in-app server-list mutation (see invalidateRegistryProbe()
+    // callers elsewhere).
+    if (_state.view === 'home') refresh();
+  }
 }
 
 function openBcEllipsis(e) {
@@ -7378,6 +7536,17 @@ function typeFromAttrsMap(attrs, key) {
   return null;
 }
 
+// True for any of the spec's URI/URL-shaped attribute types — used to decide
+// whether an extension attribute's value should get the "..." Add-xReg menu
+// next to its rendered link (see renderUrlLinkValue()/buildPropsRowsHtml()).
+// Deliberately excludes "xid" (an in-registry relative reference, not a
+// fetchable absolute URL to another xRegistry server).
+function isUrlAttrType(type) {
+  return type === 'uri' || type === 'uriabsolute' || type === 'urirelative'
+    || type === 'uritemplate' || type === 'url' || type === 'urlabsolute'
+    || type === 'urlrelative';
+}
+
 // Like getAttrType but, for undeclared (wildcard-only) attributes, only returns a
 // type when the '*' wildcard itself declares something more specific than "any"
 // (see typeFromAttrsMap). Used for monospace decisions so that fully generic
@@ -7694,7 +7863,13 @@ function copyableMonospace(text) {
 // this way it applies uniformly to every URI/URL-typed field without
 // needing model-driven type resolution everywhere (which isn't available
 // at the Meta level — see renderMetaTable()).
-function renderUrlLinkValue(rawText, isMono) {
+// showAddMenu (optional) opts this specific value into the "..." Add-xReg
+// menu button (see toggleUrlAddMenu()) — set by callers only for the
+// Registry root's own "self" attribute and extension attributes typed as
+// a URI/URL (see isUrlAttrType()); every other URL-shaped value (metaurl,
+// versionsurl, Group/Resource/Version self, ...) renders exactly as
+// before, with no button.
+function renderUrlLinkValue(rawText, isMono, showAddMenu) {
   var svBase = serverBase();
   var urlPath = rawText.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
   var href, target = '', onclick = '', displayText = rawText;
@@ -7725,15 +7900,27 @@ function renderUrlLinkValue(rawText, isMono) {
     target = ' target="_blank" rel="noopener"';
   }
   var cls = 'eg-value' + (isMono ? ' eg-mono' : '');
-  return '<a class="' + cls + '" href="' + esc(href) + '"' + target + onclick + '>' + esc(displayText) + '</a>';
+  var linkHtml = '<a class="' + cls + '" href="' + esc(href) + '"' + target + onclick + '>' + esc(displayText) + '</a>';
+  if (!showAddMenu) return linkHtml;
+  // "..." button opting this value into the Add-xReg menu — passes the raw
+  // (possibly proxy-rewritten) value, same as the link itself uses, so
+  // toggleUrlAddMenu()/urlMenuOpen() can apply the exact same same-server-
+  // vs-external + proxy-resolution logic this function just did above
+  // (see toRealURL() usage there) rather than duplicating/dup-guessing it
+  // from an already-resolved display string.
+  var btnOnclick = 'toggleUrlAddMenu(event, this, ' + JSON.stringify(rawText) + ')';
+  return linkHtml + '<button type="button" class="eg-url-menu-btn" title="More actions"'
+       + ' onclick="' + esc(btnOnclick) + '">\u22ef</button>';
 }
 
 // Renders a Property-table scalar value: a clickable link (via
 // renderUrlLinkValue()) if it looks like a URL, otherwise plain
 // copyable(Monospace) text.
-function renderScalarValue(val, isMono) {
+// showAddMenu (optional) is passed straight through to renderUrlLinkValue()
+// — see its own comment for what qualifies.
+function renderScalarValue(val, isMono, showAddMenu) {
   var text = String(val);
-  if (/^https?:\/\//.test(text)) return renderUrlLinkValue(text, isMono);
+  if (/^https?:\/\//.test(text)) return renderUrlLinkValue(text, isMono, showAddMenu);
   return isMono ? copyableMonospace(text) : copyable(text);
 }
 
@@ -9741,9 +9928,16 @@ function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 
     } else {
       var isMono = isMonoSpecAttr(k, specLevel, singular, path)
         || (attrType !== null && attrType !== 'string');
+      // "..." Add-xReg menu button (see renderUrlLinkValue()): only for
+      // the Registry root's own "self" (depthB === 0, i.e. path === [])
+      // or an extension attribute explicitly typed as a URI/URL — every
+      // other spec-defined URL field (metaurl, versionsurl, Group/
+      // Resource/Version self, ...) stays a plain link, no button.
+      var showAddMenu = (k === 'self' && depthB === 0)
+        || (!isSpecAttr(k, specLevel, singular, resourceSingular) && isUrlAttrType(attrType));
       display = (attrType === 'timestamp')
         ? formatTimestampValue(String(val), isMono)
-        : renderScalarValue(val, isMono);
+        : renderScalarValue(val, isMono, showAddMenu);
     }
     var banded = (startBand + i) % 2 === 1;
     // Compare against the pristine snapshot matching *this* rendering's
@@ -11926,9 +12120,14 @@ function renderMetaTable(d, model, editable) {
     } else {
       var isMono = isMonoSpecAttr(k, specLevel, singular, metaPath)
         || (attrType !== null && attrType !== 'string');
+      // Add-xReg menu: Meta never carries the Registry root's own "self"
+      // (that only lives on the entity's own Property table — see
+      // buildPropsRowsHtml()), so only an extension attribute explicitly
+      // typed as a URI/URL qualifies here.
+      var showAddMenu = !isSpecAttr(k, specLevel, singular, null) && isUrlAttrType(attrType);
       display = (attrType === 'timestamp')
         ? formatTimestampValue(String(val), isMono)
-        : renderScalarValue(val, isMono);
+        : renderScalarValue(val, isMono, showAddMenu);
     }
     var isDirty = editable && _metaEditSrc
       && JSON.stringify(val) !== JSON.stringify(_metaEditSrc[k]);
@@ -12086,7 +12285,10 @@ function renderMetaContent(d, model) {
       var attrTypeMeta = getExplicitAttrType(model, metaPath, k, d);
       var isMono = isMonoSpecAttr(k, metaSpecLevel, _metaSing)
         || (attrTypeMeta !== null && attrTypeMeta !== 'string');
-      html += row(labelFor(k, metaSpecLevel, _metaSing), renderScalarValue(v, isMono));
+      // Add-xReg menu: extension attrs typed as a URI/URL only (Meta never
+      // carries the Registry root's own "self" — see buildPropsRowsHtml()).
+      var showAddMenuMeta = !isSpecAttr(k, metaSpecLevel, _metaSing, null) && isUrlAttrType(attrTypeMeta);
+      html += row(labelFor(k, metaSpecLevel, _metaSing), renderScalarValue(v, isMono, showAddMenuMeta));
     }
   }
   specKeys.forEach(metaAttrRow);

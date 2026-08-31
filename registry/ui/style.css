@@ -159,6 +159,11 @@ html, body {
 a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .popup-item-active { font-weight: bold; color: #2060a0; }
 .popup-item-cur { color: #555; cursor: default; }
+/* Disabled menu item (e.g. the URL "..." menu's "Add xReg" entry when the
+   target URL is already a known server) — distinct from .popup-item-cur
+   (which marks the current selection) since disabled isn't "selected",
+   just unavailable right now. */
+.popup-item-disabled { color: #aaa; cursor: default; }
 .popup-sep { margin: 4px 0; border: none; border-top: 1px solid #eee; }
 
 /* Small icons shown to the left of each menu item's label — roughly half
@@ -605,6 +610,15 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
    (.cell-tree above already got this same treatment for object/array values;
    this covers the far more common plain-scalar case.) */
 .xr-table-props td:last-child { white-space: nowrap; max-width: none; overflow: visible; text-overflow: clip; }
+/* Property table label cells (propRow()/buildEntityPropsTableHtml()'s
+   labelFor() column) are plain text using the browser's default line-height,
+   while their value cells wrap content in .eg-value (line-height: 20px, see
+   below) — that mismatch made the label's glyphs sit visibly higher than the
+   value's glyphs within the same row, even though both cells share
+   vertical-align: top (top-alignment only matches the cells' content-box
+   tops, not the leading within each cell's own line-height). Matching the
+   label's line-height to .eg-value's realigns both columns' text. */
+.xr-table-props td:first-child { line-height: 20px; }
 /* Collection Table view's Created/Modified columns */
 .xr-table .cell-timestamp { color: #999; font-size: 12px; white-space: nowrap; }
 /* List view's Property tables (formatTimestampValue()) — same color/size as
@@ -2079,6 +2093,31 @@ tr.cfg-row-drop-after { box-shadow: inset 0 -2px 0 0 #4a90d9; }
   gap: 4px;
   line-height: 20px;
 }
+/* "..." button shown right after a URL-shaped Property-table value that
+   qualifies for the Add-xReg menu (Registry root's own "self", or any
+   extension attribute typed uri/url — see isUrlAttrType()/
+   renderUrlLinkValue()). Kept small/muted so it doesn't compete visually
+   with the link itself; matches the existing kebab/breadcrumb-ellipsis
+   icon-button sizing conventions. Border is always visible (not just on
+   hover) — without it, the "…" glyph alone looked like the URL text might
+   just be visually cropped rather than an actual clickable button. */
+.eg-url-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fafafa;
+  color: #888;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.eg-url-menu-btn:hover { background: #eef2fa; border-color: #c8d6ec; color: #2060a0; }
 /* Live thumbnail preview shown next to the spec-defined "icon" attribute's
    URL/link in a Properties table (Registry/Group/Resource/Version) — see
    plan.md "icon attribute preview thumbnail". Sized to sit comfortably next
