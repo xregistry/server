@@ -78,7 +78,15 @@ func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
 	// which redirects again, forever - an infinite 301 loop. So instead we
 	// serve the index.html bytes directly here, without ever touching
 	// http.FileServer for this case.
-	if path != "/" && !uiFileExists(path) {
+	//
+	// The exact root ("/" or "/<UISegment>/") ALSO goes through
+	// serveIndexHTML() rather than the plain http.FileServer path below -
+	// it needs the same injected window.__XR_API_BASE__ flag (see
+	// serveIndexHTML()) that tells app.js where the xRegistry API actually
+	// lives when RootApp=="ui" (at "/<DefaultRegSegment>", not "/") so
+	// "this server"/DEFAULT_SERVER_ORIGIN resolves correctly instead of
+	// treating the UI's own root as the API root.
+	if path == "/" || !uiFileExists(path) {
 		serveIndexHTML(w, r, isRecognizedPath)
 		return
 	}
@@ -194,6 +202,24 @@ func serveIndexHTML(w http.ResponseWriter, r *http.Request, found bool) {
 	// regardless of how deep/bad the requested URL was.
 	base := []byte(`<base href="/` + UISegment + `/">`)
 	content = bytes.Replace(content, []byte("<head>"), append([]byte("<head>"), base...), 1)
+
+	// Tell app.js where the xRegistry API for "this server" (the UI's own
+	// hosting origin, DEFAULT_SERVER_ORIGIN) actually lives. When
+	// RootApp=="ui", the UI occupies the site root, so the API is offset
+	// under "/<DefaultRegSegment>" instead (e.g. "/xreg") - without this,
+	// the client assumed "this server"'s API root was "/" itself, which
+	// under RootApp=="ui" actually serves the UI shell, not JSON, making
+	// "this server" show up as a broken/invalid registry on Home. When
+	// RootApp=="xreg", the site root already IS the API root, so no offset
+	// is needed. Injected unconditionally (both found/not-found responses)
+	// right alongside the <base> tag above, so it's always in place before
+	// app.js's own <script src="app.js"> tag (later in <head>) runs.
+	apiBase := ""
+	if RootApp == "ui" {
+		apiBase = "/" + DefaultRegSegment
+	}
+	apiBaseFlag := []byte(`<script>window.__XR_API_BASE__=` + strconv.Quote(apiBase) + `;</script>`)
+	content = bytes.Replace(content, []byte("<head>"), append([]byte("<head>"), apiBaseFlag...), 1)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if !found {

@@ -32,7 +32,15 @@
 // UI_CONFIG_FILE (see loadUIConfig()), fetched once at startup before
 // the app renders anything. Everywhere in the app that used to hard-code
 // window.location.origin as "the default server" now reads this instead.
-var DEFAULT_SERVER_ORIGIN = window.location.origin;
+// window.__XR_API_BASE__ (set by the server — see serveIndexHTML() in
+// registry/ui_static.go) accounts for the other reason the origin alone
+// can be wrong: when the server's RootApp=="ui" (the default), the UI
+// occupies the site root but the actual xRegistry API is offset under
+// "/<DefaultRegSegment>" (e.g. "/xreg") — without this, "this server"
+// pointed at the UI shell itself instead of the real API, showing up as
+// a broken/invalid registry on Home. It's "" (no offset) whenever the
+// site root already IS the API root (RootApp=="xreg").
+var DEFAULT_SERVER_ORIGIN = window.location.origin + (window.__XR_API_BASE__ || '');
 
 // Relative path (resolved against wherever index.html/app.js are served
 // from) of the optional JSON config file used to customize the UI — see
@@ -691,7 +699,11 @@ function setLocalServerDeleted(on) {
 // fetch-time). Returns `url` unchanged if it isn't one of our own
 // /xrproxy/ URLs (or doesn't decode to a plausible origin).
 function decodeAnyXRProxyURL(url) {
-  var prefix = normalizeURL(DEFAULT_SERVER_ORIGIN) + '/xrproxy/';
+  // /xrproxy/ is a site-root-level endpoint (handled before any RootApp
+  // routing — see ServeHTTP in registry/httpStuff.go), never offset by
+  // window.__XR_API_BASE__ the way DEFAULT_SERVER_ORIGIN now can be — so
+  // this must anchor on the real page origin, not DEFAULT_SERVER_ORIGIN.
+  var prefix = normalizeURL(window.location.origin) + '/xrproxy/';
   if (!url || url.indexOf(prefix) !== 0) return url;
   var rest = url.slice(prefix.length);
   var slashIdx = rest.indexOf('/');
@@ -773,7 +785,10 @@ function b64urlEncode(str) {
 function serverFetchBase(url) {
   var norm = normalizeURL(url || DEFAULT_SERVER_ORIGIN);
   if (isProxied(norm)) {
-    var origin = DEFAULT_SERVER_ORIGIN.replace(/\/$/, '');
+    // /xrproxy/ lives at the real site root regardless of RootApp/
+    // window.__XR_API_BASE__ (see decodeAnyXRProxyURL()'s comment) — must
+    // use window.location.origin here, not DEFAULT_SERVER_ORIGIN.
+    var origin = window.location.origin.replace(/\/$/, '');
     return origin + '/xrproxy/' + b64urlEncode(norm);
   }
   return norm;
@@ -3038,7 +3053,16 @@ function openHeaderPopup(anchorEl, items, rightAlign) {
       return '<span class="' + cls + ' popup-item-disabled"' + titleAttr + '>' + iconHtml + esc(item.label) + '</span>';
     }
     if (item.onclick) {
-      return '<a class="' + cls + '" href="#"' + titleAttr + ' onclick="closeHeaderPopup();' + item.onclick + '">'
+      // `;return false` is required here (same convention as every other
+      // in-app onclick link — see guardedOnclick()) so the browser never
+      // follows this placeholder href="#". Without it, resolving "#"
+      // against the page's <base href="/ui/"> tag (see serveIndexHTML() in
+      // registry/ui_static.go) strips any existing query string (e.g.
+      // ?view=config) and triggers a real full-page navigation/reload to
+      // "/ui/" — which looks like the click "worked" for an instant (the
+      // in-app pushState already ran first), then the browser's own
+      // navigation immediately clobbers it back to Home.
+      return '<a class="' + cls + '" href="#"' + titleAttr + ' onclick="closeHeaderPopup();' + item.onclick + ';return false">'
            + iconHtml + esc(item.label) + '</a>';
     }
     return '<span class="' + cls + ' popup-item-cur"' + titleAttr + '>' + iconHtml + esc(item.label) + '</span>';
@@ -3123,8 +3147,11 @@ function urlMenuAddXreg(url) {
     .then(function(data) { finishAddXreg(norm, data, false); })
     .catch(function() {
       // Direct fetch failed (most likely CORS) — retry through our own
-      // /xrproxy/ passthrough before giving up.
-      var origin = DEFAULT_SERVER_ORIGIN.replace(/\/$/, '');
+      // /xrproxy/ passthrough before giving up. /xrproxy/ lives at the
+      // real site root regardless of RootApp/window.__XR_API_BASE__ (see
+      // decodeAnyXRProxyURL()'s comment), so this uses window.location.
+      // origin, not DEFAULT_SERVER_ORIGIN.
+      var origin = window.location.origin.replace(/\/$/, '');
       var proxied = origin + '/xrproxy/' + b64urlEncode(norm);
       fetchWithTimeout(proxied, PROBE_FETCH_TIMEOUT_MS)
         .then(function(r) {
