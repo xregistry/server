@@ -4752,6 +4752,7 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
   "registries": `+esc+`[`+star+`
     "http://localhost:8181",`+star+`
+    "http://localhost:8181/`+registry.DefaultRegSegment+`",`+star+`
     "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPXRegistryDiscovery1"`+star+`
   `+esc+`]
 }
@@ -4765,6 +4766,7 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 		200, prefix+`{
   "registries": `+esc+`[`+star+`
     "http://localhost:8181",`+star+`
+    "http://localhost:8181/`+registry.DefaultRegSegment+`",`+star+`
     "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPXRegistryDiscovery1"`+star+`
   `+esc+`]
 }
@@ -4782,6 +4784,7 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
   "registries": `+esc+`[`+star+`
     "http://localhost:8181",`+star+`
+    "http://localhost:8181/`+registry.DefaultRegSegment+`",`+star+`
     "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPXRegistryDiscovery1",
     "http://localhost:8181/`+registry.RegCollectionSegment+`/TestHTTPXRegistryDiscovery2"`+star+`
   `+esc+`]
@@ -4839,6 +4842,52 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
   "source": "xxx"
 }
 `)
+
+	// Now test discovery with --root app
+	runRes := Run("../xrserver", "-vv", "-p", "8383", "--rootapp=xreg", "-r", "treg1")
+	XNoErr(t, runRes.Error)
+	defer runRes.Wait()
+	defer runRes.Kill()
+
+	XNoErr(t, WaitForURL("http://localhost:8383"))
+
+	res, xErr := CommonHttpDo("GET", "http://localhost:8383/.xregistry", nil, nil)
+	XNoErr(t, xErr)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*localhost:8383"(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
+
+	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xreg/.xregistry", nil, nil)
+	XNoErr(t, xErr)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*localhost:8383"(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
+
+	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xregs/treg1/.xregistry", nil, nil)
+	XNoErr(t, xErr)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*localhost:8383"(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
+
+	runRes.Kill()
+	runRes.Wait()
+
+	// Now do it again when / = UI
+	runRes = Run("../xrserver", "-vv", "-p", "8383", "--rootapp=ui", "-r", "treg1")
+	XNoErr(t, runRes.Error)
+	defer runRes.Wait()
+	defer runRes.Kill()
+
+	XNoErr(t, WaitForURL("http://localhost:8383"))
+
+	res, xErr = CommonHttpDo("GET", "http://localhost:8383/.xregistry", nil, nil)
+	t.Logf("res.Code: %v", res.Code)
+	XEqual(t, "", res.Code, 404)
+
+	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xreg/.xregistry", nil, nil)
+	XNoErr(t, xErr)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
+
+	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xregs/treg1/.xregistry", nil, nil)
+	XNoErr(t, xErr)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
+
+	runRes.Kill()
+	runRes.Wait()
 }
 
 func TestHTTPShortSelf(t *testing.T) {

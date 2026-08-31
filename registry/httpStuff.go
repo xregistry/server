@@ -667,18 +667,32 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 	// happened to use.
 	hostBase := info.BaseURL
 	if info.Registry != nil {
-		hostBase = strings.TrimSuffix(hostBase,
-			"/"+RegCollectionSegment+"/"+info.Registry.UID)
+		if strings.HasSuffix(hostBase,
+			"/"+RegCollectionSegment+"/"+info.Registry.UID) {
+
+			hostBase = strings.TrimSuffix(hostBase,
+				"/"+RegCollectionSegment+"/"+info.Registry.UID)
+		} else if strings.HasSuffix(hostBase, "/"+DefaultRegSegment) {
+			hostBase = strings.TrimSuffix(hostBase,
+				"/"+DefaultRegSegment)
+		}
 	}
 
 	registries := make([]string, 0, len(names)+1)
 	// The plain host base URL (no "/xregs/<name>" suffix) is itself a valid
-	// way to reach a registry too - it's just an alias for whichever
-	// registry the server was started with as its default (see
+	// way to reach a registry too if rootapp=xreg - it's just an alias for
+	// whichever registry the server was started with as its default (see
 	// GetDefaultReg()/cmds/xrserver's "Default(/): xregx/<name>" startup
 	// log). Include it so clients relying solely on this discovery doc
 	// don't miss that registry.
-	registries = append(registries, hostBase)
+
+	if RootApp == "xreg" {
+		registries = append(registries, hostBase)
+	}
+
+	// But always add the default registry
+	registries = append(registries, hostBase+"/xreg")
+
 	for _, name := range names {
 		registries = append(registries,
 			hostBase+"/"+RegCollectionSegment+"/"+name)

@@ -316,9 +316,6 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 }
 
 func TestXRServerConfig(t *testing.T) {
-	// reg := NewRegistry("TestXRServerConfig")
-	// defer PassDeleteReg(t, reg)
-
 	tmphome, err := os.MkdirTemp("", "xrtest-home")
 	XNoErr(t, err)
 	defer os.RemoveAll(tmphome)

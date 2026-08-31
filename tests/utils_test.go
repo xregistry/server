@@ -607,3 +607,22 @@ func XServer(t *testing.T, line string, in, Eout, Eerr string, code int) {
 		XEqual(t, "Stdout:", stdout.String(), Eout, MASK_SERVER)
 	}
 }
+
+func WaitForURL(url string) error {
+	for i := 0; ; i++ {
+		res, xErr := CommonHttpDo("GET", url, nil, nil)
+		if res.Code == 200 {
+			return nil
+		}
+		if !IsNil(xErr) &&
+			!strings.Contains(xErr.String(), "connection refused") {
+			return fmt.Errorf("%s", xErr.GetTitle())
+		}
+
+		time.Sleep(5 * time.Millisecond)
+		if i == 2000 {
+			return fmt.Errorf("Timed-out trying to access: %s\n"+
+				"Err: %s", url, string(res.Body))
+		}
+	}
+}
