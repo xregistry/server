@@ -2031,7 +2031,6 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "ancestorid": "1",
-  "contenttype": "application/json",
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
@@ -2069,7 +2068,6 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
-  "contenttype": "application/json",
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
@@ -2095,8 +2093,8 @@ func TestXRResourceFlags(t *testing.T) {
 `, "", true)
 
 	// Test --set with -d on resource with document
-	XCLI(t, `update /dirs/d1/files/f1 -d '{"name":"file3"}' --set name=file4`, "", "", "", true)
-	XCLI(t, "get /dirs/d1/files/f1", "", `{"name":"file3"}`, "", true)
+	XCLI(t, "update /dirs/d1/files/f1 -d 'hello world' --set name=file4", "", "", "", true)
+	XCLI(t, "get /dirs/d1/files/f1", "", "hello world", "", true)
 	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
   "fileid": "f1",
   "versionid": "1",
@@ -2108,7 +2106,6 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
-  "contenttype": "application/json",
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
@@ -2136,8 +2133,8 @@ func TestXRResourceFlags(t *testing.T) {
 `, "", true)
 
 	// Test --set with -d and -m on resource with document
-	XCLI(t, `update /dirs/d1/files/f1 -m -d '{"description":"file5"}' --set name=file5`, "", "", "", true)
-	XCLI(t, "get /dirs/d1/files/f1", "", `{"name":"file3"}`, "", true)
+	XCLI(t, `update /dirs/d1/files/f1 -m --set name=file5 -d '{"name":"file6","description":"file5"}'`, "", "", "", true)
+	XCLI(t, "get /dirs/d1/files/f1", "", "hello world", "", true)
 	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
   "fileid": "f1",
   "versionid": "1",
@@ -2150,7 +2147,6 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
-  "contenttype": "application/json",
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1

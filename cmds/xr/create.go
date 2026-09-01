@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -189,7 +190,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 				doc_data = true
 				ops = append(ops, Operation{
 					Action: "set",
-					Value:  "file=" + data,
+					Value:  rm.Singular + "base64=" + base64.StdEncoding.EncodeToString([]byte(data)),
 				})
 			}
 		}
