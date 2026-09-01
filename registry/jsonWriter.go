@@ -228,8 +228,9 @@ func (jw *JsonWriter) WriteCollection() (int, *XRError) {
 }
 
 func (jw *JsonWriter) WriteEntity() *XRError {
-	log.VPrintf(3, ">Enter: WriteEntity (%v)", jw.Entity)
-	defer log.VPrintf(3, "<Exit: WriteEntity")
+	if log.IsFuncVerbose() {
+		log.Printf("WriteEntity: %v", jw.Entity)
+	}
 
 	if jw.Entity == nil {
 		jw.Printf("{}")

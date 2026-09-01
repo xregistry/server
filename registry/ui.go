@@ -101,8 +101,7 @@ func BuildURLNoUI(info *RequestInfo, path string) string {
 }
 
 func GenerateUI(info *RequestInfo, data []byte) []byte {
-	log.VPrintf(3, ">Enter: GenerateUI")
-	defer log.VPrintf(3, "<Exit: GenerateUI")
+	defer log.Trace()()
 
 	// The old hand-rolled "?ui" viewer below has been replaced by the new
 	// SPA served under /ui. Rather than silently redirecting (which would

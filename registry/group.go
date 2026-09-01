@@ -25,8 +25,7 @@ func (g *Group) SetSave(name string, val any) *XRError {
 }
 
 func (g *Group) Delete() *XRError {
-	log.VPrintf(3, ">Enter: Group.Delete(%s)", g.UID)
-	defer log.VPrintf(3, "<Exit: Group.Delete")
+	defer log.Trace(g.UID)()
 
 	// Make sure we don't have any readonly Resources. Callers (HTTPDelete/
 	// HTTPDeleteGroups) already lock g itself FOR_WRITE, but that doesn't
@@ -70,8 +69,7 @@ func (g *Group) Delete() *XRError {
 // no analogous need to force every subsequent read through this Group
 // to inherit a prior FOR_WRITE.
 func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode int) (*Resource, *XRError) {
-	log.VPrintf(3, ">Enter: FindResource(%s,%s,%v)", rType, id, anyCase)
-	defer log.VPrintf(3, "<Exit: FindResource")
+	defer log.Trace("%s,%s,%v", rType, id, anyCase)()
 
 	if r := g.tx.GetResource(g, rType, id); r != nil {
 		if accessMode == FOR_WRITE && r.AccessMode != FOR_WRITE {
@@ -127,8 +125,7 @@ type ResourceUpsert struct {
 
 // Return: *Resource, isNew, error
 func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
-	log.VPrintf(3, ">Enter: UpsertResource(%s,%s)", ru.RType, ru.Id)
-	defer log.VPrintf(3, "<Exit: UpsertResource")
+	defer log.Trace("%s,%s", ru.RType, ru.Id)()
 
 	// ru.VID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
@@ -661,8 +658,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 // Returns a map of resourceType->*Resource
 func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string][]*Resource, *XRError) {
-	log.VPrintf(3, ">Enter UpsertJustResources()")
-	defer log.VPrintf(3, "<Exit UpsertJustResources")
+	defer log.Trace()()
 
 	resources := map[string][]*Resource{}
 
@@ -799,8 +795,7 @@ func (g *Group) GetAttrConstraint(v *Version, attr *Attribute, path *PropPath) *
 }
 
 func (g *Group) Validate() *XRError {
-	log.VPrintf(3, ">Enter Validate(%s)", g.XID)
-	defer log.VPrintf(3, "<Exit Validate")
+	defer log.Trace(g.XID)()
 
 	constraints, xErr := g.GetConstraints()
 	if xErr != nil {

@@ -305,8 +305,7 @@ func (r *Resource) MustFindMeta(anyCase bool) *Meta {
 }
 
 func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
-	log.VPrintf(3, ">Enter: FindMeta(%v)", anyCase)
-	defer log.VPrintf(3, "<Exit: FindMeta")
+	defer log.Trace("%v", anyCase)()
 
 	// Resource/Meta/Version are locked together as one family (see
 	// lockEntityFamily()) - Meta's effective access mode is always
@@ -347,8 +346,7 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 
 // Maybe replace error with a panic? same for other finds??
 func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
-	log.VPrintf(3, ">Enter: FindVersion(%s,%v)", id, anyCase)
-	defer log.VPrintf(3, "<Exit: FindVersion")
+	defer log.Trace("%s,%v", id, anyCase)()
 
 	if id == "" { // just incase
 		return nil, nil
@@ -535,8 +533,7 @@ type MetaUpsert struct {
 // we're removing the 'xref' attr. Other cases, the http layer would have
 // already create the Resource and default version for us.
 func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
-	log.VPrintf(3, ">Enter: UpsertMeta(%s,%v,%v,%v)", r.UID, mu.addType, mu.createVersion, mu.more)
-	defer log.VPrintf(3, "<Exit: UpsertMeta")
+	defer log.Trace("%s,%v,%v,%v", r.UID, mu.addType, mu.createVersion, mu.more)()
 
 	// log.Printf("UpsertMeta: OBJ: %s", ToJSON(mu.obj))
 
@@ -953,9 +950,7 @@ type VersionUpsert struct {
 
 // *Version, isNew, error
 func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *XRError) {
-
-	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v,%v)", vu.Id, vu.AddType, vu.More)
-	defer log.VPrintf(3, "<Exit: UpsertVersion")
+	defer log.Trace("%s,%v,%v", vu.Id, vu.AddType, vu.More)()
 
 	if xErr := r.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
@@ -1332,8 +1327,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// If any Version actually changed we should run all checks.
 	// "force" will check things even if they haven't changed.
 
-	log.VPrintf(3, ">Enter: ValidateResource(r:%s only:%v, force:%v)", r.UID, onlyMetaChanged, force)
-	defer log.VPrintf(3, "<Exit: ValiateResource")
+	defer log.Trace("r:%s only:%v, force:%v", r.UID, onlyMetaChanged, force)()
 
 	// We're about to fully (re-)validate r ourselves right now, so drop
 	// any pending AddResourceToValidate() mark for it - otherwise
@@ -1901,8 +1895,7 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 }
 
 func (r *Resource) Delete() *XRError {
-	log.VPrintf(3, ">Enter: Resource.Delete(%s)", r.UID)
-	defer log.VPrintf(3, "<Exit: Resource.Delete")
+	defer log.Trace(r.UID)()
 
 	meta := r.MustFindMeta(false)
 
@@ -1940,8 +1933,7 @@ func (r *Resource) Delete() *XRError {
 }
 
 func (m *Meta) Delete() *XRError {
-	log.VPrintf(3, ">Enter: Meta.Delete(%s)", m.UID)
-	defer log.VPrintf(3, "<Exit: Meta.Delete")
+	defer log.Trace(m.UID)()
 
 	// Props/Entities rows for this Meta are cleaned up by
 	// ResourcesTrigger (ParentSID=OLD.SID) when the owning Resource is
@@ -2067,8 +2059,7 @@ func GetFormatChecker(format string) (FormatChecker, string) {
 // This will check "format" as well.
 // "force" check all Verisons even if we don't think we need to.
 func (r *Resource) EnsureCompat(force bool) *XRError {
-	log.VPrintf(3, ">Enter: EnsureCompat(%s)", r.UID)
-	defer log.VPrintf(3, "<Exit: EnsureCompat")
+	defer log.Trace(r.UID)()
 
 	meta := r.MustFindMeta(false)
 
@@ -2432,8 +2423,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 // Check to make sure all attributes with matchversions=true are validated
 // to be the same across all Versions
 func (r *Resource) EnsureMatchVersions(force bool) *XRError {
-	log.VPrintf(3, ">Enter: EnsureMatchVersions(%s)", r.UID)
-	defer log.VPrintf(3, "<Exit: MatchVersions")
+	defer log.Trace(r.UID)()
 
 	mvs := r.ResourceModel.GetMatchVersionAttributes()
 

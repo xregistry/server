@@ -14,6 +14,11 @@
 //     shelling out to the real "gofmt -l" rather than reimplementing
 //     its formatting logic.
 //
+//   - "defertrace" (--defertrace): finds "defer log.Trace(...)"
+//     statements that are missing the trailing "()" needed to actually
+//     invoke the func returned by log.Trace, i.e. code that should
+//     read "defer log.Trace(...)()".
+//
 // More checks are expected to be added here over time.
 //
 // # nilcheck details
@@ -65,9 +70,28 @@
 // reimplementing gofmt's own formatting rules. Any file gofmt reports as
 // needing reformatting is listed as a hit.
 //
+// # defertrace details
+//
+// log.Trace(...) (github.com/duglin/dlog, imported as "log") returns a
+// func() that must itself be invoked to log the "exit" side of a trace.
+// The correct usage is:
+//
+//	defer log.Trace(...)()
+//
+// It's an easy typo to drop the trailing "()", leaving:
+//
+//	defer log.Trace(...)
+//
+// which is still legal Go - it just defers the call to log.Trace
+// itself and silently discards the returned closure, so the "exit"
+// trace log is never emitted. This check walks every "defer" statement
+// and flags any whose deferred call is directly a call to log.Trace
+// (i.e. not wrapped in an extra pair of invoking parens).
+//
 // Usage:
 //
-//	go run ./cmds/xrlint [--nilcheck] [--unused] [--gofmt] [packages...]
+//	go run ./cmds/xrlint [--nilcheck] [--unused] [--gofmt]
+//	    [--defertrace] [packages...]
 //
 // With no package args it checks ./registry/... ./common/... ./cmds/...
 // ./tests/... (the tmp/ directory is intentionally excluded - it's a
@@ -97,14 +121,16 @@ func isEmptyInterface(t types.Type) bool {
 }
 
 func main() {
-	var nilcheckEnabled, unusedEnabled, gofmtEnabled bool
+	var nilcheckEnabled, unusedEnabled, gofmtEnabled, defertraceEnabled bool
 
 	rootCmd := &cobra.Command{
-		Use:   "xrlint [packages...]",
-		Short: "Repo-specific static checks (nilcheck, unused funcs, gofmt)",
-		Args:  cobra.ArbitraryArgs,
+		Use: "xrlint [packages...]",
+		Short: "Repo-specific static checks (nilcheck, unused funcs," +
+			" gofmt, defertrace)",
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(args, nilcheckEnabled, unusedEnabled, gofmtEnabled)
+			return run(args, nilcheckEnabled, unusedEnabled, gofmtEnabled,
+				defertraceEnabled)
 		},
 	}
 	rootCmd.Flags().BoolVar(&nilcheckEnabled, "nilcheck", true,
@@ -113,6 +139,8 @@ func main() {
 		"check for package-level funcs/methods that are never referenced")
 	rootCmd.Flags().BoolVar(&gofmtEnabled, "gofmt", true,
 		"check for files that aren't gofmt-formatted (via 'gofmt -l')")
+	rootCmd.Flags().BoolVar(&defertraceEnabled, "defertrace", true,
+		"check for 'defer log.Trace(...)' missing the trailing '()'")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -125,6 +153,7 @@ func run(
 	nilcheckEnabled bool,
 	unusedEnabled bool,
 	gofmtEnabled bool,
+	defertraceEnabled bool,
 ) error {
 	if len(patterns) == 0 {
 		patterns = []string{
@@ -166,6 +195,9 @@ func run(
 	}
 	if gofmtEnabled {
 		hits += runGofmtCheck(pkgs)
+	}
+	if defertraceEnabled {
+		hits += runDeferTraceCheck(pkgs, fset)
 	}
 
 	if hits > 0 {
@@ -613,6 +645,70 @@ func runGofmtCheck(pkgs []*packages.Package) int {
 		fmt.Println("\ngofmt: all files properly formatted")
 	}
 	return len(lines)
+}
+
+// isLogTraceCall reports whether ce is a call to log.Trace (i.e.
+// github.com/duglin/dlog.Trace, however the package is imported/named
+// locally), resolved precisely via go/types rather than by name-
+// matching the "log" identifier.
+func isLogTraceCall(info *types.Info, ce *ast.CallExpr) bool {
+	sel, ok := ce.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Trace" {
+		return false
+	}
+	obj := info.Uses[sel.Sel]
+	fn, ok := obj.(*types.Func)
+	if !ok || fn.Pkg() == nil {
+		return false
+	}
+	return fn.Pkg().Path() == "github.com/duglin/dlog"
+}
+
+// runDeferTraceCheck finds "defer log.Trace(...)" statements that are
+// missing the trailing "()" needed to invoke the func() returned by
+// log.Trace, i.e. code that should read "defer log.Trace(...)()".
+// Returns the number of hits found.
+func runDeferTraceCheck(pkgs []*packages.Package, fset *token.FileSet) int {
+	fmt.Println(
+		"\n=== 'defer log.Trace(...)' missing the trailing '()' ===",
+	)
+	hits := 0
+
+	for _, pkg := range pkgs {
+		info := pkg.TypesInfo
+		for _, file := range pkg.Syntax {
+			ast.Inspect(file, func(n ast.Node) bool {
+				ds, ok := n.(*ast.DeferStmt)
+				if !ok {
+					return true
+				}
+				// The correctly-written "defer log.Trace(...)()" parses
+				// as ds.Call being the OUTER (invoking) call, whose Fun
+				// is itself the "log.Trace(...)" call. A bug is a
+				// "defer log.Trace(...)" where ds.Call IS the
+				// log.Trace(...) call directly (no outer wrapping call).
+				if isLogTraceCall(info, ds.Call) {
+					pos := fset.Position(ds.Pos())
+					fmt.Printf("%s:%d: %s\n",
+						pos.Filename, pos.Line, lineText(fset, ds.Pos()))
+					hits++
+				}
+				return true
+			})
+		}
+	}
+
+	if hits > 0 {
+		fmt.Fprintf(
+			os.Stderr,
+			"\ndefertrace: found %d 'defer log.Trace(...)' missing the"+
+				" trailing '()'\n",
+			hits,
+		)
+	} else {
+		fmt.Println("\ndefertrace: no bad 'defer log.Trace(...)' usages found")
+	}
+	return hits
 }
 
 func trackVar(

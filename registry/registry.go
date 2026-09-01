@@ -172,8 +172,7 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 type RegOpt string
 
 func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
-	log.VPrintf(3, ">Enter: NewRegistry %q", id)
-	defer log.VPrintf(3, "<Exit: NewRegistry")
+	defer log.Trace(id)()
 
 	var xErr *XRError // must be used for all error checking due to defer
 	newTx := false
@@ -320,8 +319,7 @@ func (reg *Registry) SetSave(name string, val any) *XRError {
 }
 
 func (reg *Registry) Delete() *XRError {
-	log.VPrintf(3, ">Enter: Reg.Delete(%s)", reg.UID)
-	defer log.VPrintf(3, "<Exit: Reg.Delete")
+	defer log.Trace(reg.UID)()
 
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
@@ -340,8 +338,7 @@ func (reg *Registry) Delete() *XRError {
 }
 
 func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError) {
-	log.VPrintf(3, ">Enter: FindRegistrySID(%s)", sid)
-	defer log.VPrintf(3, "<Exit: FindRegistrySID")
+	defer log.Trace(sid)()
 
 	if tx.Registry != nil && tx.Registry.DbSID == sid {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
@@ -387,8 +384,7 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 
 // BY UID
 func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
-	log.VPrintf(3, ">Enter: FindRegistry(%s)", id)
-	defer log.VPrintf(3, "<Exit: FindRegistry")
+	defer log.Trace(id)()
 
 	if tx != nil && tx.Registry != nil && tx.Registry.UID == id {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
@@ -510,8 +506,7 @@ func (reg *Registry) SaveModel(verifyData bool) *XRError {
 }
 
 func (reg *Registry) LoadModelFromFile(file string) *XRError {
-	log.VPrintf(3, ">Enter: LoadModelFromFile: %s", file)
-	defer log.VPrintf(3, "<Exit:LoadModelFromFile")
+	defer log.Trace(file)()
 
 	var xErr *XRError
 	var err error
@@ -565,8 +560,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 }
 
 func (reg *Registry) Update(obj Object, addType AddType) *XRError {
-	log.VPrintf(3, ">Enter: Registry.Update()")
-	defer log.VPrintf(3, "<Exit: Registry.Update")
+	defer log.Trace()()
 
 	if xErr := CheckAttrs(obj, reg.XID); xErr != nil {
 		return xErr
@@ -722,8 +716,7 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 // prevent, where a decision (e.g. "does this Resource already exist?")
 // computed from an unlocked read could go stale before the write.
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
-	log.VPrintf(3, ">Enter: FindGroup(%s,%s,%v)", gType, id, anyCase)
-	defer log.VPrintf(3, "<Exit: FindGroup")
+	defer log.Trace("%s,%s,%v", gType, id, anyCase)()
 
 	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
 		log.VPrintf(3, "tx: %s FindGroup %s,%s from cache",
@@ -767,8 +760,7 @@ func (reg *Registry) UpsertGroup(gType string, id string) (*Group, bool, *XRErro
 }
 
 func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, addType AddType) (*Group, bool, *XRError) {
-	log.VPrintf(3, ">Enter UpsertGroupWithObject(%s,%s)", gType, id)
-	defer log.VPrintf(3, "<Exit UpsertGroupWithObject")
+	defer log.Trace("%s,%s", gType, id)()
 
 	// Move to below, after the "findGroup". Is SaveModel needs it then
 	// it'll lock it.
@@ -974,8 +966,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 // Returns a map of groupType->*Group
 func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[string][]*Group, *XRError) {
-	log.VPrintf(3, ">Enter UpsertJustGroups()")
-	defer log.VPrintf(3, "<Exit UpsertJustGroups")
+	defer log.Trace()()
 
 	groups := map[string][]*Group{}
 
@@ -1369,7 +1360,7 @@ ft.eSID IN ( -- eSID from query
 	query += `  ORDER BY ` + sortOrder +
 		`    ft.LowerXID ASC;`
 
-	if log.GetVerbose() > 3 || log.HasKeyword("genq") {
+	if log.GetVerbose() > 3 || log.HasVerbose("genq") {
 		log.Printf("Query:\n%s\n\n", SubQuery(query, args))
 	}
 	return query, args, nil

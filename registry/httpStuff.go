@@ -111,9 +111,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	saveVerbose := log.GetVerbose()
 	if tmp := r.URL.Query().Get("verbose"); tmp != "" {
-		log.AddVerboseString(tmp)
+		log.SetVerbose(tmp)
 		defer func() {
-			log.DelVerboseString(tmp)
+			log.DelVerbose(tmp)
 			log.SetVerbose(saveVerbose)
 		}()
 	}
@@ -713,8 +713,7 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 }
 
 func HTTPGETContent(info *RequestInfo) *XRError {
-	log.VPrintf(3, ">Enter: HTTPGetContent")
-	defer log.VPrintf(3, "<Exit: HTTPGetContent")
+	defer log.Trace()()
 
 	query := `
 SELECT
@@ -736,13 +735,18 @@ FROM Props WHERE RegSID=? AND `
 	}
 	query += " ORDER BY XID"
 
-	log.VPrintf(3, "Query:\n%s", SubQuery(query, args))
+	isV := log.IsFuncVerbose()
+	if isV {
+		log.Printf("Query:\n%s", SubQuery(query, args))
+	}
 
 	results := Query(info.tx, query, args...)
 	defer results.Close()
 
 	entity, xErr := readNextEntity(info.tx, results, FOR_READ)
-	log.VPrintf(3, "Entity: %#v", entity)
+	if isV {
+		log.Printf("Entity: %#v", entity)
+	}
 	if entity == nil {
 		if xErr != nil {
 			log.Printf("Error loading entity: %s", xErr)
@@ -808,7 +812,9 @@ FROM Props WHERE RegSID=? AND `
 		version = entity
 	}
 
-	log.VPrintf(3, "Version: %#v", version)
+	if isV {
+		log.Printf("Version: %#v", version)
+	}
 
 	headerIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
 		if key[0] == '#' {
@@ -880,7 +886,9 @@ FROM Props WHERE RegSID=? AND `
 
 	url = entity.GetAsString(singular + "proxyurl")
 
-	log.VPrintf(3, singular+"proxyurl: %s", url)
+	if isV {
+		log.Printf(singular+"proxyurl: %s", url)
+	}
 	if url != "" {
 		// Just act as a proxy and copy the remote resource as our response
 		resp, err := http.Get(url)
@@ -925,8 +933,7 @@ FROM Props WHERE RegSID=? AND `
 }
 
 func HTTPOptions(info *RequestInfo) *XRError {
-	log.VPrintf(3, ">Enter: HTTPOptions(%s)", info.OriginalPath)
-	defer log.VPrintf(3, "<Exit: HTTPOptions")
+	defer log.Trace(info.OriginalPath)()
 
 	// Headers will be set automatically by DefaultWriter.Write()
 	info.StatusCode = 200
@@ -935,8 +942,7 @@ func HTTPOptions(info *RequestInfo) *XRError {
 }
 
 func HTTPGet(info *RequestInfo) *XRError {
-	log.VPrintf(3, ">Enter: HTTPGet(%s)", info.What)
-	defer log.VPrintf(3, "<Exit: HTTPGet(%s)", info.What)
+	defer log.Trace(info.What)()
 
 	info.Root = strings.Trim(info.Root, "/")
 
@@ -1004,6 +1010,8 @@ func HTTPGet(info *RequestInfo) *XRError {
 func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 	what string, filters [][]*FilterExpr) *XRError {
 
+	defer log.Trace()()
+
 	// Make sure everything is ok before we send back the results
 	if xErr := info.tx.Validate(info); xErr != nil {
 		return xErr
@@ -1031,14 +1039,16 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		resXIDs = map[string][]string{"": nil}
 	}
 
-	start := time.Now()
+	/*
+		start := time.Now()
 
-	defer func() {
-		if log.GetVerbose() > 3 {
-			diff := time.Now().Sub(start).Truncate(time.Millisecond)
-			log.Printf("  Total Time: %s", diff)
-		}
-	}()
+		defer func() {
+			if log.GetVerbose() > 3 {
+				diff := time.Now().Sub(start).Truncate(time.Millisecond)
+				log.Printf("  Total Time: %s", diff)
+			}
+		}()
+	*/
 
 	if info.RootPath == "export" {
 		if !info.FlagEnabled("inline") || len(info.Inlines) == 0 {
@@ -1073,11 +1083,9 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			results = Query(info.tx, query, args...)
 			defer results.Close()
 
-			if log.GetVerbose() > 3 {
-				log.Printf("SerializeQuery: %s", SubQuery(query, args))
-				diff := time.Now().Sub(start).Truncate(time.Millisecond)
-				log.Printf("  Query: # results: %d (time: %s)",
-					len(results.AllRows), diff)
+			if log.IsFuncVerbose() {
+				log.Print("Query: " + SubQuery(query, args))
+				log.Printf("# results: %d", len(results.AllRows))
 			}
 		}
 
@@ -1196,6 +1204,9 @@ func init() {
 
 func HTTPPutPost(info *RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
+
+	defer log.Trace("%s %s", method, info.OriginalPath)()
+
 	isNew := false
 	XIDs := ([]string)(nil)
 	what := "Entity"
@@ -1204,8 +1215,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	metaInBody := (info.ResourceModel == nil) ||
 		(info.ResourceModel.GetHasDocument() == false || info.ShowDetails ||
 			(numParts == 5 && info.Parts[4] == "meta"))
-
-	log.VPrintf(3, "HTTPPutPost: %s %s", method, info.OriginalPath)
 
 	info.Root = strings.Trim(info.Root, "/")
 
@@ -2760,7 +2769,7 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 		data = []byte(xErr.String())
 	}
 
-	log.VPrintf(4, "Download: %s%s", host, path)
+	log.FuncPrintf("Download: %s%s", host, path)
 
 	var err error
 	if data == nil {
@@ -2774,7 +2783,9 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.VPrintf(4, "Data:\n%s", string(data))
+	if log.IsFuncVerbose() {
+		log.Printf("Data:\n%s", string(data))
+	}
 
 	r.URL, err = url.Parse(path)
 	r.RequestURI = path
@@ -2885,7 +2896,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		newPath := "/" + RegCollectionSegment + "/" + regName +
 			string((*(row[1])).([]byte)) + suffix
 
-		log.KPrintf("ShortSelf", "Redirect: %q -> %q", path, newPath)
+		log.FuncPrintf("Redirect: %q -> %q", path, newPath)
 
 		req.URL.Path = newPath
 		return nil

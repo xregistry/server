@@ -511,7 +511,7 @@ func main() {
 	log.SetVerbose(0)
 
 	if tmp := os.Getenv("XR_VERBOSE"); tmp != "" {
-		log.AddVerboseString(tmp)
+		log.SetVerbose(tmp)
 	}
 
 	serverCmd := setupCmds()

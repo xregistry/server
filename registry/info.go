@@ -185,7 +185,7 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 
 	for _, inline := range info.Inlines {
 		iPP := inline.PP
-		if log.GetVerbose() > 3 {
+		if log.IsFuncVerbose() {
 			log.Printf("Inline cmp: %q in %q",
 				ePP.DB(), inline.PP.DB())
 		}
@@ -205,7 +205,7 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 			(inline.NonWild != nil && ePP.HasPrefix(inline.NonWild)) {
 			// (iPP.Len() > 1 && iPP.Bottom() == "*" && ePP.HasPrefix(iPP.RemoveLast())) {
 
-			if log.GetVerbose() > 3 {
+			if log.IsFuncVerbose() {
 				log.Printf("   match: %q in %q",
 					ePP.DB(), inline.PP.DB())
 			}
@@ -369,7 +369,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		info.Body = nil
 	}
 
-	if log.GetVerbose() > 2 {
+	if log.IsFuncVerbose() {
 		defer func() { log.Printf("Info:\n%s\n", ToJSON(info)) }()
 	}
 
@@ -409,7 +409,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	}
 	info.OriginalBaseURL = root
 
-	if log.GetVerbose() > 3 {
+	if log.IsFuncVerbose() {
 		log.Printf("Info: %s", ToJSON(info))
 	}
 
@@ -650,7 +650,7 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 }
 
 func (info *RequestInfo) ParseRequestURL() *XRError {
-	if log.GetVerbose() > 3 {
+	if log.IsFuncVerbose() {
 		log.Printf("ParseRequestURL:\n%s", ToJSON(info))
 		log.Printf("Req: %#v", info.OriginalRequest.URL)
 	}

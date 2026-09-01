@@ -233,8 +233,7 @@ func (tx *Tx) String() string {
 }
 
 func NewTx() (*Tx, *XRError) {
-	log.VPrintf(4, ">Enter: NewTx")
-	defer log.VPrintf(4, "<exit: NewTx")
+	defer log.Trace("NewTx")()
 
 	tx := &Tx{}
 	xErr := tx.NewTx()
@@ -247,8 +246,7 @@ func NewTx() (*Tx, *XRError) {
 // It's ok for this to be called multiple times for the same Tx just to
 // make sure we have an active transaction - it's a no-op at that point
 func (tx *Tx) NewTx() *XRError {
-	log.VPrintf(4, ">Enter: tx.NewTx")
-	defer log.VPrintf(4, "<Exit: tx.NewTx")
+	defer log.Trace("tx.NewTx")()
 
 	if DB == nil {
 		if DBName == "" {
@@ -286,9 +284,9 @@ func (tx *Tx) NewTx() *XRError {
 	tx.uuid = NewUUID()
 	tx.stack = GetStack()
 
-	log.VPrintf(3, "tx: %s Begin transaction", tx.uuid)
+	log.FuncPrintf("tx: %s Begin transaction", tx.uuid)
 
-	if log.GetVerbose() > 2 {
+	if log.HasVerbose("DEBUG_NewTX") {
 		var connID int64
 		t.QueryRow("SELECT CONNECTION_ID()").Scan(&connID)
 		tx.connID = connID
@@ -581,7 +579,7 @@ func (tx *Tx) Commit() *XRError {
 	}
 
 	Must(tx.tx.Commit())
-	log.VPrintf(3, "tx: %s Committed", tx.uuid)
+	log.FuncPrintf("tx: %s Committed", tx.uuid)
 
 	tx.Clear()
 	return nil
@@ -594,7 +592,7 @@ func (tx *Tx) Rollback() *XRError {
 
 	err := tx.tx.Rollback()
 	Must(err)
-	log.VPrintf(3, "tx: %s Rolled Back", tx.uuid)
+	log.FuncPrintf("tx: %s Rolled Back", tx.uuid)
 
 	tx.Clear()
 	return nil
@@ -754,7 +752,7 @@ func (r *Result) PullNextRow() {
 	r.Data = r.AllRows[0]
 	r.AllRows = r.AllRows[1:]
 
-	if log.GetVerbose() > 3 {
+	if log.HasVerbose("DEBUG_PullNextRow") {
 		dd := []string{}
 		for _, d := range r.Data {
 			dVal := reflect.ValueOf(*d)
@@ -765,7 +763,7 @@ func (r *Result) PullNextRow() {
 				dd = append(dd, fmt.Sprintf("%v", *d))
 			}
 		}
-		log.VPrintf(4, "row: %v", dd)
+		log.Printf("row: %v", dd)
 	}
 }
 
@@ -832,7 +830,7 @@ func (r *Result) RetrieveNextRowFromDB() bool {
 
 	// Move data from TempData to Data
 
-	if log.GetVerbose() >= 4 {
+	if log.HasVerbose("RetrieveNextRowFromDB") {
 		dd := []string{}
 		for _, d := range r.Data {
 			dVal := reflect.ValueOf(*d)
@@ -892,7 +890,7 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 		startTime = time.Now()
 	}
 
-	if log.GetVerbose() >= 4 {
+	if log.IsFuncVerbose() {
 		log.Printf("Query: %s", SubQuery(cmd, args))
 	}
 
@@ -955,7 +953,7 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 }
 
 func doCount(tx *Tx, cmd string, args ...interface{}) int {
-	log.VPrintf(4, "doCount: %q args: %v", cmd, args)
+	log.FuncPrintf("doCount: %q args: %v", cmd, args)
 
 	if tx.IsLocked() {
 		ShowStack("Attempting a write when TX is locked - tx: %p", tx)
@@ -974,7 +972,7 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	}
 
 	count, _ := result.RowsAffected()
-	log.VPrintf(4, "doCount: %d rows", count)
+	log.FuncPrintf("doCount: %d rows", count)
 	return int(count)
 }
 
@@ -1013,7 +1011,7 @@ func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) {
 }
 
 func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
-	log.VPrintf(4, "DoCount: %s", cmd)
+	log.FuncPrintf("DoCount: %s", cmd)
 	count := doCount(tx, cmd, args...)
 
 	PanicIf(count != num,
@@ -1022,8 +1020,8 @@ func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
 }
 
 func DBExists(name string) bool {
-	log.VPrintf(3, ">Enter: DBExists %q", name)
-	defer log.VPrintf(3, "<Exit: DBExists")
+	defer log.Trace(name)()
+
 	db, err := sql.Open("mysql",
 		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
 	PanicIf(err != nil, "Error opening DB: %s", err)
@@ -1037,7 +1035,7 @@ func DBExists(name string) bool {
 	defer rows.Close()
 
 	found := rows.Next()
-	log.VPrintf(3, "<Exit: found: %v", found)
+	log.FuncPrintf("found: %v", found)
 	return found
 }
 
@@ -1047,12 +1045,11 @@ var firstTime = true
 
 func OpenDB(name string) *XRError {
 	if firstTime {
-		log.VPrintf(3, "Open DB: %s:%s", DBHost, DBPort)
+		log.FuncPrintf("Open DB: %s:%s", DBHost, DBPort)
 		firstTime = false
 	}
 
-	log.VPrintf(3, ">Enter: OpenDB %q", name)
-	defer log.VPrintf(3, "<Exit: OpenDB")
+	defer log.Trace(name)()
 
 	// DB, err := sql.Open("mysql",
 	// DBUser + ":"+DBPassword+"@tcp(localhost:3306)/")
@@ -1075,8 +1072,7 @@ func OpenDB(name string) *XRError {
 }
 
 func ListDBs() ([]string, *XRError) {
-	log.VPrintf(3, ">Enter: ListDBs")
-	defer log.VPrintf(3, "<Exit: ListDBs")
+	defer log.Trace()()
 
 	db, err := sql.Open("mysql",
 		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
@@ -1109,8 +1105,7 @@ func ListDBs() ([]string, *XRError) {
 }
 
 func CreateDB(name string) error {
-	log.VPrintf(3, ">Enter: CreateDB %q", name)
-	defer log.VPrintf(3, "<Exit: CreateDB")
+	defer log.Trace(name)()
 
 	db, err := sql.Open("mysql",
 		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
@@ -1127,7 +1122,7 @@ func CreateDB(name string) error {
 		panic(err)
 	}
 
-	log.VPrintf(3, "Creating DB")
+	log.FuncPrintf("Creating DB")
 
 	for _, cmd := range strings.Split(initDB, ";") {
 		cmd = strings.TrimSpace(cmd)
@@ -1136,7 +1131,7 @@ func CreateDB(name string) error {
 			continue
 		}
 
-		log.VPrintf(4, "CMD: %s", cmd)
+		log.FuncPrintf("CMD: %s", cmd)
 		if _, err := db.Exec(cmd); err != nil {
 			panic(fmt.Sprintf("Error on: %s\n%s", cmd, err))
 		}
@@ -1169,7 +1164,7 @@ func ReplaceVariables(str string) string {
 }
 
 func DeleteDB(name string) error {
-	log.VPrintf(3, "Deleting DB %q", name)
+	defer log.Trace(name)()
 
 	db, err := sql.Open("mysql",
 		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")

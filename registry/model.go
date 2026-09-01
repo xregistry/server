@@ -53,7 +53,7 @@ func (m *Model) Save() *XRError {
 		return nil
 	}
 
-	if log.HasKeyword("ModelSave") || log.GetVerbose() > 4 {
+	if log.HasVerbose("ModelSave") || log.GetVerbose() > 4 {
 		buf, _ := json.MarshalIndent(m, "", "  ")
 		log.Printf("Saving model:\n%s", string(buf))
 	}
@@ -257,8 +257,7 @@ func (m *Model) Save() *XRError {
 }
 
 func LoadModel(reg *Registry) *Model {
-	log.VPrintf(3, ">Enter: LoadModel")
-	defer log.VPrintf(3, "<Exit: LoadModel")
+	defer log.Trace()()
 
 	model := loadModelFromDB(reg, true)
 	if model != nil {

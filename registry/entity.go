@@ -360,8 +360,7 @@ func lockResourceFamily(tx *Tx, resourceSID string) {
 }
 
 func RawEntityFromXID(tx *Tx, regID string, xid string, anyCase bool, accessMode int) (*Entity, *XRError) {
-	log.VPrintf(3, ">Enter: RawEntityFromXID(%s)", xid)
-	defer log.VPrintf(3, "<Exit: RawEntityFromXID")
+	defer log.Trace(xid)()
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
@@ -546,8 +545,7 @@ func (e *Entity) Query(query string, args ...any) [][]any {
 }
 
 func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, args ...any) ([]*Entity, *XRError) {
-	log.VPrintf(3, ">Enter: RawEntititiesFromQuery(%s)", query)
-	defer log.VPrintf(3, "<Exit: RawEntitiesFromQuery")
+	defer log.Trace(query)()
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
@@ -619,8 +617,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 // Update the entity's Object - not the other props in Entity. Similar to
 // RawEntityFromXID
 func (e *Entity) Refresh(accessMode int) *XRError {
-	log.VPrintf(3, ">Enter: Refresh(%s)", e.DbSID)
-	defer log.VPrintf(3, "<Exit: Refresh")
+	defer log.Trace(e.XID)()
 
 	// If there's a buffered, not-yet-persisted system-prop change on
 	// this entity (see SetSystemDBProperty()'s doc comment), flush it
@@ -702,8 +699,7 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 
 // Set, Validate and Save to DB but not Commit
 func (e *Entity) eSetSave(path string, val any) *XRError {
-	log.VPrintf(3, ">Enter: SetSave(%s=%v)", path, val)
-	defer log.VPrintf(3, "<Exit Set")
+	defer log.Trace("%s=%v", path, val)()
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
@@ -735,8 +731,7 @@ func (e *Entity) eJustSetPath(path string, val any) *XRError {
 
 // Set the prop in the Entity but don't Validate or Save to the DB
 func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
-	log.VPrintf(3, ">Enter: JustSet([%d] %s.%s=%v)", e.Type, e.UID, pp.UI(), val)
-	defer log.VPrintf(3, "<Exit: JustSet")
+	defer log.Trace("%s.%s=%v", e.XID, pp.UI(), val)()
 
 	PanicIf(e.AccessMode != FOR_WRITE, "ejustset: %q isn't FOR_WRITE", e.XID)
 
@@ -785,10 +780,10 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 				}
 	*/
 
-	if log.GetVerbose() > 2 {
-		log.VPrintf(0, "Abstract/ID: %s/%s", e.Abstract, e.UID)
-		log.VPrintf(0, "e.Object:\n%s", ToJSON(e.Object))
-		log.VPrintf(0, "e.NewObject:\n%s", ToJSON(e.NewObject))
+	if log.IsFuncVerbose() {
+		log.Printf("Abstract/ID: %s/%s", e.Abstract, e.UID)
+		log.Printf("e.Object:\n%s", ToJSON(e.Object))
+		log.Printf("e.NewObject:\n%s", ToJSON(e.NewObject))
 	}
 
 	err := ObjectSetProp(e.NewObject, pp, val)
@@ -801,8 +796,7 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 }
 
 func (e *Entity) ValidateAndSave(force bool) *XRError {
-	log.VPrintf(3, ">Enter: ValidateAndSave %s/%s", e.Abstract, e.UID)
-	defer log.VPrintf(3, "<Exit: ValidateAndSave")
+	defer log.Trace(e.XID)()
 
 	// Force will do a validate even if it doesn't look like anything changed.
 	// BUT if after validate() nothing still hasn't changed then it doesn't
@@ -816,7 +810,8 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 	// Make sure we have a tx since Validate assumes it
 	e.tx.NewTx()
 
-	if log.GetVerbose() > 2 {
+	verb := log.IsFuncVerbose()
+	if verb {
 		log.Printf("Pre validate %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
 			e.Abstract, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
 	}
@@ -825,7 +820,7 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 		return xErr
 	}
 
-	if log.GetVerbose() > 2 {
+	if verb {
 		log.Printf("Post validate(%s): %s", e.XID, ToJSON(e.NewObject))
 	}
 
@@ -839,11 +834,10 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 // This is really just an internal Setter used for testing.
 // It'll set a property and then validate and save the entity in the DB
 func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
-	log.VPrintf(3, ">Enter: SetPP(%s: %s=%v)", e.DbSID, pp.UI(), val)
-	defer log.VPrintf(3, "<Exit SetPP")
+	defer log.Trace("%s: %s=%v", e.DbSID, pp.UI(), val)()
 	defer func() {
-		if log.GetVerbose() > 2 {
-			log.VPrintf(0, "SetPP exit: e.Object:\n%s", ToJSON(e.Object))
+		if log.IsFuncVerbose() {
+			log.Printf("exit: e.Object:\n%s", ToJSON(e.Object))
 		}
 	}()
 
@@ -1009,8 +1003,7 @@ func EnumValueToDBString(v any) string {
 }
 
 func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
-	log.VPrintf(3, ">Enter: SetDBProperty(%s=%v)", pp, val)
-	defer log.VPrintf(3, "<Exit SetDBProperty")
+	defer log.Trace("%s=%v", pp, val)()
 
 	row, skip, xErr := e.prepDBProperty(pp, val)
 	if xErr != nil {
@@ -1032,8 +1025,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 // blanket DELETE for all of this entity's own-prop rows before
 // traversal starts, so there's never a per-prop delete to buffer.
 func (e *Entity) SetDBPropertyBatch(pp *PropPath, val any) *XRError {
-	log.VPrintf(3, ">Enter: SetDBPropertyBatch(%s=%v)", pp, val)
-	defer log.VPrintf(3, "<Exit SetDBPropertyBatch")
+	defer log.Trace("%s=%v", pp, val)()
 
 	row, skip, xErr := e.prepDBProperty(pp, val)
 	if xErr != nil {
@@ -1082,9 +1074,7 @@ func (e *Entity) DoDBPropertyBatch() {
 // earlier buffered value, rather than racing an immediate DB DELETE
 // against a later flush.
 func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
-	log.VPrintf(3, ">Enter: ClearResourceSystemDBProperties(%d props)",
-		len(pps))
-	defer log.VPrintf(3, "<Exit ClearResourceSystemDBProperties")
+	defer log.Trace("%d props", len(pps))()
 
 	if len(pps) == 0 {
 		return
@@ -1133,8 +1123,7 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
 // back-to-back without each one independently re-triggering the whole
 // cascade - see SaveSystemProps().
 func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
-	log.VPrintf(3, ">Enter: SetSystemDBProperty(%s=%v)", pp, val)
-	defer log.VPrintf(3, "<Exit SetSystemDBProperty")
+	defer log.Trace("%s=%v", pp, val)()
 
 	PanicIf(pp.UI() == "", "pp is empty")
 
@@ -1305,7 +1294,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 	//     9        10         11         12
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		// log.Printf("Row(%d): %#v", len(row), row)
-		if log.GetVerbose() >= 4 {
+		if log.HasVerbose("readNextEntity") {
 			str := "("
 			for _, c := range row {
 				if IsNil(c) || IsNil(*c) {
@@ -2283,17 +2272,16 @@ func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 //     as defined by the entity's GetPropsOrdered()
 func (e *Entity) SerializeProps(info *RequestInfo,
 	fn func(*Entity, *RequestInfo, string, any, *Attribute) *XRError) *XRError {
-	log.VPrintf(3, ">Enter: SerializeProps(%s/%s)", e.Abstract, e.UID)
-	defer log.VPrintf(3, "<Exit: SerializeProps")
+	defer log.Trace(e.XID)()
 
 	daObj := e.AddCalcProps(info)
 	attrs := e.GetAttributes(e.Object)
 
-	if log.GetVerbose() > 3 {
-		log.VPrintf(0, "SerProps.Entity: %s", ToJSON(e))
-		log.VPrintf(0, "SerProps.Obj: %s", ToJSON(e.Object))
-		log.VPrintf(0, "SerProps daObj: %s", ToJSON(daObj))
-		log.VPrintf(0, "SerProps attrs:\n%s", ToJSON(attrs))
+	if log.IsFuncVerbose() {
+		log.Printf("SerProps.Entity: %s", ToJSON(e))
+		log.Printf("SerProps.Obj: %s", ToJSON(e.Object))
+		log.Printf("SerProps daObj: %s", ToJSON(daObj))
+		log.Printf("SerProps attrs:\n%s", ToJSON(attrs))
 	}
 
 	resourceSingular := ""
@@ -2403,8 +2391,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 }
 
 func (e *Entity) Lock() bool { // did we lock it?
-	log.VPrintf(3, ">Enter: Lock(%s:%s)", e.XID, e.DbSID)
-	defer log.VPrintf(3, "<Exit: Lock")
+	defer log.Trace("%s:%s", e.XID, e.DbSID)()
 
 	if e.AccessMode == FOR_WRITE {
 		// Already locked
@@ -2434,8 +2421,7 @@ func (e *Entity) Lock() bool { // did we lock it?
 }
 
 func (e *Entity) Save() *XRError {
-	log.VPrintf(3, ">Enter: Save(%s/%s)", e.Abstract, e.UID)
-	defer log.VPrintf(3, "<Exit: Save")
+	defer log.Trace(e.XID)()
 
 	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 
@@ -2447,9 +2433,8 @@ func (e *Entity) Save() *XRError {
 		}
 	}
 
-	if log.GetVerbose() > 2 {
-		log.VPrintf(0, "Saving - %s (id:%s):\n%s\n", e.Abstract, e.UID,
-			ToJSON(e.NewObject))
+	if log.IsFuncVerbose() {
+		log.Printf("NewObject:\n%s", ToJSON(e.NewObject))
 		// ShowStack()
 	}
 
@@ -2599,7 +2584,7 @@ func (e *Entity) Save() *XRError {
 	// the Entities row exists but has NO Props at all - panic
 	// immediately so we catch the exact Tx/stack responsible instead of
 	// some later, unrelated code path.
-	if log.GetVerbose() > 4 {
+	if log.HasVerbose("DebugSave") {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -2818,10 +2803,11 @@ func (e *Entity) RemoveReadOnlyImmutable(obj Object) {
 // avoid traversing the entity more than once, we will tweak things if needed.
 // For example, if a missing attribute has a Default value then we'll add it.
 func (e *Entity) Validate() *XRError {
+	defer log.Trace(e.XID)()
 	// Don't touch what was passed in
 	attrs := e.GetAttributes(e.NewObject)
-	if log.GetVerbose() > 3 {
-		log.Printf("In Validate - Attrs:\n%s", ToJSON(attrs))
+	if log.IsFuncVerbose() {
+		log.Printf("Attrs:\n%s", ToJSON(attrs))
 	}
 
 	// Skip xref's versions since its owning resource should have done it
@@ -2853,10 +2839,9 @@ func (e *Entity) Validate() *XRError {
 		*/
 	}
 
-	if log.GetVerbose() > 2 {
+	if log.IsFuncVerbose() {
 		log.VPrintf(0, "========")
-		log.VPrintf(0, "Validating(%d/%s):\n%s",
-			e.Type, e.UID, ToJSON(e.NewObject))
+		log.VPrintf(0, "NewObject:\n%s", ToJSON(e.NewObject))
 		log.VPrintf(0, "Attrs: %v", SortedKeys(attrs))
 	}
 
@@ -2872,12 +2857,11 @@ func (e *Entity) Validate() *XRError {
 // been removed - such as collections
 func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attributes, path *PropPath) *XRError {
 
-	log.VPrintf(3, ">Enter: ValidateObject(path: %s)", path)
-	defer log.VPrintf(3, "<Exit: ValidateObject")
+	defer log.Trace(path)()
 
-	if log.GetVerbose() > 2 {
-		log.VPrintf(0, "Check Obj:\n%s", ToJSON(val))
-		log.VPrintf(0, "OrigAttrs:\n%s", ToJSON(SortedKeys(origAttrs)))
+	if log.IsFuncVerbose() {
+		log.Printf("Check Obj:\n%s", ToJSON(val))
+		log.Printf("OrigAttrs:\n%s", ToJSON(SortedKeys(origAttrs)))
 	}
 
 	valValue := reflect.ValueOf(val)
@@ -3147,12 +3131,9 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 // Return: error, haveReplaceValue, newValue
 func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
-	log.VPrintf(3, ">Enter: ValidateAttribute(%s)", path)
-	defer log.VPrintf(3, "<Exit: ValidateAttribute")
-
-	if log.GetVerbose() > 2 {
-		log.VPrintf(0, " val: %v", ToJSON(val))
-		log.VPrintf(0, " attr: %v", ToJSON(attr))
+	if log.IsFuncVerbose() {
+		log.Printf("val: %v", ToJSON(val))
+		log.Printf("attr: %v", ToJSON(attr))
 	}
 
 	if attr.Type == ANY {
@@ -3183,12 +3164,9 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*X
 }
 
 func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRError {
-	log.VPrintf(3, ">Enter: ValidateMap(%s)", path)
-	defer log.VPrintf(3, "<Exit: ValidateMap")
-
-	if log.GetVerbose() > 2 {
-		log.VPrintf(0, " item: %v", ToJSON(mapAttr.Item))
-		log.VPrintf(0, " val: %v", ToJSON(val))
+	if log.IsFuncVerbose() {
+		log.Printf("item: %v", ToJSON(mapAttr.Item))
+		log.Printf("val: %v", ToJSON(val))
 	}
 
 	if IsNil(val) {
@@ -3246,12 +3224,9 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 }
 
 func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *XRError {
-	log.VPrintf(3, ">Enter: ValidateArray(%s)", path)
-	defer log.VPrintf(3, "<Exit: ValidateArray")
-
-	if log.GetVerbose() > 2 {
-		log.VPrintf(0, "item: %s", ToJSON(arrayAttr.Item))
-		log.VPrintf(0, "val: %s", ToJSON(val))
+	if log.IsFuncVerbose() {
+		log.Printf("item: %s", ToJSON(arrayAttr.Item))
+		log.Printf("val: %s", ToJSON(val))
 	}
 
 	if IsNil(val) {
@@ -3291,9 +3266,8 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 
 // returns: Error, haveReplacementValue, replacementValue
 func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
-	if log.GetVerbose() > 2 {
-		log.VPrintf(0, ">Enter: ValidateScalar(%s:%s)", path, ToJSON(val))
-		defer log.VPrintf(3, "<Exit: ValidateScalar")
+	if log.IsFuncVerbose() {
+		log.Printf("val: %s", ToJSON(val))
 	}
 
 	replace := false
@@ -3786,8 +3760,6 @@ func (e *Entity) CalcAttrDefault(attr *Attribute, path *PropPath) any {
 // lifetime (see SaveCalcStaticInsert()'s doc comment), this only ever runs
 // once, at creation.
 func (e *Entity) EntityInsert() {
-	defer log.Trace("EntityInsert", e.XID)()
-
 	var parentArg any
 	if e.ParentSID != "" {
 		parentArg = e.ParentSID
@@ -3815,7 +3787,7 @@ func (e *Entity) EntityInsert() {
 func (e *Entity) DBWriteProp(name string, propValue *string,
 	propType string, docView bool, isSystem bool) {
 
-	// defer log.Trace("FullTree", "%s/%s", e.XID, name)()
+	// defer log.VTrace("FullTree", "%s/%s", e.XID, name)()
 
 	if propValue == nil {
 		// The prop row may or may not exist yet (e.g. deleting a prop
@@ -3955,8 +3927,6 @@ func (e *Entity) SaveSystemProps() {
 		return
 	}
 
-	defer log.Trace("FullTree", e.XID)()
-
 	newSystem := e.NewSystem
 	e.NewSystem = nil
 
@@ -4054,8 +4024,6 @@ func (e *Entity) SaveSystemProps() {
 // isdefault attribute at all until something else happened to trigger
 // a recompute.
 func (e *Entity) SaveCalcStaticInsert() {
-	defer log.Trace("FullTree", e.XID)()
-
 	var parentArg any
 	if e.ParentSID != "" {
 		parentArg = e.ParentSID
@@ -4117,8 +4085,6 @@ func (e *Entity) SaveCalcStaticInsert() {
 // UPDATE. This func itself is only ever called from
 // SaveCalcStaticInsert(), for that one initial insert.
 func (e *Entity) SaveVersionCalc() {
-	defer log.Trace("FullTree", e.XID)()
-
 	// isdefault - true only if this Version is the owning Resource's
 	// current default (via its Meta.defaultVID), or - for a Resource
 	// with no defaultVID set but which is itself an xref source - if
@@ -4152,8 +4118,6 @@ func (e *Entity) SaveVersionCalc() {
 // resolved through Registry.FindResourceByXID()+FindMeta() rather than
 // a raw row.
 func (e *Entity) SaveXrefCascade() {
-	defer log.Trace("FullTree", e.XID)()
-
 	e.SaveXrefCascadeDelete()
 	e.SaveXrefCascadeInsert()
 }
