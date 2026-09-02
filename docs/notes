@@ -18,7 +18,7 @@ of them.
 - talk abou thow they can use hub.xregistry.io to load a UI and use it to view
   any registry, and even delete/hide 'hub'. So just bookmark the URL
   (hub.xregistry.io) to have a personalized xReg view/browser.
-- talk about --root
+- talk about --rootapp
 - .xr
   - header.foo: VALUE
   - server.url: URL
@@ -48,13 +48,14 @@ of them.
   - DBUSER -> db.user
   - DBPASSWORD -> db.password
 - setting up the server
-  - easy path
-  - setup https, auth, ... - e.g. nginx as a front-end
+  - easy path (stand-alone exe, docker images from github)
+  - kubernetes, persistent volumes
   - via docker - all in one & separate DB
     - persistent volumes for the DB
+  - setup https, auth, ... - e.g. nginx as a front-end
 - How to use the UI
   - JSON vs list view
   - Viewing/hiding xR data
   - adding servers
-  - finding servers
+  - finding servers (.xregistry stuff)
   - xrui.json - see registry/ui/xrui.json for fields

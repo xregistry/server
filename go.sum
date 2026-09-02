@@ -17,6 +17,10 @@ github.com/duglin/dlog v0.0.0-20260901174545-d201f4e12806 h1:2AHBeJROJ+s0rl+hKAD
 github.com/duglin/dlog v0.0.0-20260901174545-d201f4e12806/go.mod h1:mjcUJ8I4w649acz/QrZEKDBLxU1OnlVhYPMOR5g0naU=
 github.com/duglin/dlog v0.0.0-20260901184258-7d3376f74794 h1:X0p9vwUpFDSubAiKXT2FOQN/tqi1PAWVsyRueRvfU0w=
 github.com/duglin/dlog v0.0.0-20260901184258-7d3376f74794/go.mod h1:mjcUJ8I4w649acz/QrZEKDBLxU1OnlVhYPMOR5g0naU=
+github.com/duglin/dlog v0.0.0-20260901210218-11e525a22b84 h1:Y+N3gmA636KkHm/9eu94UPrmPeXBHzKl3IDBbhQJUe4=
+github.com/duglin/dlog v0.0.0-20260901210218-11e525a22b84/go.mod h1:mjcUJ8I4w649acz/QrZEKDBLxU1OnlVhYPMOR5g0naU=
+github.com/duglin/dlog v0.0.0-20260902003859-5d4299d55a47 h1:7tWWnM8r98Hz0ddEVId7nhYLViES2/sAU+tmlX/KwhQ=
+github.com/duglin/dlog v0.0.0-20260902003859-5d4299d55a47/go.mod h1:mjcUJ8I4w649acz/QrZEKDBLxU1OnlVhYPMOR5g0naU=
 github.com/duglin/goldmark v0.0.0-20260721182742-02ca224a569e h1:C/EAiOAXPnaz7Nvug1/JIj7i7Koe8/4r9N/0gl9R40Q=
 github.com/duglin/goldmark v0.0.0-20260721182742-02ca224a569e/go.mod h1:bGuh1468pgUSDhIRxo3Cr+Yn/jNBkXoD6v2h4fvfrr0=
 github.com/go-sql-driver/mysql v1.10.0 h1:Q+1LV8DkHJvSYAdR83XzuhDaTykuDx0l6fkXxoWCWfw=

@@ -3,7 +3,7 @@ module github.com/xregistry/server
 go 1.25.0
 
 require (
-	github.com/duglin/dlog v0.0.0-20260901184258-7d3376f74794
+	github.com/duglin/dlog v0.0.0-20260902003859-5d4299d55a47
 	github.com/duglin/goldmark v0.0.0-20260721182742-02ca224a569e
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/uuid v1.6.0
@@ -27,3 +27,5 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )
+
+// replace github.com/duglin/dlog => /root/go/src/github.com/duglin/dlog
