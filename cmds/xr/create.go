@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -168,17 +169,35 @@ func createFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if cmd.Flags().Changed("set") || cmd.Flags().Changed("del") {
-		isMetadata = true
 		dataMap := map[string]any{}
 
 		ops := GetArgOrder(cmd, os.Args)
 
-		oldData, xErr := reg.DownloadObject(xid.String())
+		Objectpath := xid.String()
+		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
+			Objectpath += "$details"
+		}
+		oldData, xErr := reg.DownloadObject(Objectpath)
 		if !xErr.IsType("not_found") {
 			Error(xErr)
 		}
 
-		if len(data) > 0 {
+		doc_data := false
+		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
+			rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
+			Error(xErr)
+			if rm.GetHasDocument() && !isMetadata && len(data) > 0 {
+				doc_data = true
+				ops = append([]Operation{{
+					Action: "set",
+					Value:  rm.Singular + "base64=" + base64.StdEncoding.EncodeToString([]byte(data)),
+				}}, ops...)
+			}
+		}
+
+		isMetadata = true
+
+		if len(data) > 0 && !doc_data {
 			// We don't really care if it's not valid json from a CLI
 			// perspective unless they're going to del/set something.
 			// That's why we don't do this outside of this if-changed block
