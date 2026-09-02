@@ -188,10 +188,10 @@ func createFunc(cmd *cobra.Command, args []string) {
 			Error(xErr)
 			if rm.GetHasDocument() && !isMetadata && len(data) > 0 {
 				doc_data = true
-				ops = append(ops, Operation{
+				ops = append([]Operation{{
 					Action: "set",
 					Value:  rm.Singular + "base64=" + base64.StdEncoding.EncodeToString([]byte(data)),
-				})
+				}}, ops...)
 			}
 		}
 

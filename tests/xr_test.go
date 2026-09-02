@@ -2152,6 +2152,30 @@ func TestXRResourceFlags(t *testing.T) {
   "versionscount": 1
 }
 `, "", true)
+
+	// Test -d is processed before --set on resource without document
+	XCLI(t, `update /dirs/d1/datas/d1 --set name=data5 -d '{"name":"data6","description":"data7"}'`, "", "", "", true)
+	XCLI(t, "get /dirs/d1/datas/d1", "", `{
+  "dataid": "d1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/datas/d1",
+  "xid": "/dirs/d1/datas/d1",
+  "epoch": 4,
+  "name": "data5",
+  "isdefault": true,
+  "description": "data7",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "1",
+  "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
+  "versionscount": 1
+}
+`, "", true)
+
+	// Test -d is processed before --set on resource with document
+	XCLI(t, "update /dirs/d1/files/f1 -d 'hello world2' --set filebase64=aGVsbG8gd29ybGQz", "", "", "", true)
+	XCLI(t, "get /dirs/d1/files/f1", "", "hello world3", "", true)
 }
 
 func TestXRConfig(t *testing.T) {
