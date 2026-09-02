@@ -140,7 +140,7 @@ func (fp *FilterPProf) Write(p []byte) (n int, err error) {
 				}
 
 				line = fpRE.ReplaceAllString(line, `  $1   $2`)
-				log.Printf(line)
+				log.Print(line)
 			} else {
 				fp.inSection = false
 			}
@@ -210,7 +210,7 @@ type Tx struct {
 	ResourcesValidatingBatch map[string]bool
 
 	// For debugging
-	uuid   string   // just a unique ID for the TXs map key
+	uuid   string   // a unique ID for the TXs map key
 	stack  []string // Stack at time NewTX
 	connID int64    // MySQL CONNECTION_ID() this Tx is bound to
 }
@@ -232,10 +232,12 @@ func (tx *Tx) String() string {
 	return fmt.Sprintf("tx: sql.tx: %s, Registry: %s", txStr, regStr)
 }
 
-func NewTx() (*Tx, *XRError) {
-	defer log.Trace("NewTx")()
+func NewTx(uuid string) (*Tx, *XRError) {
+	defer log.Trace("tx: %s NewTx", uuid)()
 
 	tx := &Tx{}
+	PanicIf(uuid == "", "missing uuid")
+	tx.uuid = uuid
 	xErr := tx.NewTx()
 	if xErr != nil {
 		return nil, xErr
@@ -246,7 +248,7 @@ func NewTx() (*Tx, *XRError) {
 // It's ok for this to be called multiple times for the same Tx just to
 // make sure we have an active transaction - it's a no-op at that point
 func (tx *Tx) NewTx() *XRError {
-	defer log.Trace("tx.NewTx")()
+	defer log.Trace("tx: %s tx.NewTx", tx.uuid)()
 
 	if DB == nil {
 		if DBName == "" {
@@ -281,7 +283,6 @@ func (tx *Tx) NewTx() *XRError {
 	tx.tx = t
 	tx.CreateTime = time.Now().UTC().Format(time.RFC3339Nano)
 	tx.Cache = map[string]*Entity{}
-	tx.uuid = NewUUID()
 	tx.stack = GetStack()
 
 	log.FuncPrintf("tx: %s Begin transaction", tx.uuid)
@@ -314,9 +315,9 @@ func (tx *Tx) NewTx() *XRError {
 }
 
 func (tx *Tx) DumpCache() {
-	log.Printf("==== CACHE =====")
+	log.Printf("tx: %s ==== CACHE =====", tx.uuid)
 	for path, _ := range tx.Cache {
-		log.Printf("- %s", path)
+		log.Printf("tx: %s - %s", tx.uuid, path)
 	}
 }
 
@@ -331,14 +332,14 @@ func (tx *Tx) AddToCache(e *Entity) {
 }
 
 func (tx *Tx) RemoveFromCache(e *Entity) {
-	// If NewObject is missing or its the same a Ob then we're ok.
+	// If NewObject is missing or its the same as Obj then we're ok.
 	// "same" is ok because it means it was just touched, not really changed
 
 	// TODO turn this off when in prod (the maps.Equals probably isn't too
 	// expensive, but it's not free
 	if e.NewObject != nil && !maps.Equal(e.Object, e.NewObject) {
-		log.Printf("OldObject:\n%s", ToJSON(e.Object))
-		log.Printf("NewObject:\n%s", ToJSON(e.NewObject))
+		log.Printf("tx: %s OldObject:\n%s", tx.uuid, ToJSON(e.Object))
+		log.Printf("tx: %s NewObject:\n%s", tx.uuid, ToJSON(e.NewObject))
 		e.ShowStack()
 		panic(e.XID + " is dirty")
 	}
@@ -397,14 +398,14 @@ func (tx *Tx) IsCacheDirty() bool {
 	dirty := false
 	for _, e := range tx.Cache {
 		if len(e.NewObject) != 0 {
-			log.Printf("Dirty: %q", e.XID)
-			log.Printf("NewObj:\n%s", ToJSON(e.NewObject))
-			log.Printf("Stack for NewObj:")
+			log.Printf("tx: %s Dirty: %q", tx.uuid, e.XID)
+			log.Printf("tx: %s NewObj:\n%s", tx.uuid, ToJSON(e.NewObject))
+			log.Printf("tx: %s Stack for NewObj:", tx.uuid)
 			for _, s := range e.NewObjectStack {
-				log.Printf("  %s", s)
+				log.Printf("tx: %s   %s", tx.uuid, s)
 			}
 			if len(e.NewObjectStack) == 0 {
-				log.Printf("  Enable this via entity.SetNewObject")
+				log.Printf("tx: %s Enable via entity.SetNewObject", tx.uuid)
 			}
 			dirty = true
 		}
@@ -413,10 +414,10 @@ func (tx *Tx) IsCacheDirty() bool {
 }
 
 func (tx *Tx) DumpDirtyCache() {
-	log.Printf("==== DIRTY CACHE =====")
+	log.Printf("tx: %s ==== DIRTY CACHE =====", tx.uuid)
 	for path, e := range tx.Cache {
 		if len(e.NewObject) != 0 {
-			log.Printf("- %s", path)
+			log.Printf("tx: %s - %s", tx.uuid, path)
 		}
 	}
 }
@@ -425,8 +426,8 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 	for _, e := range tx.Cache {
 		if true { // !force {
 			if e.NewObject != nil {
-				log.Printf("%s: %s", e.Singular, e.UID)
-				log.Printf("%s", ToJSON(e.NewObject))
+				log.Printf("tx: %s %s: %s", tx.uuid, e.Singular, e.UID)
+				log.Printf("tx: %s %s", tx.uuid, ToJSON(e.NewObject))
 				ShowStack()
 			}
 			PanicIf(e.NewObject != nil, "tx: %s Entity %s/%q not saved",
@@ -516,9 +517,9 @@ func (tx *Tx) SaveCommitRefresh() *XRError {
 
 	/*
 		// Reload all cached entities so the tests don't need to do it themselves
-		log.Printf("cache size: %d", len(tx.Cache))
+		log.Printf("tx: %s cache size: %d", tx.uuid, len(tx.Cache))
 		for _, e := range tx.Cache {
-			log.Printf("  Refresh: %s/%s", e.Singular, e.UID)
+			log.Printf("tx: %s Refresh: %s/%s", tx.uuid, e.Singular, e.UID)
 			e.Refresh()
 		}
 	*/
@@ -614,7 +615,6 @@ func (tx *Tx) Clear() {
 	tx.GroupsToValidate = nil
 	tx.ResourcesToValidate = nil
 	tx.ResourcesValidatingBatch = nil
-	tx.uuid = ""
 	tx.stack = nil
 }
 
@@ -891,7 +891,7 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	}
 
 	if log.IsFuncVerbose() {
-		log.Printf("Query: %s", SubQuery(cmd, args))
+		log.Printf("tx: %s Query: %s", tx.uuid, SubQuery(cmd, args))
 	}
 
 	ps, xErr := tx.Prepare(cmd)
@@ -953,7 +953,7 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 }
 
 func doCount(tx *Tx, cmd string, args ...interface{}) int {
-	log.FuncPrintf("doCount: %q args: %v", cmd, args)
+	log.FuncPrintf("tx: %s doCount: %q args: %v", tx.uuid, cmd, args)
 
 	if tx.IsLocked() {
 		ShowStack("Attempting a write when TX is locked - tx: %p", tx)
@@ -972,7 +972,7 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	}
 
 	count, _ := result.RowsAffected()
-	log.FuncPrintf("doCount: %d rows", count)
+	log.FuncPrintf("tx: %s doCount: %d rows", tx.uuid, count)
 	return int(count)
 }
 
@@ -1011,7 +1011,7 @@ func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) {
 }
 
 func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
-	log.FuncPrintf("DoCount: %s", cmd)
+	log.FuncPrintf("tx: %s DoCount: %s", tx.uuid, cmd)
 	count := doCount(tx, cmd, args...)
 
 	PanicIf(count != num,
@@ -1044,12 +1044,12 @@ var initDB string
 var firstTime = true
 
 func OpenDB(name string) *XRError {
+	defer log.Trace(name)()
+
 	if firstTime {
 		log.FuncPrintf("Open DB: %s:%s", DBHost, DBPort)
 		firstTime = false
 	}
-
-	defer log.Trace(name)()
 
 	// DB, err := sql.Open("mysql",
 	// DBUser + ":"+DBPassword+"@tcp(localhost:3306)/")

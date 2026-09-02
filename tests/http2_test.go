@@ -59,6 +59,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /dirs/d1/files$details.",
   "subject": "/dirs/d1/files$details",
+  "instance": "xxx",
   "source": ":registry:info:590"
 }
 `)
@@ -66,6 +67,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /dirs/d1/files/f1/versions$details.",
   "subject": "/dirs/d1/files/f1/versions$details",
+  "instance": "xxx",
   "source": ":registry:info:590"
 }
 `)
@@ -88,6 +90,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
     "name": "xregistry-barid"
   },
+  "instance": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2458"
 }
 `,
@@ -503,6 +506,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1884"
 }
 `)
@@ -511,6 +515,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:group:407"
 }
 `)
@@ -519,6 +524,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:group:407"
 }
 `)
@@ -527,6 +533,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:resource:899"
 }
 `)
@@ -535,6 +542,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:httpStuff:2371"
 }
 `)
@@ -544,6 +552,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1/versions/v1.",
   "detail": "PATCH is not allowed on Version documents.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1884"
 }
 `)
@@ -552,6 +561,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:resource:899"
 }
 `)
@@ -560,6 +570,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:resource:899"
 }
 `)
@@ -570,6 +581,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:group:407"
 }
 `)
@@ -580,6 +592,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:group:407"
 }
 `)
@@ -589,6 +602,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1) is not allowed.",
   "subject": "/dirs/dir1",
+  "instance": "xxx",
   "source": ":registry:group:42"
 }
 `)
@@ -597,6 +611,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:resource:1464"
 }
 `)
@@ -605,6 +620,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1) is not allowed.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:resource:1464"
 }
 `)
@@ -613,6 +629,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1/versions/v1) is not allowed.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
+  "instance": "xxx",
   "source": ":registry:version:42"
 }
 `)
@@ -621,6 +638,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "title": "Updating a read-only entity (/dirs/dir1/files/f1/versions/v1) is not allowed.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
+  "instance": "xxx",
   "source": ":registry:version:42"
 }
 `)
@@ -728,6 +746,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `)
@@ -740,6 +759,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `)
@@ -748,6 +768,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionid_request",
   "title": "Processing \"/dirs/d1/files/f1/versions\", the \"defaultversionid\" attribute is not allowed to be \"request\" since a Version wasn't processed.",
   "subject": "/dirs/d1/files/f1/versions",
+  "instance": "xxx",
   "source": "6567a49b4de4:registry:httpStuff:1435"
 }
 `)
@@ -760,6 +781,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `)
@@ -772,6 +794,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `)
@@ -1645,6 +1668,7 @@ func TestHTTPContent(t *testing.T) {
   "args": {
     "error_detail": "path '.file': parsing object key: expected string starting with '\"', got 'b' instead"
   },
+  "instance": "xxx",
   "source": "ea3e12b9fede:registry:httpStuff:2469"
 }
 `,
@@ -2840,6 +2864,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "invalid_id": "bad f23",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `})
@@ -2933,6 +2958,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "args": {
     "name": "foo"
   },
+  "instance": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `,
@@ -3023,6 +3049,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "args": {
     "name": "f2"
   },
+  "instance": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `})
@@ -3049,6 +3076,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "invalid_id": "f5",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `})
@@ -3301,6 +3329,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
     "name": "xregistry-description"
   },
+  "instance": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2458"
 }
 `,
@@ -3364,6 +3393,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#missing_versions",
   "title": "For \"/dirs/dir1/files/f99/versions\", at least one Version needs to be included in the request.",
   "subject": "/dirs/dir1/files/f99/versions",
+  "instance": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:1677"
 }
 `,
@@ -3437,6 +3467,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#too_many_versions",
   "title": "For \"/dirs/dir1/files/f10\", when the \"setdefaultversionid\" flag is set to \"request\", only one Version is allowed to be specified in the request message.",
   "subject": "/dirs/dir1/files/f10",
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:group:277"
 }
 `,
@@ -3537,6 +3568,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "id": "v3",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:2628"
 }
 `,
@@ -3754,6 +3786,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "id": "vx",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:2628"
 }
 `,
@@ -3778,6 +3811,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "invalid_id": "33",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:entity:879"
 }
 `,
@@ -3916,6 +3950,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "invalid_id": "77",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:entity:879"
 }
 `,
@@ -4164,6 +4199,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "args": {
     "name": "badext"
   },
+  "instance": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `)
@@ -4314,6 +4350,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "args": {
     "name": "badext"
   },
+  "instance": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `)
@@ -4335,6 +4372,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1884"
 }
 `)
@@ -4510,6 +4548,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "args": {
     "name": "badext"
   },
+  "instance": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `)
@@ -4531,6 +4570,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1/versions/v1.",
   "detail": "PATCH is not allowed on Version documents.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1884"
 }
 `)
@@ -4674,6 +4714,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "args": {
     "name": "badext"
   },
+  "instance": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `)
@@ -5065,6 +5106,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "invalid_id": "ef6",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
@@ -5144,6 +5186,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "id": "xxx",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:2628"
 }
 `)
@@ -5221,6 +5264,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "invalid_id": "ev2",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:entity:879"
 }
 `)
@@ -5272,6 +5316,7 @@ func TestHTTPmeta(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /$details.",
   "subject": "/$details",
+  "instance": "xxx",
   "source": ":registry:info:552"
 }
 `)
@@ -5279,6 +5324,7 @@ func TestHTTPmeta(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /$details.",
   "subject": "/$details",
+  "instance": "xxx",
   "source": ":registry:info:552"
 }
 `)
@@ -5286,6 +5332,7 @@ func TestHTTPmeta(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /dirs$details.",
   "subject": "/dirs$details",
+  "instance": "xxx",
   "source": ":registry:info:552"
 }
 `)
@@ -5293,6 +5340,7 @@ func TestHTTPmeta(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /dirs/dir1$details.",
   "subject": "/dirs/dir1$details",
+  "instance": "xxx",
   "source": ":registry:info:577"
 }
 `)
@@ -5300,6 +5348,7 @@ func TestHTTPmeta(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /dirs/dir1/$details.",
   "subject": "/dirs/dir1/$details",
+  "instance": "xxx",
   "source": ":registry:info:590"
 }
 `)
@@ -5307,6 +5356,7 @@ func TestHTTPmeta(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /dirs/dir1/files$details.",
   "subject": "/dirs/dir1/files$details",
+  "instance": "xxx",
   "source": ":registry:info:590"
 }
 `)
@@ -5318,6 +5368,7 @@ func TestHTTPmeta(t *testing.T) {
   "args": {
     "error_detail": "\"fileid\" value in URL cannot be an empty string"
   },
+  "instance": "xxx",
   "source": ":registry:info:632"
 }
 `)
@@ -5326,6 +5377,7 @@ func TestHTTPmeta(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /dirs/dir1/files/f1/versions$details.",
   "subject": "/dirs/dir1/files/f1/versions$details",
+  "instance": "xxx",
   "source": ":registry:info:651"
 }
 `)
@@ -5337,6 +5389,7 @@ func TestHTTPmeta(t *testing.T) {
   "args": {
     "error_detail": "\"versionid\" value in URL cannot be an empty string"
   },
+  "instance": "xxx",
   "source": ":registry:info:692"
 }
 `)
@@ -5345,6 +5398,7 @@ func TestHTTPmeta(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/dir1/files/f1/versions/v1/$details) cannot be found.",
   "subject": "/dirs/dir1/files/f1/versions/v1/$details",
+  "instance": "xxx",
   "source": ":registry:info:703"
 }
 `)
@@ -5488,6 +5542,7 @@ func TestHTTPURLs(t *testing.T) {
   "args": {
     "action": "PUT"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:1868"
 }
 `,
@@ -5635,6 +5690,7 @@ func TestHTTPURLs(t *testing.T) {
   "args": {
     "action": "PUT"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:1868"
 }
 `,
@@ -5765,6 +5821,7 @@ func TestHTTPURLs(t *testing.T) {
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/d2/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/d2/files/f1",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1884"
 }
 `,
@@ -5979,6 +6036,7 @@ func TestHTTPURLs(t *testing.T) {
   "args": {
     "action": "PUT"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:1868"
 }
 `,
@@ -6092,6 +6150,7 @@ func TestHTTPURLs(t *testing.T) {
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/d2/files/f1/versions/v5.",
   "detail": "PATCH is not allowed on Version documents.",
   "subject": "/dirs/d2/files/f1/versions/v5",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1884"
 }
 `,
@@ -6114,6 +6173,7 @@ func TestHTTPURLs(t *testing.T) {
   "args": {
     "action": "POST"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:1878"
 }
 `,
@@ -6212,6 +6272,7 @@ func TestHTTPURLs(t *testing.T) {
   "args": {
     "action": "POST"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:1878"
 }
 `,
@@ -6454,6 +6515,7 @@ func TestHTTPGroupResources(t *testing.T) {
   "args": {
     "name": "description"
   },
+  "instance": "xxx",
   "source": "a3d56ce41e09:registry:group:640"
 }
 `)
@@ -6465,6 +6527,7 @@ func TestHTTPGroupResources(t *testing.T) {
   "args": {
     "error_detail": "Value of \"f\" must be a \"file\""
   },
+  "instance": "xxx",
   "source": "a257d5f27b6d:common:utils:793"
 }
 `)
@@ -7054,6 +7117,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "id": "v2",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:resource:851"
 }
 `,
@@ -7080,6 +7144,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "error_detail": "must be a boolean",
     "name": "defaultversionsticky"
   },
+  "instance": "xxx",
   "source": ":registry:resource:809"
 }
 `,
@@ -7107,6 +7172,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "error_detail": "must be a boolean",
     "name": "defaultversionsticky"
   },
+  "instance": "xxx",
   "source": ":registry:resource:809"
 }
 `,
@@ -8024,6 +8090,7 @@ func TestHTTPExport(t *testing.T) {
     "bad_epoch": "3",
     "epoch": "4"
   },
+  "instance": "xxx",
   "source": ":registry:entity:1004"
 }
 `,
@@ -8173,6 +8240,7 @@ func TestHTTPVersionIDs(t *testing.T) {
     "invalid_id": "fx",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": ":registry:entity:830"
 }
 `)
@@ -8188,6 +8256,7 @@ func TestHTTPVersionIDs(t *testing.T) {
     "invalid_id": "fx",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": ":registry:entity:830"
 }
 `)
@@ -8204,6 +8273,7 @@ func TestHTTPVersionIDs(t *testing.T) {
     "invalid_id": "vx",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:2435"
 }
 `)
@@ -8219,6 +8289,7 @@ func TestHTTPVersionIDs(t *testing.T) {
     "invalid_id": "vx",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:2435"
 }
 `)
@@ -9408,6 +9479,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "registryid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9421,6 +9493,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "dirid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9433,6 +9506,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "dirid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9445,6 +9519,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "dirid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9457,6 +9532,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "dirid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9469,6 +9545,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"d2*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "dirid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9482,6 +9559,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "fileid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9495,6 +9573,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "invalid_id": "f1*",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
@@ -9508,6 +9587,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "versionid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9521,6 +9601,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "versionid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9533,6 +9614,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "versionid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9546,6 +9628,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "versionid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9559,6 +9642,7 @@ func TestHTTPInvalidID(t *testing.T) {
     "error_detail": "value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "fileid"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:71"
 }
 `)
@@ -9578,6 +9662,7 @@ func TestHTTPSpecVersion(t *testing.T) {
     "list": "`+SPECVERSION+`",
     "specversion": "0.x"
   },
+  "instance": "xxx",
   "source": ":registry:httpStuff:159"
 }
 `)
@@ -9749,6 +9834,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
     "list": "`+SPECVERSION+`",
     "specversion": "1.0-rc1"
   },
+  "instance": "xxx",
   "source": "xxx"
 }
 `)
@@ -9762,6 +9848,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
     "list": "`+SPECVERSION+`",
     "specversion": "1.1-rc4"
   },
+  "instance": "xxx",
   "source": "xxx"
 }
 `)
@@ -9775,6 +9862,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
     "list": "`+SPECVERSION+`",
     "specversion": "1.0"
   },
+  "instance": "xxx",
   "source": "xxx"
 }
 `)
@@ -9892,12 +9980,13 @@ func TestHTTPMissingBody(t *testing.T) {
 
 	fn := func(i string) string {
 		xErr := &XRError{
-			Type:    "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
-			Title:   "For \"" + i + "\", the request is missing an HTTP body - try '{}'.",
-			Subject: i,
-			Source:  "xyz",
+			Type:     "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
+			Title:    "For \"" + i + "\", the request is missing an HTTP body - try '{}'.",
+			Subject:  i,
+			Instance: "xyz",
+			Source:   "xyz",
 		}
-		return xErr.ToJSON("http://localhost:8181") + "\n"
+		return xErr.ToJSON() + "\n"
 	}
 
 	XHTTP(t, reg, "PUT", "/", "", 400, fn("/"))
@@ -9966,6 +10055,7 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
     "error_detail": "`
 	m3 := `"
   },
+  "instance": "xxx",
   "source": "xyz"
 }
 `
@@ -9983,6 +10073,7 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
   "title": "For \"/\", the request is missing an HTTP body - try '{}'.",
   "subject": "/",
+  "instance": "xxx",
   "source": ":registry:httpStuff:3119"
 }
 `},
@@ -10167,6 +10258,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10178,6 +10270,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10189,6 +10282,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10200,6 +10294,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10211,6 +10306,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10222,6 +10318,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10233,6 +10330,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10245,6 +10343,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10257,6 +10356,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "args": {
     "flag": "collections"
   },
+  "instance": "xxx",
   "source": ":registry:info:479"
 }
 `)
@@ -10266,6 +10366,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "title": "The targeted entity (/dirsx) cannot be found.",
   "detail": "Unknown Group type: dirsx.",
   "subject": "/dirsx",
+  "instance": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -10273,6 +10374,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1x) cannot be found.",
   "subject": "/dirs/d1x",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)
@@ -10281,6 +10383,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/filesx) cannot be found.",
   "detail": "Unknown Resource type: filesx.",
   "subject": "/dirs/d1/filesx",
+  "instance": "xxx",
   "source": ":registry:info:607"
 }
 `)
@@ -10323,6 +10426,7 @@ func TestHTTPEmptyIDs(t *testing.T) {
   "args": {
     "error_detail": "\"dirid\" value in URL cannot be an empty string"
   },
+  "instance": "xxx",
   "source": ":registry:info:589"
 }
 `)
@@ -10333,6 +10437,7 @@ func TestHTTPEmptyIDs(t *testing.T) {
   "args": {
     "error_detail": "Resource type in URL cannot be an empty string"
   },
+  "instance": "xxx",
   "source": ":registry:info:606"
 }
 `)
@@ -10343,6 +10448,7 @@ func TestHTTPEmptyIDs(t *testing.T) {
   "args": {
     "error_detail": "\"fileid\" value in URL cannot be an empty string"
   },
+  "instance": "xxx",
   "source": ":registry:info:632"
 }
 `)
@@ -10353,6 +10459,7 @@ func TestHTTPEmptyIDs(t *testing.T) {
   "args": {
     "error_detail": "\"fileid\" value in URL cannot be an empty string"
   },
+  "instance": "xxx",
   "source": ":registry:info:632"
 }
 `)
@@ -10363,6 +10470,7 @@ func TestHTTPEmptyIDs(t *testing.T) {
   "args": {
     "error_detail": "\"versionid\" value in URL cannot be an empty string"
   },
+  "instance": "xxx",
   "source": ":registry:info:692"
 }
 `)
@@ -10605,6 +10713,7 @@ func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
   "args": {
     "flag": "setdefaultversionid"
   },
+  "instance": "xxx",
   "source": "?"
 }
 `)
@@ -10628,6 +10737,7 @@ func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
   "args": {
     "flag": "setdefaultversionid"
   },
+  "instance": "xxx",
   "source": "?"
 }
 `)
@@ -10646,6 +10756,7 @@ func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
   "args": {
     "flag": "setdefaultversionid"
   },
+  "instance": "xxx",
   "source": "?"
 }
 `)
@@ -10660,6 +10771,7 @@ func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
     "id": "nonexistent",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": "?"
 }
 `)
@@ -10673,6 +10785,7 @@ func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
     "id": "v99",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": "?"
 }
 `)

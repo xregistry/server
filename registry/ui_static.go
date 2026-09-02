@@ -5,13 +5,14 @@ import (
 	"embed"
 	"io"
 	"io/fs"
-	"log"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	log "github.com/duglin/dlog"
 )
 
 //go:embed ui
@@ -41,7 +42,9 @@ func uiFileSystem() http.FileSystem {
 // the SPA shell but marks it (via HTTP status + an injected JS flag) as an
 // unrecognized path so app.js can render a 404 instead of the normal home
 // page.
-func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
+func ServeUIStatic(uuid string, w http.ResponseWriter, r *http.Request) {
+	defer log.Trace("tx: %s", uuid)()
+
 	reqPath := strings.TrimPrefix(r.URL.Path, "/")
 	isRecognizedPath := (reqPath == "" || reqPath == UISegment || reqPath == UISegment+"/")
 
@@ -62,7 +65,7 @@ func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
 	// xrui.json is special-cased so it can be overridden, at runtime, by an
 	// external file (registry.XRUIJSON) without needing a rebuild/restart.
 	if path == "/xrui.json" {
-		serveXRUIJSON(w, r)
+		serveXRUIJSON(uuid, w, r)
 		return
 	}
 
@@ -87,13 +90,13 @@ func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
 	// "this server"/DEFAULT_SERVER_ORIGIN resolves correctly instead of
 	// treating the UI's own root as the API root.
 	if path == "/" || !uiFileExists(path) {
-		serveIndexHTML(w, r, isRecognizedPath)
+		serveIndexHTML(uuid, w, r, isRecognizedPath)
 		return
 	}
 
 	// Files under /xreg/ get $HOST substituted with the request's scheme+host.
 	if strings.HasPrefix(path, "/xreg/") {
-		serveXregFile(w, r, path)
+		serveXregFile(uuid, w, r, path)
 		return
 	}
 
@@ -115,7 +118,7 @@ func ServeUIStatic(w http.ResponseWriter, r *http.Request) {
 // log the error (only when XRUIJSON was actually set - i.e. an explicit
 // override was attempted and failed) and fall back to serving the default
 // xrui.json from UIDir/the embedded fs, exactly as if no override existed.
-func serveXRUIJSON(w http.ResponseWriter, r *http.Request) {
+func serveXRUIJSON(uuid string, w http.ResponseWriter, r *http.Request) {
 	if XRUIJSON != "" {
 		content, err := os.ReadFile(XRUIJSON)
 		if err == nil {
@@ -124,7 +127,8 @@ func serveXRUIJSON(w http.ResponseWriter, r *http.Request) {
 			w.Write(content)
 			return
 		}
-		log.Printf("Error reading xrui.json file %q: %s", XRUIJSON, err)
+		log.Printf("tx: %s Error reading xrui.json file %q: %s",
+			uuid, XRUIJSON, err)
 		// fall through to default handling below
 	}
 
@@ -166,7 +170,7 @@ func serveXRUIJSON(w http.ResponseWriter, r *http.Request) {
 // what page they were requested from), but respond with an actual HTTP 404
 // status and inject a small flag (window.__XR_NOT_FOUND__) that app.js
 // checks at startup to render a "Not Found" view instead of the normal UI.
-func serveIndexHTML(w http.ResponseWriter, r *http.Request, found bool) {
+func serveIndexHTML(uuid string, w http.ResponseWriter, r *http.Request, found bool) {
 	var content []byte
 	var err error
 	if UIDir != "" {
@@ -185,7 +189,7 @@ func serveIndexHTML(w http.ResponseWriter, r *http.Request, found bool) {
 		}
 	}
 	if err != nil {
-		log.Printf("Error loading %q: %s", "inden.html", err)
+		log.Printf("tx: %s Error loading %q: %s", uuid, "inden.html", err)
 		http.NotFound(w, r)
 		return
 	}
@@ -244,7 +248,7 @@ func serveIndexHTML(w http.ResponseWriter, r *http.Request, found bool) {
 
 // serveXregFile reads a file from the ui/xreg directory, replaces $HOST with
 // the incoming request's scheme://host, and writes the result.
-func serveXregFile(w http.ResponseWriter, r *http.Request, path string) {
+func serveXregFile(uuid string, w http.ResponseWriter, r *http.Request, path string) {
 	// If path is a directory (trailing slash or stat confirms it), serve index.html
 	if strings.HasSuffix(path, "/") {
 		path += "index.html"
@@ -281,7 +285,7 @@ func serveXregFile(w http.ResponseWriter, r *http.Request, path string) {
 		}
 	}
 	if err != nil {
-		log.Printf("Error loading %q: %s", path, err)
+		log.Printf("tx: %s Error loading %q: %s", uuid, path, err)
 		http.NotFound(w, r)
 		return
 	}

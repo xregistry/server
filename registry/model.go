@@ -388,6 +388,12 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 	if xErr := m.VerifyAndSave(verifyData); xErr != nil {
 		// Too much to undo. The Verify() at the top should have caught
 		// anything wrong
+
+		// Not everything goes thru the http code
+		if xErr.Instance == "" && m.Registry != nil {
+			xErr.Instance = m.Registry.tx.uuid
+		}
+
 		return xErr
 	}
 

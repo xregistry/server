@@ -34,6 +34,7 @@ func TestXrefBasic(t *testing.T) {
     "error_detail": "\"dirs/d1/files/f1\" must start with /",
     "xref": "dirs/d1/files/f1"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:669"
 }
 `)
@@ -48,6 +49,7 @@ func TestXrefBasic(t *testing.T) {
     "error_detail": "\"/foo/dirs/d1/files/f1\" must be of the form: /GROUPS/GID/RESOURCES/RID",
     "xref": "/foo/dirs/d1/files/f1"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:669"
 }
 `)
@@ -685,6 +687,7 @@ func TestXrefErrors(t *testing.T) {
     "error_detail": "points to a non-existing Group Type: zoos",
     "xref": "/zoos/d1/files/fx"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:691"
 }
 `)
@@ -697,6 +700,7 @@ func TestXrefErrors(t *testing.T) {
     "error_detail": "points to a non-existing Resource Type: zoos",
     "xref": "/dirs/d1/zoos/fx"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:700"
 }
 `)
@@ -712,6 +716,7 @@ func TestXrefErrors(t *testing.T) {
     "invalid_id": "f2",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "0018b4bbf02e:registry:resource:487"
 }
 `)
@@ -725,6 +730,7 @@ func TestXrefErrors(t *testing.T) {
     "bad_epoch": "5",
     "epoch": "1"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:entity:1005"
 }
 `)
@@ -739,6 +745,7 @@ func TestXrefErrors(t *testing.T) {
     "name": "modifiedat",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
@@ -752,6 +759,7 @@ func TestXrefErrors(t *testing.T) {
     "name": "foo",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
@@ -770,6 +778,7 @@ func TestXrefErrors(t *testing.T) {
     "name": "description",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:group:487"
 }
 `)
@@ -785,6 +794,7 @@ func TestXrefErrors(t *testing.T) {
     "name": "description",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:group:487"
 }
 `)
@@ -800,6 +810,7 @@ func TestXrefErrors(t *testing.T) {
     "invalid_id": "f2",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:2166"
 }
 `)
@@ -813,6 +824,7 @@ func TestXrefErrors(t *testing.T) {
     "bad_epoch": "6",
     "epoch": "1"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:entity:1005"
 }
 `)
@@ -826,6 +838,7 @@ func TestXrefErrors(t *testing.T) {
     "name": "modifiedat",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
@@ -1347,6 +1360,7 @@ func TestXrefRevert(t *testing.T) {
     "id": "bb",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:2628"
 }
 `)
@@ -1438,6 +1452,7 @@ func TestXrefRevert(t *testing.T) {
     "id": "bb",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:resource:852"
 }
 `)
@@ -1513,6 +1528,7 @@ func TestXrefRevert(t *testing.T) {
     "id": "bb",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:resource:852"
 }
 `)
@@ -1648,6 +1664,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:980"
 }
 `)
@@ -1659,6 +1676,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:980"
 }
 `)
@@ -1670,6 +1688,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:resource:1026"
 }
 `)
@@ -1681,6 +1700,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:resource:1026"
 }
 `)
@@ -1694,6 +1714,7 @@ func TestXrefDocs(t *testing.T) {
     "name": "defaultversionid",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
@@ -1707,6 +1728,7 @@ func TestXrefDocs(t *testing.T) {
     "name": "defaultversionid",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:864"
 }
 `)
@@ -1718,6 +1740,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:resource:1026"
 }
 `)
@@ -1731,6 +1754,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:resource:1026"
 }
 `)
@@ -1742,6 +1766,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:resource:1026"
 }
 `)
@@ -1753,6 +1778,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:resource:1026"
 }
 `)
@@ -1765,6 +1791,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "action": "POST"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1878"
 }
 `)
@@ -1776,6 +1803,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:resource:1026"
 }
 `)
@@ -1787,6 +1815,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Cannot update \"/dirs/d1/files/fx\" in this way since it uses \"xref\""
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:resource:1026"
 }
 `)
@@ -1801,6 +1830,7 @@ func TestXrefDocs(t *testing.T) {
     "name": "versions",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:group:479"
 }
 `)
@@ -1814,6 +1844,7 @@ func TestXrefDocs(t *testing.T) {
     "name": "versions",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:group:479"
 }
 `)
@@ -1828,6 +1859,7 @@ func TestXrefDocs(t *testing.T) {
     "name": "versions",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:group:479"
 }
 `)
@@ -1841,6 +1873,7 @@ func TestXrefDocs(t *testing.T) {
     "name": "versions",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:group:479"
 }
 `)
@@ -1855,6 +1888,7 @@ func TestXrefDocs(t *testing.T) {
     "name": "versions",
     "singular": "file"
   },
+  "instance": "xxx",
   "source": "396100315a6e:registry:group:479"
 }
 `)
@@ -1867,6 +1901,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\""
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:version:56"
 }
 `)
@@ -1875,6 +1910,7 @@ func TestXrefDocs(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/fx/versions/x) cannot be found.",
   "subject": "/dirs/d1/files/fx/versions/x",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:2775"
 }
 `)
@@ -1887,6 +1923,7 @@ func TestXrefDocs(t *testing.T) {
   "args": {
     "error_detail": "Can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\""
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:version:56"
 }
 `)

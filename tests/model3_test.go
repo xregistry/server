@@ -31,6 +31,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g2p\" has an invalid \"ximportresources\" value (/g1p), must be of the form \"/GROUP/RESOURCE\""
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:1933"
 }
 `)
@@ -54,6 +55,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g2p\" has an invalid \"ximportresources\" value (/g1p/), must be of the form \"/GROUP/RESOURCE\""
   },
+  "instance": "xxx",
   "source": "49a49fc034c5:registry:shared_model:2127"
 }
 `)
@@ -77,6 +79,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g2p\" has an invalid \"ximportresources\" value (g1p/r1s), must start with \"/\" and be of the form \"/GROUP/RESOURCE\""
   },
+  "instance": "xxx",
   "source": "49a49fc034c5:registry:shared_model:2117"
 }
 `)
@@ -100,6 +103,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g2p\" has an invalid \"ximportresources\" value (/g1p/r1s/), must be of the form \"/GROUP/RESOURCE\""
   },
+  "instance": "xxx",
   "source": "49a49fc034c5:registry:shared_model:2127"
 }
 `)
@@ -123,6 +127,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g2p\" references a non-existing Resource \"/gxx/xxx\""
   },
+  "instance": "xxx",
   "source": "4ee3efa85d83:registry:shared_model:2173"
 }
 `)
@@ -146,6 +151,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g2p\" references a non-existing Resource \"/g1p/xxx\""
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:1974"
 }
 `)
@@ -168,6 +174,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Resource \"r1p\" has same value for \"plural\" and \"singular\""
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:2270"
 }
 `)
@@ -193,6 +200,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g1p\" has a Resource \"r2p\" that has a duplicate \"singular\" name \"r1s\""
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:2047"
 }
 `)
@@ -216,6 +224,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g2p\" is trying to ximport a Resource (/g1p/r1p) but a Resource with that name (r1p) already exists"
   },
+  "instance": "xxx",
   "source": "4ee3efa85d83:registry:shared_model:2115"
 }
 `)
@@ -241,6 +250,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "model type name \"R1S\" must match: ^[a-z_][a-z_0-9]{0,56}$"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:33"
 }
 `)
@@ -263,6 +273,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g1p\" has a bad \"ximportresources\" value (/g1p/r1p), it can't reference its own Group"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:1947"
 }
 `)
@@ -280,6 +291,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "The ximportresources reference \"/g2p/r1p\" is circular"
   },
+  "instance": "xxx",
   "source": "49a49fc034c5:registry:shared_model:928"
 }
 `)
@@ -298,6 +310,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "The ximportresources reference \"/g3p/r1p\" is circular"
   },
+  "instance": "xxx",
   "source": "49a49fc034c5:registry:shared_model:928"
 }
 `)
@@ -316,6 +329,7 @@ func TestModelXImportErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"g3p\" is trying to ximport a Resource (/g2p/r1p) but a Resource with that name (r1p) already exists"
   },
+  "instance": "xxx",
   "source": "49a49fc034c5:registry:shared_model:2158"
 }
 `)
@@ -397,6 +411,7 @@ func TestModelXImport(t *testing.T) {
     "error_detail": "must point to a \"/g1p/r2p\" not \"/g1p/r1p\"",
     "xref": "/g1p/g1/r1p/r1"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:714"
 }
 `)
@@ -1699,6 +1714,7 @@ func TestModelSetDefaultVersionID(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:group:464"
 }
 `)
@@ -1722,6 +1738,7 @@ func TestModelSetDefaultVersionID(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:group:464"
 }
 `)
@@ -1735,6 +1752,7 @@ func TestModelSetDefaultVersionID(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:957"
 }
 `)
@@ -1746,6 +1764,7 @@ func TestModelSetDefaultVersionID(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:957"
 }
 `)
@@ -1766,6 +1785,7 @@ func TestModelSetDefaultVersionID(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:966"
 }
 `)
@@ -1777,6 +1797,7 @@ func TestModelSetDefaultVersionID(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:966"
 }
 `)
@@ -1788,6 +1809,7 @@ func TestModelSetDefaultVersionID(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:966"
 }
 `)
@@ -1798,6 +1820,7 @@ func TestModelSetDefaultVersionID(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:966"
 }
 `)
@@ -2715,6 +2738,7 @@ func TestModelNoResAttrExts(t *testing.T) {
   "args": {
     "error_detail": "extension attributes are not allowed in \"resourceattributes\": myext"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:2344"
 }
 `)
@@ -2746,6 +2770,7 @@ func TestModelNoResAttrExts(t *testing.T) {
   "args": {
     "error_detail": "extension attributes are not allowed in \"resourceattributes\": myext1,myext2"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:2344"
 }
 `)
@@ -2787,6 +2812,7 @@ func TestModelUpdateSingular(t *testing.T) {
   "args": {
     "error_detail": "changing the singular name of Group \"dirs\" is not allowed"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:model:217"
 }
 `)
@@ -2809,6 +2835,7 @@ func TestModelUpdateSingular(t *testing.T) {
   "args": {
     "error_detail": "changing the singular name of Resource \"files\" is not allowed"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:model:228"
 }
 `)
@@ -2939,6 +2966,7 @@ func TestModelSourceSpecCompliance(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
   "title": "For \"/modelsource\", the request is missing an HTTP body - try '{}'.",
   "subject": "/modelsource",
+  "instance": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:1928"
 }
 `)
@@ -3377,6 +3405,7 @@ func TestModelHasDocumentValidation(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:1318"
 }
 `)
@@ -3405,6 +3434,7 @@ func TestModelHasDocumentValidation(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:1318"
 }
 `)
@@ -3433,6 +3463,7 @@ func TestModelHasDocumentValidation(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:1318"
 }
 `)
@@ -3578,6 +3609,7 @@ func TestModelHasDocumentValidation(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:resource:1318"
 }
 `)
@@ -3675,6 +3707,7 @@ func TestModelHasDocumentValidation(t *testing.T) {
   "args": {
     "name": "fileurl"
   },
+  "instance": "xxx",
   "source": "xxx"
 }
 `)
@@ -3790,6 +3823,7 @@ func TestModelHasDocumentValidation(t *testing.T) {
   "args": {
     "name": "fileproxyurl"
   },
+  "instance": "xxx",
   "source": "xxx"
 }
 `)
@@ -3849,6 +3883,7 @@ func TestModelStrictEnum(t *testing.T) {
   "args": {
     "error_detail": "\"model.compatibility\" must have \"strict\" set to \"true\""
   },
+  "instance": "xxx",
   "source": "9263661f51d9:registry:shared_model:1743"
 }
 `)
@@ -3878,6 +3913,7 @@ func TestModelStrictEnum(t *testing.T) {
   "args": {
     "error_detail": "\"model.compatibility\" has an \"enum\" val (foo) that isn't allowed. Must be one of: backward, backward_transitive, forward, forward_transitive, full, full_transitive"
   },
+  "instance": "xxx",
   "source": "9263661f51d9:registry:shared_model:1779"
 }
 `)
@@ -3910,6 +3946,7 @@ func TestModelDeleteBlocksOnLiveData(t *testing.T) {
   "args": {
     "error_detail": "can't remove Resource type \"files\" from Group type \"dirs\" - it still has 1 entities. Delete them before removing the type"
   },
+  "instance": "xxx",
   "source": "xxx"
 }
 `)
@@ -3963,6 +4000,7 @@ func TestModelDeleteBlocksOnLiveData(t *testing.T) {
   "args": {
     "error_detail": "can't remove Group type \"extra\" from the model - it still has 1 entities. Delete them before removing the type"
   },
+  "instance": "xxx",
   "source": "xxx"
 }
 `)
@@ -4130,6 +4168,7 @@ func TestModelHasDocumentStaleExtensionBecomesReserved(t *testing.T) {
   "args": {
     "name": "`+name+`"
   },
+  "instance": "xxx",
   "source": "xxx"
 }
 `)

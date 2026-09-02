@@ -38,5 +38,4 @@ COPY .spec* /spec/
 COPY misc/waitformysql /
 COPY misc/start /
 
-ENTRYPOINT [ "/start" ]
-CMD [ "-vv" ]
+ENTRYPOINT [ "/start" , "-vv" ]

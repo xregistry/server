@@ -60,6 +60,7 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	uuid := NewUUID()
 	var info *RequestInfo
 	var tx *Tx
 
@@ -73,17 +74,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Printf("Panic: %s", rec)
+			log.Printf("tx: %s panic: %s", uuid, rec)
 			// ShowStack() // Down via NewXRError below now
 
 			// If info isn't defined yet
 			if info == nil {
-				info = NewRequestInfo(w, r)
+				info = NewRequestInfo(uuid, w, r)
 			}
 
 			xErr := NewXRError("server_error", "/"+info.OriginalPath).
 				SetDetail("An internal error occurred, contact the admin.")
-			HTTPWriteError(info, xErr)
+			HTTPWriteError(uuid, info, xErr)
 		}
 
 		// As of now we should never have more than one active Tx during
@@ -118,15 +119,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	log.VPrintf(2, "%s %s", r.Method, r.URL)
+	// If Verbose > 2 (-vvv) or we're logging any keyword then show tx
+	if log.GetVerbose() > 2 || log.IsVerbose() {
+		log.VPrintf(2, "tx: %s %s %s", uuid, r.Method, r.URL)
+	} else {
+		log.VPrintf(2, "%s %s", r.Method, r.URL)
+	}
 
 	if r.URL.Path == "/proxy" {
-		HTTPProxy(w, r)
+		HTTPProxy(uuid, w, r)
 		return
 	}
 
 	if strings.HasPrefix(r.URL.Path, XRPROXY_PREFIX) {
-		HTTPXRProxy(w, r)
+		HTTPXRProxy(uuid, w, r)
 		return
 	}
 
@@ -136,10 +142,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// "info" - otherwise this misconfiguration panics (masked by the
 		// generic panic recover() above into an unhelpful 500, instead of
 		// this specific error message).
-		info = NewRequestInfo(w, r)
+		info = NewRequestInfo(uuid, w, r)
 		xErr := NewXRError("server_error", "/"+info.OriginalPath).
 			SetDetailf("Unknown rootapp: %s.", RootApp)
-		HTTPWriteError(info, xErr)
+		HTTPWriteError(uuid, info, xErr)
 		return
 	}
 
@@ -151,14 +157,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		serveUI = true
 	}
 
-	if path == DefaultRegSegment || strings.HasPrefix(path, DefaultRegSegment+"/") ||
-		path == RegCollectionSegment || strings.HasPrefix(path, RegCollectionSegment+"/") {
+	if path == DefaultRegSegment ||
+		strings.HasPrefix(path, DefaultRegSegment+"/") ||
+		path == RegCollectionSegment ||
+		strings.HasPrefix(path, RegCollectionSegment+"/") {
+
 		serveUI = false
 	}
 
 	// Serve the new SPA UI for /ui and /ui/...
 	if serveUI {
-		ServeUIStatic(w, r)
+		ServeUIStatic(uuid, w, r)
 		return
 	}
 
@@ -189,7 +198,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		r.Body = io.NopCloser(bytes.NewReader(savedBody))
 
-		retry := s.serveOneAttempt(w, r, &info, &tx, attempt,
+		retry := s.serveOneAttempt(uuid, w, r, &info, &tx, attempt,
 			attempt == maxAttempts)
 		if !retry {
 			return
@@ -210,15 +219,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // retryable conflict on the final allowed attempt) it fully handles the
 // response itself (or re-panics, for a genuine bug, so the outer recover()
 // still produces today's generic 500) and returns false.
-func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
-	infoPtr **RequestInfo, txPtr **Tx,
+func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
+	r *http.Request, infoPtr **RequestInfo, txPtr **Tx,
 	attempt int, lastAttempt bool) (retry bool) {
 
 	defer func() {
 		uuid := "n/a"
-		if *txPtr != nil && (*txPtr).uuid != "" {
-			uuid = (*txPtr).uuid
-		}
 		log.VPrintf(3, "tx: %s Done with serveOneAttempt", uuid)
 		rec := recover()
 		if rec == nil {
@@ -227,18 +233,15 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
 
 		info := *infoPtr
 		if isRetryableDBErr(rec) && (info == nil || !info.SentStatus) {
-			if *txPtr != nil && (*txPtr).uuid != "" {
-				uuid = (*txPtr).uuid
-			}
 			if *txPtr != nil {
 				(*txPtr).Rollback()
 			}
 
 			if !lastAttempt {
-				if log.GetVerbose() < 3 {
-					log.VPrintf(1, "Retrying %s %s after DB lock conflict "+
+				if log.GetVerbose() == 1 && !log.IsVerbose() {
+					log.Printf("Retrying %s %s after DB lock conflict "+
 						"(attempt %d)", r.Method, r.URL, attempt)
-				} else {
+				} else if log.GetVerbose() > 1 {
 					log.VPrintf(3, "tx: %s Retrying %s %s after DB lock "+
 						"conflict (attempt %d)", uuid, r.Method, r.URL,
 						attempt)
@@ -251,11 +254,11 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
 			// Out of attempts - tell the client plainly instead of a
 			// generic 500, rather than letting this re-panic.
 			if info == nil {
-				info = NewRequestInfo(w, r)
+				info = NewRequestInfo(uuid, w, r)
 				*infoPtr = info
 			}
 			xErr := NewXRError("server_busy", "/"+info.OriginalPath)
-			HTTPWriteError(info, xErr)
+			HTTPWriteError(uuid, info, xErr)
 			return
 		}
 
@@ -265,11 +268,11 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
 		panic(rec)
 	}()
 
-	tx, xErr := NewTx()
+	tx, xErr := NewTx(uuid)
 	*txPtr = tx
 	if xErr != nil {
-		log.Printf("Error talking to the DB creating new Tx: %s",
-			xErr.GetTitle())
+		log.Printf("tx: %s Error talking to the DB creating new Tx: %s",
+			uuid, xErr.GetTitle())
 	} else {
 		xErr = ProcessShortSelf(tx, r)
 	}
@@ -278,11 +281,11 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
 		// Special one off - info isn't defined yet
 		info := *infoPtr
 		if info == nil {
-			info = NewRequestInfo(w, r)
+			info = NewRequestInfo(uuid, w, r)
 			*infoPtr = info
 		}
 
-		HTTPWriteError(info, xErr)
+		HTTPWriteError(uuid, info, xErr)
 
 		return false
 	}
@@ -290,11 +293,11 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
 	info, xErr := ParseRequest(tx, w, r)
 	*infoPtr = info
 	// tx.RequestInfo = info
-	log.VPrintf(3, "tx: %s Request: %s %s", tx.uuid,
-		info.OriginalRequest.Method, info.OriginalPath)
+	// log.VPrintf(3, "tx: %s Request: %s %s", info.uuid,
+	// info.OriginalRequest.Method, info.OriginalPath)
 
 	if xErr != nil {
-		HTTPWriteError(info, xErr)
+		HTTPWriteError(uuid, info, xErr)
 		return false
 	}
 
@@ -342,10 +345,15 @@ func (s *Server) serveOneAttempt(w http.ResponseWriter, r *http.Request,
 		}
 	}
 
+	// Add our tx uuid to the error for debugging
+	if xErr != nil && xErr.Instance == "" {
+		xErr.Instance = uuid
+	}
+
 	Must(tx.Conditional(xErr))
 
 	if xErr != nil {
-		HTTPWriteError(info, xErr)
+		HTTPWriteError(uuid, info, xErr)
 	}
 
 	return false
@@ -713,7 +721,7 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 }
 
 func HTTPGETContent(info *RequestInfo) *XRError {
-	defer log.Trace()()
+	defer log.Trace("tx: %s", info.tx.uuid)()
 
 	query := `
 SELECT
@@ -737,7 +745,7 @@ FROM Props WHERE RegSID=? AND `
 
 	isV := log.IsFuncVerbose()
 	if isV {
-		log.Printf("Query:\n%s", SubQuery(query, args))
+		log.Printf("tx: %s Query:\n%s", info.tx.uuid, SubQuery(query, args))
 	}
 
 	results := Query(info.tx, query, args...)
@@ -745,11 +753,11 @@ FROM Props WHERE RegSID=? AND `
 
 	entity, xErr := readNextEntity(info.tx, results, FOR_READ)
 	if isV {
-		log.Printf("Entity: %#v", entity)
+		log.Printf("tx: %s Entity: %#v", info.tx.uuid, entity)
 	}
 	if entity == nil {
 		if xErr != nil {
-			log.Printf("Error loading entity: %s", xErr)
+			log.Printf("tx: %s Error loading entity: %s", info.tx.uuid, xErr)
 			return NewXRError("server_error", XID).SetDetailf(
 				"error loading entity: %s.", xErr.GetTitle())
 		} else {
@@ -813,7 +821,7 @@ FROM Props WHERE RegSID=? AND `
 	}
 
 	if isV {
-		log.Printf("Version: %#v", version)
+		log.Printf("tx: %s Version: %#v", info.tx.uuid, version)
 	}
 
 	headerIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
@@ -887,7 +895,7 @@ FROM Props WHERE RegSID=? AND `
 	url = entity.GetAsString(singular + "proxyurl")
 
 	if isV {
-		log.Printf(singular+"proxyurl: %s", url)
+		log.Printf("tx: %s %sproxyurl: %s", info.tx.uuid, singular, url)
 	}
 	if url != "" {
 		// Just act as a proxy and copy the remote resource as our response
@@ -933,7 +941,7 @@ FROM Props WHERE RegSID=? AND `
 }
 
 func HTTPOptions(info *RequestInfo) *XRError {
-	defer log.Trace(info.OriginalPath)()
+	defer log.Trace("tx: %s %s", info.tx.uuid, info.OriginalPath)()
 
 	// Headers will be set automatically by DefaultWriter.Write()
 	info.StatusCode = 200
@@ -942,7 +950,7 @@ func HTTPOptions(info *RequestInfo) *XRError {
 }
 
 func HTTPGet(info *RequestInfo) *XRError {
-	defer log.Trace(info.What)()
+	defer log.Trace("tx: %s %s", info.tx.uuid, info.What)()
 
 	info.Root = strings.Trim(info.Root, "/")
 
@@ -1010,7 +1018,7 @@ func HTTPGet(info *RequestInfo) *XRError {
 func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 	what string, filters [][]*FilterExpr) *XRError {
 
-	defer log.Trace()()
+	defer log.Trace("tx: %s", info.tx.uuid)()
 
 	// Make sure everything is ok before we send back the results
 	if xErr := info.tx.Validate(info); xErr != nil {
@@ -1045,7 +1053,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		defer func() {
 			if log.GetVerbose() > 3 {
 				diff := time.Now().Sub(start).Truncate(time.Millisecond)
-				log.Printf("  Total Time: %s", diff)
+				log.Printf("tx: %s Total Time: %s", info.tx.uuid, diff)
 			}
 		}()
 	*/
@@ -1084,8 +1092,10 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			defer results.Close()
 
 			if log.IsFuncVerbose() {
-				log.Print("Query: " + SubQuery(query, args))
-				log.Printf("# results: %d", len(results.AllRows))
+				log.Printf("tx: %s Query: %s", info.tx.uuid,
+					SubQuery(query, args))
+				log.Printf("tx: %s # results: %d", info.tx.uuid,
+					len(results.AllRows))
 			}
 		}
 
@@ -1205,7 +1215,7 @@ func init() {
 func HTTPPutPost(info *RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
 
-	defer log.Trace("%s %s", method, info.OriginalPath)()
+	defer log.Trace("tx: %s %s %s", info.tx.uuid, method, info.OriginalPath)()
 
 	isNew := false
 	XIDs := ([]string)(nil)
@@ -2756,7 +2766,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 	return IncomingObj, nil
 }
 
-func HTTPProxy(w http.ResponseWriter, r *http.Request) {
+func HTTPProxy(uuid string, w http.ResponseWriter, r *http.Request) {
 	host := r.URL.Query().Get("host") // http://xregistry.io/xreg
 	path := r.URL.Query().Get("path") // /GROUPS?inline
 
@@ -2769,7 +2779,7 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 		data = []byte(xErr.String())
 	}
 
-	log.FuncPrintf("Download: %s%s", host, path)
+	log.FuncPrintf("tx: %s Download: %s%s", uuid, host, path)
 
 	var err error
 	if data == nil {
@@ -2784,7 +2794,7 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if log.IsFuncVerbose() {
-		log.Printf("Data:\n%s", string(data))
+		log.Printf("tx: %s Data:\n%s", uuid, string(data))
 	}
 
 	r.URL, err = url.Parse(path)
@@ -2819,13 +2829,18 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 	w.Write(html)
 }
 
-func HTTPWriteError(info *RequestInfo, errAny any) {
+func HTTPWriteError(uuid string, info *RequestInfo, errAny any) {
 	var xErr *XRError
 	var ok bool
 
 	if xErr, ok = errAny.(*XRError); !ok {
 		xErr = NewXRError("bad_request", "/"+info.OriginalPath,
 			"error_detail="+fmt.Sprintf("%v", errAny))
+	}
+
+	// Add our tx uuid to the error for debugging
+	if xErr != nil && xErr.Instance == "" {
+		xErr.Instance = uuid
 	}
 
 	info.StatusCode = xErr.Code
@@ -2866,7 +2881,7 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 		info.AddHeader(k, v)
 	}
 
-	info.Write([]byte(xErr.ToJSON(info.BaseURL) + "\n"))
+	info.Write([]byte(xErr.ToJSON() + "\n"))
 }
 
 func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
@@ -2896,7 +2911,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		newPath := "/" + RegCollectionSegment + "/" + regName +
 			string((*(row[1])).([]byte)) + suffix
 
-		log.FuncPrintf("Redirect: %q -> %q", path, newPath)
+		log.FuncPrintf("tx: %s Redirect: %q -> %q", tx.uuid, path, newPath)
 
 		req.URL.Path = newPath
 		return nil

@@ -13,11 +13,13 @@ echo "Environment variables:"
 env | grep -v PASS | sort
 
 if test "$1" = "--db"; then
+  # They want to run mysql in addition to xrserver
   echo "Starting mysql"
   docker-entrypoint.sh mysqld > /mysqld.out 2>&1 &
   /waitformysql
   shift
 elif test "$1" = "db"; then
+  # they want to run just mysql, not xrserver
   echo "Starting mysql"
   docker-entrypoint.sh mysqld
   exit 0

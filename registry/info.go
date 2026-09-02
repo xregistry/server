@@ -14,6 +14,7 @@ import (
 
 type RequestInfo struct {
 	tx               *Tx
+	uuid             string
 	Registry         *Registry
 	BaseURL          string              // host+path to root of registry
 	OriginalPath     string              // GROUPs/gID... (no leading /,query)
@@ -320,8 +321,9 @@ func (info *RequestInfo) FiltersRelativeToAbstract(abs string) string {
 	return filterString
 }
 
-func NewRequestInfo(w http.ResponseWriter, r *http.Request) *RequestInfo {
+func NewRequestInfo(uuid string, w http.ResponseWriter, r *http.Request) *RequestInfo {
 	info := &RequestInfo{
+		uuid:             uuid,
 		OriginalPath:     strings.Trim(r.URL.Path, " /"),
 		OriginalRequest:  r,
 		OriginalResponse: w,
@@ -348,7 +350,7 @@ func NewRequestInfo(w http.ResponseWriter, r *http.Request) *RequestInfo {
 
 func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo, *XRError) {
 
-	info := NewRequestInfo(w, r)
+	info := NewRequestInfo(tx.uuid, w, r)
 	info.tx = tx
 	tx.RequestInfo = info
 

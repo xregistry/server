@@ -74,7 +74,7 @@ func ShowError(obj any, args ...any) bool {
 
 	var msg string
 	if ErrJson {
-		msg = xErr.String()
+		msg = xErr.ToJSON()
 	} else {
 		msg = xErr.GetTitle()
 		if xErr.Detail != "" {

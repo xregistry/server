@@ -73,6 +73,7 @@ func TestGroupCreate(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/xxx) cannot be found.",
   "subject": "/dirs/xxx",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)
@@ -80,6 +81,7 @@ func TestGroupCreate(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/xxx) cannot be found.",
   "subject": "/dirs/xxx",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)
@@ -88,6 +90,7 @@ func TestGroupCreate(t *testing.T) {
   "title": "The targeted entity (/dirs/xxx/yyy) cannot be found.",
   "detail": "Unknown Resource type: yyy.",
   "subject": "/dirs/xxx/yyy",
+  "instance": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -96,6 +99,7 @@ func TestGroupCreate(t *testing.T) {
   "title": "The targeted entity (/dirs/xxx/yyy) cannot be found.",
   "detail": "Unknown Resource type: yyy.",
   "subject": "/dirs/xxx/yyy",
+  "instance": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -108,7 +112,7 @@ func TestGroupCreate(t *testing.T) {
 	g, err = reg.FindGroup("xxx", "d1", false, registry.FOR_WRITE)
 	XCheck(t, err == nil && g == nil, "Finding xxx/d1 should have failed")
 
-	g, err = reg.FindGroup("dirs", "xx", false, registry.FOR_WRITE)
+	g, err = reg.FindGroup("dirs", "xxx", false, registry.FOR_WRITE)
 	XCheck(t, err == nil && g == nil, "Finding dirs/xxx should have failed")
 
 	r, err := d1.FindResource("files", "f1", false, registry.FOR_WRITE)
@@ -156,6 +160,7 @@ func TestGroupRequiredFields(t *testing.T) {
   "args": {
     "list": "req"
   },
+  "instance": "xxx",
   "source": ":registry:entity:2761"
 }
 `)
@@ -183,6 +188,7 @@ func TestGroupRequiredFields(t *testing.T) {
   "args": {
     "list": "req"
   },
+  "instance": "xxx",
   "source": ":registry:entity:2761"
 }
 `)
@@ -247,6 +253,7 @@ func TestGroupDeprecated(t *testing.T) {
     "error_detail": "must not be sooner than deprecated.effective",
     "name": "deprecated.removal"
   },
+  "instance": "xxx",
   "source": ":registry:entity:1703"
 }
 `)

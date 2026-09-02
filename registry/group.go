@@ -25,7 +25,7 @@ func (g *Group) SetSave(name string, val any) *XRError {
 }
 
 func (g *Group) Delete() *XRError {
-	defer log.Trace(g.UID)()
+	defer log.Trace("tx: %s %s", g.tx.uuid, g.UID)()
 
 	// Make sure we don't have any readonly Resources. Callers (HTTPDelete/
 	// HTTPDeleteGroups) already lock g itself FOR_WRITE, but that doesn't
@@ -69,7 +69,7 @@ func (g *Group) Delete() *XRError {
 // no analogous need to force every subsequent read through this Group
 // to inherit a prior FOR_WRITE.
 func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode int) (*Resource, *XRError) {
-	defer log.Trace("%s,%s,%v", rType, id, anyCase)()
+	defer log.Trace("tx: %s %s,%s,%v", g.tx.uuid, rType, id, anyCase)()
 
 	if r := g.tx.GetResource(g, rType, id); r != nil {
 		if accessMode == FOR_WRITE && r.AccessMode != FOR_WRITE {
@@ -86,7 +86,7 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 				id, rType, xErr.GetTitle()))
 	}
 	if ent == nil {
-		log.VPrintf(3, "None found")
+		log.FuncPrintf("tx: %s None found", g.tx.uuid)
 		return nil, nil
 	}
 
@@ -125,7 +125,7 @@ type ResourceUpsert struct {
 
 // Return: *Resource, isNew, error
 func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
-	defer log.Trace("%s,%s", ru.RType, ru.Id)()
+	defer log.Trace("tx: %s %s,%s", g.tx.uuid, ru.RType, ru.Id)()
 
 	// ru.VID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
@@ -658,7 +658,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 // Returns a map of resourceType->*Resource
 func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string][]*Resource, *XRError) {
-	defer log.Trace()()
+	defer log.Trace("tx: %s", g.tx.uuid)()
 
 	resources := map[string][]*Resource{}
 
@@ -795,7 +795,7 @@ func (g *Group) GetAttrConstraint(v *Version, attr *Attribute, path *PropPath) *
 }
 
 func (g *Group) Validate() *XRError {
-	defer log.Trace(g.XID)()
+	defer log.Trace("tx: %s %s", g.tx.uuid, g.XID)()
 
 	constraints, xErr := g.GetConstraints()
 	if xErr != nil {
@@ -886,7 +886,7 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
                 (vp.PropValue IS NULL OR vp.PropValue<>gp.PropValue)
             FOR UPDATE`)
 
-	// log.Printf("%q vs %q", gPP.DB(), pp.DB())
+	// log.Printf("tx: %s %q vs %q", g.tx.uuid, gPP.DB(), pp.DB())
 	results := Query(g.tx, query,
 		ENTITY_VERSION, gPP.DB(), pp.DB(),
 		g.Registry.DbSID, g.DbSID, resPlural)
@@ -901,7 +901,7 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 			break
 		}
 
-		// log.Printf("%q %q %q",
+		// log.Printf("tx: %s %q %q %q", g.tx.uuid,
 		// NotNilString(row[0]), NotNilString(row[1]),
 		// NotNilString(row[2]))
 
