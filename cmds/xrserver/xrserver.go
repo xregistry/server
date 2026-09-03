@@ -508,8 +508,6 @@ func showAllHelp(cmd *cobra.Command, indent string) string {
 }
 
 func main() {
-	log.SetVerbose(0)
-
 	if tmp := os.Getenv("XR_VERBOSE"); tmp != "" {
 		log.SetVerbose(tmp)
 	}

@@ -120,7 +120,7 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 	/* Sample code to print the stack for where this NewObject was created:
 	log.Printf("tx: %s Stack for NewObject:", e.tx.uuid)
 	for _, s := range e.NewObjectStack {
-		log.Printf("tx: %s   %s", ,e.tx.uuid, s)
+		log.Printf("tx: %s %s", e.tx.uuid, s)
 	}
 	*/
 }

@@ -1022,7 +1022,7 @@ func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 }
 
 func (gm *GroupModel) Delete() *XRError {
-	defer log.Trace(gm.Plural)()
+	defer log.Trace("tx: %s %s", gm.Model.Registry.tx.uuid, gm.Plural)()
 
 	gm.Model.RemoveConditionalProps()
 	delete(gm.Model.Groups, gm.Plural)
@@ -1488,7 +1488,8 @@ func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, *XRError
 }
 
 func (rm *ResourceModel) Delete() *XRError {
-	defer log.Trace(rm.Plural)()
+	defer log.Trace("tx: %s %s", rm.GroupModel.Model.Registry.tx.uuid,
+		rm.Plural)()
 
 	rm.GroupModel.RemoveConditionalProps()
 	delete(rm.GroupModel.Resources, rm.Plural)
@@ -4019,7 +4020,6 @@ func IsValidEnum(val any, enum []any) bool {
 
 	for _, v := range enum {
 		b := (v == val)
-		log.VPrintf("IsValidEnum", "IsValidEnum: %q vs %q: %v", val, v, b)
 		if b {
 			return true
 		}
@@ -4441,8 +4441,6 @@ func (ug *UserGroupModel) MarshalJSON() ([]byte, error) {
 }
 
 func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
-	defer log.Trace()()
-
 	extra := ""
 	buf := bytes.Buffer{}
 

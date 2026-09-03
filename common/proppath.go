@@ -646,7 +646,7 @@ func ObjectGetProp(obj any, pp *PropPath) (any, bool, error) {
 // Value, Found, Error
 func NestedGetProp(obj any, pp *PropPath, prev *PropPath) (any, bool, error) {
 	if log.GetVerbose() > 2 {
-		log.VPrintf(0, "ObjectGetProp: %q\nobj:\n%s", pp.UI(), ToJSON(obj))
+		log.Printf("ObjectGetProp: %q\nobj:\n%s", pp.UI(), ToJSON(obj))
 	}
 	if pp == nil || pp.Len() == 0 {
 		return obj, true, nil
@@ -723,8 +723,7 @@ func ObjectSetProp(obj map[string]any, pp *PropPath, val any, flags ...string) e
 }
 
 func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath, flags ...string) (any, error) {
-	log.VPrintf(4, ">Enter: MaterializeProp(%s, %v)", pp, flags)
-	log.VPrintf(4, "<Exit: MaterializeProp")
+	defer log.Trace("%s %v", pp, flags)()
 
 	// current is existing value, used for adding to maps/arrays
 	if pp == nil {

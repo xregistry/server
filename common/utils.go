@@ -331,9 +331,9 @@ func ShowStack(args ...any) {
 		args = args[1:]
 	}
 
-	log.VPrintf(0, "----- Stack "+fmt, args...)
+	log.Printf("----- Stack "+fmt, args...)
 	for _, line := range stack {
-		log.VPrintf(0, " %s", line)
+		log.Printf(" %s", line)
 	}
 }
 

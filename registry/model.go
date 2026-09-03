@@ -48,14 +48,15 @@ func (m *Model) VerifyAndSave(verifyData bool) *XRError {
 }
 
 func (m *Model) Save() *XRError {
-	// log.Printf("In model.Save - changed: %v", m.GetChanged())
+	// log.FuncPrintf("tx: %s In model.Save - changed: %v",
+	// m.Registry.tx.uuid, m.GetChanged())
 	if m.GetChanged() == false {
 		return nil
 	}
 
-	if log.HasVerbose("ModelSave") || log.GetVerbose() > 4 {
+	if log.HasVerbose("ModelSave") || log.IsFuncVerbose() {
 		buf, _ := json.MarshalIndent(m, "", "  ")
-		log.Printf("Saving model:\n%s", string(buf))
+		log.Printf("tx: %s Saving model:\n%s", m.Registry.tx.uuid, string(buf))
 	}
 
 	// Diff against whatever is STILL persisted in the DB right now (not
@@ -106,7 +107,7 @@ func (m *Model) Save() *XRError {
 	buf, _ := json.Marshal(m)
 	modelStr := string(buf)
 
-	// log.Printf("Saving model itself")
+	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.tx.uuid)
 	DoZeroTwo(m.Registry.tx, `
         INSERT INTO Models(RegistrySID, Model)
         VALUES(?,?)
@@ -257,7 +258,7 @@ func (m *Model) Save() *XRError {
 }
 
 func LoadModel(reg *Registry) *Model {
-	defer log.Trace()()
+	defer log.Trace("tx: %s %s", reg.tx.uuid, reg.UID)()
 
 	model := loadModelFromDB(reg, true)
 	if model != nil {
@@ -287,7 +288,7 @@ func loadModelFromDB(reg *Registry, loud bool) *Model {
 	if row == nil {
 		if loud {
 			ShowStack()
-			log.Printf("Can't find registry: %s", reg.UID)
+			log.Printf("tx: %s Can't find registry: %s", reg.tx.uuid, reg.UID)
 		}
 		return nil
 	}
@@ -317,7 +318,8 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 	}
 
 	newM.Registry = m.Registry
-	// log.Printf("ApplyNewModel:\n%s\n", ToJSON(newM))
+	// log.FuncPrintf("tx: %s ApplyNewModel:\n%s", m.Registry.tx.uuid,
+	// ToJSON(newM))
 
 	// Copy existing SIDs into the new Model so we don't create new ones
 	for gmPlural, gm := range newM.Groups {

@@ -434,7 +434,8 @@ func (c *Capabilities) Validate() *XRError {
 }
 
 func ParseCapabilities(buf []byte) (*Capabilities, *XRError) {
-	log.VPrintf(4, "Enter: ParseCapabilitiesJSON")
+	defer log.Trace()()
+
 	cap := Capabilities{}
 
 	err := Unmarshal(buf, &cap)

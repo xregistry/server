@@ -229,7 +229,7 @@ func (jw *JsonWriter) WriteCollection() (int, *XRError) {
 
 func (jw *JsonWriter) WriteEntity() *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("WriteEntity: %v", jw.Entity)
+		log.Printf("tx: %s WriteEntity: %v", jw.info.uuid, jw.Entity)
 	}
 
 	if jw.Entity == nil {
@@ -245,18 +245,19 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	myAbstract := jw.Entity.Abstract
 	addSpace := false // Add space before next attribute?
 
-	if log.GetVerbose() > 3 {
-		log.Printf("eType: %d", myType)
-		log.Printf("JW:\n%s\n", ToJSON(jw))
-		log.Printf("JW.Obj:\n%s\n", ToJSON(jw.Entity.Object))
-		log.Printf("JW.NObj:\n%s\n", ToJSON(jw.Entity.NewObject))
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s eType: %d", jw.info.uuid, myType)
+		log.Printf("tx: %s JW:\n%s", jw.info.uuid, ToJSON(jw))
+		log.Printf("tx: %s JW.Obj:\n%s", jw.info.uuid, ToJSON(jw.Entity.Object))
+		log.Printf("tx: %s JW.NObj:\n%s", jw.info.uuid,
+			ToJSON(jw.Entity.NewObject))
 	}
 
 	jw.Printf("{")
 	jw.Indent()
 
 	jsonIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
-		log.VPrintf(4, "jsonIt: %q", key)
+		log.FuncPrintf("tx: %s jsonIt: %q", info.uuid, key)
 		if key == "$space" {
 			addSpace = true
 			return nil
