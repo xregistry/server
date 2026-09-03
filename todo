@@ -120,3 +120,4 @@ TODOs:
 -- add charset to content-type in responses
 - xrserver --downloadUI
 ** add tx.uuid to logging output
+** change --set (for config setting) to something else so xr can use it too

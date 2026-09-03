@@ -84,7 +84,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			xErr := NewXRError("server_error", "/"+info.OriginalPath).
 				SetDetail("An internal error occurred, contact the admin.")
-			HTTPWriteError(uuid, info, xErr)
+			HTTPWriteError(info, xErr)
 		}
 
 		// As of now we should never have more than one active Tx during
@@ -145,7 +145,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		info = NewRequestInfo(uuid, w, r)
 		xErr := NewXRError("server_error", "/"+info.OriginalPath).
 			SetDetailf("Unknown rootapp: %s.", RootApp)
-		HTTPWriteError(uuid, info, xErr)
+		HTTPWriteError(info, xErr)
 		return
 	}
 
@@ -258,7 +258,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 				*infoPtr = info
 			}
 			xErr := NewXRError("server_busy", "/"+info.OriginalPath)
-			HTTPWriteError(uuid, info, xErr)
+			HTTPWriteError(info, xErr)
 			return
 		}
 
@@ -285,7 +285,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 			*infoPtr = info
 		}
 
-		HTTPWriteError(uuid, info, xErr)
+		HTTPWriteError(info, xErr)
 
 		return false
 	}
@@ -297,7 +297,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 	// info.OriginalRequest.Method, info.OriginalPath)
 
 	if xErr != nil {
-		HTTPWriteError(uuid, info, xErr)
+		HTTPWriteError(info, xErr)
 		return false
 	}
 
@@ -353,7 +353,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 	Must(tx.Conditional(xErr))
 
 	if xErr != nil {
-		HTTPWriteError(uuid, info, xErr)
+		HTTPWriteError(info, xErr)
 	}
 
 	return false
@@ -2829,7 +2829,7 @@ func HTTPProxy(uuid string, w http.ResponseWriter, r *http.Request) {
 	w.Write(html)
 }
 
-func HTTPWriteError(uuid string, info *RequestInfo, errAny any) {
+func HTTPWriteError(info *RequestInfo, errAny any) {
 	var xErr *XRError
 	var ok bool
 
@@ -2840,7 +2840,7 @@ func HTTPWriteError(uuid string, info *RequestInfo, errAny any) {
 
 	// Add our tx uuid to the error for debugging
 	if xErr != nil && xErr.Instance == "" {
-		xErr.Instance = uuid
+		xErr.Instance = info.uuid
 	}
 
 	info.StatusCode = xErr.Code
