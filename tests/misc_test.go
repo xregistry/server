@@ -693,3 +693,79 @@ func (b *SyncBuffer) String() string {
 	defer b.mu.Unlock()
 	return b.buf.String()
 }
+
+func (b *SyncBuffer) Clear() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.buf.Reset()
+}
+
+func TestMiscTestLogging(t *testing.T) {
+	buf := &SyncBuffer{}
+	saveVerbose := log.GetVerbose()
+	saveWriter := log.Writer()
+	log.SetOutput(buf)
+	// Registered BEFORE the PassDeleteReg defer below so it runs AFTER
+	// it (defers run LIFO) - otherwise log output gets reset to nil
+	// while PassDeleteReg's cleanup (which can still log, e.g. if it
+	// needs to reopen a closed Tx) is still running. Restore the
+	// PREVIOUS writer (not nil) since a nil writer would crash any
+	// later test that logs after this one runs.
+	defer func() {
+		log.SetOutput(saveWriter)
+		log.SetVerbose(saveVerbose)
+	}()
+
+	reg := NewRegistry("TestMiscTestLogging")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/", `{
+      "modelsource": {
+        "groups": {
+          "dirs": {
+            "singular": "dir",
+            "resources": {
+              "files": {
+                "singular": "file",
+                "hasdocument": false
+              }
+            }
+          }
+        }
+      },
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+              "versions": {
+                "v1": {}
+              }
+            }
+          }
+        }
+      }
+    }`, 200, "*")
+	logOutput := buf.String()
+	XEqual(t, "", logOutput, "")
+	buf.Clear()
+	log.Reset()
+
+	XHTTP(t, reg, "GET", "/?verbose=Query", "", 200, "*")
+	logOutput = buf.String()
+	// Must be: YYYY/MM/DD HH:MM:SS tx: TXUID Query:
+	XEqual(t, "", logOutput, "^(?m)^[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} tx: [a-zA-Z0-9]+ Query:")
+	buf.Clear()
+	log.Reset()
+
+	ts := `[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}`
+	XHTTP(t, reg, "GET", "/?verbose=HTTPGet:timed:Query", "", 200, "*")
+	logOutput = buf.String()
+	// include trace for HTTPGet and timing for it
+	XEqual(t, "", logOutput,
+		`^(?ms)^`+ts+` .* HTTPGet: tx: [a-zA-Z0-9]+ Registry$`+
+			`.*`+
+			`^`+ts+` .* tx: [a-zA-Z0-9]+ Query: $`+
+			`.*`+
+			`^`+ts+` .* HTTPGet time: [0-9]+\.[0-9]+.?s$`)
+
+}

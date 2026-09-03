@@ -129,7 +129,7 @@ func TestSetAttributeNames(t *testing.T) {
 		if test.msg == "" && xErr != nil {
 			t.Fatalf("Name: %q failed: %s", test.name, xErr)
 		}
-		if test.msg != "" && (xErr == nil || xErr.ToJSON("") != test.msg) {
+		if test.msg != "" && (xErr == nil || xErr.ToJSON() != test.msg) {
 			XCheckErr(t, xErr, test.msg)
 		}
 
@@ -401,23 +401,23 @@ func TestSetDots(t *testing.T) {
 	// For now just skip them - delete later on once we're sure this
 	// is what we want
 	/*
-		xErr = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
-		XCheckErr(t, xErr, `{
-			  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
-			  "title": "An unknown attribute (xxx) was specified for \"/dirs/d1\".",
-			  "subject": "/dirs/d1",
-			  "args": {
-			    "name": "xxx"
-			  },
-			  "source": "186f71c5fb29:registry:entity:2192"
-			}`)
-		XCheck(t, xErr != nil, "xxx.yyy=nil should fail")
-		xErr = dir.SetSave("xxx.", "xxx")
-		XCheck(t, xErr != nil, "xxx.=xxx should fail")
-		xErr = dir.SetSave(".xxx", "xxx")
-		XCheck(t, xErr != nil, ".xxx=xxx should fail")
-		xErr = dir.SetSave(".xxx.", "xxx")
-		XCheck(t, xErr != nil, ".xxx.=xxx should fail")
+				xErr = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
+				XCheckErr(t, xErr, `{
+					  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+					  "title": "An unknown attribute (xxx) was specified for \"/dirs/d1\".",
+					  "subject": "/dirs/d1",
+					  "args": {
+					    "name": "xxx"
+					  },
+		  "source": "186f71c5fb29:registry:entity:2192"
+					}`)
+				XCheck(t, xErr != nil, "xxx.yyy=nil should fail")
+				xErr = dir.SetSave("xxx.", "xxx")
+				XCheck(t, xErr != nil, "xxx.=xxx should fail")
+				xErr = dir.SetSave(".xxx", "xxx")
+				XCheck(t, xErr != nil, ".xxx=xxx should fail")
+				xErr = dir.SetSave(".xxx.", "xxx")
+				XCheck(t, xErr != nil, ".xxx.=xxx should fail")
 	*/
 }
 
@@ -834,7 +834,8 @@ func TestSetNameUser(t *testing.T) {
 				xrErr := NewXRError("invalid_attribute", tmpPath,
 					"name="+name,
 					"error_detail=\""+name+"\" must match: ^[a-z_][a-z_0-9]{0,62}$")
-				msg = xrErr.ToJSON("") + "\n"
+				xrErr.Instance = "xxx"
+				msg = xrErr.ToJSON() + "\n"
 			}
 
 			XEqual(t, "", string(resBody), msg)
@@ -895,6 +896,7 @@ func TestSetNameUser(t *testing.T) {
   "args": {
     "error_detail": "map key name \":bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
@@ -906,6 +908,7 @@ func TestSetNameUser(t *testing.T) {
   "args": {
     "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
@@ -921,6 +924,7 @@ func TestSetNameUser(t *testing.T) {
   "args": {
     "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
@@ -938,6 +942,7 @@ func TestSetNameUser(t *testing.T) {
   "args": {
     "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)

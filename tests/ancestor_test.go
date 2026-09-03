@@ -119,6 +119,7 @@ func TestAncestorBasic(t *testing.T) {
     "error_detail": "value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
     "name": "ancestorid"
   },
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:71"
 }
 `)
@@ -132,6 +133,7 @@ func TestAncestorBasic(t *testing.T) {
     "id": "vx",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1534"
 }
 `)
@@ -179,6 +181,7 @@ func TestAncestorBasic(t *testing.T) {
     "id": "2",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1534"
 }
 `)
@@ -192,6 +195,7 @@ func TestAncestorBasic(t *testing.T) {
     "id": "2",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1534"
 }
 `)
@@ -356,6 +360,7 @@ func TestAncestorBasic(t *testing.T) {
   "args": {
     "list": "1, 2, 3"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1598"
 }
 `)
@@ -369,6 +374,7 @@ func TestAncestorBasic(t *testing.T) {
   "args": {
     "list": "1, 2"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1598"
 }
 `)
@@ -383,6 +389,7 @@ func TestAncestorBasic(t *testing.T) {
   "args": {
     "list": "1, 2, 3, 4"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1598"
 }
 `)
@@ -766,6 +773,7 @@ func TestAncestorRoots(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1778"
 }
 `)
@@ -788,6 +796,7 @@ func TestAncestorRoots(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1408"
 }
 `)
@@ -801,6 +810,7 @@ func TestAncestorRoots(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1408"
 }
 `)
@@ -814,6 +824,7 @@ func TestAncestorRoots(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1408"
 }
 `)
@@ -827,6 +838,7 @@ func TestAncestorRoots(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1408"
 }
 `)
@@ -840,6 +852,7 @@ func TestAncestorRoots(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1408"
 }
 `)
@@ -853,6 +866,7 @@ func TestAncestorRoots(t *testing.T) {
   "args": {
     "plural": "files"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1408"
 }
 `)
@@ -891,6 +905,7 @@ func TestAncestorCircles(t *testing.T) {
   "args": {
     "list": "v1, v2"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1598"
 }
 `)
@@ -904,6 +919,7 @@ func TestAncestorCircles(t *testing.T) {
   "args": {
     "list": "v1, v2"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1598"
 }
 `)
@@ -918,6 +934,7 @@ func TestAncestorCircles(t *testing.T) {
   "args": {
     "list": "v1, v2, v3, v4"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1598"
 }
 `)
@@ -1101,6 +1118,7 @@ func TestAncestorErrors(t *testing.T) {
     "id": "v2",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1534"
 }
 `)
@@ -1117,6 +1135,7 @@ func TestAncestorErrors(t *testing.T) {
     "id": "v2",
     "singular": "version"
   },
+  "instance": "xxx",
   "source": ":registry:resource:1534"
 }
 `)

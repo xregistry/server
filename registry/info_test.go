@@ -77,7 +77,7 @@ func TestInfoIgnore(t *testing.T) {
 			if test.err == "*" {
 				continue
 			}
-			XCheckErr(t, xErr.ToJSON(""), test.err)
+			XCheckErr(t, xErr.ToJSON(), test.err)
 			continue
 		}
 

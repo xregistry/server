@@ -53,6 +53,7 @@ func TestFormatSimple(t *testing.T) {
   "args": {
     "error_detail": "Resource \"files\" must have \"validateformat\" set to \"true\" when \"validatecompatibility\" is \"true\""
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:shared_model:2335"
 }
 `)
@@ -239,6 +240,7 @@ func TestFormatSimple(t *testing.T) {
   "args": {
     "format": "bad-format"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:resource:1795"
 }
 `)
@@ -310,6 +312,7 @@ func TestFormatSimple(t *testing.T) {
   "args": {
     "format": "numbers"
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:format_numbers:36"
 }
 `)
@@ -428,6 +431,7 @@ func TestFormatCompatSimple(t *testing.T) {
   "args": {
     "error_detail": "Resource \"files\" must have \"validateformat\" set to \"true\" when \"validatecompatibility\" is \"true\""
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:shared_model:2342"
 }
 `)
@@ -472,6 +476,7 @@ func TestFormatCompatSimple(t *testing.T) {
   "args": {
     "error_detail": "Resource \"files\" must have \"validateformat\" set to \"true\" when \"validatecompatibility\" is \"true\""
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:shared_model:2342"
 }
 `)
@@ -539,21 +544,22 @@ func TestFormatCompatSimple(t *testing.T) {
 	// Now let's create some Resources/files
 
 	/*
-	   	// Create file w/o format - should fail
-	   	XCheckHTTP(t, reg, &HTTPTest{
-	   		URL:        "/dirs/d1/files/f1",
-	   		Method:     "PUT",
-	   		ReqHeaders: []string{},
-	   		ReqBody:    "not a number",
-	   		Code:       400,
-	   		ResHeaders: []string{},
-	   		ResBody: `{
-	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-	     "title": "Version \"/dirs/d1/files/f1/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-	     "subject": "/dirs/d1/files/f1/versions/1",
-	     "source": "c30ebf8b495a:registry:resource:1711"
-	   }
-	   `})
+			   	// Create file w/o format - should fail
+			   	XCheckHTTP(t, reg, &HTTPTest{
+			   		URL:        "/dirs/d1/files/f1",
+			   		Method:     "PUT",
+			   		ReqHeaders: []string{},
+			   		ReqBody:    "not a number",
+			   		Code:       400,
+			   		ResHeaders: []string{},
+			   		ResBody: `{
+			     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+			     "title": "Version \"/dirs/d1/files/f1/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+			     "subject": "/dirs/d1/files/f1/versions/1",
+			     "instance": "xxx",
+		  "source": "c30ebf8b495a:registry:resource:1711"
+			   }
+			   `})
 	*/
 
 	// Now with 'format' - weird casing
@@ -606,6 +612,7 @@ func TestFormatCompatSimple(t *testing.T) {
     "error_detail": "can't be an empty string",
     "name": "compatibility"
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:resource:1616"
 }
 `,
@@ -629,6 +636,7 @@ func TestFormatCompatSimple(t *testing.T) {
     "compat": "unknown",
     "format": "numbers"
   },
+  "instance": "xxx",
   "source": "a3d56ce41e09:registry:resource:1854"
 }
 `,
@@ -669,21 +677,22 @@ func TestFormatCompatSimple(t *testing.T) {
 
 	// Add a new version w/o format
 	/*
-	   	XCheckHTTP(t, reg, &HTTPTest{
-	   		URL:        "/dirs/d1/files/f1",
-	   		Method:     "POST",
-	   		ReqHeaders: []string{},
-	   		ReqBody:    "2",
-	   		Code:       400,
-	   		ResHeaders: []string{},
-	   		ResBody: `{
-	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-	     "title": "Version \"/dirs/d1/files/f1/versions/2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-	     "subject": "/dirs/d1/files/f1/versions/2",
-	     "source": "c30ebf8b495a:registry:resource:1711"
-	   }
-	   `,
-	   	})
+			   	XCheckHTTP(t, reg, &HTTPTest{
+			   		URL:        "/dirs/d1/files/f1",
+			   		Method:     "POST",
+			   		ReqHeaders: []string{},
+			   		ReqBody:    "2",
+			   		Code:       400,
+			   		ResHeaders: []string{},
+			   		ResBody: `{
+			     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+			     "title": "Version \"/dirs/d1/files/f1/versions/2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+			     "subject": "/dirs/d1/files/f1/versions/2",
+			     "instance": "xxx",
+		  "source": "c30ebf8b495a:registry:resource:1711"
+			   }
+			   `,
+			   	})
 	*/
 
 	// Add a new version w/ bad format
@@ -703,6 +712,7 @@ func TestFormatCompatSimple(t *testing.T) {
   "args": {
     "format": "unknown"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:resource:1795"
 }
 `,
@@ -754,6 +764,7 @@ func TestFormatCompatSimple(t *testing.T) {
   "args": {
     "format": "unknown"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:resource:1795"
 }
 `,
@@ -773,6 +784,7 @@ func TestFormatCompatSimple(t *testing.T) {
   "args": {
     "format": "numbers"
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:format_numbers:36"
 }
 `,
@@ -792,6 +804,7 @@ func TestFormatCompatSimple(t *testing.T) {
   "args": {
     "compat": "BaCkWaRd"
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:format_numbers:82"
 }
 `,
@@ -825,13 +838,14 @@ func TestFormatCompatVariants(t *testing.T) {
 
 	// Missing Format
 	/*
-	   	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "123", 400, `{
-	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-	     "title": "Version \"/dirs/d1/files/f1/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-	     "subject": "/dirs/d1/files/f1/versions/1",
-	     "source": "c30ebf8b495a:registry:resource:1711"
-	   }
-	   `)
+			   	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "123", 400, `{
+			     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+			     "title": "Version \"/dirs/d1/files/f1/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+			     "subject": "/dirs/d1/files/f1/versions/1",
+			     "instance": "xxx",
+		  "source": "c30ebf8b495a:registry:resource:1711"
+			   }
+			   `)
 	*/
 
 	// Bad Format
@@ -844,6 +858,7 @@ func TestFormatCompatVariants(t *testing.T) {
   "args": {
     "format": "Unknown"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:resource:1795"
 }
 `)
@@ -871,6 +886,7 @@ func TestFormatCompatVariants(t *testing.T) {
   "args": {
     "compat": "backward"
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:format_numbers:82"
 }
 `)
@@ -889,34 +905,37 @@ func TestFormatCompatVariants(t *testing.T) {
   "args": {
     "compat": "backward"
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:format_numbers:82"
 }
 `)
 
 	// Change v2 to break compat with missing format
 	/*
-	   	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
-	           "format": null
-	       }`, 400, `{
-	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-	     "title": "Version \"/dirs/d1/files/f2/versions/v2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-	     "subject": "/dirs/d1/files/f2/versions/v2",
-	     "source": "c30ebf8b495a:registry:resource:1712"
-	   }
-	   `)
+			   	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
+			           "format": null
+			       }`, 400, `{
+			     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+			     "title": "Version \"/dirs/d1/files/f2/versions/v2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+			     "subject": "/dirs/d1/files/f2/versions/v2",
+			     "instance": "xxx",
+		  "source": "c30ebf8b495a:registry:resource:1712"
+			   }
+			   `)
 	*/
 
 	// Change v2 to break compat with empty format
 	/*
-	   	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
-	           "format": ""
-	       }`, 400, `{
-	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-	     "title": "Version \"/dirs/d1/files/f2/versions/v2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-	     "subject": "/dirs/d1/files/f2/versions/v2",
-	     "source": "c30ebf8b495a:registry:resource:1712"
-	   }
-	   `)
+			   	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
+			           "format": ""
+			       }`, 400, `{
+			     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+			     "title": "Version \"/dirs/d1/files/f2/versions/v2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+			     "subject": "/dirs/d1/files/f2/versions/v2",
+			     "instance": "xxx",
+		  "source": "c30ebf8b495a:registry:resource:1712"
+			   }
+			   `)
 	*/
 
 	// Change v2 to break compat with bad format
@@ -929,6 +948,7 @@ func TestFormatCompatVariants(t *testing.T) {
   "args": {
     "format": "UnKnown"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:resource:1795"
 }
 `)
@@ -943,6 +963,7 @@ func TestFormatCompatVariants(t *testing.T) {
   "args": {
     "error_detail": "/dirs/d1/files/f2/versions/v2 is not a valid protobuf file: schema.proto:1:1: syntax error: unexpected int literal"
   },
+  "instance": "xxx",
   "source": "c30ebf8b495a:registry:format_proto:42"
 }
 `)
@@ -1044,6 +1065,7 @@ func TestFormatSimpleJson(t *testing.T) {
   "args": {
     "format": "jsonSchem"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:resource:1795"
 }
 `)
@@ -1204,6 +1226,7 @@ func TestFormatStrict(t *testing.T) {
   "args": {
     "format": "`+af.Name+`"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:format_numbers:36"
 }
 `)
@@ -1221,6 +1244,7 @@ func TestFormatStrict(t *testing.T) {
   "args": {
     "format": "`+af.Name+`"
   },
+  "instance": ".*",
   "source": ".*"
 }
 `)
@@ -1238,6 +1262,7 @@ func TestFormatStrict(t *testing.T) {
   "args": {
     "format": "`+af.Name+`"
   },
+  "instance": ".*",
   "source": ".*"
 }
 `)
@@ -1274,6 +1299,7 @@ func TestFormatStrict(t *testing.T) {
   "args": {
     "format": "unknown"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:resource:1802"
 }
 `)
@@ -1298,6 +1324,7 @@ func TestFormatStrict(t *testing.T) {
   "args": {
     "name": "format"
   },
+  "instance": "xxx",
   "source": "3225fb09cd3a:registry:resource:2081"
 }
 `)
@@ -1322,6 +1349,7 @@ func TestFormatStrict(t *testing.T) {
   "args": {
     "name": "format"
   },
+  "instance": "xxx",
   "source": "3225fb09cd3a:registry:resource:2081"
 }
 `)
@@ -1346,6 +1374,7 @@ func TestFormatStrict(t *testing.T) {
     "error_detail": "can't be an empty string",
     "name": "format"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:entity:1446"
 }
 `)
@@ -1358,6 +1387,7 @@ func TestFormatStrict(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_external",
   "title": "Version \"/dirs/d1/files/f1.`+af.Name+`/versions/1\" references a document stored outside of the Registry, therefore no validation was performed.",
   "subject": "/dirs/d1/files/f1.`+af.Name+`/versions/1",
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:format_numbers:46"
 }
 `)
@@ -1528,6 +1558,7 @@ func TestFormatNotStrict(t *testing.T) {
   "args": {
     "format": "`+af.Name+`"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:format_numbers:36"
 }
 `)
@@ -1545,6 +1576,7 @@ func TestFormatNotStrict(t *testing.T) {
   "args": {
     "format": "`+af.Name+`"
   },
+  "instance": ".*",
   "source": ".*"
 }
 `)
@@ -1562,6 +1594,7 @@ func TestFormatNotStrict(t *testing.T) {
   "args": {
     "format": "`+af.Name+`"
   },
+  "instance": ".*",
   "source": ".*"
 }
 `)
@@ -1634,6 +1667,7 @@ func TestFormatNotStrict(t *testing.T) {
   "args": {
     "name": "format"
   },
+  "instance": "xxx",
   "source": "3225fb09cd3a:registry:resource:2081"
 }
 `)
@@ -1658,6 +1692,7 @@ func TestFormatNotStrict(t *testing.T) {
   "args": {
     "name": "format"
   },
+  "instance": "xxx",
   "source": "3225fb09cd3a:registry:resource:2081"
 }
 `)
@@ -1682,6 +1717,7 @@ func TestFormatNotStrict(t *testing.T) {
     "error_detail": "can't be an empty string",
     "name": "format"
   },
+  "instance": "xxx",
   "source": "79ab0198e6b4:registry:entity:1446"
 }
 `)
@@ -1756,6 +1792,7 @@ func TestFormatNotStrict(t *testing.T) {
   "args": {
     "error_detail": "Version \\"/dirs/d1/files/f2.`+af.Name+`/versions/v1\\" has a \\"format\\" value of \\"`+af.MixedName+`\\", was expecting \\".*\\""
   },
+  "instance": ".*",
   "source": ".*"
 }
 `)
@@ -1827,6 +1864,7 @@ func TestFormatCompatModes(t *testing.T) {
   "args": {
     "compat": "forward"
   },
+  "instance": "xxx",
   "source": "a3d56ce41e09:registry:format_numbers:109"
 }
 `)
@@ -1889,6 +1927,7 @@ func TestFormatCompatModes(t *testing.T) {
   "args": {
     "compat": "full"
   },
+  "instance": "xxx",
   "source": "a3d56ce41e09:registry:format_numbers:109"
 }
 `)
@@ -2793,6 +2832,7 @@ func TestFormatXrefTargetUpdateRejectionDoesNotCorruptMirror(t *testing.T) {
   "args": {
     "compat": "backward"
   },
+  "instance": "xxx",
   "source": ":registry:format_numbers:109"
 }
 `)

@@ -121,7 +121,9 @@ var xrproxyClient = &http.Client{
 // of that origin in the response body and Location/Content-Location headers
 // to point back through this proxy, so the SPA can treat the proxied
 // registry exactly like a normal same-origin one.
-func HTTPXRProxy(w http.ResponseWriter, r *http.Request) {
+func HTTPXRProxy(uuid string, w http.ResponseWriter, r *http.Request) {
+	defer log.Trace("tx: %s", uuid)()
+
 	rest := strings.TrimPrefix(r.URL.Path, XRPROXY_PREFIX)
 	seg, remainder, _ := strings.Cut(rest, "/")
 
@@ -138,7 +140,7 @@ func HTTPXRProxy(w http.ResponseWriter, r *http.Request) {
 		targetURL += "?" + r.URL.RawQuery
 	}
 
-	log.VPrintf(3, "xrproxy: %s %s -> %s", r.Method, r.URL.Path, targetURL)
+	log.FuncPrintf("tx: %s %s %s -> %s", uuid, r.Method, r.URL.Path, targetURL)
 
 	var body io.Reader
 	if r.Body != nil {

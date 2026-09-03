@@ -28,6 +28,7 @@ func TestRegistryCreate(t *testing.T) {
   "title": "The targeted entity (/xxx) cannot be found.",
   "detail": "Unknown Group type: xxx.",
   "subject": "/xxx",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:info:558"
 }
 `)
@@ -36,6 +37,7 @@ func TestRegistryCreate(t *testing.T) {
   "title": "The targeted entity (/xxx) cannot be found.",
   "detail": "Unknown Group type: xxx.",
   "subject": "/xxx",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:info:558"
 }
 `)
@@ -44,6 +46,7 @@ func TestRegistryCreate(t *testing.T) {
   "title": "The targeted entity (/xxx) cannot be found.",
   "detail": "Unknown Group type: xxx.",
   "subject": "/xxx",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:info:558"
 }
 `)
@@ -52,6 +55,7 @@ func TestRegistryCreate(t *testing.T) {
   "title": "The targeted entity (/xxx) cannot be found.",
   "detail": "Unknown Group type: xxx.",
   "subject": "/xxx",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:info:558"
 }
 `)
@@ -225,6 +229,7 @@ func TestRegistryRequiredFields(t *testing.T) {
   "args": {
     "list": "req"
   },
+  "instance": "xxx",
   "source": ":registry:entity:2761"
 }
 `)
@@ -270,6 +275,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "args": {
     "error_detail": "\"defstring\" \"default\" value must be of type \"string\""
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:3541"
 }
 `)
@@ -289,6 +295,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "args": {
     "name": "defstring"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:3548"
 }
 `)
@@ -309,6 +316,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "args": {
     "name": "defstring"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:3535"
 }
 `)
@@ -329,6 +337,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "args": {
     "error_detail": "\"defstring\" \"default\" value must be of type \"string\""
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:3541"
 }
 `)
@@ -379,6 +388,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "args": {
     "error_detail": "\"myobj.defint\" \"default\" value must be of type \"integer\""
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:3541"
 }
 `)
@@ -412,6 +422,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "args": {
     "name": "myobj.defint"
   },
+  "instance": "xxx",
   "source": ":registry:shared_model:3535"
 }
 `)
@@ -914,6 +925,7 @@ func TestRegistryVerifyDataMissesGroupConstraintOnModelChange(t *testing.T) {
     "kind": "equals",
     "path": "mystr"
   },
+  "instance": "xxx",
   "source": ":registry:group:895"
 }`)
 	reg.Rollback()
@@ -949,6 +961,7 @@ func TestRegistryVerifyDataMissesGroupConstraintOnModelChange(t *testing.T) {
     "kind": "equals",
     "path": "mystr"
   },
+  "instance": "xxx",
   "source": ":registry:group:895"
 }
 `)
@@ -972,6 +985,7 @@ func TestRegistryVerifyDataMissesGroupConstraintOnModelChange(t *testing.T) {
     "kind": "equals",
     "path": "mystr"
   },
+  "instance": "xxx",
   "source": ":registry:group:895"
 }
 `)

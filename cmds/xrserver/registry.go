@@ -28,7 +28,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			force, _ := cmd.Flags().GetBool("force")
-			tx, err := registry.NewTx()
+			tx, err := registry.NewTx(NewUUID())
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
@@ -63,7 +63,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			force, _ := cmd.Flags().GetBool("force")
-			tx, err := registry.NewTx()
+			tx, err := registry.NewTx(NewUUID())
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
@@ -99,7 +99,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 				Stop("Too many argument on the command line")
 			}
 
-			tx, err := registry.NewTx()
+			tx, err := registry.NewTx(NewUUID())
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			reg, err := registry.FindRegistry(tx, args[0], registry.FOR_READ)
@@ -137,7 +137,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			ids, err := registry.GetRegistryNames()
 			ErrStop(err, "Error talking to the DB: %s", err)
 
-			tx, err := registry.NewTx()
+			tx, err := registry.NewTx(NewUUID())
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 1, 3, ' ', 0)

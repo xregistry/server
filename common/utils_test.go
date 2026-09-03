@@ -393,7 +393,7 @@ func TestProcessIncludes(t *testing.T) {
 			!strings.HasPrefix(test.Path, "http"))
 		if xErr != nil {
 			// buf = []byte(xErr.String())
-			buf = []byte(xErr.ToJSON(""))
+			buf = []byte(xErr.ToJSON())
 		}
 		exp := test.Result
 		/*

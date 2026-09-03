@@ -1513,6 +1513,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#cannot_doc_xref",
   "title": "Retrieving the document view of a Version for \"/dirs/d1/files/fx/versions\" is not allowed because it uses \"xref\".",
   "subject": "/dirs/d1/files/fx/versions",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1756"
 }
 `)
@@ -1522,6 +1523,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#cannot_doc_xref",
   "title": "Retrieving the document view of a Version for \"/dirs/d1/files/fx/versions/v1\" is not allowed because it uses \"xref\".",
   "subject": "/dirs/d1/files/fx/versions/v1",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1723"
 }
 `)
@@ -1718,6 +1720,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)
@@ -1981,6 +1984,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/v1/foo) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/v1/foo",
+  "instance": "xxx",
   "source": ":registry:info:678"
 }
 `)
@@ -1990,6 +1994,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/fx/versions/v1/foo) cannot be found.",
   "subject": "/dirs/d1/files/fx/versions/v1/foo",
+  "instance": "xxx",
   "source": ":registry:info:678"
 }
 `)
@@ -1999,6 +2004,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/vx) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/vx",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)
@@ -2008,6 +2014,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/fz) cannot be found.",
   "subject": "/dirs/d1/files/fz",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1746"
 }
 `)
@@ -2017,6 +2024,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/fz) cannot be found.",
   "subject": "/dirs/d1/files/fz",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)
@@ -2026,6 +2034,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/dx) cannot be found.",
   "subject": "/dirs/dx",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1746"
 }
 `)
@@ -2036,6 +2045,7 @@ func TestExportBasic(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/filesx) cannot be found.",
   "detail": "Unknown Resource type: filesx.",
   "subject": "/dirs/d1/filesx",
+  "instance": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -2045,6 +2055,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/dx) cannot be found.",
   "subject": "/dirs/dx",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)
@@ -2055,6 +2066,7 @@ func TestExportBasic(t *testing.T) {
   "title": "The targeted entity (/dirsx) cannot be found.",
   "detail": "Unknown Group type: dirsx.",
   "subject": "/dirsx",
+  "instance": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -2064,6 +2076,7 @@ func TestExportBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/dx/files/fz/versions/vx) cannot be found.",
   "subject": "/dirs/dx/files/fz/versions/vx",
+  "instance": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)

@@ -155,6 +155,7 @@ func TestVersionCreate(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/xxx) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/xxx",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1395"
 }
 `)
@@ -162,6 +163,7 @@ func TestVersionCreate(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/xxx) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/xxx",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1395"
 }
 `)
@@ -169,6 +171,7 @@ func TestVersionCreate(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/xxx/yyy) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/xxx/yyy",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:info:699"
 }
 `)
@@ -176,6 +179,7 @@ func TestVersionCreate(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/xxx/yyy) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/xxx/yyy",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:info:699"
 }
 `)
@@ -631,6 +635,7 @@ func TestVersionDefault(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1$details) cannot be found.",
   "subject": "/dirs/d1/files/f1$details",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1730"
 }
 `)
@@ -1049,6 +1054,7 @@ func TestVersionOrdering(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1) cannot be found.",
   "subject": "/dirs/d1/files/f1",
+  "instance": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1730"
 }
 `)
@@ -1193,6 +1199,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: meta",
     "name": "meta"
   },
+  "instance": "xxx",
   "source": "a3d56ce41e09:registry:entity:2236"
 }
 `)
@@ -1207,6 +1214,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: metaurl",
     "name": "metaurl"
   },
+  "instance": "xxx",
   "source": "a3d56ce41e09:registry:entity:2236"
 }
 `)
@@ -1223,6 +1231,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: metaurl",
     "name": "metaurl"
   },
+  "instance": "xxx",
   "source": "a3d56ce41e09:registry:entity:2236"
 }
 `)
@@ -1241,6 +1250,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: metaurl",
     "name": "metaurl"
   },
+  "instance": "xxx",
   "source": "a3d56ce41e09:registry:entity:2236"
 }
 `)
@@ -1255,6 +1265,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: versions",
     "name": "versions"
   },
+  "instance": "xxx",
   "source": "74880ecd28f6:registry:entity:2241"
 }
 `)
@@ -1269,6 +1280,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: versionsurl",
     "name": "versionsurl"
   },
+  "instance": "xxx",
   "source": "74880ecd28f6:registry:entity:2241"
 }
 `)
@@ -1285,6 +1297,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: versions",
     "name": "versions"
   },
+  "instance": "xxx",
   "source": "74880ecd28f6:registry:entity:2241"
 }
 `)
@@ -1301,6 +1314,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: versionsurl",
     "name": "versionsurl"
   },
+  "instance": "xxx",
   "source": "74880ecd28f6:registry:entity:2241"
 }
 `)
@@ -1319,6 +1333,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: versions",
     "name": "versions"
   },
+  "instance": "xxx",
   "source": "74880ecd28f6:registry:entity:2241"
 }
 `)
@@ -1337,6 +1352,7 @@ func TestVersionExtensions(t *testing.T) {
     "error_detail": "Versions can't define an extension called: versionsurl",
     "name": "versionsurl"
   },
+  "instance": "xxx",
   "source": "74880ecd28f6:registry:entity:2241"
 }
 `)

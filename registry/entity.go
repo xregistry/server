@@ -118,27 +118,27 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 	// And then use e.ShowStack() to dump it
 
 	/* Sample code to print the stack for where this NewObject was created:
-	log.Printf("Stack for NewObject:")
+	log.Printf("tx: %s Stack for NewObject:", e.tx.uuid)
 	for _, s := range e.NewObjectStack {
-		log.Printf("  %s", s)
+		log.Printf("tx: %s   %s", ,e.tx.uuid, s)
 	}
 	*/
 }
 
 func (e *Entity) ShowStack() {
-	log.Printf("Stack for NewObject (%s):", e.XID)
+	log.Printf("tx: %s Stack for NewObject (%s):", e.tx.uuid, e.XID)
 	for _, s := range e.NewObjectStack {
-		log.Printf("  %s", s)
+		log.Printf("tx: %s  %s", e.tx.uuid, s)
 	}
 }
 
 func (e *Entity) WasTouched() bool {
-	log.VPrintf(3, "WasTouch: %s/%s", e.Singular, e.UID)
+	log.FuncPrintf("tx: %s WasTouch: %s/%s", e.tx.uuid, e.Singular, e.UID)
 	return e.EpochSet
 }
 
 func (e *Entity) Touch() bool {
-	log.VPrintf(3, "Touch: %s/%s", e.Singular, e.UID)
+	log.FuncPrintf("tx: %s Touch: %s/%s", e.tx.uuid, e.Singular, e.UID)
 
 	// See if it's already been modified (and saved) this Tx, if so exit
 	if e.ModSet && e.EpochSet {
@@ -296,7 +296,8 @@ func (e *Entity) GetPP(pp *PropPath) any {
 		val, _, _ = ObjectGetProp(e.Object, pp)
 	}
 
-	log.VPrintf(4, "%s(%s).Get(%s) -> %v", e.Plural, e.UID, pp.DB(), val)
+	log.FuncPrintf("tx: %s %s(%s).Get(%s) -> %v", e.tx.uuid, e.Plural, e.UID,
+		pp.DB(), val)
 	return val
 }
 
@@ -360,7 +361,7 @@ func lockResourceFamily(tx *Tx, resourceSID string) {
 }
 
 func RawEntityFromXID(tx *Tx, regID string, xid string, anyCase bool, accessMode int) (*Entity, *XRError) {
-	defer log.Trace(xid)()
+	defer log.Trace("tx: %s %s", tx.uuid, xid)()
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
@@ -495,7 +496,7 @@ func lockEntityFamily(tx *Tx, ent *Entity) {
 			cached.AccessMode = FOR_WRITE
 			continue
 		}
-		log.VPrintf(3, "tx: %s lockEntityFamily: upgrading stale cached %q "+
+		log.FuncPrintf("tx: %s lockEntityFamily: upgrading stale cached %q "+
 			"(eSID=%s) to FOR_WRITE now that its family's DB rows are locked",
 			tx.uuid, cached.XID, cached.DbSID)
 		Must(cached.Refresh(FOR_WRITE))
@@ -545,7 +546,7 @@ func (e *Entity) Query(query string, args ...any) [][]any {
 }
 
 func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, args ...any) ([]*Entity, *XRError) {
-	defer log.Trace(query)()
+	defer log.Trace("tx: %s %s", tx.uuid, query)()
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
@@ -617,7 +618,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 // Update the entity's Object - not the other props in Entity. Similar to
 // RawEntityFromXID
 func (e *Entity) Refresh(accessMode int) *XRError {
-	defer log.Trace(e.XID)()
+	defer log.Trace("tx: %s %s", e.tx.uuid, e.XID)()
 
 	// If there's a buffered, not-yet-persisted system-prop change on
 	// this entity (see SetSystemDBProperty()'s doc comment), flush it
@@ -647,7 +648,7 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 		results.Close()
 	}
 
-	log.VPrintf(3, "tx: %s Refreshing %q, mode: %v", e.tx.uuid, e.XID, mode)
+	log.FuncPrintf("tx: %s Refreshing %q, mode: %v", e.tx.uuid, e.XID, mode)
 
 	results := Query(e.tx, `
         SELECT PropName, PropValue, PropType, IsSystemProp
@@ -699,7 +700,7 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 
 // Set, Validate and Save to DB but not Commit
 func (e *Entity) eSetSave(path string, val any) *XRError {
-	defer log.Trace("%s=%v", path, val)()
+	defer log.Trace("tx: %s %s=%v", e.tx.uuid, path, val)()
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
@@ -731,7 +732,7 @@ func (e *Entity) eJustSetPath(path string, val any) *XRError {
 
 // Set the prop in the Entity but don't Validate or Save to the DB
 func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
-	defer log.Trace("%s.%s=%v", e.XID, pp.UI(), val)()
+	defer log.Trace("tx: %s %s.%s=%v", e.tx.uuid, e.XID, pp.UI(), val)()
 
 	PanicIf(e.AccessMode != FOR_WRITE, "ejustset: %q isn't FOR_WRITE", e.XID)
 
@@ -781,9 +782,9 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	*/
 
 	if log.IsFuncVerbose() {
-		log.Printf("Abstract/ID: %s/%s", e.Abstract, e.UID)
-		log.Printf("e.Object:\n%s", ToJSON(e.Object))
-		log.Printf("e.NewObject:\n%s", ToJSON(e.NewObject))
+		log.Printf("tx: %s Abstract/ID: %s/%s", e.tx.uuid, e.Abstract, e.UID)
+		log.Printf("tx: %s e.Object:\n%s", e.tx.uuid, ToJSON(e.Object))
+		log.Printf("tx: %s e.NewObject:\n%s", e.tx.uuid, ToJSON(e.NewObject))
 	}
 
 	err := ObjectSetProp(e.NewObject, pp, val)
@@ -796,7 +797,7 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 }
 
 func (e *Entity) ValidateAndSave(force bool) *XRError {
-	defer log.Trace(e.XID)()
+	defer log.Trace("tx: %s %s", e.tx.uuid, e.XID)()
 
 	// Force will do a validate even if it doesn't look like anything changed.
 	// BUT if after validate() nothing still hasn't changed then it doesn't
@@ -812,7 +813,9 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 
 	verb := log.IsFuncVerbose()
 	if verb {
-		log.Printf("Pre validate %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
+		log.Printf("tx: %s "+
+			"Pre validate %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
+			e.tx.uuid,
 			e.Abstract, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
 	}
 
@@ -821,7 +824,8 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 	}
 
 	if verb {
-		log.Printf("Post validate(%s): %s", e.XID, ToJSON(e.NewObject))
+		log.Printf("tx: %s Post validate(%s): %s", e.tx.uuid,
+			e.XID, ToJSON(e.NewObject))
 	}
 
 	if e.NewObject == nil {
@@ -834,10 +838,10 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 // This is really just an internal Setter used for testing.
 // It'll set a property and then validate and save the entity in the DB
 func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
-	defer log.Trace("%s: %s=%v", e.DbSID, pp.UI(), val)()
+	defer log.Trace("tx: %s %s: %s=%v", e.tx.uuid, e.DbSID, pp.UI(), val)()
 	defer func() {
 		if log.IsFuncVerbose() {
-			log.Printf("exit: e.Object:\n%s", ToJSON(e.Object))
+			log.Printf("tx: %s exit: e.Object:\n%s", e.tx.uuid, ToJSON(e.Object))
 		}
 	}()
 
@@ -1003,7 +1007,7 @@ func EnumValueToDBString(v any) string {
 }
 
 func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
-	defer log.Trace("%s=%v", pp, val)()
+	defer log.Trace("tx: %s %s=%v", e.tx.uuid, pp, val)()
 
 	row, skip, xErr := e.prepDBProperty(pp, val)
 	if xErr != nil {
@@ -1025,7 +1029,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 // blanket DELETE for all of this entity's own-prop rows before
 // traversal starts, so there's never a per-prop delete to buffer.
 func (e *Entity) SetDBPropertyBatch(pp *PropPath, val any) *XRError {
-	defer log.Trace("%s=%v", pp, val)()
+	defer log.Trace("tx: %s %s=%v", e.tx.uuid, pp, val)()
 
 	row, skip, xErr := e.prepDBProperty(pp, val)
 	if xErr != nil {
@@ -1074,7 +1078,7 @@ func (e *Entity) DoDBPropertyBatch() {
 // earlier buffered value, rather than racing an immediate DB DELETE
 // against a later flush.
 func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
-	defer log.Trace("%d props", len(pps))()
+	defer log.Trace("tx: %s %d props", e.tx.uuid, len(pps))()
 
 	if len(pps) == 0 {
 		return
@@ -1123,7 +1127,7 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
 // back-to-back without each one independently re-triggering the whole
 // cascade - see SaveSystemProps().
 func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
-	defer log.Trace("%s=%v", pp, val)()
+	defer log.Trace("tx: %s %s=%v", e.tx.uuid, pp, val)()
 
 	PanicIf(pp.UI() == "", "pp is empty")
 
@@ -1293,7 +1297,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 	//   0     1     2       3         4      5   6     7      8
 	//     9        10         11         12
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		// log.Printf("Row(%d): %#v", len(row), row)
+		// log.Printf("tx: %s Row(%d): %#v", tx.uuid, len(row), row)
 		if log.HasVerbose("readNextEntity") {
 			str := "("
 			for _, c := range row {
@@ -1303,7 +1307,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 					str += fmt.Sprintf("%s,", *c)
 				}
 			}
-			log.Printf("Row: %s)", str)
+			log.Printf("tx: %s Row: %s)", tx.uuid, str)
 		}
 		eType := int((*row[1]).(int64))
 		plural := NotNilString(row[2])
@@ -2272,16 +2276,16 @@ func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 //     as defined by the entity's GetPropsOrdered()
 func (e *Entity) SerializeProps(info *RequestInfo,
 	fn func(*Entity, *RequestInfo, string, any, *Attribute) *XRError) *XRError {
-	defer log.Trace(e.XID)()
+	defer log.Trace("tx: %s %s", e.tx.uuid, e.XID)()
 
 	daObj := e.AddCalcProps(info)
 	attrs := e.GetAttributes(e.Object)
 
 	if log.IsFuncVerbose() {
-		log.Printf("SerProps.Entity: %s", ToJSON(e))
-		log.Printf("SerProps.Obj: %s", ToJSON(e.Object))
-		log.Printf("SerProps daObj: %s", ToJSON(daObj))
-		log.Printf("SerProps attrs:\n%s", ToJSON(attrs))
+		log.Printf("tx: %s SerProps.Entity: %s", e.tx.uuid, ToJSON(e))
+		log.Printf("tx: %s SerProps.Obj: %s", e.tx.uuid, ToJSON(e.Object))
+		log.Printf("tx: %s SerProps daObj: %s", e.tx.uuid, ToJSON(daObj))
+		log.Printf("tx: %s SerProps attrs:\n%s", e.tx.uuid, ToJSON(attrs))
 	}
 
 	resourceSingular := ""
@@ -2308,11 +2312,11 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 			}
 		}
 
-		log.VPrintf(4, "Ser prop(%s): %q", e.XID, name)
+		log.FuncPrintf("tx: %s Ser prop(%s): %q", e.tx.uuid, e.XID, name)
 
 		attr, ok := attrs[name]
 		if !ok {
-			log.VPrintf(4, "  skipping %q, no attr", name)
+			log.FuncPrintf("tx: %s  skipping %q, no attr", e.tx.uuid, name)
 			delete(daObj, name)
 			continue // not allowed at this eType so skip it
 		}
@@ -2333,7 +2337,8 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 						PanicIf(objKey[0] != '#' && attr == nil,
 							"Can't find attr for (%s) %q", e.XID, objKey)
 					}
-					// log.Printf("Ser*ext(%s): %q", e.XID, objKey)
+					// log.Printf("tx: %s Ser*ext(%s): %q", e.tx.uuid, e.XID,
+					//  objKey)
 
 					if xErr := fn(e, info, objKey, val, attr); xErr != nil {
 						return xErr
@@ -2344,7 +2349,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 		}
 
 		if name[0] == '$' || (prop.internals != nil && prop.internals.alwaysSerialize) {
-			log.VPrintf(4, "  forced serialization of %q", name)
+			log.FuncPrintf("tx: %s forced serialization of %q", e.tx.uuid, name)
 			if xErr := fn(e, info, name, nil, attr); xErr != nil {
 				return xErr
 			}
@@ -2353,7 +2358,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 
 		// Should be a no-op for Resources.
 		if val, ok := daObj[name]; ok {
-			log.VPrintf(4, "  val: %v", val)
+			log.FuncPrintf("tx: %s val: %v", e.tx.uuid, val)
 			if !IsNil(val) {
 				xErr := fn(e, info, name, val, attr)
 				if xErr != nil {
@@ -2362,7 +2367,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 			}
 			delete(daObj, name)
 		} else {
-			log.VPrintf(4, "  no value for %q", name)
+			log.FuncPrintf("tx: %s no value for %q", e.tx.uuid, name)
 		}
 	}
 
@@ -2391,19 +2396,19 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 }
 
 func (e *Entity) Lock() bool { // did we lock it?
-	defer log.Trace("%s:%s", e.XID, e.DbSID)()
+	defer log.Trace("tx: %s %s:%s", e.tx.uuid, e.XID, e.DbSID)()
 
 	if e.AccessMode == FOR_WRITE {
 		// Already locked
 		return false
 	}
 
-	log.VPrintf(3, "tx: %s Requesting lock for %q eSID=%s connID=%d",
+	log.FuncPrintf("tx: %s Requesting lock for %q eSID=%s connID=%d",
 		e.tx.uuid, e.XID, e.DbSID, e.tx.connID)
 
 	Must(e.Refresh(FOR_WRITE))
 
-	log.VPrintf(3, "tx: %s Got lock for %q eSID=%s connID=%d",
+	log.FuncPrintf("tx: %s Got lock for %q eSID=%s connID=%d",
 		e.tx.uuid, e.XID, e.DbSID, e.tx.connID)
 
 	// Resource/Meta/Version are logically one unit - Meta holds the
@@ -2421,7 +2426,7 @@ func (e *Entity) Lock() bool { // did we lock it?
 }
 
 func (e *Entity) Save() *XRError {
-	defer log.Trace(e.XID)()
+	defer log.Trace("tx: %s %s", e.tx.uuid, e.XID)()
 
 	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 
@@ -2434,7 +2439,7 @@ func (e *Entity) Save() *XRError {
 	}
 
 	if log.IsFuncVerbose() {
-		log.Printf("NewObject:\n%s", ToJSON(e.NewObject))
+		log.Printf("tx: %s NewObject:\n%s", e.tx.uuid, ToJSON(e.NewObject))
 		// ShowStack()
 	}
 
@@ -2658,7 +2663,8 @@ func (e *Entity) AddCalcProps(info *RequestInfo) map[string]any {
 			if _, ok := mat[prop.Name]; !ok {
 				if val := prop.internals.getFn(e); !IsNil(val) {
 					// Only write it if we have a value
-					// log.Printf("Added calc prop: %q", prop.Name)
+					// log.Printf("tx: %s Added calc prop: %q",
+					// e.tx.uuid, prop.Name)
 					mat[prop.Name] = val
 				}
 			}
@@ -2803,11 +2809,11 @@ func (e *Entity) RemoveReadOnlyImmutable(obj Object) {
 // avoid traversing the entity more than once, we will tweak things if needed.
 // For example, if a missing attribute has a Default value then we'll add it.
 func (e *Entity) Validate() *XRError {
-	defer log.Trace(e.XID)()
+	defer log.Trace("tx: %s %s", e.tx.uuid, e.XID)()
 	// Don't touch what was passed in
 	attrs := e.GetAttributes(e.NewObject)
 	if log.IsFuncVerbose() {
-		log.Printf("Attrs:\n%s", ToJSON(attrs))
+		log.Printf("tx: %s Attrs:\n%s", e.tx.uuid, ToJSON(attrs))
 	}
 
 	// Skip xref's versions since its owning resource should have done it
@@ -2840,9 +2846,9 @@ func (e *Entity) Validate() *XRError {
 	}
 
 	if log.IsFuncVerbose() {
-		log.VPrintf(0, "========")
-		log.VPrintf(0, "NewObject:\n%s", ToJSON(e.NewObject))
-		log.VPrintf(0, "Attrs: %v", SortedKeys(attrs))
+		log.Printf("tx: %s ========", e.tx.uuid)
+		log.Printf("tx: %s NewObject:\n%s", e.tx.uuid, ToJSON(e.NewObject))
+		log.Printf("tx: %s Attrs: %v", e.tx.uuid, SortedKeys(attrs))
 	}
 
 	// If nothing changed then use the original data for validation
@@ -2857,11 +2863,12 @@ func (e *Entity) Validate() *XRError {
 // been removed - such as collections
 func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attributes, path *PropPath) *XRError {
 
-	defer log.Trace(path)()
+	defer log.Trace("tx: %s %s", e.tx.uuid, path)()
 
 	if log.IsFuncVerbose() {
-		log.Printf("Check Obj:\n%s", ToJSON(val))
-		log.Printf("OrigAttrs:\n%s", ToJSON(SortedKeys(origAttrs)))
+		log.Printf("tx: %s Check Obj:\n%s", e.tx.uuid, ToJSON(val))
+		log.Printf("tx: %s OrigAttrs:\n%s", e.tx.uuid,
+			ToJSON(SortedKeys(origAttrs)))
 	}
 
 	valValue := reflect.ValueOf(val)
@@ -3132,8 +3139,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 // Return: error, haveReplaceValue, newValue
 func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
 	if log.IsFuncVerbose() {
-		log.Printf("val: %v", ToJSON(val))
-		log.Printf("attr: %v", ToJSON(attr))
+		log.Printf("tx: %s val: %v", e.tx.uuid, ToJSON(val))
+		log.Printf("tx: %s attr: %v", e.tx.uuid, ToJSON(attr))
 	}
 
 	if attr.Type == ANY {
@@ -3165,8 +3172,8 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*X
 
 func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("item: %v", ToJSON(mapAttr.Item))
-		log.Printf("val: %v", ToJSON(val))
+		log.Printf("tx: %s item: %v", e.tx.uuid, ToJSON(mapAttr.Item))
+		log.Printf("tx: %s val: %v", e.tx.uuid, ToJSON(val))
 	}
 
 	if IsNil(val) {
@@ -3225,8 +3232,8 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 
 func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("item: %s", ToJSON(arrayAttr.Item))
-		log.Printf("val: %s", ToJSON(val))
+		log.Printf("tx: %s item: %s", e.tx.uuid, ToJSON(arrayAttr.Item))
+		log.Printf("tx: %s val: %s", e.tx.uuid, ToJSON(val))
 	}
 
 	if IsNil(val) {
@@ -3267,7 +3274,7 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 // returns: Error, haveReplacementValue, replacementValue
 func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
 	if log.IsFuncVerbose() {
-		log.Printf("val: %s", ToJSON(val))
+		log.Printf("tx: %s val: %s", e.tx.uuid, ToJSON(val))
 	}
 
 	replace := false
@@ -3502,7 +3509,8 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 	// enforced separately (and more completely, incl. xref-mirrored
 	// data) via Group.validateEnum(), not here.
 	enums, strict := attr.Enum, attr.GetStrict()
-	// log.Printf("Checking: %q: %q vs %q", attr.Name, val, EnumAsString(enums))
+	// log.Printf("tx: %s Checking: %q: %q vs %q", e.tx.uuid,
+	// attr.Name, val, EnumAsString(enums))
 	if strict && !IsValidEnum(val, enums) {
 		return NewXRError("invalid_attribute", e.XID,
 			"name="+path.UI(),
@@ -3726,7 +3734,7 @@ func CheckAttrs(obj map[string]any, source string) *XRError {
 	}
 	for k, _ := range obj {
 		if xErr := IsValidAttributeName(k, source, ""); xErr != nil {
-			// log.Printf("Key: %q", k)
+			// log.Printf("tx: %s Key: %q", e.tx.uuid, k)
 			// ShowStack()
 			return xErr
 		}
@@ -3787,7 +3795,7 @@ func (e *Entity) EntityInsert() {
 func (e *Entity) DBWriteProp(name string, propValue *string,
 	propType string, docView bool, isSystem bool) {
 
-	// defer log.VTrace("FullTree", "%s/%s", e.XID, name)()
+	// defer log.FuncTrace("tx: %s %s/%s", e.tx.uuid, e.XID, name)()
 
 	if propValue == nil {
 		// The prop row may or may not exist yet (e.g. deleting a prop

@@ -42,8 +42,9 @@ func GetDefaultReg(tx *Tx) *Registry {
 	}
 
 	if tx == nil {
+		panic("why") // Don't think we'll ever get here
 		var xErr *XRError
-		tx, xErr = NewTx()
+		tx, xErr = NewTx(NewUUID())
 		Must(xErr)
 	}
 
@@ -172,7 +173,11 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 type RegOpt string
 
 func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
-	defer log.Trace(id)()
+	if tx == nil {
+		defer log.Trace("%s", id)()
+	} else {
+		defer log.Trace("tx: %s %s", tx.uuid, id)()
+	}
 
 	var xErr *XRError // must be used for all error checking due to defer
 	newTx := false
@@ -185,7 +190,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 	}()
 
 	if tx == nil {
-		tx, xErr = NewTx()
+		tx, xErr = NewTx(NewUUID())
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -275,7 +280,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 }
 
 func GetRegistryNames() ([]string, *XRError) {
-	tx, xErr := NewTx()
+	tx, xErr := NewTx(NewUUID())
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -319,7 +324,7 @@ func (reg *Registry) SetSave(name string, val any) *XRError {
 }
 
 func (reg *Registry) Delete() *XRError {
-	defer log.Trace(reg.UID)()
+	defer log.Trace("tx: %s %s", reg.tx.uuid, reg.UID)()
 
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
@@ -338,7 +343,7 @@ func (reg *Registry) Delete() *XRError {
 }
 
 func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError) {
-	defer log.Trace(sid)()
+	defer log.Trace("tx: %s %s", tx.uuid, sid)()
 
 	if tx.Registry != nil && tx.Registry.DbSID == sid {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
@@ -384,7 +389,11 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 
 // BY UID
 func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
-	defer log.Trace(id)()
+	if tx == nil {
+		defer log.Trace("%s", id)()
+	} else {
+		defer log.Trace("tx: %s %s", tx.uuid, id)()
+	}
 
 	if tx != nil && tx.Registry != nil && tx.Registry.UID == id {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
@@ -396,7 +405,7 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	newTx := false
 	if tx == nil {
 		var xErr *XRError
-		tx, xErr = NewTx()
+		tx, xErr = NewTx(NewUUID())
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -429,7 +438,7 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	row := results.NextRow()
 
 	if row == nil {
-		log.VPrintf(3, "None found")
+		log.FuncPrintf("tx: %s None found", tx.uuid)
 		return nil, nil
 	}
 
@@ -506,7 +515,7 @@ func (reg *Registry) SaveModel(verifyData bool) *XRError {
 }
 
 func (reg *Registry) LoadModelFromFile(file string) *XRError {
-	defer log.Trace(file)()
+	defer log.Trace("tx: %s %s", reg.tx.uuid, file)()
 
 	var xErr *XRError
 	var err error
@@ -560,7 +569,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 }
 
 func (reg *Registry) Update(obj Object, addType AddType) *XRError {
-	defer log.Trace()()
+	defer log.Trace("tx: %s", reg.tx.uuid)()
 
 	if xErr := CheckAttrs(obj, reg.XID); xErr != nil {
 		return xErr
@@ -716,10 +725,10 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 // prevent, where a decision (e.g. "does this Resource already exist?")
 // computed from an unlocked read could go stale before the write.
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
-	defer log.Trace("%s,%s,%v", gType, id, anyCase)()
+	defer log.Trace("tx: %s %s,%s,%v", reg.tx.uuid, gType, id, anyCase)()
 
 	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
-		log.VPrintf(3, "tx: %s FindGroup %s,%s from cache",
+		log.FuncPrintf("tx: %s FindGroup %s,%s from cache",
 			reg.tx.uuid, gType, id)
 		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
 			g.Lock()
@@ -734,7 +743,7 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 			"Error finding Group %q(%s): %s.", id, gType, xErr.GetTitle())
 	}
 	if ent == nil {
-		log.VPrintf(3, "None found")
+		log.FuncPrintf("tx: %s None found", reg.tx.uuid)
 		return nil, nil
 	}
 
@@ -760,7 +769,7 @@ func (reg *Registry) UpsertGroup(gType string, id string) (*Group, bool, *XRErro
 }
 
 func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, addType AddType) (*Group, bool, *XRError) {
-	defer log.Trace("%s,%s", gType, id)()
+	defer log.Trace("tx: %s %s,%s", reg.tx.uuid, gType, id)()
 
 	// Move to below, after the "findGroup". Is SaveModel needs it then
 	// it'll lock it.
@@ -803,7 +812,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 	}
 
-	log.VPrintf(3, "tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
+	log.FuncPrintf("tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
 		reg.tx.uuid, gType, id, g != nil)
 
 	if g != nil && g.UID != id {
@@ -849,8 +858,6 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		g.Self = g
 
-		log.VPrintf(3, "tx: %s INSERT INTO Groups %s regSID=%s",
-			reg.tx.uuid, g.XID, g.Registry.DbSID)
 		DoOne(reg.tx, `
 			INSERT INTO "Groups"(
                 SID, RegistrySID, UID,
@@ -966,7 +973,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 // Returns a map of groupType->*Group
 func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[string][]*Group, *XRError) {
-	defer log.Trace()()
+	defer log.Trace("tx: %s", reg.tx.uuid)()
 
 	groups := map[string][]*Group{}
 
@@ -1161,8 +1168,8 @@ ft.eSID IN ( -- eSID from query
 					}
 
 					PanicIf(!has, "Must have *") // Sanity check
-					// log.Printf("fpn: %q", filterPropName)
-					// log.Printf("fpn: %s", filter.PP.Debug())
+					// log.Printf("tx: %s fpn: %q", reg.tx.uuid, filterPropName)
+					// log.Printf("tx: %s fpn: %s", reg.tx.uuid, filter.PP.Debug())
 				} else {
 					if filter.Operator == FILTER_PRESENT ||
 						filter.Operator == FILTER_ABSENT {
@@ -1361,7 +1368,7 @@ ft.eSID IN ( -- eSID from query
 		`    ft.LowerXID ASC;`
 
 	if log.GetVerbose() > 3 || log.HasVerbose("genq") {
-		log.Printf("Query:\n%s\n\n", SubQuery(query, args))
+		log.Printf("tx: %s Query:\n%s\n\n", reg.tx.uuid, SubQuery(query, args))
 	}
 	return query, args, nil
 }

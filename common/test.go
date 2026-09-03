@@ -14,6 +14,7 @@ var NOMASK_TS = "NoMaskTS"
 var MASK_SERVER = "MaskServer"
 var MASK_LOGS = "MaskLogs"
 var NOMASK_INSTANCE = "NoMaskInstance"
+var NOMASK_SOURCE = "NoMaskSource"
 var MASK_CONFORM_PASS = "MaskConformPass"
 var NOMASK_SHORTSELF = "NoMaskShortSelf"
 
@@ -22,7 +23,8 @@ var REG_RFC3339 = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2}
 var REG_TSSLASH = `\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`
 var REG_COMMIT = `GitCommit: [0-9a-f]*\n`
 var REG_DBHOST = `DB: .*`
-var REG_INSTANCE = `"source": "[^"]*"`
+var REG_INSTANCE = `"instance": "[a-zA-Z0-9]+"`
+var REG_SOURCE = `"source": "[^"]*"`
 var REG_MASK_CONFORM_PASS = `(?m)^Pass: [0-9]*`
 var REG_SHORTSELF = `"shortself": "[^"]*"`
 
@@ -33,6 +35,7 @@ var SavedREs = map[string]*regexp.Regexp{
 	REG_COMMIT:            regexp.MustCompile(REG_COMMIT),
 	REG_DBHOST:            regexp.MustCompile(REG_DBHOST),
 	REG_INSTANCE:          regexp.MustCompile(REG_INSTANCE),
+	REG_SOURCE:            regexp.MustCompile(REG_SOURCE),
 	REG_MASK_CONFORM_PASS: regexp.MustCompile(REG_MASK_CONFORM_PASS),
 	REG_SHORTSELF:         regexp.MustCompile(REG_SHORTSELF),
 }
@@ -133,8 +136,13 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	}
 
 	if !flagsMap[NOMASK_INSTANCE] {
-		got = SavedREs[REG_INSTANCE].ReplaceAllString(got, `"source": "xxx"`)
-		exp = SavedREs[REG_INSTANCE].ReplaceAllString(exp, `"source": "xxx"`)
+		got = SavedREs[REG_INSTANCE].ReplaceAllString(got, `"instance": "xxx"`)
+		exp = SavedREs[REG_INSTANCE].ReplaceAllString(exp, `"instance": "xxx"`)
+	}
+
+	if !flagsMap[NOMASK_SOURCE] {
+		got = SavedREs[REG_SOURCE].ReplaceAllString(got, `"source": "xxx"`)
+		exp = SavedREs[REG_SOURCE].ReplaceAllString(exp, `"source": "xxx"`)
 	}
 
 	if !flagsMap[NOMASK_SHORTSELF] {
@@ -189,7 +197,7 @@ func XCheckErr(t *testing.T, errAny any, errStr string) {
 		}
 		t.Fatalf("\nGot:<no err>\nExp: %s", errStr)
 	} else if xErr, ok := errAny.(*XRError); ok {
-		errAny = xErr.ToJSON("")
+		errAny = xErr.ToJSON()
 	}
 
 	if errStr == "" {
@@ -219,7 +227,7 @@ func XCheckErrFold(t *testing.T, errAny any, errStr string) {
 		}
 		t.Fatalf("\nGot:<no err>\nExp: %s", errStr)
 	} else if xErr, ok := errAny.(*XRError); ok {
-		errAny = xErr.ToJSON("")
+		errAny = xErr.ToJSON()
 	}
 
 	if errStr == "" {

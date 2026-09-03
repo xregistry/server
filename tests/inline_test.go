@@ -371,6 +371,7 @@ func TestInlineBasic(t *testing.T) {
   "args": {
     "name": "xxx"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -385,6 +386,7 @@ func TestInlineBasic(t *testing.T) {
   "args": {
     "name": "Dirs"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -399,6 +401,7 @@ func TestInlineBasic(t *testing.T) {
   "args": {
     "name": "xxx.files"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -413,6 +416,7 @@ func TestInlineBasic(t *testing.T) {
   "args": {
     "name": "dirs.xxx"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -437,6 +441,7 @@ func TestInlineBasic(t *testing.T) {
   "args": {
     "name": "dirs"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -461,6 +466,7 @@ func TestInlineBasic(t *testing.T) {
   "args": {
     "name": "files.versions.xxx"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -501,6 +507,7 @@ func TestInlineBasic(t *testing.T) {
   "args": {
     "name": "dirs2.files.xxx"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -914,6 +921,7 @@ func TestInlineResource(t *testing.T) {
   "args": {
     "name": "dirs.files.XXversions.file"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -928,6 +936,7 @@ func TestInlineResource(t *testing.T) {
   "args": {
     "name": "dirs.files.yy"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -942,6 +951,7 @@ func TestInlineResource(t *testing.T) {
   "args": {
     "name": "dirs.files.version.yy"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `,
@@ -1556,6 +1566,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \".\" in \".*\" at pos 1",
     "value": ".*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1566,6 +1577,7 @@ func TestInlineWildcards(t *testing.T) {
   "args": {
     "name": "foo.*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `)
@@ -1577,6 +1589,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"foo*\"",
     "value": "foo*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1589,6 +1602,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.bad*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1599,6 +1613,7 @@ func TestInlineWildcards(t *testing.T) {
   "args": {
     "name": "dirs.bad.*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `)
@@ -1611,6 +1626,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.bad*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1621,6 +1637,7 @@ func TestInlineWildcards(t *testing.T) {
   "args": {
     "name": "dirs.files.bad.*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `)
@@ -1632,6 +1649,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"file*\"",
     "value": "dirs.files.file*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1642,6 +1660,7 @@ func TestInlineWildcards(t *testing.T) {
   "args": {
     "name": "dirs.files.file.*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `)
@@ -1654,6 +1673,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"meta*\"",
     "value": "dirs.files.meta*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1664,6 +1684,7 @@ func TestInlineWildcards(t *testing.T) {
   "args": {
     "name": "dirs.files.meta.*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `)
@@ -1676,6 +1697,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.versions.bad*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1687,6 +1709,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"file*\"",
     "value": "dirs.files.versions.file*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1697,6 +1720,7 @@ func TestInlineWildcards(t *testing.T) {
   "args": {
     "name": "dirs.files.versions.file.*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `)
@@ -1708,6 +1732,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.versions.file.bad*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1719,6 +1744,7 @@ func TestInlineWildcards(t *testing.T) {
   "args": {
     "name": "model.*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `)
@@ -1730,6 +1756,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "model.bad*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1740,6 +1767,7 @@ func TestInlineWildcards(t *testing.T) {
   "args": {
     "name": "capabilities.*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:162"
 }
 `)
@@ -1751,6 +1779,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "capabilities.bad*"
   },
+  "instance": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)

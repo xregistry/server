@@ -15,15 +15,15 @@ import (
 )
 
 type XRError struct {
-	Type     string
-	Code     int // HTTP response code
-	Title    string
-	Args     map[string]string
-	Subject  string
-	Detail   string
-	Instance string
-	Source   string
-	Headers  map[string]string // HTTP headers to include in response
+	Type     string            `json:"type,omitempty"`
+	Code     int               `json:"code,omitempty"` // HTTP response code
+	Title    string            `json:"title,omitempty"`
+	Args     map[string]string `json:"args,omitempty"`
+	Subject  string            `json:"subject,omitempty"`
+	Detail   string            `json:"detail,omitempty"`
+	Instance string            `json:"instance,omitempty"`
+	Source   string            `json:"source,omitempty"`
+	Headers  map[string]string `json:"-"` // HTTP response headers - internal
 }
 
 func NewXRError(daType string, subject string, args ...string) *XRError {
@@ -498,7 +498,7 @@ func (xErr *XRError) String() string {
 	return xErr.GetTitle()
 }
 
-func (xErr *XRError) ToJSON(baseURL string) string {
+func (xErr *XRError) ToJSON() string {
 	type userErr struct {
 		Type     string            `json:"type,omitempty"`
 		Title    string            `json:"title,omitempty"`
@@ -519,7 +519,6 @@ func (xErr *XRError) ToJSON(baseURL string) string {
 				sub = "/" + sub
 		*/
 	}
-	// sub = strings.TrimRight(baseURL, "/") + sub
 
 	tmpErr := userErr{
 		Type:     xErr.Type,
