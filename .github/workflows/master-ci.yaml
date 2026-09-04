@@ -85,11 +85,13 @@ jobs:
 
       - name: Send regen event to xregistry.io and hub.xregsitry.io repos
         run: |
-          curl -X POST -d '{"event_type": "server_updated"}' \
+          curl -X POST -f -d '{"event_type": "server_updated"}' \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
             https://api.github.com/repos/xregistry/xregistry.io/dispatches
-          curl -X POST -d '{"event_type": "server_updated"}' \
+          echo "sent to xregistry.io"
+          curl -X POST -f -d '{"event_type": "server_updated"}' \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
             https://api.github.com/repos/xregistry/hub.xregistry.io/dispatches
+          echo "sent to hub.xregistry.io"
