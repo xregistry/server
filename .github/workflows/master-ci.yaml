@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   fossa:
+    if: github.repository == 'xregistry/server'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -23,6 +24,7 @@ jobs:
           team: xRegistry
 
   build_test_push:
+    if: github.repository == 'xregistry/server'
     runs-on: ubuntu-latest
 
     steps:
@@ -66,7 +68,7 @@ jobs:
           replacesArtifacts: true
 
       - name: restart soaphub instance
-        if: ${{ env.SOAPHUB_SSH_KEY }}
+        if: env.SOAPHUB_SSH_KEY != ''
         env:
           SOAPHUB_SSH_KEY: ${{ secrets.SOAPHUB_SSH_KEY }}
         # Setup each host such that the SSH KEY can only run one command.

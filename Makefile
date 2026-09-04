@@ -94,15 +94,15 @@ ifndef TEST
 	@touch .qtest
 endif
 
-ftest: .fulltest
-.fulltest: .sharedfiles .cmds */*test.go .qtest
+ftest: .ftest
+.ftest: .sharedfiles .cmds */*test.go .qtest
 	@echo "# Run tests w/o deleting the Registry after each one"
 	@go clean -testcache
 	@echo NO_DELETE_REGISTRY=1 go test -failfast $(TESTDIRS)
 	@$(TIMEIT) NO_DELETE_REGISTRY=1 $(GO_TEST) $(TESTDIRS) $(SED)
-	@touch .fulltest
+	@touch .ftest
 
-test: .qtest .fulltest .errors .xrlint .testimages
+test: .qtest .ftest .errors .xrlint .testimages
 
 benchmark:
 	@rm -f .ftest
@@ -234,13 +234,13 @@ push: .push
 	docker tag $(XR_IMAGE) $(XR_IMAGE):$(TAG)
 	docker tag $(XRSERVER_IMAGE) $(XRSERVER_IMAGE):$(TAG)
 	docker tag $(XRSERVER_IMAGE)-all $(XRSERVER_IMAGE)-all:$(TAG)
-	docker push $(XR_IMAGE):$(TAG)
-	docker push $(XRSERVER_IMAGE):$(TAG)
-	docker push $(XRSERVER_IMAGE)-all:$(TAG)
+	docker push -q $(XR_IMAGE):$(TAG)
+	docker push -q $(XRSERVER_IMAGE):$(TAG)
+	docker push -q $(XRSERVER_IMAGE)-all:$(TAG)
 	@echo "Now push 'latest' - not sure we actually need to do this"
-	docker push $(XR_IMAGE)
-	docker push $(XRSERVER_IMAGE)
-	docker push $(XRSERVER_IMAGE)-all
+	docker push -q $(XR_IMAGE)
+	docker push -q $(XRSERVER_IMAGE)
+	docker push -q $(XRSERVER_IMAGE)-all
 	@touch .push
 
 start: mysql cmds waitformysql
@@ -357,7 +357,7 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .sharedfiles .errors .xrlint .utest .qtest .fulltest \
+	@rm -f .sharedfiles .errors .xrlint .utest .qtest .ftest \
 		.testimages .devimage .images .push \
 		.xr-all .xrserver-all
 	@go clean -cache -testcache
