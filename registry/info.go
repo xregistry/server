@@ -187,7 +187,7 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 	for _, inline := range info.Inlines {
 		iPP := inline.PP
 		if log.IsFuncVerbose() {
-			log.Printf("Inline cmp: %q in %q",
+			log.Printf("tx: %s Inline cmp: %q in %q", info.uuid,
 				ePP.DB(), inline.PP.DB())
 		}
 
@@ -207,7 +207,7 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 			// (iPP.Len() > 1 && iPP.Bottom() == "*" && ePP.HasPrefix(iPP.RemoveLast())) {
 
 			if log.IsFuncVerbose() {
-				log.Printf("   match: %q in %q",
+				log.Printf("tx: %s match: %q in %q", info.uuid,
 					ePP.DB(), inline.PP.DB())
 			}
 			return true
@@ -372,7 +372,10 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	}
 
 	if log.IsFuncVerbose() {
-		defer func() { log.Printf("Info:\n%s\n", ToJSON(info)) }()
+		defer func() {
+			log.Printf("tx: %s Info:\n%s",
+				info.uuid, ToJSON(info))
+		}()
 	}
 
 	xErr = info.ProcessCapabilitiesModelSource()
@@ -412,7 +415,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	info.OriginalBaseURL = root
 
 	if log.IsFuncVerbose() {
-		log.Printf("Info: %s", ToJSON(info))
+		log.Printf("tx: %s Info: %s", info.uuid, ToJSON(info))
 	}
 
 	return info, nil
@@ -653,8 +656,8 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 
 func (info *RequestInfo) ParseRequestURL() *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("ParseRequestURL:\n%s", ToJSON(info))
-		log.Printf("Req: %#v", info.OriginalRequest.URL)
+		log.Printf("tx: %s ParseRequestURL:\n%s", info.uuid, ToJSON(info))
+		log.Printf("tx: %s Req: %#v", info.uuid, info.OriginalRequest.URL)
 	}
 
 	// Notice boolean flags end up with "" as a value.
@@ -825,7 +828,7 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 
 func (info *RequestInfo) ParseRequestPath() *XRError {
 	// Now process the URL path
-	log.VPrintf(4, "ParseRequestPath: %q", info.OriginalPath)
+	log.FuncPrintf("tx: %s ParseRequestPath: %q", info.uuid, info.OriginalPath)
 
 	path := strings.Trim(info.OriginalPath, " /")
 	info.Parts = strings.Split(path, "/")

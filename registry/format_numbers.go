@@ -78,14 +78,15 @@ func GetVersionSum(ver *Version) (int, bool, string, *XRError) {
 }
 
 func (ft FormatNumbers) IsValid(ver *Version) (bool, string, *XRError) {
-	defer log.Trace(ver.UID)()
+	defer log.Trace("tx: %s %s", ver.tx.uuid, ver.UID)()
 
 	_, checked, reason, xErr := GetVersionSum(ver)
 	return checked, reason, xErr
 }
 
 func (ft FormatNumbers) IsCompatible(direction string, oldVer, newVer *Version) (bool, string, *XRError) {
-	defer log.Trace("old:%s,new:%s", oldVer.UID, newVer.UID)()
+	defer log.Trace("tx: %s old:%s,new:%s", oldVer.tx.uuid,
+		oldVer.UID, newVer.UID)()
 
 	if direction == "forward" {
 		oldVer, newVer = newVer, oldVer

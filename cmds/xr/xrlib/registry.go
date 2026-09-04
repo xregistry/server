@@ -38,6 +38,11 @@ type CollectionDefined struct {
 */
 
 type EntityExtensions struct {
+	tx *Tx
+}
+
+type Tx struct {
+	uuid string // not used by the cli but some logging looks for it
 }
 
 var Registries = map[string]*Registry{}

@@ -115,8 +115,8 @@ TODOs:
 ** add support for smart sub-set filters in COLLECTIONurls
 - clean-up design of model save/apply
 - make sure we support ?ignore  w/o value (or "*") to mean all possible
-** in dlog, sync the write to the output
+** in dlog, sync the write to the output (see misc test file for why)
 -- make sure conflicting ifvalue attrs are detected, model define time and runtime
 -- add charset to content-type in responses
 - xrserver --downloadUI
-** add tx.uuid to logging output
+** change --set (for config setting) to something else so xr can use it too

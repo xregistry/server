@@ -52,7 +52,7 @@ func (v *Version) JustDelete() *XRError {
 }
 
 func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
-	defer log.Trace("%s, %s", v.UID, nextVersionID)()
+	defer log.Trace("tx: %s %s, %s", v.tx.uuid, v.UID, nextVersionID)()
 
 	if v.Resource.IsXref() {
 		return NewXRError("bad_request", v.XID,
