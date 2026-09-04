@@ -77,21 +77,25 @@ jobs:
 
       - name: Send regen event to api.xreg.io repo
         run: |
-          curl -X POST \
+          curl -f -X POST \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
           https://api.github.com/repos/xregistry/api.xregistry.io/dispatches \
           -d '{"event_type": "server_updated"}'
 
-      - name: Send regen event to xregistry.io and hub.xregsitry.io repos
+      - name: Send regen event to hub.xreg.io repo
         run: |
-          curl -X POST -f -d '{"event_type": "server_updated"}' \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
-            https://api.github.com/repos/xregistry/xregistry.io/dispatches
-          echo "sent to xregistry.io"
-          curl -X POST -f -d '{"event_type": "server_updated"}' \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
-            https://api.github.com/repos/xregistry/hub.xregistry.io/dispatches
-          echo "sent to hub.xregistry.io"
+          curl -f -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
+          https://api.github.com/repos/xregistry/hub.xregistry.io/dispatches \
+          -d '{"event_type": "server_updated"}'
+
+      - name: Send regen event to xreg.io repo
+        run: |
+          curl -f -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.XREGIO_PAT }}" \
+          https://api.github.com/repos/xregistry/xregistry.io/dispatches \
+          -d '{"event_type": "server_updated"}'
+
