@@ -120,7 +120,7 @@ func TestRegistryRoot(td *TD) {
 	reg.SetStuff("self", MustString(res.JSON["self"]))
 
 	_, xErr := reg.GetCapabilities()
-	Error(xErr)
+	td.NoErrorStop(xErr, "Retrieving capabilities MUST work")
 
 	if reg.Capabilities == nil {
 		td.Skip("\"shortself\" - Capabilities not available")
@@ -230,7 +230,7 @@ func TestResources(td *TD) {
 	}
 	gm, ok := gmAny.(*xrlib.GroupModel)
 	if !ok {
-		Error("reg.stuff.gm != *GroupModel")
+		td.FailNow("reg.stuff.gm != *GroupModel")
 	}
 	gxid := reg.GetStuffAsString("gxid")
 

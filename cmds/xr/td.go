@@ -163,7 +163,7 @@ func (td *TD) Print(out io.Writer, indent string, showLogs bool, depth int) {
 		td.write(out, indent, showLogs, depth)
 	}
 
-	fmt.Printf(indent+"Pass: %d   Fail: %d   Warn: %d   Skip: %d\n",
+	fmt.Fprintf(out, indent+"Pass: %d   Fail: %d   Warn: %d   Skip: %d\n",
 		td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
 }
 

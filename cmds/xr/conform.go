@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -13,6 +14,15 @@ var depth = 2
 
 var ShowLogs = false // EnvBool("XR_SHOWLOGS", false)
 
+type conformOptions struct {
+	depth    int
+	showLogs bool
+	debug    bool
+	failFast bool
+	runFunc  string
+	wrapAt   int
+}
+
 func conformFunc(cmd *cobra.Command, args []string) {
 	servers := []string{}
 
@@ -22,45 +32,70 @@ func conformFunc(cmd *cobra.Command, args []string) {
 		servers = []string{GetServer()}
 	}
 
-	FailFast, _ = cmd.Flags().GetBool("failfast")
-	NoWrap, _ := cmd.Flags().GetBool("nowrap")
-	if NoWrap {
-		WrapAt = 0
+	failFast, _ := cmd.Flags().GetBool("failfast")
+	noWrap, _ := cmd.Flags().GetBool("nowrap")
+	runFunc, _ := cmd.Flags().GetString("run")
+
+	options := conformOptions{
+		depth:    depth,
+		showLogs: ShowLogs,
+		debug:    tdDebug,
+		failFast: failFast,
+		runFunc:  runFunc,
+		wrapAt:   WrapAt,
+	}
+	if noWrap {
+		options.wrapAt = 0
 	}
 
-	rc := 0
-	for i, server := range servers {
-		TDClear()
-		if i != 0 {
-			fmt.Printf("\n")
-		}
-		rc = rc + conformServer(cmd, server)
-	}
+	rc := runConform(servers, os.Stdout, options)
 	if rc != 0 {
 		os.Exit(rc)
 	}
 }
 
-func conformServer(cmd *cobra.Command, server string) int {
+func runConform(servers []string, out io.Writer, options conformOptions) int {
+	oldFailFast := FailFast
+	oldWrapAt := WrapAt
+	oldTDDebug := tdDebug
+	defer func() {
+		TDClear()
+		FailFast = oldFailFast
+		WrapAt = oldWrapAt
+		tdDebug = oldTDDebug
+	}()
+
+	rc := 0
+	for i, server := range servers {
+		TDClear()
+		FailFast = options.failFast
+		WrapAt = options.wrapAt
+		tdDebug = options.debug
+
+		if i != 0 {
+			fmt.Fprintln(out)
+		}
+		rc = rc + conformServer(server, out, options)
+	}
+
+	return rc
+}
+
+func conformServer(server string, out io.Writer, options conformOptions) int {
 	td := NewTD(nil, server)
 
 	defer func() {
 		// Print the results
 		// td.Dump("")
-		if depth <= 0 {
+		printDepth := options.depth
+		if printDepth <= 0 {
 			// Can't actually do zero, so zero = -1 (all)
-			depth = 9999999
+			printDepth = 9999999
 		}
-		td.Print(os.Stdout, "", ShowLogs, depth-1)
+		td.Print(out, "", options.showLogs, printDepth-1)
 	}()
 
-	reg, xErr := xrlib.GetRegistry(server)
-	if xErr != nil {
-		td.Fail(xErr.GetTitle())
-		return td.ExitCode()
-	}
-
-	td.SetRegistry(reg)
+	td.SetRegistry(xrlib.DefineRegistry(server))
 
 	/*
 		if ConfigFile != "" {
@@ -68,8 +103,7 @@ func conformServer(cmd *cobra.Command, server string) int {
 		}
 	*/
 
-	runFunc, _ := cmd.Flags().GetString("run")
-	if runFunc == "" {
+	if options.runFunc == "" {
 		td.Include(TestRegistry)
 	} else {
 		funcs := map[string]TestFn{
@@ -78,9 +112,9 @@ func conformServer(cmd *cobra.Command, server string) int {
 			"TestTDMixture": TestTDMixture,
 			"TestTDUtils":   TestTDUtils,
 		}
-		fn := funcs[runFunc]
+		fn := funcs[options.runFunc]
 		if fn == nil {
-			panic(fmt.Sprintf("No function by name: %s", runFunc))
+			panic(fmt.Sprintf("No function by name: %s", options.runFunc))
 		}
 		td.Run(fn)
 	}

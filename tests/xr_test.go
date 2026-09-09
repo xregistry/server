@@ -2321,6 +2321,7 @@ func TestXRConformBasic(t *testing.T) {
 
 	// Make sure the minimumal looks ok
 	// Also verifies the default Registry is conformant
+	// Counts are legacy TD-entry counts, not assertion counts.
 	XCLI(t, "conform", "", `PASS: http://localhost:8181
 ├─ PASS: TestSniff
 ├─ PASS: TestModel
@@ -2328,8 +2329,8 @@ func TestXRConformBasic(t *testing.T) {
 ├─ PASS: TestRegistryRoot
 ├─ PASS: TestGroups
 └─ PASS: TestResources
-Pass: 99   Fail: 0   Warn: 0   Skip: 0
-`, ``, true, MASK_CONFORM_PASS)
+Pass: 101   Fail: 0   Warn: 0   Skip: 0
+`, ``, true)
 
 	XCLI(t, "conform --run TestTDAllPass -d0", "", `PASS: http://localhost:8181
 └─ PASS: TestTDAllPass
