@@ -2286,6 +2286,38 @@ header.bar2: foo2`
 }
 2026/05/19 18:01:50 --------------------
 `, true, MASK_LOGS)
+
+	// Test that --cset works too by adding another header
+	XCLI(t, "get -vv --cset header.bar3=33 --cset header.bar2=22", "", `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConfig",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+}
+`, `2026/05/19 18:01:50 Request: GET http://localhost:8181/
+2026/05/19 18:01:50 Header: bar2: 22
+2026/05/19 18:01:50 Header: bar3: 33
+2026/05/19 18:01:50 Header: foo: bar
+2026/05/19 18:01:50 Body: <empty>
+2026/05/19 18:01:50 Response: 200 OK
+2026/05/19 18:01:50 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
+2026/05/19 18:01:50 access-control-allow-origin: *
+2026/05/19 18:01:50 content-type: application/json
+2026/05/19 18:01:50 Response Body:
+{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConfig",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-05-19T18:01:50.860438234Z",
+  "modifiedat": "2026-05-19T18:01:50.860438234Z"
+}
+2026/05/19 18:01:50 --------------------
+`, true, MASK_LOGS)
 }
 
 func TestXRConformBasic(t *testing.T) {

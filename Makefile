@@ -47,8 +47,6 @@ cmds: .cmds
 
 cmds-all: xr-all xrserver-all
 
-docs: docs/xr_help.md docs/xrserver_help.md
-
 errors: .errors
 .errors: misc/checkerrors common/error.go
 	@echo
@@ -158,6 +156,8 @@ registry/ui/xreg/index.html: cmds/xrserver/test-reg.json xrserver xr
 	@cd registry/ui/xreg && ../../../misc/errOutput @xr -s localhost:8181 \
 		download . --nodiff=* --all -c -u '$$HOST/ui/xreg'
 	@pkill -f xrserver.*8181
+
+docs: docs/xr_help.md docs/xrserver_help.md
 
 docs/xr_help.md docs/xrserver_help.md: xr xrserver
 	@echo
