@@ -284,6 +284,19 @@ func main() {
 			// If config FN=="" then we'll look for it in $HOME
 			fn, _ := cmd.Flags().GetString("config")
 			Error(XRConfig.Load(fn))
+
+			// Override with --cset flags
+			sets, _ := cmd.Flags().GetStringArray("cset")
+			for _, set := range sets {
+				name, value, ok := strings.Cut(set, ":")
+				if !ok {
+					// Just to be nice
+					name, value, _ = strings.Cut(set, "=")
+				}
+				XRConfig.Set(name, value)
+			}
+
+			// Load the HTTP headers, if specified
 			xrlib.HTTPHeaders = XRConfig.GetHeaders()
 
 			// Calc Server: cmdline->env->configFile->default
@@ -324,6 +337,8 @@ func main() {
 	xrCmd.CompletionOptions.HiddenDefaultCmd = true
 	xrCmd.PersistentFlags().StringP("config", "", "",
 		"Config file ($HOME/"+XRConfigFileName+")")
+	xrCmd.PersistentFlags().StringArray("cset", nil,
+		"Override configFile property: --cset NAME[:VALUE]")
 	xrCmd.PersistentFlags().StringP("server", "s", "",
 		"xRegistry server URL")
 	xrCmd.PersistentFlags().BoolVarP(&ErrJson, "errjson", "", false,

@@ -141,8 +141,8 @@ func setupCmds() *cobra.Command {
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
 	serverCmd.PersistentFlags().StringP("config", "", "",
 		"Config file ($HOME/"+ConfigFileName+")")
-	serverCmd.PersistentFlags().StringArray("set", nil,
-		"Override configFile property: --set NAME[:VALUE]")
+	serverCmd.PersistentFlags().StringArray("cset", nil,
+		"Override configFile property: --cset NAME[:VALUE]")
 	serverCmd.PersistentFlags().StringP("db", "", defDBName,
 		"DB name ("+defDBName+"*)")
 	serverCmd.Flag("db").DefValue = "" // hide default text
@@ -206,8 +206,8 @@ func setupCmds() *cobra.Command {
 		fn, _ := cmd.Flags().GetString("config")
 		ErrStop(XRServerConfig.Load(fn))
 
-		// Override with --set flags
-		sets, _ := cmd.Flags().GetStringArray("set")
+		// Override with --cset flags
+		sets, _ := cmd.Flags().GetStringArray("cset")
 		for _, set := range sets {
 			name, value, ok := strings.Cut(set, ":")
 			if !ok {

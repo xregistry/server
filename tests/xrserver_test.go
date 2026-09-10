@@ -492,12 +492,12 @@ path.regcollection: more
 	// Check: xrui.json
 	XEqual(t, "", string(res2.Body), `{"title":"testing"}`)
 
-	// Make sure --set overrides config file
+	// Make sure --cset overrides config file
 	XNoErr(t, os.Unsetenv("DBUSER"))
 	XNoErr(t, os.Unsetenv("DBPASSWORD"))
 	runRes = Run("../xrserver",
-		"--set", "db.user:root",
-		"--set", "db.password:password",
+		"--cset", "db.user:root",
+		"--cset", "db.password:password",
 		"--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()

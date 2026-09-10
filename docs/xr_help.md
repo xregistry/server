@@ -8,30 +8,35 @@ The `xr` CLI lets you interact with an xRegistry server:
 ```yaml
 xr [command]
   # Global flags:
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-      --help-all        Help for all commands
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+      --help-all           Help for all commands
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr conform [URL...]
   # xRegistry Conformance Tester
-      --config string   Config file ($HOME/.xr)
-  -d, --depth int       Console depth (default 2)
-      --errjson         Print errors as json
-      --failfast        Stop on first failure
-  -?, --help            Help for xr
-  -l, --logs            Show logs even on success
-      --nowrap          Don't wrap output
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+  -d, --depth int          Console depth (default 2)
+      --errjson            Print errors as json
+      --failfast           Stop on first failure
+  -?, --help               Help for xr
+  -l, --logs               Show logs even on success
+      --nowrap             Don't wrap output
+  -s, --server string      xRegistry server URL
+      --skips              Show SKIPs in console
+  -v, --verbose            Be chatty
+      --version            Print command version string
+      --warns              Show WARNs in console
 
 xr create XID
   # Create a new entity in the registry
       --config string        Config file ($HOME/.xr)
+      --cset stringArray     Override configFile property: --cset NAME[:VALUE]
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute: --del NAME
   -m, --details              Data is resource metadata
@@ -48,20 +53,23 @@ xr create XID
 
 xr delete XID...
   # Delete an entity from the registry
-      --config string   Config file ($HOME/.xr)
-  -d, --data string     Data(json), @FILE, @URL, @-(stdin)
-      --errjson         Print errors as json
-  -f, --force           Don't error if doesn't exist
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+  -d, --data string        Data(json), @FILE, @URL, @-(stdin)
+      --errjson            Print errors as json
+  -f, --force              Don't error if doesn't exist
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr download DIR [XID...]
   # Download entities from registry as individual files
   -a, --all                       Download all data (e.g. export, model)
   -c, --capabilities              Modify capabilities for static site
       --config string             Config file ($HOME/.xr)
+      --cset stringArray          Override configFile property: --cset
+                                  NAME[:VALUE]
       --errjson                   Print errors as json
   -?, --help                      Help for xr
       --import                    Create '/import.json' based on /export
@@ -82,6 +90,7 @@ xr download DIR [XID...]
 xr get [XID]
   # Retrieve entities from the registry
       --config string        Config file ($HOME/.xr)
+      --cset stringArray     Override configFile property: --cset NAME[:VALUE]
   -m, --details              Show resource metadata
       --doc                  Retieve document view of entities
       --errjson              Print errors as json
@@ -96,108 +105,120 @@ xr get [XID]
 
 xr import [XID]
   # Import entities into the registry
-      --config string   Config file ($HOME/.xr)
-  -d, --data string     Data(json), @FILE, @URL, @-(stdin)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+  -d, --data string        Data(json), @FILE, @URL, @-(stdin)
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model [command]
   # Manage a regsitry's model
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model get
   # Retrieve details about the registry's model
-  -a, --all             Include default attributes
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -o, --output string   Output format: table*, json
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+  -a, --all                Include default attributes
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -o, --output string      Output format: table*, json
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model group [command]
   # Model Group operations
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model group create PLURAL:SINGULAR...
   # Create a new Model Group type
-  -a, --all             Include default attributes in output
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -o, --output string   Output format: none*, table, json
-  -r, --resources       Show Resource types in output
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+  -a, --all                Include default attributes in output
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -o, --output string      Output format: none*, table, json
+  -r, --resources          Show Resource types in output
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model group delete PLURAL...
   # Delete a Model Group type
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -f, --force           Ignore a "not found" error
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -f, --force              Ignore a "not found" error
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model group get PLURAL
   # Retrieve details about a Model Group type
-  -a, --all             Include default attributes
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -o, --output string   Output format: table*, json
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+  -a, --all                Include default attributes
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -o, --output string      Output format: table*, json
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model group list
   # List the Group types defined in the model
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -o, --output string   Output format: table*, json
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -o, --output string      Output format: table*, json
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model normalize [- | FILE]
   # Parse and resolve 'includes' in an xRegistry model document
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model resource [command]
   # Model Resource operations
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model resource create PLURAL:SINGULAR...
   # Create a new Model Resource type
   -a, --all                        Include default attributes in output
       --config string              Config file ($HOME/.xr)
+      --cset stringArray           Override configFile property: --cset
+                                   NAME[:VALUE]
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -230,42 +251,47 @@ xr model resource create PLURAL:SINGULAR...
 
 xr model resource delete PLURAL...
   # Delete a Model Resource type
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -f, --force           Ignore a "not found" error
-  -g, --group string    Group type name
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -f, --force              Ignore a "not found" error
+  -g, --group string       Group type name
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model resource get PLURAL
   # Retrieve details about a Model Resource type
-  -a, --all             Include default attributes
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -g, --group string    Group type plural name
-  -?, --help            Help for xr
-  -o, --output string   Output format: table*, json
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+  -a, --all                Include default attributes
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -g, --group string       Group type plural name
+  -?, --help               Help for xr
+  -o, --output string      Output format: table*, json
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model resource list
   # List the Resource types in a Group type
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-  -g, --group string    Group type plural name
-  -?, --help            Help for xr
-  -o, --output string   Output format: table*, json
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -g, --group string       Group type plural name
+  -?, --help               Help for xr
+  -o, --output string      Output format: table*, json
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model resource update PLURAL...
   # Update a Model Resource type
   -a, --all                        Include default attributes in output
       --config string              Config file ($HOME/.xr)
+      --cset stringArray           Override configFile property: --cset
+                                   NAME[:VALUE]
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -300,6 +326,8 @@ xr model resource upsert PLURAL:SINGULAR...
   # UPdate, or inSERT as appropriate, a Model Resource type
   -a, --all                        Include default attributes in output
       --config string              Config file ($HOME/.xr)
+      --cset stringArray           Override configFile property: --cset
+                                   NAME[:VALUE]
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -331,39 +359,43 @@ xr model resource upsert PLURAL:SINGULAR...
 
 xr model update [- | FILE | -d]
   # Update the registry's model
-      --config string   Config file ($HOME/.xr)
-  -d, --data string     Data(json), @FILE, @URL, @-(stdin)
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+  -d, --data string        Data(json), @FILE, @URL, @-(stdin)
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr model verify [- | FILE...]
   # Parse and verify xRegistry model documents
-      --config string   Config file ($HOME/.xr)
-      --errjson         Print errors as json
-      --full-model      Generate full model definition
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-      --skip-target     Skip 'target' verification for 'xid' attributes
-  -v, --verbose         Be chatty
-      --version         Print command version string
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+      --full-model         Generate full model definition
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+      --skip-target        Skip 'target' verification for 'xid' attributes
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr serve DIR
   # Run an HTTP file server for a directory
-  -a, --address string   address:port of listener (0.0.0.0:8080*)
-      --config string    Config file ($HOME/.xr)
-  -c, --cors             Send CORS header with '*' value
-      --errjson          Print errors as json
-  -?, --help             Help for xr
-  -s, --server string    xRegistry server URL
-  -v, --verbose          Be chatty
-      --version          Print command version string
+  -a, --address string     address:port of listener (0.0.0.0:8080*)
+      --config string      Config file ($HOME/.xr)
+  -c, --cors               Send CORS header with '*' value
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
 
 xr update XID
   # Update an entity in the registry
       --config string        Config file ($HOME/.xr)
+      --cset stringArray     Override configFile property: --cset NAME[:VALUE]
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute
   -m, --details              Data is resource metadata
@@ -381,6 +413,7 @@ xr update XID
 xr upsert XID
   # UPdate, or inSERT as appropriate, an entity in the registry
       --config string        Config file ($HOME/.xr)
+      --cset stringArray     Override configFile property: --cset NAME[:VALUE]
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute
   -m, --details              Data is resource metadata

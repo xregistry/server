@@ -52,14 +52,12 @@ func addDownloadCmd(parent *cobra.Command) {
 		Annotations: map[string]string{
 			"usage": `
 Notes:
+  - Primary use case: download the files for use in a static file/web server.
   - XID may also include the following:
     /capabilities /capabilitiesoffered /export /model /modelsource (or --all)
-  - The primary use case is to download the files for use in a static file/web
-     server. This is why the --index flag defaults to "index.html".
-  - Use --min to minimize the number of files created by removing xRegistry
-    static data and removing duplicate information. Primary use case is for
-    storing the files in a repository for manual edits. The default --index
-    value will be changed from "index.html" to "document".`,
+  - Use --min to minimize the files created by removing static/duplicate info.
+    Primary use case: storing files in a repository for manual edits. Default
+    --index changed from "index.html" to "document".`,
 		},
 	}
 
