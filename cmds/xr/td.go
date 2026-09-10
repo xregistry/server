@@ -30,6 +30,8 @@ var WrapAt = 79
 var TestsRun = map[string]*TD{}
 var nextStatus = 0
 var tdDebug = false
+var ShowSkips = false
+var ShowWarns = false
 
 type TestFn func(td *TD)
 
@@ -41,27 +43,6 @@ func init() {
 			WrapAt = w - 1
 		}
 	}
-}
-
-func TDClear() {
-	TestsRun = map[string]*TD{}
-	nextStatus = 0
-}
-
-func (fn TestFn) Name() string {
-	name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
-	before, name, _ := strings.Cut(name, ".")
-	if name == "" {
-		name = before
-	}
-	return name
-}
-
-type LogEntry struct {
-	Date    time.Time
-	Type    int // pass, fail, warning, skip, else log or TD
-	Text    string
-	Subtest *TD
 }
 
 // TestData
@@ -79,9 +60,31 @@ type TD struct {
 	NumSkip int
 }
 
+type LogEntry struct {
+	Date    time.Time
+	Type    int // pass, fail, warning, skip, else log or TD
+	Text    string
+	Subtest *TD
+}
+
+func TDClear() {
+	TestsRun = map[string]*TD{}
+	nextStatus = 0
+}
+
+func (fn TestFn) Name() string {
+	name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+	before, name, _ := strings.Cut(name, ".")
+	if name == "" {
+		name = before
+	}
+	return name
+}
+
+// "args" is an sprintf set of args - e.g. ["foo %d", 5] to allow for
+// dynamic naming of the new TD
 func NewTD(parent *TD, args ...any) *TD {
 	name := ""
-	// p := (*TD)(nil)
 
 	if len(args) > 0 {
 		if f, ok := args[0].(string); !ok {
@@ -91,22 +94,9 @@ func NewTD(parent *TD, args ...any) *TD {
 		}
 	}
 
-	return oldNewTD(name, parent)
-}
-
-func oldNewTD(name string, parents ...*TD) *TD {
-	p := (*TD)(nil)
-
-	if len(parents) > 0 {
-		if len(parents) > 1 {
-			panic("too many parents")
-		}
-		p = parents[0]
-	}
-
 	newTD := &TD{
 		TestName: name,
-		Parent:   p,
+		Parent:   parent,
 		Logs:     []*LogEntry{},
 
 		Status:  PASS,
@@ -114,17 +104,17 @@ func oldNewTD(name string, parents ...*TD) *TD {
 		NumPass: 1,
 	}
 
-	if p != nil {
+	if parent != nil {
 		newLE := &LogEntry{
 			Date:    time.Now(),
 			Type:    0,
 			Text:    "",
 			Subtest: newTD,
 		}
-		p.Logs = append(p.Logs, newLE)
-		p.AddStatus(PASS)
+		parent.Logs = append(parent.Logs, newLE)
+		parent.AddStatus(PASS)
 
-		newTD.Props = p.Props
+		newTD.Props = parent.Props
 	}
 
 	return newTD
@@ -159,7 +149,9 @@ func (td *TD) Dump(indent string) {
 }
 
 func (td *TD) Print(out io.Writer, indent string, showLogs bool, depth int) {
-	if depth >= 0 || td.Status == FAIL {
+	goDeep := depth >= 0 || td.Status == FAIL ||
+		(ShowWarns && td.NumWarn > 0) || (ShowSkips && td.NumSkip > 0)
+	if goDeep {
 		td.write(out, indent, showLogs, depth)
 	}
 
@@ -178,14 +170,18 @@ func Debug(out io.Writer, fmtStr string, args ...any) {
 }
 
 func (td *TD) write(out io.Writer, indent string, showLogs bool, depth int) {
-	if depth >= 0 || td.Status == FAIL {
+	goDeep := depth >= 0 || td.Status == FAIL ||
+		(ShowWarns && td.NumWarn > 0) || (ShowSkips && td.NumSkip > 0)
+	if goDeep {
 		td.writeHeader(out, indent, showLogs, depth)
 		td.writeBody(out, indent, showLogs, depth-1)
 	}
 }
 
 func (td *TD) writeHeader(out io.Writer, indent string, showLogs bool, depth int) {
-	if depth >= 0 || td.Status == FAIL {
+	goDeep := depth >= 0 || td.Status == FAIL ||
+		(ShowWarns && td.NumWarn > 0) || (ShowSkips && td.NumSkip > 0)
+	if goDeep {
 		str := indent + StatusText[td.Status] + ": "
 
 		str += td.TestName
@@ -215,7 +211,10 @@ func (td *TD) writeHeader(out io.Writer, indent string, showLogs bool, depth int
 }
 
 func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) {
-	if depth < 0 && td.Status != FAIL {
+	goDeep := depth >= 0 || td.Status == FAIL ||
+		(ShowWarns && td.NumWarn > 0) || (ShowSkips && td.NumSkip > 0)
+
+	if !goDeep {
 		return
 	}
 	saveIndent := indent
@@ -858,7 +857,25 @@ func (td *TD) GetProp(key string) any {
 	return td.Props[key]
 }
 
-func (td *TD) Set(key string, val any) *TD {
+func (td *TD) GetPropAsBool(key string) bool {
+	val := td.GetProp(key)
+	return val == true
+}
+
+func (td *TD) GetPropAsInt(key string) int {
+	val := td.GetProp(key)
+	if IsNil(val) {
+		return -1
+	}
+
+	i, ok := val.(int)
+	if !ok {
+		panic(fmt.Sprintf("td.Prop %q must be an int, not a %T", key, val))
+	}
+	return i
+}
+
+func (td *TD) SetProp(key string, val any) *TD {
 	if td.Props == nil {
 		td.Props = map[string]any{}
 	}
@@ -875,7 +892,7 @@ func (td *TD) GetRegistry() *xrlib.Registry {
 }
 
 func (td *TD) SetRegistry(r *xrlib.Registry) *TD {
-	return td.Set("xreg", r)
+	return td.SetProp("xreg", r)
 }
 
 func (td *TD) GetModel() *xrlib.Model {
@@ -887,7 +904,7 @@ func (td *TD) GetModel() *xrlib.Model {
 }
 
 func (td *TD) SetModel(m *xrlib.Model) *TD {
-	return td.Set("model", m)
+	return td.SetProp("model", m)
 }
 
 func (td *TD) GetCapabilities() *Capabilities {
@@ -899,7 +916,7 @@ func (td *TD) GetCapabilities() *Capabilities {
 }
 
 func (td *TD) SetCapabilities(c *Capabilities) *TD {
-	return td.Set("capabilities", c)
+	return td.SetProp("capabilities", c)
 }
 
 var TD_OPTIONAL = "optional" // MAY be present

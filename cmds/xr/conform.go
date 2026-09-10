@@ -23,6 +23,8 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	}
 
 	FailFast, _ = cmd.Flags().GetBool("failfast")
+	ShowWarns, _ = cmd.Flags().GetBool("warns")
+	ShowSkips, _ = cmd.Flags().GetBool("skips")
 	NoWrap, _ := cmd.Flags().GetBool("nowrap")
 	if NoWrap {
 		WrapAt = 0
@@ -100,6 +102,8 @@ func addConformCmd(parent *cobra.Command) {
 		"Show logs even on success")
 	conformCmd.Flags().IntVarP(&depth, "depth", "d", depth, "Console depth")
 	conformCmd.Flags().BoolVarP(&tdDebug, "tdDebug", "t", tdDebug, "td debug")
+	conformCmd.Flags().Bool("warns", false, "Show WARNs in console")
+	conformCmd.Flags().Bool("skips", false, "Show SKIPs in console")
 	conformCmd.Flags().Bool("failfast", false, "Stop on first failure")
 	conformCmd.Flags().StringP("run", "r", "", "Run function")
 	conformCmd.Flags().BoolP("nowrap", "", false, "Don't wrap output")
