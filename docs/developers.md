@@ -19,6 +19,11 @@ welcome from anyone.
 
 ### Testing
 
+- To run a subset of tests use: `TEST=xxx make qtest`
+  where "xxx" is a regular expression for the test name. For example,
+  `TEST=TestXR make qtest` will run just the tests that start with `TestXR`.
+  Try to keep name all of the tests in a test_xxx.go file with the same prefix
+  so you can easily run all tests in that file by specifying their prefix.
 - Tests should check the expected output byte-for-byte. We want to make sure
   that every character (even spaces) are exactly as we expect. So, avoid
   expected outputs of `"*"` and regular expressions (ie. ones that start with
