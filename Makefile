@@ -1,4 +1,4 @@
-all: mysql cmds docs test images xreg run
+all: mysql cmds docs test xreg images run
 
 MAKEFLAGS  += --no-print-directory
 SHELL      := /bin/bash -o pipefail

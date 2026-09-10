@@ -172,14 +172,20 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	}
 	traverseQueue = make(chan bool, maxThreads)
 
-	noDiffObj := func(obj map[string]any) {}
-	noDiffObj = func(obj map[string]any) {
-		if !cmd.Flags().Changed("nodiff") || len(obj) == 0 {
+	// noDiffObj operates on an already canonically-reordered *OrderedMap
+	// (see xrlib.CanonicalPrettyReorderTree()) instead of a plain
+	// map[string]any, so it must read/write/delete via
+	// Get()/Set()/Delete() (order-preserving) rather than native map
+	// operators, and recurse into nested *OrderedMap values instead of
+	// map[string]any ones.
+	noDiffObj := func(obj *OrderedMap) {}
+	noDiffObj = func(obj *OrderedMap) {
+		if !cmd.Flags().Changed("nodiff") || obj == nil || obj.RealKeyCount() == 0 {
 			return
 		}
 
-		if xidAny, ok := obj["xid"]; ok {
-			xidStr, ok := xidAny.(string)
+		if obj.Has("xid") {
+			xidStr, ok := obj.Get("xid").(string)
 			if !ok {
 				return
 			}
@@ -190,17 +196,17 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				Error(err)
 			}
 
-			delete(obj, "shortself") // needs live server
+			obj.Delete("shortself") // needs live server
 
 			if host != "" {
 				self := host + xid.String()[1:]
-				selfAny := obj["self"]
-				if _, ok := selfAny.(string); ok && selfAny.(string)[0] != '#' {
-					obj["self"] = self
+				if selfStr, ok := obj.Get("self").(string); ok && selfStr[0] != '#' {
+					obj.Set("self", self)
 				}
 
 				// Process nested collection URLs
-				for k, v := range obj {
+				for _, k := range append([]string{}, obj.Keys...) {
+					v := obj.Get(k)
 					// Only tweak *url fields that are: string, not relative
 					vStr, ok := v.(string)
 					if !ok || !strings.HasSuffix(k, "url") || vStr[0] == '#' {
@@ -208,18 +214,18 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 					}
 
 					base := k[:len(k)-3]
-					if _, ok := obj[base+"count"]; ok {
+					if obj.Has(base + "count") {
 						tmp := host + xid.String()[1:]
 						if tmp[len(tmp)-1] != '/' {
 							tmp += "/"
 						}
-						obj[k] = tmp + base
+						obj.Set(k, tmp+base)
 					} else if base == "meta" {
-						obj[k] = host + xid.String()[1:] + "/" + base
+						obj.Set(k, host+xid.String()[1:]+"/"+base)
 					} else if base == "defaultversion" {
-						verID := obj["defaultversionid"].(string)
+						verID := obj.Get("defaultversionid").(string)
 						// Remove "/meta" from self
-						obj[k] = self[:len(self)-5] + "/versions/" + verID
+						obj.Set(k, self[:len(self)-5]+"/versions/"+verID)
 					}
 				}
 			}
@@ -228,26 +234,26 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			allNoDiff := ArrayContains(noDiff, "*")
 
 			if allNoDiff || ArrayContains(noDiff, "epoch") {
-				if _, ok := obj["epoch"]; ok {
-					obj["epoch"] = 1
+				if obj.Has("epoch") {
+					obj.Set("epoch", 1)
 				}
 			}
 			if allNoDiff || ArrayContains(noDiff, "createdat") {
-				if _, ok := obj["createdat"]; ok {
-					obj["createdat"] = `2000-01-01T12:00:00.00Z`
+				if obj.Has("createdat") {
+					obj.Set("createdat", `2000-01-01T12:00:00.00Z`)
 				}
 			}
 			// Must come after "createdat" processing
 			if allNoDiff || ArrayContains(noDiff, "modifiedat") {
-				if _, ok := obj["modifiedat"]; ok {
-					obj["modifiedat"] = obj["createdat"]
+				if obj.Has("modifiedat") {
+					obj.Set("modifiedat", obj.Get("createdat"))
 				}
 			}
 		}
 
 		// Recurse for nested collections
-		for _, v := range obj {
-			if v1, ok := v.(map[string]any); ok {
+		for _, k := range obj.Keys {
+			if v1, ok := obj.Get(k).(*OrderedMap); ok {
 				noDiffObj(v1)
 			}
 		}
@@ -280,19 +286,17 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// makeImportObj also now operates on an already canonically-reordered
+	// *OrderedMap (see comment on noDiffObj above) rather than
+	// map[string]any.
 	makeImportObj := func(objAny any, minimal bool) {}
 	makeImportObj = func(objAny any, minimal bool) {
-		obj, ok := objAny.(map[string]any)
-		if !ok || len(obj) == 0 {
+		obj, ok := objAny.(*OrderedMap)
+		if !ok || obj == nil || obj.RealKeyCount() == 0 {
 			return
 		}
 
-		xidAny, ok := obj["xid"]
-		if !ok {
-			return
-		}
-
-		xidStr, ok := xidAny.(string)
+		xidStr, ok := obj.Get("xid").(string)
 		if !ok {
 			return
 		}
@@ -304,37 +308,37 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		}
 
 		// For all entities
-		delete(obj, "self")
-		delete(obj, "shortself")
-		delete(obj, "xid")
-		delete(obj, "epoch")
+		obj.Delete("self")
+		obj.Delete("shortself")
+		obj.Delete("xid")
+		obj.Delete("epoch")
 
 		if minimal {
-			delete(obj, "createdat")
-			delete(obj, "modifiedat")
+			obj.Delete("createdat")
+			obj.Delete("modifiedat")
 		}
 
 		switch xid.Type {
 		case ENTITY_REGISTRY:
-			delete(obj, "registryid")
+			obj.Delete("registryid")
 
 			if minimal {
-				delete(obj, "specversion")
+				obj.Delete("specversion")
 			}
 
 			for _, gm := range reg.Model.Groups {
-				delete(obj, gm.Plural+"url")
-				delete(obj, gm.Plural+"count")
+				obj.Delete(gm.Plural + "url")
+				obj.Delete(gm.Plural + "count")
 			}
 
 		case ENTITY_GROUP:
 			gm := reg.Model.Groups[xid.Group]
 
-			delete(obj, gm.Singular+"id")
+			obj.Delete(gm.Singular + "id")
 
 			for _, rm := range gm.Resources {
-				delete(obj, rm.Plural+"url")
-				delete(obj, rm.Plural+"count")
+				obj.Delete(rm.Plural + "url")
+				obj.Delete(rm.Plural + "count")
 			}
 
 		case ENTITY_RESOURCE:
@@ -342,16 +346,16 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			rm := gm.Resources[xid.Resource]
 
 			if rm.GetMaxVersions() == 1 {
-				delete(obj, rm.Singular+"id")
-				delete(obj, "versionid")
-				delete(obj, "ancestorid")
-				delete(obj, "isdefault")
-				delete(obj, "metaurl")
-				delete(obj, "versionscount")
-				delete(obj, "versionsurl")
+				obj.Delete(rm.Singular + "id")
+				obj.Delete("versionid")
+				obj.Delete("ancestorid")
+				obj.Delete("isdefault")
+				obj.Delete("metaurl")
+				obj.Delete("versionscount")
+				obj.Delete("versionsurl")
 			} else {
-				for attr, _ := range obj {
-					delete(obj, attr)
+				for _, attr := range append([]string{}, obj.Keys...) {
+					obj.Delete(attr)
 				}
 			}
 
@@ -359,15 +363,15 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			gm := reg.Model.Groups[xid.Group]
 			rm := gm.Resources[xid.Resource]
 
-			delete(obj, rm.Singular+"id")
-			delete(obj, "defaultversionurl")
+			obj.Delete(rm.Singular + "id")
+			obj.Delete("defaultversionurl")
 
 			if minimal {
-				if obj["readonly"] == false {
-					delete(obj, "readonly")
+				if obj.Get("readonly") == false {
+					obj.Delete("readonly")
 				}
-				if obj["defaultversionsticky"] == false {
-					delete(obj, "defaultversionsticky")
+				if obj.Get("defaultversionsticky") == false {
+					obj.Delete("defaultversionsticky")
 				}
 			}
 
@@ -375,9 +379,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			gm := reg.Model.Groups[xid.Group]
 			rm := gm.Resources[xid.Resource]
 
-			delete(obj, rm.Singular+"id")
-			delete(obj, "isdefault")
-			delete(obj, "versionid")
+			obj.Delete(rm.Singular + "id")
+			obj.Delete("isdefault")
+			obj.Delete("versionid")
 		}
 	}
 
@@ -385,22 +389,26 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		// fmt.Printf("In %q\n", xid)
 		// defer fmt.Printf("Out %q\n", xid)
 
-		obj := map[string]any{}
 		fname := xid.String()
 		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
 			fname += "$details"
 		}
 
-		data, _ := Download(reg, fname)
-		if err := json.Unmarshal(data, &obj); err != nil {
-			// fmt.Printf("JSON(%s): %s", fname, string(data))
+		rawData, _ := Download(reg, fname)
+		// Reorder BEFORE any deletion (noDiffObj/makeImportObj), while
+		// xid/model info is still intact - see common/pretty.go's
+		// CanonicalReorderTree() doc comment for why this ordering
+		// matters (mirrors cmds/xr/get.go's minimize() pipeline).
+		treeAny, xErr := xrlib.CanonicalPrettyReorderTree(rawData)
+		if xErr != nil {
 			Error(NewXRError("client_error", "",
 				"error_detail="+
 					fmt.Sprintf("%q doesn't appear to be an xRegistry entity",
 						xid)))
-
-			Error(NewXRError("parsing_response", reg.GetServerURL(),
-				"error_detail="+err.Error()))
+		}
+		obj, _ := treeAny.(*OrderedMap)
+		if obj == nil {
+			obj = &OrderedMap{}
 		}
 
 		noDiffObj(obj)
@@ -409,7 +417,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			makeImportObj(obj, true)
 		}
 
-		data, err := json.MarshalIndent(obj, "", "  ")
+		data, err := StringifyCanonicalTree(obj)
 		Error(err)
 
 		// just to look nice
@@ -421,7 +429,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		case ENTITY_REGISTRY:
 			fn := root + strings.TrimRight(xid.String(), "/")
 
-			if !minimal || len(obj) > 0 {
+			if !minimal || obj.RealKeyCount() > 0 {
 				fn := fn + "/" + indexFile
 				Write(fn, data)
 				if !minimal {
@@ -447,25 +455,17 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			fn := root + strings.TrimRight(xid.String(), "/")
 
 			if !minimal || !xid.IsCollectionType() {
-				if !minimal || len(obj) > 0 {
+				if !minimal || obj.RealKeyCount() > 0 {
 					fn := fn + "/" + indexFile
 					Write(fn, data)
 					Write(fn+".hdr", []byte("content-type: application/json"))
 				}
 			}
 
-			tmp := map[string]any{}
-			if err := json.Unmarshal([]byte(data), &tmp); err != nil {
-				Error(NewXRError("parsing_response",
-					reg.GetServerURL()+xid.String(),
-					"error_detail="+err.Error()))
-			}
-
-			// if minimal && xid.Type == ENTITY_VERSION_TYPE && len(tmp) == 1 {
-			// break
-			// }
-
-			vList := SortedKeys(tmp)
+			// obj is the (possibly minimized) collection map of
+			// id->entity; its own keys are the child entity IDs.
+			vList := append([]string{}, obj.Keys...)
+			sort.Strings(vList)
 			for _, vName := range vList {
 				nextXid, err := xid.AddPath(vName)
 				Error(err)
@@ -477,7 +477,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			// Always create the group dir
 			Error(os.MkdirAll(fn, 0774))
 
-			if !minimal || len(obj) > 0 {
+			if !minimal || obj.RealKeyCount() > 0 {
 				fn := fn + "/" + indexFile
 				Write(fn, data)
 				if !minimal {
@@ -499,8 +499,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
 			Error(xErr)
 
-			// If !hasDoc then at least show {} for the resource
-			if !minimal && len(obj) > 0 { // || !rm.GetHasDocument() {
+			// old: If !hasDoc then at least show {} for the resource
+			if !minimal && obj.RealKeyCount() > 0 { // || !rm.GetHasDocument() {
 				fn := root + xid.String() + "$details"
 				Write(fn, data)
 				if !minimal {
@@ -617,7 +617,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 					Error(os.WriteFile(fn, html.Bytes(), 0644))
 				} // EO-html file generation
 			} else {
-				if !minimal || len(obj) > 0 {
+				if !minimal || obj.RealKeyCount() > 0 {
 					fn := root + xid.String() + "/" + indexFile
 					Write(fn, data)
 					if !minimal {
@@ -635,7 +635,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Enqueue(reg, nextXid, root)
 
 		case ENTITY_META:
-			if !minimal || len(obj) > 0 {
+			if !minimal || obj.RealKeyCount() > 0 {
 				fn := root + xid.String()
 				Write(fn, data)
 				if !minimal {
@@ -647,8 +647,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
 			Error(xErr)
 
-			// If !hasDoc then at least show {} for the version
-			if len(obj) > 0 || !minimal || !rm.GetHasDocument() {
+			// old: If !hasDoc then at least show {} for the version
+			if obj.RealKeyCount() > 0 || !minimal { // || !rm.GetHasDocument() {
 				fn := root + xid.String() + "$details"
 				Write(fn, data)
 				if !minimal {
@@ -767,7 +767,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 					}
 				*/
 			} else {
-				if !minimal && len(obj) > 0 {
+				if !minimal && obj.RealKeyCount() > 0 {
 					fn := root + xid.String() + "/" + indexFile
 					Write(fn, data)
 					if !minimal {
@@ -849,16 +849,18 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				// If the user wants the "capabilities" to be modified for a
 				// static web site then we need to update them in the /export
 				// output too
-				obj := map[string]any{}
-				if err := json.Unmarshal(exportData, &obj); err != nil {
-					Error(NewXRError("parsing_response",
-						reg.GetServerURL()+"/export",
-						"error_detail="+err.Error()))
+				treeAny, xErr := xrlib.CanonicalPrettyReorderTree(exportData)
+				Error(xErr, NewXRError("parsing_response",
+					reg.GetServerURL()+"/export",
+					"error_detail="+Err2String(xErr)))
+				obj, _ := treeAny.(*OrderedMap)
+				if obj == nil {
+					obj = &OrderedMap{}
 				}
 
 				if modCap {
 					caps, xErr := ParseCapabilities([]byte(
-						ToJSON(obj["capabilities"])))
+						ToJSON(obj.Get("capabilities"))))
 					Error(xErr)
 
 					caps.Available = map[string]*AvailableObject{
@@ -872,11 +874,12 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 					caps.Flags = nil
 					caps.Pagination = false
 					caps.ShortSelf = false
-					obj["capabilities"] = caps
+					obj.Set("capabilities", caps)
 				}
 
 				noDiffObj(obj)
-				exportData, _ = json.MarshalIndent(obj, "", "  ")
+				exportData, err = StringifyCanonicalTree(obj)
+				Error(err)
 
 				Write(dir+"/export", exportData)
 				if !minimal {
@@ -921,15 +924,18 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			data, _ = Download(reg, "/export")
 		}
 
-		obj := map[string]any{}
-		if err := json.Unmarshal(data, &obj); err != nil {
-			Error(NewXRError("parsing_response",
-				reg.GetServerURL()+"/export",
-				"error_detail="+err.Error()))
+		treeAny, xErr := xrlib.CanonicalPrettyReorderTree(data)
+		Error(xErr, NewXRError("parsing_response",
+			reg.GetServerURL()+"/export",
+			"error_detail="+Err2String(xErr)))
+		obj, _ := treeAny.(*OrderedMap)
+		if obj == nil {
+			obj = &OrderedMap{}
 		}
 
 		makeImportObj(obj, minimal)
-		data, _ = json.MarshalIndent(obj, "", "  ")
+		data, err = StringifyCanonicalTree(obj)
+		Error(err)
 
 		Write(dir+"/import.json", data)
 		if !minimal {

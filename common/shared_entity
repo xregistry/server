@@ -965,6 +965,31 @@ func CanonicalPrettyPrintJSON(data []byte) ([]byte, error) {
 	return CanonicalReorderJSON(data, canonicalLevelOrderFor)
 }
 
+// CanonicalPrettyReorderTree is the level-order-aware entry point for
+// CanonicalReorderTree() (this file dot-imports 'common', so it's
+// referenced unqualified below — can't reuse its exact name here, that
+// would be a duplicate declaration): parses data and returns it as a
+// live *OrderedMap tree with every nested entity's own attributes
+// ALREADY reordered into canonical spec order (including blank-line
+// sentinels — see canonicalBlankKey) — but NOT yet stringified.
+//
+// This exists for callers that need to delete keys from an
+// already-canonically-ordered tree BEFORE turning it into bytes — e.g.
+// cmds/xr/get.go's minimize() (the "xr get -m" flag), which used to
+// delete keys from the raw JSON FIRST and only then try to reorder what
+// was left. That approach requires guessing at classifying/ordering
+// information (xid, ids, model-driven attribute names) that minimize()
+// itself had just deleted. Reordering first — while everything is still
+// exactly classifiable via the real xid/model — and minimizing
+// afterward on the ordered tree (via *OrderedMap.Delete(), which
+// preserves the order of what's left) sidesteps that problem entirely:
+// no heuristics are needed, and the blank-line spacing collapses
+// correctly around whatever got deleted (see stringifyOrderedMap()'s
+// doc comment).
+func CanonicalPrettyReorderTree(data []byte) (interface{}, error) {
+	return CanonicalReorderTree(data, canonicalLevelOrderFor)
+}
+
 var canonicalLevelOrders map[int][]string
 
 // canonicalLevelOrderFor lazily builds (once) and returns the ordered

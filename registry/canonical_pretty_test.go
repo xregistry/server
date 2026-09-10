@@ -3,6 +3,8 @@ package registry
 import (
 	"strings"
 	"testing"
+
+	. "github.com/xregistry/server/common"
 )
 
 // TestCanonicalPrettyPrintJSON_SingleRegistry verifies that a single
@@ -402,5 +404,228 @@ func TestCanonicalPrettyPrintJSON_ResourceVersionMirroredAttrs(t *testing.T) {
 		if idx[i-1] >= idx[i] {
 			t.Errorf("expected %s before %s (canonical order), got:\n%s", names[i-1], names[i], got)
 		}
+	}
+}
+
+// TestCanonicalPrettyReorderTree_MinimizeAfterReorder simulates what
+// cmds/xr/get.go's minimize() now does for "xr get -m --min": reorder
+// the tree FIRST (via CanonicalPrettyReorderTree, while xid/ids are
+// still present), THEN delete keys from the already-ordered
+// *OrderedMap (via Delete(), which preserves relative order), THEN
+// stringify what's left (via StringifyCanonicalTree). This verifies
+// that deleting keys AFTER reordering still produces correct canonical
+// order and correctly collapsed blank-line spacing for what remains -
+// the core fix for the "xr get -m" attribute-ordering bug (deleting
+// BEFORE reordering lost the xid/id signals needed to classify/order
+// entities at all).
+func TestCanonicalPrettyReorderTree_MinimizeAfterReorder(t *testing.T) {
+	input := `{
+		"fileid": "f1",
+		"versionid": "1",
+		"self": "http://example.com/dirs/d1/files/f1$details",
+		"xid": "/dirs/d1/files/f1",
+		"epoch": 1,
+		"isdefault": true,
+		"createdat": "2020-01-01T00:00:00Z",
+		"modifiedat": "2020-01-01T00:00:00Z",
+		"ancestorid": "1",
+		"metaurl": "http://example.com/dirs/d1/files/f1/meta",
+		"versionsurl": "http://example.com/dirs/d1/files/f1/versions",
+		"versionscount": 1
+	}`
+
+	tree, err := CanonicalPrettyReorderTree([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	om, ok := tree.(*OrderedMap)
+	if !ok {
+		t.Fatalf("expected *OrderedMap, got %T", tree)
+	}
+
+	// Simulate minimize()'s deletions for a single-version Resource
+	// (rm.GetMaxVersions() == 1 branch): strip xid/self plus the
+	// id/version/collection bookkeeping attrs, same as cmds/xr/get.go.
+	for _, k := range []string{
+		"xid", "self", "fileid", "versionid", "isdefault",
+		"versionscount", "versionsurl", "ancestorid", "metaurl",
+	} {
+		om.Delete(k)
+	}
+
+	out, err := StringifyCanonicalTree(om)
+	if err != nil {
+		t.Fatalf("unexpected error stringifying: %v", err)
+	}
+	got := string(out)
+
+	// What's left (epoch/createdat/modifiedat) must still appear in
+	// canonical order, with no leftover/duplicated blank lines from the
+	// now-empty gaps where deleted keys used to be.
+	idxEpoch := strings.Index(got, `"epoch"`)
+	idxCreated := strings.Index(got, `"createdat"`)
+	idxModified := strings.Index(got, `"modifiedat"`)
+	if idxEpoch < 0 || idxCreated < 0 || idxModified < 0 {
+		t.Fatalf("missing expected keys after minimize, got:\n%s", got)
+	}
+	if !(idxEpoch < idxCreated && idxCreated < idxModified) {
+		t.Errorf("expected epoch < createdat < modifiedat, got:\n%s", got)
+	}
+	if strings.Contains(got, "\n\n") {
+		t.Errorf("expected no blank lines left (all separated sections were fully deleted), got:\n%s", got)
+	}
+	for _, deleted := range []string{"xid", "self", "fileid", "versionid", "isdefault", "versionscount", "versionsurl", "ancestorid", "metaurl"} {
+		if strings.Contains(got, `"`+deleted+`"`) {
+			t.Errorf("expected %q to be deleted, got:\n%s", deleted, got)
+		}
+	}
+}
+
+// TestCanonicalPrettyReorderTree_MinimizeNestedDocCollapsesBlanks
+// verifies that minimize()-style deletion on a nested Registry doc
+// (reordered first) still leaves a correctly collapsed single blank
+// line between sections when some (but not all) of the keys around a
+// blank-line boundary get deleted.
+func TestCanonicalPrettyReorderTree_MinimizeNestedDocCollapsesBlanks(t *testing.T) {
+	input := `{
+		"xid": "/",
+		"specversion": "1.1",
+		"registryid": "myreg",
+		"self": "http://example.com/",
+		"epoch": 1,
+		"dirscount": 1,
+		"dirsurl": "http://example.com/dirs",
+		"dirs": {
+			"d1": {
+				"xid": "/dirs/d1",
+				"dirid": "d1",
+				"self": "http://example.com/dirs/d1",
+				"epoch": 2
+			}
+		}
+	}`
+
+	tree, err := CanonicalPrettyReorderTree([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	om, ok := tree.(*OrderedMap)
+	if !ok {
+		t.Fatalf("expected *OrderedMap, got %T", tree)
+	}
+
+	// Minimize the Registry level: drop xid/self/specversion/registryid
+	// and the "dirs" collection's own url/count (mirrors minimize()'s
+	// ENTITY_REGISTRY case), but keep the "dirs" map itself and recurse
+	// into its child the same way minimize() does.
+	for _, k := range []string{"xid", "self", "specversion", "registryid", "dirsurl", "dirscount"} {
+		om.Delete(k)
+	}
+	dirsAny := om.Get("dirs")
+	dirs, ok := dirsAny.(*OrderedMap)
+	if !ok {
+		t.Fatalf("expected \"dirs\" to be *OrderedMap, got %T", dirsAny)
+	}
+	d1Any := dirs.Get("d1")
+	d1, ok := d1Any.(*OrderedMap)
+	if !ok {
+		t.Fatalf("expected \"d1\" to be *OrderedMap, got %T", d1Any)
+	}
+	for _, k := range []string{"xid", "self", "dirid"} {
+		d1.Delete(k)
+	}
+
+	out, err := StringifyCanonicalTree(om)
+	if err != nil {
+		t.Fatalf("unexpected error stringifying: %v", err)
+	}
+	got := string(out)
+
+	idxEpoch := strings.Index(got, `"epoch": 1`)
+	idxDirs := strings.Index(got, `"dirs"`)
+	idxD1Epoch := strings.Index(got, `"epoch": 2`)
+	if idxEpoch < 0 || idxDirs < 0 || idxD1Epoch < 0 {
+		t.Fatalf("missing expected keys after minimize, got:\n%s", got)
+	}
+	// Registry-level: "epoch" then a single blank line then "dirs" (the
+	// dirsurl/dirscount that used to sit between them are gone, but the
+	// blank-line separator immediately preceding them in canonical order
+	// should still collapse to exactly one, not zero or several).
+	if !(idxEpoch < idxDirs) {
+		t.Errorf("expected epoch before dirs, got:\n%s", got)
+	}
+	if !strings.Contains(got, "\n\n") {
+		t.Errorf("expected exactly one blank line to survive between epoch and dirs, got:\n%s", got)
+	}
+	if strings.Count(got, "\n\n\n") > 0 {
+		t.Errorf("expected no double-blank-line artifacts, got:\n%s", got)
+	}
+	// Nested d1's own remaining key ("epoch": 2) must not have picked up
+	// a stray leading blank line now that xid/self/dirid are all gone.
+	if strings.Contains(got, "{\n\n") {
+		t.Errorf("expected no leading blank line inside an object, got:\n%s", got)
+	}
+}
+
+// TestOrderedMap_RealKeyCountIgnoresBlankSentinels verifies that
+// deleting every real attribute from a canonically-reordered entity
+// (e.g. what cmds/xr/download.go's makeImportObj does for a
+// single-version Resource under --min) can leave lingering blank-line
+// sentinel keys behind - since Delete() only ever targets named
+// attributes, never the reserved blank-line separator - and that
+// RealKeyCount() (unlike plain len(om.Keys)) correctly reports zero
+// real content remains in that case. This is the fix for a regression
+// where "xr download --min" wrote out spurious "{}" files for entities
+// that should have been skipped entirely, because len(om.Keys) > 0
+// was true (due to leftover sentinels) even though the entity had no
+// real attributes left.
+func TestOrderedMap_RealKeyCountIgnoresBlankSentinels(t *testing.T) {
+	input := `{
+		"fileid": "f1",
+		"versionid": "1",
+		"self": "http://example.com/dirs/d1/files/f1$details",
+		"xid": "/dirs/d1/files/f1",
+		"epoch": 1,
+		"isdefault": true,
+		"createdat": "2020-01-01T00:00:00Z",
+		"modifiedat": "2020-01-01T00:00:00Z",
+		"ancestorid": "1",
+		"metaurl": "http://example.com/dirs/d1/files/f1/meta",
+		"versionsurl": "http://example.com/dirs/d1/files/f1/versions",
+		"versionscount": 1
+	}`
+
+	tree, err := CanonicalPrettyReorderTree([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	om, ok := tree.(*OrderedMap)
+	if !ok {
+		t.Fatalf("expected *OrderedMap, got %T", tree)
+	}
+
+	// Delete every real attribute, same as makeImportObj()/minimize()
+	// would for a fully-stripped single-version Resource.
+	for _, k := range []string{
+		"xid", "self", "fileid", "versionid", "isdefault",
+		"versionscount", "versionsurl", "ancestorid", "metaurl",
+		"epoch", "createdat", "modifiedat",
+	} {
+		om.Delete(k)
+	}
+
+	if got := om.RealKeyCount(); got != 0 {
+		t.Errorf("expected RealKeyCount() == 0 after deleting all real attrs, got %d (om.Keys=%v)", got, om.Keys)
+	}
+	if len(om.Keys) == 0 {
+		t.Errorf("expected len(om.Keys) to still be > 0 here (lingering blank sentinels) - if this now fails, the sentinel-leftover scenario this test guards may no longer reproduce, please double check RealKeyCount() is still needed")
+	}
+
+	out, err := StringifyCanonicalTree(om)
+	if err != nil {
+		t.Fatalf("unexpected error stringifying: %v", err)
+	}
+	if string(out) != "{}" {
+		t.Errorf("expected stringified output to collapse to exactly \"{}\", got %q", string(out))
 	}
 }

@@ -2929,33 +2929,36 @@ and some text
 # dirs/d1/datas/d1/
 # dirs/d1/datas/d1/index.html
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.569828186Z",
   "dataid": "d1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/datas/d1",
+  "xid": "/dirs/d1/datas/d1",
   "epoch": 1,
   "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.476633227Z",
+  "modifiedat": "2026-09-10T19:11:49.476633227Z",
+  "ancestorid": "v1",
+
   "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
-  "modifiedat": "2026-09-09T19:19:35.569828186Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d1",
-  "versionid": "v1",
-  "versionscount": 1,
+
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
-  "xid": "/dirs/d1/datas/d1"
+  "versionscount": 1
 }
 # dirs/d1/datas/d1/index.html.hdr
 content-type: application/json
 # dirs/d1/datas/d1/meta
 {
-  "createdat": "2026-09-09T19:19:35.569828186Z",
   "dataid": "d1",
-  "defaultversionid": "v1",
-  "defaultversionsticky": false,
-  "defaultversionurl": "http://localhost:8181/dirs/d1/datas/d1/versions/v1",
-  "epoch": 1,
-  "modifiedat": "2026-09-09T19:19:35.569828186Z",
-  "readonly": false,
   "self": "http://localhost:8181/dirs/d1/datas/d1/meta",
-  "xid": "/dirs/d1/datas/d1/meta"
+  "xid": "/dirs/d1/datas/d1/meta",
+  "epoch": 1,
+  "createdat": "2026-09-10T19:11:49.476633227Z",
+  "modifiedat": "2026-09-10T19:11:49.476633227Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/datas/d1/versions/v1",
+  "defaultversionsticky": false
 }
 # dirs/d1/datas/d1/meta.hdr
 content-type: application/json
@@ -2963,15 +2966,15 @@ content-type: application/json
 # dirs/d1/datas/d1/versions/index.html
 {
   "v1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.569828186Z",
     "dataid": "d1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/datas/d1/versions/v1",
+    "xid": "/dirs/d1/datas/d1/versions/v1",
     "epoch": 1,
     "isdefault": true,
-    "modifiedat": "2026-09-09T19:19:35.569828186Z",
-    "self": "http://localhost:8181/dirs/d1/datas/d1/versions/v1",
-    "versionid": "v1",
-    "xid": "/dirs/d1/datas/d1/versions/v1"
+    "createdat": "2026-09-10T19:11:49.476633227Z",
+    "modifiedat": "2026-09-10T19:11:49.476633227Z",
+    "ancestorid": "v1"
   }
 }
 # dirs/d1/datas/d1/versions/index.html.hdr
@@ -2979,79 +2982,84 @@ content-type: application/json
 # dirs/d1/datas/d1/versions/v1/
 # dirs/d1/datas/d1/versions/v1/index.html
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.569828186Z",
   "dataid": "d1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/datas/d1/versions/v1",
+  "xid": "/dirs/d1/datas/d1/versions/v1",
   "epoch": 1,
   "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.569828186Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d1/versions/v1",
-  "versionid": "v1",
-  "xid": "/dirs/d1/datas/d1/versions/v1"
+  "createdat": "2026-09-10T19:11:49.476633227Z",
+  "modifiedat": "2026-09-10T19:11:49.476633227Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/datas/d1/versions/v1/index.html.hdr
 content-type: application/json
 # dirs/d1/datas/d1/versions/v1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.569828186Z",
   "dataid": "d1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/datas/d1/versions/v1",
+  "xid": "/dirs/d1/datas/d1/versions/v1",
   "epoch": 1,
   "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.569828186Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d1/versions/v1",
-  "versionid": "v1",
-  "xid": "/dirs/d1/datas/d1/versions/v1"
+  "createdat": "2026-09-10T19:11:49.476633227Z",
+  "modifiedat": "2026-09-10T19:11:49.476633227Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/datas/d1/versions/v1$details.hdr
 content-type: application/json
 # dirs/d1/datas/d1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.569828186Z",
   "dataid": "d1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/datas/d1",
+  "xid": "/dirs/d1/datas/d1",
   "epoch": 1,
   "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.476633227Z",
+  "modifiedat": "2026-09-10T19:11:49.476633227Z",
+  "ancestorid": "v1",
+
   "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
-  "modifiedat": "2026-09-09T19:19:35.569828186Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d1",
-  "versionid": "v1",
-  "versionscount": 1,
+
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
-  "xid": "/dirs/d1/datas/d1"
+  "versionscount": 1
 }
 # dirs/d1/datas/d1$details.hdr
 content-type: application/json
 # dirs/d1/datas/d2/
 # dirs/d1/datas/d2/index.html
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.689175963Z",
   "dataid": "d2",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/datas/d2",
+  "xid": "/dirs/d1/datas/d2",
   "epoch": 1,
   "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.64377259Z",
+  "modifiedat": "2026-09-10T19:11:49.64377259Z",
+  "ancestorid": "v1",
+
   "metaurl": "http://localhost:8181/dirs/d1/datas/d2/meta",
-  "modifiedat": "2026-09-09T19:19:35.689175963Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d2",
-  "versionid": "v2",
-  "versionscount": 2,
+
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d2/versions",
-  "xid": "/dirs/d1/datas/d2"
+  "versionscount": 2
 }
 # dirs/d1/datas/d2/index.html.hdr
 content-type: application/json
 # dirs/d1/datas/d2/meta
 {
-  "createdat": "2026-09-09T19:19:35.631487719Z",
   "dataid": "d2",
-  "defaultversionid": "v2",
-  "defaultversionsticky": false,
-  "defaultversionurl": "http://localhost:8181/dirs/d1/datas/d2/versions/v2",
-  "epoch": 2,
-  "modifiedat": "2026-09-09T19:19:35.689175963Z",
-  "readonly": false,
   "self": "http://localhost:8181/dirs/d1/datas/d2/meta",
-  "xid": "/dirs/d1/datas/d2/meta"
+  "xid": "/dirs/d1/datas/d2/meta",
+  "epoch": 2,
+  "createdat": "2026-09-10T19:11:49.564808098Z",
+  "modifiedat": "2026-09-10T19:11:49.64377259Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/datas/d2/versions/v2",
+  "defaultversionsticky": false
 }
 # dirs/d1/datas/d2/meta.hdr
 content-type: application/json
@@ -3059,26 +3067,26 @@ content-type: application/json
 # dirs/d1/datas/d2/versions/index.html
 {
   "v1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.631487719Z",
     "dataid": "d2",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v1",
+    "xid": "/dirs/d1/datas/d2/versions/v1",
     "epoch": 1,
     "isdefault": false,
-    "modifiedat": "2026-09-09T19:19:35.631487719Z",
-    "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v1",
-    "versionid": "v1",
-    "xid": "/dirs/d1/datas/d2/versions/v1"
+    "createdat": "2026-09-10T19:11:49.564808098Z",
+    "modifiedat": "2026-09-10T19:11:49.564808098Z",
+    "ancestorid": "v1"
   },
   "v2": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.689175963Z",
     "dataid": "d2",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v2",
+    "xid": "/dirs/d1/datas/d2/versions/v2",
     "epoch": 1,
     "isdefault": true,
-    "modifiedat": "2026-09-09T19:19:35.689175963Z",
-    "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v2",
-    "versionid": "v2",
-    "xid": "/dirs/d1/datas/d2/versions/v2"
+    "createdat": "2026-09-10T19:11:49.64377259Z",
+    "modifiedat": "2026-09-10T19:11:49.64377259Z",
+    "ancestorid": "v1"
   }
 }
 # dirs/d1/datas/d2/versions/index.html.hdr
@@ -3086,107 +3094,113 @@ content-type: application/json
 # dirs/d1/datas/d2/versions/v1/
 # dirs/d1/datas/d2/versions/v1/index.html
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.631487719Z",
   "dataid": "d2",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v1",
+  "xid": "/dirs/d1/datas/d2/versions/v1",
   "epoch": 1,
   "isdefault": false,
-  "modifiedat": "2026-09-09T19:19:35.631487719Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v1",
-  "versionid": "v1",
-  "xid": "/dirs/d1/datas/d2/versions/v1"
+  "createdat": "2026-09-10T19:11:49.564808098Z",
+  "modifiedat": "2026-09-10T19:11:49.564808098Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/datas/d2/versions/v1/index.html.hdr
 content-type: application/json
 # dirs/d1/datas/d2/versions/v1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.631487719Z",
   "dataid": "d2",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v1",
+  "xid": "/dirs/d1/datas/d2/versions/v1",
   "epoch": 1,
   "isdefault": false,
-  "modifiedat": "2026-09-09T19:19:35.631487719Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v1",
-  "versionid": "v1",
-  "xid": "/dirs/d1/datas/d2/versions/v1"
+  "createdat": "2026-09-10T19:11:49.564808098Z",
+  "modifiedat": "2026-09-10T19:11:49.564808098Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/datas/d2/versions/v1$details.hdr
 content-type: application/json
 # dirs/d1/datas/d2/versions/v2/
 # dirs/d1/datas/d2/versions/v2/index.html
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.689175963Z",
   "dataid": "d2",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v2",
+  "xid": "/dirs/d1/datas/d2/versions/v2",
   "epoch": 1,
   "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.689175963Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v2",
-  "versionid": "v2",
-  "xid": "/dirs/d1/datas/d2/versions/v2"
+  "createdat": "2026-09-10T19:11:49.64377259Z",
+  "modifiedat": "2026-09-10T19:11:49.64377259Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/datas/d2/versions/v2/index.html.hdr
 content-type: application/json
 # dirs/d1/datas/d2/versions/v2$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.689175963Z",
   "dataid": "d2",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v2",
+  "xid": "/dirs/d1/datas/d2/versions/v2",
   "epoch": 1,
   "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.689175963Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d2/versions/v2",
-  "versionid": "v2",
-  "xid": "/dirs/d1/datas/d2/versions/v2"
+  "createdat": "2026-09-10T19:11:49.64377259Z",
+  "modifiedat": "2026-09-10T19:11:49.64377259Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/datas/d2/versions/v2$details.hdr
 content-type: application/json
 # dirs/d1/datas/d2$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.689175963Z",
   "dataid": "d2",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/datas/d2",
+  "xid": "/dirs/d1/datas/d2",
   "epoch": 1,
   "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.64377259Z",
+  "modifiedat": "2026-09-10T19:11:49.64377259Z",
+  "ancestorid": "v1",
+
   "metaurl": "http://localhost:8181/dirs/d1/datas/d2/meta",
-  "modifiedat": "2026-09-09T19:19:35.689175963Z",
-  "self": "http://localhost:8181/dirs/d1/datas/d2",
-  "versionid": "v2",
-  "versionscount": 2,
+
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d2/versions",
-  "xid": "/dirs/d1/datas/d2"
+  "versionscount": 2
 }
 # dirs/d1/datas/d2$details.hdr
 content-type: application/json
 # dirs/d1/datas/index.html
 {
   "d1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.569828186Z",
     "dataid": "d1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/datas/d1",
+    "xid": "/dirs/d1/datas/d1",
     "epoch": 1,
     "isdefault": true,
+    "createdat": "2026-09-10T19:11:49.476633227Z",
+    "modifiedat": "2026-09-10T19:11:49.476633227Z",
+    "ancestorid": "v1",
+
     "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
-    "modifiedat": "2026-09-09T19:19:35.569828186Z",
-    "self": "http://localhost:8181/dirs/d1/datas/d1",
-    "versionid": "v1",
-    "versionscount": 1,
+
     "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
-    "xid": "/dirs/d1/datas/d1"
+    "versionscount": 1
   },
   "d2": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.689175963Z",
     "dataid": "d2",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/datas/d2",
+    "xid": "/dirs/d1/datas/d2",
     "epoch": 1,
     "isdefault": true,
+    "createdat": "2026-09-10T19:11:49.64377259Z",
+    "modifiedat": "2026-09-10T19:11:49.64377259Z",
+    "ancestorid": "v1",
+
     "metaurl": "http://localhost:8181/dirs/d1/datas/d2/meta",
-    "modifiedat": "2026-09-09T19:19:35.689175963Z",
-    "self": "http://localhost:8181/dirs/d1/datas/d2",
-    "versionid": "v2",
-    "versionscount": 2,
+
     "versionsurl": "http://localhost:8181/dirs/d1/datas/d2/versions",
-    "xid": "/dirs/d1/datas/d2"
+    "versionscount": 2
   }
 }
 # dirs/d1/datas/index.html.hdr
@@ -3197,16 +3211,17 @@ content-type: application/json
 hi
 # dirs/d1/files/f1/meta
 {
-  "createdat": "2026-09-09T19:19:35.748766689Z",
-  "defaultversionid": "v1",
-  "defaultversionsticky": false,
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
-  "epoch": 1,
   "fileid": "f1",
-  "modifiedat": "2026-09-09T19:19:35.748766689Z",
-  "readonly": false,
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta"
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 1,
+  "createdat": "2026-09-10T19:11:49.712352951Z",
+  "modifiedat": "2026-09-10T19:11:49.712352951Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "defaultversionsticky": false
 }
 # dirs/d1/files/f1/meta.hdr
 content-type: application/json
@@ -3214,15 +3229,15 @@ content-type: application/json
 # dirs/d1/files/f1/versions/index.html
 {
   "v1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.748766689Z",
-    "epoch": 1,
     "fileid": "f1",
-    "isdefault": true,
-    "modifiedat": "2026-09-09T19:19:35.748766689Z",
-    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
     "versionid": "v1",
-    "xid": "/dirs/d1/files/f1/versions/v1"
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+    "xid": "/dirs/d1/files/f1/versions/v1",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2026-09-10T19:11:49.712352951Z",
+    "modifiedat": "2026-09-10T19:11:49.712352951Z",
+    "ancestorid": "v1"
   }
 }
 # dirs/d1/files/f1/versions/index.html.hdr
@@ -3232,15 +3247,15 @@ content-type: application/json
 hi
 # dirs/d1/files/f1/versions/v1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.748766689Z",
-  "epoch": 1,
   "fileid": "f1",
-  "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.748766689Z",
-  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
   "versionid": "v1",
-  "xid": "/dirs/d1/files/f1/versions/v1"
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.712352951Z",
+  "modifiedat": "2026-09-10T19:11:49.712352951Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/files/f1/versions/v1$details.hdr
 content-type: application/json
@@ -3249,28 +3264,30 @@ content-disposition:f1
 content-length:2
 content-location:dirs/d1/files/f1/versions/v1
 xregistry-ancestorid:v1
-xregistry-createdat:2026-09-09T19:19:35.748766689Z
+xregistry-createdat:2026-09-10T19:11:49.712352951Z
 xregistry-epoch:1
 xregistry-fileid:f1
 xregistry-isdefault:true
-xregistry-modifiedat:2026-09-09T19:19:35.748766689Z
+xregistry-modifiedat:2026-09-10T19:11:49.712352951Z
 xregistry-self:dirs/d1/files/f1/versions/v1
 xregistry-versionid:v1
 xregistry-xid:/dirs/d1/files/f1/versions/v1
 # dirs/d1/files/f1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.748766689Z",
-  "epoch": 1,
   "fileid": "f1",
-  "isdefault": true,
-  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "modifiedat": "2026-09-09T19:19:35.748766689Z",
-  "self": "http://localhost:8181/dirs/d1/files/f1$details",
   "versionid": "v1",
-  "versionscount": 1,
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.712352951Z",
+  "modifiedat": "2026-09-10T19:11:49.712352951Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
-  "xid": "/dirs/d1/files/f1"
+  "versionscount": 1
 }
 # dirs/d1/files/f1$details.hdr
 content-type: application/json
@@ -3279,12 +3296,12 @@ content-disposition:f1
 content-length:2
 content-location:dirs/d1/files/f1/versions/v1
 xregistry-ancestorid:v1
-xregistry-createdat:2026-09-09T19:19:35.748766689Z
+xregistry-createdat:2026-09-10T19:11:49.712352951Z
 xregistry-epoch:1
 xregistry-fileid:f1
 xregistry-isdefault:true
 xregistry-metaurl:dirs/d1/files/f1/meta
-xregistry-modifiedat:2026-09-09T19:19:35.748766689Z
+xregistry-modifiedat:2026-09-10T19:11:49.712352951Z
 xregistry-self:dirs/d1/files/f1
 xregistry-versionid:v1
 xregistry-versionscount:1
@@ -3295,16 +3312,17 @@ xregistry-xid:/dirs/d1/files/f1
 hi
 # dirs/d1/files/f2/meta
 {
-  "createdat": "2026-09-09T19:19:35.81330795Z",
-  "defaultversionid": "v2",
-  "defaultversionsticky": false,
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v2$details",
-  "epoch": 2,
   "fileid": "f2",
-  "modifiedat": "2026-09-09T19:19:35.871450098Z",
-  "readonly": false,
   "self": "http://localhost:8181/dirs/d1/files/f2/meta",
-  "xid": "/dirs/d1/files/f2/meta"
+  "xid": "/dirs/d1/files/f2/meta",
+  "epoch": 2,
+  "createdat": "2026-09-10T19:11:49.799020789Z",
+  "modifiedat": "2026-09-10T19:11:49.884833835Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v2$details",
+  "defaultversionsticky": false
 }
 # dirs/d1/files/f2/meta.hdr
 content-type: application/json
@@ -3312,26 +3330,26 @@ content-type: application/json
 # dirs/d1/files/f2/versions/index.html
 {
   "v1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.81330795Z",
-    "epoch": 1,
     "fileid": "f2",
-    "isdefault": false,
-    "modifiedat": "2026-09-09T19:19:35.81330795Z",
-    "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
     "versionid": "v1",
-    "xid": "/dirs/d1/files/f2/versions/v1"
+    "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+    "xid": "/dirs/d1/files/f2/versions/v1",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2026-09-10T19:11:49.799020789Z",
+    "modifiedat": "2026-09-10T19:11:49.799020789Z",
+    "ancestorid": "v1"
   },
   "v2": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.871450098Z",
-    "epoch": 1,
     "fileid": "f2",
-    "isdefault": true,
-    "modifiedat": "2026-09-09T19:19:35.871450098Z",
-    "self": "http://localhost:8181/dirs/d1/files/f2/versions/v2$details",
     "versionid": "v2",
-    "xid": "/dirs/d1/files/f2/versions/v2"
+    "self": "http://localhost:8181/dirs/d1/files/f2/versions/v2$details",
+    "xid": "/dirs/d1/files/f2/versions/v2",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2026-09-10T19:11:49.884833835Z",
+    "modifiedat": "2026-09-10T19:11:49.884833835Z",
+    "ancestorid": "v1"
   }
 }
 # dirs/d1/files/f2/versions/index.html.hdr
@@ -3341,15 +3359,15 @@ content-type: application/json
 hi
 # dirs/d1/files/f2/versions/v1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.81330795Z",
-  "epoch": 1,
   "fileid": "f2",
-  "isdefault": false,
-  "modifiedat": "2026-09-09T19:19:35.81330795Z",
-  "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
   "versionid": "v1",
-  "xid": "/dirs/d1/files/f2/versions/v1"
+  "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+  "xid": "/dirs/d1/files/f2/versions/v1",
+  "epoch": 1,
+  "isdefault": false,
+  "createdat": "2026-09-10T19:11:49.799020789Z",
+  "modifiedat": "2026-09-10T19:11:49.799020789Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/files/f2/versions/v1$details.hdr
 content-type: application/json
@@ -3358,11 +3376,11 @@ content-disposition:f2
 content-length:2
 content-location:dirs/d1/files/f2/versions/v1
 xregistry-ancestorid:v1
-xregistry-createdat:2026-09-09T19:19:35.81330795Z
+xregistry-createdat:2026-09-10T19:11:49.799020789Z
 xregistry-epoch:1
 xregistry-fileid:f2
 xregistry-isdefault:false
-xregistry-modifiedat:2026-09-09T19:19:35.81330795Z
+xregistry-modifiedat:2026-09-10T19:11:49.799020789Z
 xregistry-self:dirs/d1/files/f2/versions/v1
 xregistry-versionid:v1
 xregistry-xid:/dirs/d1/files/f2/versions/v1
@@ -3371,15 +3389,15 @@ xregistry-xid:/dirs/d1/files/f2/versions/v1
 hi
 # dirs/d1/files/f2/versions/v2$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.871450098Z",
-  "epoch": 1,
   "fileid": "f2",
-  "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.871450098Z",
-  "self": "http://localhost:8181/dirs/d1/files/f2/versions/v2$details",
   "versionid": "v2",
-  "xid": "/dirs/d1/files/f2/versions/v2"
+  "self": "http://localhost:8181/dirs/d1/files/f2/versions/v2$details",
+  "xid": "/dirs/d1/files/f2/versions/v2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.884833835Z",
+  "modifiedat": "2026-09-10T19:11:49.884833835Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/files/f2/versions/v2$details.hdr
 content-type: application/json
@@ -3388,28 +3406,30 @@ content-disposition:f2
 content-length:2
 content-location:dirs/d1/files/f2/versions/v2
 xregistry-ancestorid:v1
-xregistry-createdat:2026-09-09T19:19:35.871450098Z
+xregistry-createdat:2026-09-10T19:11:49.884833835Z
 xregistry-epoch:1
 xregistry-fileid:f2
 xregistry-isdefault:true
-xregistry-modifiedat:2026-09-09T19:19:35.871450098Z
+xregistry-modifiedat:2026-09-10T19:11:49.884833835Z
 xregistry-self:dirs/d1/files/f2/versions/v2
 xregistry-versionid:v2
 xregistry-xid:/dirs/d1/files/f2/versions/v2
 # dirs/d1/files/f2$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.871450098Z",
-  "epoch": 1,
   "fileid": "f2",
-  "isdefault": true,
-  "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
-  "modifiedat": "2026-09-09T19:19:35.871450098Z",
-  "self": "http://localhost:8181/dirs/d1/files/f2$details",
   "versionid": "v2",
-  "versionscount": 2,
+  "self": "http://localhost:8181/dirs/d1/files/f2$details",
+  "xid": "/dirs/d1/files/f2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.884833835Z",
+  "modifiedat": "2026-09-10T19:11:49.884833835Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
-  "xid": "/dirs/d1/files/f2"
+  "versionscount": 2
 }
 # dirs/d1/files/f2$details.hdr
 content-type: application/json
@@ -3418,12 +3438,12 @@ content-disposition:f2
 content-length:2
 content-location:dirs/d1/files/f2/versions/v2
 xregistry-ancestorid:v1
-xregistry-createdat:2026-09-09T19:19:35.871450098Z
+xregistry-createdat:2026-09-10T19:11:49.884833835Z
 xregistry-epoch:1
 xregistry-fileid:f2
 xregistry-isdefault:true
 xregistry-metaurl:dirs/d1/files/f2/meta
-xregistry-modifiedat:2026-09-09T19:19:35.871450098Z
+xregistry-modifiedat:2026-09-10T19:11:49.884833835Z
 xregistry-self:dirs/d1/files/f2
 xregistry-versionid:v2
 xregistry-versionscount:2
@@ -3490,16 +3510,17 @@ xregistry-xid:/dirs/d1/files/f2
 and some text
 # dirs/d1/files/f3.md/meta
 {
-  "createdat": "2026-09-09T19:19:35.924001305Z",
-  "defaultversionid": "v1",
-  "defaultversionsticky": false,
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f3.md/versions/v1$details",
-  "epoch": 1,
   "fileid": "f3.md",
-  "modifiedat": "2026-09-09T19:19:35.924001305Z",
-  "readonly": false,
   "self": "http://localhost:8181/dirs/d1/files/f3.md/meta",
-  "xid": "/dirs/d1/files/f3.md/meta"
+  "xid": "/dirs/d1/files/f3.md/meta",
+  "epoch": 1,
+  "createdat": "2026-09-10T19:11:49.956542808Z",
+  "modifiedat": "2026-09-10T19:11:49.956542808Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f3.md/versions/v1$details",
+  "defaultversionsticky": false
 }
 # dirs/d1/files/f3.md/meta.hdr
 content-type: application/json
@@ -3507,15 +3528,15 @@ content-type: application/json
 # dirs/d1/files/f3.md/versions/index.html
 {
   "v1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.924001305Z",
-    "epoch": 1,
     "fileid": "f3.md",
-    "isdefault": true,
-    "modifiedat": "2026-09-09T19:19:35.924001305Z",
-    "self": "http://localhost:8181/dirs/d1/files/f3.md/versions/v1$details",
     "versionid": "v1",
-    "xid": "/dirs/d1/files/f3.md/versions/v1"
+    "self": "http://localhost:8181/dirs/d1/files/f3.md/versions/v1$details",
+    "xid": "/dirs/d1/files/f3.md/versions/v1",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2026-09-10T19:11:49.956542808Z",
+    "modifiedat": "2026-09-10T19:11:49.956542808Z",
+    "ancestorid": "v1"
   }
 }
 # dirs/d1/files/f3.md/versions/index.html.hdr
@@ -3528,15 +3549,15 @@ content-type: application/json
 and some text
 # dirs/d1/files/f3.md/versions/v1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.924001305Z",
-  "epoch": 1,
   "fileid": "f3.md",
-  "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.924001305Z",
-  "self": "http://localhost:8181/dirs/d1/files/f3.md/versions/v1$details",
   "versionid": "v1",
-  "xid": "/dirs/d1/files/f3.md/versions/v1"
+  "self": "http://localhost:8181/dirs/d1/files/f3.md/versions/v1$details",
+  "xid": "/dirs/d1/files/f3.md/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.956542808Z",
+  "modifiedat": "2026-09-10T19:11:49.956542808Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/files/f3.md/versions/v1$details.hdr
 content-type: application/json
@@ -3545,28 +3566,30 @@ content-disposition:f3.md
 content-length:27
 content-location:dirs/d1/files/f3.md/versions/v1
 xregistry-ancestorid:v1
-xregistry-createdat:2026-09-09T19:19:35.924001305Z
+xregistry-createdat:2026-09-10T19:11:49.956542808Z
 xregistry-epoch:1
 xregistry-fileid:f3.md
 xregistry-isdefault:true
-xregistry-modifiedat:2026-09-09T19:19:35.924001305Z
+xregistry-modifiedat:2026-09-10T19:11:49.956542808Z
 xregistry-self:dirs/d1/files/f3.md/versions/v1
 xregistry-versionid:v1
 xregistry-xid:/dirs/d1/files/f3.md/versions/v1
 # dirs/d1/files/f3.md$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.924001305Z",
-  "epoch": 1,
   "fileid": "f3.md",
-  "isdefault": true,
-  "metaurl": "http://localhost:8181/dirs/d1/files/f3.md/meta",
-  "modifiedat": "2026-09-09T19:19:35.924001305Z",
-  "self": "http://localhost:8181/dirs/d1/files/f3.md$details",
   "versionid": "v1",
-  "versionscount": 1,
+  "self": "http://localhost:8181/dirs/d1/files/f3.md$details",
+  "xid": "/dirs/d1/files/f3.md",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-09-10T19:11:49.956542808Z",
+  "modifiedat": "2026-09-10T19:11:49.956542808Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f3.md/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f3.md/versions",
-  "xid": "/dirs/d1/files/f3.md"
+  "versionscount": 1
 }
 # dirs/d1/files/f3.md$details.hdr
 content-type: application/json
@@ -3575,12 +3598,12 @@ content-disposition:f3.md
 content-length:27
 content-location:dirs/d1/files/f3.md/versions/v1
 xregistry-ancestorid:v1
-xregistry-createdat:2026-09-09T19:19:35.924001305Z
+xregistry-createdat:2026-09-10T19:11:49.956542808Z
 xregistry-epoch:1
 xregistry-fileid:f3.md
 xregistry-isdefault:true
 xregistry-metaurl:dirs/d1/files/f3.md/meta
-xregistry-modifiedat:2026-09-09T19:19:35.924001305Z
+xregistry-modifiedat:2026-09-10T19:11:49.956542808Z
 xregistry-self:dirs/d1/files/f3.md
 xregistry-versionid:v1
 xregistry-versionscount:1
@@ -3589,64 +3612,71 @@ xregistry-xid:/dirs/d1/files/f3.md
 # dirs/d1/files/index.html
 {
   "f1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.748766689Z",
-    "epoch": 1,
     "fileid": "f1",
-    "isdefault": true,
-    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
-    "modifiedat": "2026-09-09T19:19:35.748766689Z",
-    "self": "http://localhost:8181/dirs/d1/files/f1$details",
     "versionid": "v1",
-    "versionscount": 1,
+    "self": "http://localhost:8181/dirs/d1/files/f1$details",
+    "xid": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2026-09-10T19:11:49.712352951Z",
+    "modifiedat": "2026-09-10T19:11:49.712352951Z",
+    "ancestorid": "v1",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
-    "xid": "/dirs/d1/files/f1"
+    "versionscount": 1
   },
   "f2": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.871450098Z",
-    "epoch": 1,
     "fileid": "f2",
-    "isdefault": true,
-    "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
-    "modifiedat": "2026-09-09T19:19:35.871450098Z",
-    "self": "http://localhost:8181/dirs/d1/files/f2$details",
     "versionid": "v2",
-    "versionscount": 2,
+    "self": "http://localhost:8181/dirs/d1/files/f2$details",
+    "xid": "/dirs/d1/files/f2",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2026-09-10T19:11:49.884833835Z",
+    "modifiedat": "2026-09-10T19:11:49.884833835Z",
+    "ancestorid": "v1",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
-    "xid": "/dirs/d1/files/f2"
+    "versionscount": 2
   },
   "f3.md": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.924001305Z",
-    "epoch": 1,
     "fileid": "f3.md",
-    "isdefault": true,
-    "metaurl": "http://localhost:8181/dirs/d1/files/f3.md/meta",
-    "modifiedat": "2026-09-09T19:19:35.924001305Z",
-    "self": "http://localhost:8181/dirs/d1/files/f3.md$details",
     "versionid": "v1",
-    "versionscount": 1,
+    "self": "http://localhost:8181/dirs/d1/files/f3.md$details",
+    "xid": "/dirs/d1/files/f3.md",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2026-09-10T19:11:49.956542808Z",
+    "modifiedat": "2026-09-10T19:11:49.956542808Z",
+    "ancestorid": "v1",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f3.md/meta",
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f3.md/versions",
-    "xid": "/dirs/d1/files/f3.md"
+    "versionscount": 1
   }
 }
 # dirs/d1/files/index.html.hdr
 content-type: application/json
 # dirs/d1/index.html
 {
-  "createdat": "2026-09-09T19:19:35.569828186Z",
-  "datascount": 2,
-  "datasurl": "http://localhost:8181/dirs/d1/datas",
   "dirid": "d1",
-  "epoch": 6,
-  "filescount": 3,
-  "filesurl": "http://localhost:8181/dirs/d1/files",
-  "modifiedat": "2026-09-09T19:19:35.985050051Z",
-  "onescount": 1,
-  "onesurl": "http://localhost:8181/dirs/d1/ones",
   "self": "http://localhost:8181/dirs/d1",
-  "xid": "/dirs/d1"
+  "xid": "/dirs/d1",
+  "epoch": 6,
+  "createdat": "2026-09-10T19:11:49.476633227Z",
+  "modifiedat": "2026-09-10T19:11:50.050600287Z",
+
+  "datasurl": "http://localhost:8181/dirs/d1/datas",
+  "datascount": 2,
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 3,
+  "onesurl": "http://localhost:8181/dirs/d1/ones",
+  "onescount": 1
 }
 # dirs/d1/index.html.hdr
 content-type: application/json
@@ -3654,18 +3684,20 @@ content-type: application/json
 # dirs/d1/ones/index.html
 {
   "o1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.985050051Z",
+    "oneid": "o1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/ones/o1",
+    "xid": "/dirs/d1/ones/o1",
     "epoch": 1,
     "isdefault": true,
+    "createdat": "2026-09-10T19:11:50.050600287Z",
+    "modifiedat": "2026-09-10T19:11:50.050600287Z",
+    "ancestorid": "v1",
+
     "metaurl": "http://localhost:8181/dirs/d1/ones/o1/meta",
-    "modifiedat": "2026-09-09T19:19:35.985050051Z",
-    "oneid": "o1",
-    "self": "http://localhost:8181/dirs/d1/ones/o1",
-    "versionid": "v1",
-    "versionscount": 1,
+
     "versionsurl": "http://localhost:8181/dirs/d1/ones/o1/versions",
-    "xid": "/dirs/d1/ones/o1"
+    "versionscount": 1
   }
 }
 # dirs/d1/ones/index.html.hdr
@@ -3673,33 +3705,36 @@ content-type: application/json
 # dirs/d1/ones/o1/
 # dirs/d1/ones/o1/index.html
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.985050051Z",
+  "oneid": "o1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/ones/o1",
+  "xid": "/dirs/d1/ones/o1",
   "epoch": 1,
   "isdefault": true,
+  "createdat": "2026-09-10T19:11:50.050600287Z",
+  "modifiedat": "2026-09-10T19:11:50.050600287Z",
+  "ancestorid": "v1",
+
   "metaurl": "http://localhost:8181/dirs/d1/ones/o1/meta",
-  "modifiedat": "2026-09-09T19:19:35.985050051Z",
-  "oneid": "o1",
-  "self": "http://localhost:8181/dirs/d1/ones/o1",
-  "versionid": "v1",
-  "versionscount": 1,
+
   "versionsurl": "http://localhost:8181/dirs/d1/ones/o1/versions",
-  "xid": "/dirs/d1/ones/o1"
+  "versionscount": 1
 }
 # dirs/d1/ones/o1/index.html.hdr
 content-type: application/json
 # dirs/d1/ones/o1/meta
 {
-  "createdat": "2026-09-09T19:19:35.985050051Z",
-  "defaultversionid": "v1",
-  "defaultversionsticky": false,
-  "defaultversionurl": "http://localhost:8181/dirs/d1/ones/o1/versions/v1",
-  "epoch": 1,
-  "modifiedat": "2026-09-09T19:19:35.985050051Z",
   "oneid": "o1",
-  "readonly": false,
   "self": "http://localhost:8181/dirs/d1/ones/o1/meta",
-  "xid": "/dirs/d1/ones/o1/meta"
+  "xid": "/dirs/d1/ones/o1/meta",
+  "epoch": 1,
+  "createdat": "2026-09-10T19:11:50.050600287Z",
+  "modifiedat": "2026-09-10T19:11:50.050600287Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/ones/o1/versions/v1",
+  "defaultversionsticky": false
 }
 # dirs/d1/ones/o1/meta.hdr
 content-type: application/json
@@ -3707,15 +3742,15 @@ content-type: application/json
 # dirs/d1/ones/o1/versions/index.html
 {
   "v1": {
-    "ancestorid": "v1",
-    "createdat": "2026-09-09T19:19:35.985050051Z",
+    "oneid": "o1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/ones/o1/versions/v1",
+    "xid": "/dirs/d1/ones/o1/versions/v1",
     "epoch": 1,
     "isdefault": true,
-    "modifiedat": "2026-09-09T19:19:35.985050051Z",
-    "oneid": "o1",
-    "self": "http://localhost:8181/dirs/d1/ones/o1/versions/v1",
-    "versionid": "v1",
-    "xid": "/dirs/d1/ones/o1/versions/v1"
+    "createdat": "2026-09-10T19:11:50.050600287Z",
+    "modifiedat": "2026-09-10T19:11:50.050600287Z",
+    "ancestorid": "v1"
   }
 }
 # dirs/d1/ones/o1/versions/index.html.hdr
@@ -3723,46 +3758,48 @@ content-type: application/json
 # dirs/d1/ones/o1/versions/v1/
 # dirs/d1/ones/o1/versions/v1/index.html
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.985050051Z",
+  "oneid": "o1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/ones/o1/versions/v1",
+  "xid": "/dirs/d1/ones/o1/versions/v1",
   "epoch": 1,
   "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.985050051Z",
-  "oneid": "o1",
-  "self": "http://localhost:8181/dirs/d1/ones/o1/versions/v1",
-  "versionid": "v1",
-  "xid": "/dirs/d1/ones/o1/versions/v1"
+  "createdat": "2026-09-10T19:11:50.050600287Z",
+  "modifiedat": "2026-09-10T19:11:50.050600287Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/ones/o1/versions/v1/index.html.hdr
 content-type: application/json
 # dirs/d1/ones/o1/versions/v1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.985050051Z",
+  "oneid": "o1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/ones/o1/versions/v1",
+  "xid": "/dirs/d1/ones/o1/versions/v1",
   "epoch": 1,
   "isdefault": true,
-  "modifiedat": "2026-09-09T19:19:35.985050051Z",
-  "oneid": "o1",
-  "self": "http://localhost:8181/dirs/d1/ones/o1/versions/v1",
-  "versionid": "v1",
-  "xid": "/dirs/d1/ones/o1/versions/v1"
+  "createdat": "2026-09-10T19:11:50.050600287Z",
+  "modifiedat": "2026-09-10T19:11:50.050600287Z",
+  "ancestorid": "v1"
 }
 # dirs/d1/ones/o1/versions/v1$details.hdr
 content-type: application/json
 # dirs/d1/ones/o1$details
 {
-  "ancestorid": "v1",
-  "createdat": "2026-09-09T19:19:35.985050051Z",
+  "oneid": "o1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/ones/o1",
+  "xid": "/dirs/d1/ones/o1",
   "epoch": 1,
   "isdefault": true,
+  "createdat": "2026-09-10T19:11:50.050600287Z",
+  "modifiedat": "2026-09-10T19:11:50.050600287Z",
+  "ancestorid": "v1",
+
   "metaurl": "http://localhost:8181/dirs/d1/ones/o1/meta",
-  "modifiedat": "2026-09-09T19:19:35.985050051Z",
-  "oneid": "o1",
-  "self": "http://localhost:8181/dirs/d1/ones/o1",
-  "versionid": "v1",
-  "versionscount": 1,
+
   "versionsurl": "http://localhost:8181/dirs/d1/ones/o1/versions",
-  "xid": "/dirs/d1/ones/o1"
+  "versionscount": 1
 }
 # dirs/d1/ones/o1$details.hdr
 content-type: application/json
@@ -3779,19 +3816,20 @@ content-type: application/json
 content-type: application/json
 # dirs/d2/index.html
 {
-  "createdat": "2026-09-09T19:19:36.050621408Z",
-  "datascount": 0,
-  "datasurl": "http://localhost:8181/dirs/d2/datas",
   "dirid": "d2",
-  "epoch": 1,
-  "filescount": 0,
-  "filesurl": "http://localhost:8181/dirs/d2/files",
-  "modifiedat": "2026-09-09T19:19:36.050621408Z",
-  "name": "med2",
-  "onescount": 0,
-  "onesurl": "http://localhost:8181/dirs/d2/ones",
   "self": "http://localhost:8181/dirs/d2",
-  "xid": "/dirs/d2"
+  "xid": "/dirs/d2",
+  "epoch": 1,
+  "name": "med2",
+  "createdat": "2026-09-10T19:11:50.148754035Z",
+  "modifiedat": "2026-09-10T19:11:50.148754035Z",
+
+  "datasurl": "http://localhost:8181/dirs/d2/datas",
+  "datascount": 0,
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0,
+  "onesurl": "http://localhost:8181/dirs/d2/ones",
+  "onescount": 0
 }
 # dirs/d2/index.html.hdr
 content-type: application/json
@@ -3803,49 +3841,52 @@ content-type: application/json
 # dirs/index.html
 {
   "d1": {
-    "createdat": "2026-09-09T19:19:35.569828186Z",
-    "datascount": 2,
-    "datasurl": "http://localhost:8181/dirs/d1/datas",
     "dirid": "d1",
-    "epoch": 6,
-    "filescount": 3,
-    "filesurl": "http://localhost:8181/dirs/d1/files",
-    "modifiedat": "2026-09-09T19:19:35.985050051Z",
-    "onescount": 1,
-    "onesurl": "http://localhost:8181/dirs/d1/ones",
     "self": "http://localhost:8181/dirs/d1",
-    "xid": "/dirs/d1"
+    "xid": "/dirs/d1",
+    "epoch": 6,
+    "createdat": "2026-09-10T19:11:49.476633227Z",
+    "modifiedat": "2026-09-10T19:11:50.050600287Z",
+
+    "datasurl": "http://localhost:8181/dirs/d1/datas",
+    "datascount": 2,
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 3,
+    "onesurl": "http://localhost:8181/dirs/d1/ones",
+    "onescount": 1
   },
   "d2": {
-    "createdat": "2026-09-09T19:19:36.050621408Z",
-    "datascount": 0,
-    "datasurl": "http://localhost:8181/dirs/d2/datas",
     "dirid": "d2",
-    "epoch": 1,
-    "filescount": 0,
-    "filesurl": "http://localhost:8181/dirs/d2/files",
-    "modifiedat": "2026-09-09T19:19:36.050621408Z",
-    "name": "med2",
-    "onescount": 0,
-    "onesurl": "http://localhost:8181/dirs/d2/ones",
     "self": "http://localhost:8181/dirs/d2",
-    "xid": "/dirs/d2"
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "med2",
+    "createdat": "2026-09-10T19:11:50.148754035Z",
+    "modifiedat": "2026-09-10T19:11:50.148754035Z",
+
+    "datasurl": "http://localhost:8181/dirs/d2/datas",
+    "datascount": 0,
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0,
+    "onesurl": "http://localhost:8181/dirs/d2/ones",
+    "onescount": 0
   }
 }
 # dirs/index.html.hdr
 content-type: application/json
 # index.html
 {
-  "createdat": "2026-09-09T19:19:35.426039012Z",
-  "dirscount": 2,
-  "dirsurl": "http://localhost:8181/dirs",
-  "epoch": 7,
-  "modifiedat": "2026-09-09T19:19:36.097296374Z",
-  "name": "mereg",
+  "specversion": "1.0-rc4",
   "registryid": "TestXRDownloadGet",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc4",
-  "xid": "/"
+  "xid": "/",
+  "epoch": 7,
+  "name": "mereg",
+  "createdat": "2026-09-10T19:11:49.259808852Z",
+  "modifiedat": "2026-09-10T19:11:50.217985328Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
 }
 # index.html.hdr
 content-type: application/json
@@ -3961,164 +4002,177 @@ and some text
 `)
 
 	XCLI(t, "get / --min", "", `{
-  "createdat": "2026-09-09T14:28:32.023846055Z",
   "epoch": 7,
-  "modifiedat": "2026-09-09T14:28:32.448761067Z",
-  "name": "mereg"
+  "name": "mereg",
+  "createdat": "2026-09-10T19:28:34.901392141Z",
+  "modifiedat": "2026-09-10T19:28:35.909591941Z"
 }
 `, "", true)
 
 	XCLI(t, "get /dirs --min", "", `{
   "d1": {
-    "createdat": "2026-09-09T14:29:26.570429266Z",
     "epoch": 6,
-    "modifiedat": "2026-09-09T14:29:26.790154619Z"
+    "createdat": "2026-09-10T19:36:47.355304431Z",
+    "modifiedat": "2026-09-10T19:36:47.972329873Z"
   },
   "d2": {
-    "createdat": "2026-09-09T14:29:26.892044414Z",
     "epoch": 1,
-    "modifiedat": "2026-09-09T14:29:26.892044414Z",
-    "name": "med2"
+    "name": "med2",
+    "createdat": "2026-09-10T19:36:48.064776009Z",
+    "modifiedat": "2026-09-10T19:36:48.064776009Z"
   }
 }
 `, "", true)
 
 	XCLI(t, "get / --inline= --min", "", `{
-  "createdat": "2026-09-09T19:52:48.715029414Z",
+  "epoch": 7,
+  "name": "mereg",
+  "createdat": "2026-09-10T19:37:34.675572315Z",
+  "modifiedat": "2026-09-10T19:37:35.673948074Z",
+
   "dirs": {
     "d1": {
-      "createdat": "2026-09-09T19:52:48.901656504Z",
+      "epoch": 6,
+      "createdat": "2026-09-10T19:37:34.886032671Z",
+      "modifiedat": "2026-09-10T19:37:35.504709321Z",
+
       "datas": {
         "d1": {
           "meta": {
-            "createdat": "2026-09-09T19:52:48.901656504Z",
-            "defaultversionid": "v1",
             "epoch": 1,
-            "modifiedat": "2026-09-09T19:52:48.901656504Z"
+            "createdat": "2026-09-10T19:37:34.886032671Z",
+            "modifiedat": "2026-09-10T19:37:34.886032671Z",
+
+            "defaultversionid": "v1"
           },
           "versions": {
             "v1": {
-              "ancestorid": "v1",
-              "createdat": "2026-09-09T19:52:48.901656504Z",
               "epoch": 1,
               "isdefault": true,
-              "modifiedat": "2026-09-09T19:52:48.901656504Z"
+              "createdat": "2026-09-10T19:37:34.886032671Z",
+              "modifiedat": "2026-09-10T19:37:34.886032671Z",
+              "ancestorid": "v1"
             }
           }
         },
         "d2": {
           "meta": {
-            "createdat": "2026-09-09T19:52:48.98189623Z",
-            "defaultversionid": "v2",
             "epoch": 2,
-            "modifiedat": "2026-09-09T19:52:49.059868045Z"
+            "createdat": "2026-09-10T19:37:34.973888084Z",
+            "modifiedat": "2026-09-10T19:37:35.063207073Z",
+
+            "defaultversionid": "v2"
           },
           "versions": {
             "v1": {
-              "ancestorid": "v1",
-              "createdat": "2026-09-09T19:52:48.98189623Z",
               "epoch": 1,
-              "modifiedat": "2026-09-09T19:52:48.98189623Z"
+              "createdat": "2026-09-10T19:37:34.973888084Z",
+              "modifiedat": "2026-09-10T19:37:34.973888084Z",
+              "ancestorid": "v1"
             },
             "v2": {
-              "ancestorid": "v1",
-              "createdat": "2026-09-09T19:52:49.059868045Z",
               "epoch": 1,
               "isdefault": true,
-              "modifiedat": "2026-09-09T19:52:49.059868045Z"
+              "createdat": "2026-09-10T19:37:35.063207073Z",
+              "modifiedat": "2026-09-10T19:37:35.063207073Z",
+              "ancestorid": "v1"
             }
           }
         }
       },
-      "epoch": 6,
       "files": {
         "f1": {
           "meta": {
-            "createdat": "2026-09-09T19:52:49.118626736Z",
-            "defaultversionid": "v1",
             "epoch": 1,
-            "modifiedat": "2026-09-09T19:52:49.118626736Z"
+            "createdat": "2026-09-10T19:37:35.140886522Z",
+            "modifiedat": "2026-09-10T19:37:35.140886522Z",
+
+            "defaultversionid": "v1"
           },
           "versions": {
             "v1": {
-              "ancestorid": "v1",
-              "createdat": "2026-09-09T19:52:49.118626736Z",
               "epoch": 1,
-              "filebase64": "aGk=",
               "isdefault": true,
-              "modifiedat": "2026-09-09T19:52:49.118626736Z"
+              "createdat": "2026-09-10T19:37:35.140886522Z",
+              "modifiedat": "2026-09-10T19:37:35.140886522Z",
+              "ancestorid": "v1",
+
+              "filebase64": "aGk="
             }
           }
         },
         "f2": {
           "meta": {
-            "createdat": "2026-09-09T19:52:49.190991016Z",
-            "defaultversionid": "v2",
             "epoch": 2,
-            "modifiedat": "2026-09-09T19:52:49.269335018Z"
+            "createdat": "2026-09-10T19:37:35.228317615Z",
+            "modifiedat": "2026-09-10T19:37:35.322731872Z",
+
+            "defaultversionid": "v2"
           },
           "versions": {
             "v1": {
-              "ancestorid": "v1",
-              "createdat": "2026-09-09T19:52:49.190991016Z",
               "epoch": 1,
-              "filebase64": "aGk=",
-              "modifiedat": "2026-09-09T19:52:49.190991016Z"
+              "createdat": "2026-09-10T19:37:35.228317615Z",
+              "modifiedat": "2026-09-10T19:37:35.228317615Z",
+              "ancestorid": "v1",
+
+              "filebase64": "aGk="
             },
             "v2": {
-              "ancestorid": "v1",
-              "createdat": "2026-09-09T19:52:49.269335018Z",
               "epoch": 1,
-              "filebase64": "aGk=",
               "isdefault": true,
-              "modifiedat": "2026-09-09T19:52:49.269335018Z"
+              "createdat": "2026-09-10T19:37:35.322731872Z",
+              "modifiedat": "2026-09-10T19:37:35.322731872Z",
+              "ancestorid": "v1",
+
+              "filebase64": "aGk="
             }
           }
         },
         "f3.md": {
           "meta": {
-            "createdat": "2026-09-09T19:52:49.338854448Z",
-            "defaultversionid": "v1",
             "epoch": 1,
-            "modifiedat": "2026-09-09T19:52:49.338854448Z"
+            "createdat": "2026-09-10T19:37:35.405312749Z",
+            "modifiedat": "2026-09-10T19:37:35.405312749Z",
+
+            "defaultversionid": "v1"
           },
           "versions": {
             "v1": {
-              "ancestorid": "v1",
-              "createdat": "2026-09-09T19:52:49.338854448Z",
               "epoch": 1,
-              "filebase64": "CiMgQSBoZWFkZXIKCmFuZCBzb21lIHRleHQK",
               "isdefault": true,
-              "modifiedat": "2026-09-09T19:52:49.338854448Z"
+              "createdat": "2026-09-10T19:37:35.405312749Z",
+              "modifiedat": "2026-09-10T19:37:35.405312749Z",
+              "ancestorid": "v1",
+
+              "filebase64": "CiMgQSBoZWFkZXIKCmFuZCBzb21lIHRleHQK"
             }
           }
         }
       },
-      "modifiedat": "2026-09-09T19:52:49.419702881Z",
       "ones": {
         "o1": {
-          "createdat": "2026-09-09T19:52:49.419702881Z",
           "epoch": 1,
+          "createdat": "2026-09-10T19:37:35.504709321Z",
+          "modifiedat": "2026-09-10T19:37:35.504709321Z",
+
           "meta": {
-            "createdat": "2026-09-09T19:52:49.419702881Z",
-            "defaultversionid": "v1",
             "epoch": 1,
-            "modifiedat": "2026-09-09T19:52:49.419702881Z"
-          },
-          "modifiedat": "2026-09-09T19:52:49.419702881Z"
+            "createdat": "2026-09-10T19:37:35.504709321Z",
+            "modifiedat": "2026-09-10T19:37:35.504709321Z",
+
+            "defaultversionid": "v1"
+          }
         }
       }
     },
     "d2": {
-      "createdat": "2026-09-09T19:52:49.495830944Z",
       "epoch": 1,
-      "modifiedat": "2026-09-09T19:52:49.495830944Z",
-      "name": "med2"
+      "name": "med2",
+      "createdat": "2026-09-10T19:37:35.608012308Z",
+      "modifiedat": "2026-09-10T19:37:35.608012308Z"
     }
-  },
-  "epoch": 7,
-  "modifiedat": "2026-09-09T19:52:49.554290558Z",
-  "name": "mereg"
+  }
 }
 `, "", true)
 }

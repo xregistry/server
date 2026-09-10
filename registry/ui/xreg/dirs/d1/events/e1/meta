@@ -1,12 +1,13 @@
 {
-  "createdat": "2000-01-01T12:00:00.00Z",
-  "defaultversionid": "1",
-  "defaultversionsticky": false,
-  "defaultversionurl": "$HOST/ui/xreg/dirs/d1/events/e1/versions/1",
-  "epoch": 1,
   "eventid": "e1",
+  "self": "$HOST/ui/xreg/dirs/d1/events/e1/meta",
+  "xid": "/dirs/d1/events/e1/meta",
+  "epoch": 1,
+  "createdat": "2000-01-01T12:00:00.00Z",
   "modifiedat": "2000-01-01T12:00:00.00Z",
   "readonly": false,
-  "self": "$HOST/ui/xreg/dirs/d1/events/e1/meta",
-  "xid": "/dirs/d1/events/e1/meta"
+
+  "defaultversionid": "1",
+  "defaultversionurl": "$HOST/ui/xreg/dirs/d1/events/e1/versions/1",
+  "defaultversionsticky": false
 }
