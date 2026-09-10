@@ -119,7 +119,6 @@ TODOs:
 -- make sure conflicting ifvalue attrs are detected, model define time and runtime
 - add charset to content-type in responses
 - xrserver --downloadUI
-** pretty-printer to have json match spec - js and golang (registry and model)
 ** make loader.go use APIs
 ** support "xr upload", upload files from a dir
 ** see what it would take to support a registry proxy (at the group level) that

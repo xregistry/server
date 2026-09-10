@@ -7555,7 +7555,14 @@ function specAttrOrder(path) {
 // valid JSON).
 function canonicalPrettyPrintXRegJSON(input) {
   var root = (typeof input === 'string') ? JSON.parse(input) : input;
-  var lines = [];
+  // Start with one empty line, not zero: writeCanonicalValue()/
+  // writeCanonicalEntity()/writePlainMap()/writeCanonicalArray() all
+  // begin by appending their opening "{"/"[" via
+  // `lines[lines.length - 1] += ...` — with lines still empty that's
+  // `lines[-1]`, a non-index property that's silently dropped from the
+  // final lines.join('\n') output, losing the very first character of
+  // the whole document (e.g. "{" for an object).
+  var lines = [''];
   writeCanonicalValue(root, '', lines);
   return lines.join('\n');
 }
@@ -13079,7 +13086,19 @@ function renderJSONView(data) {
     return;
   }
 
-  var jsonHtml = addTwisties(syntaxHighlight(JSON.stringify(data, null, 2)));
+  // Use the canonical-order pretty-printer (see canonicalPrettyPrintXRegJSON()
+  // above) so this view's attribute order/spacing matches "xr get"/"xr
+  // download"'s output instead of the fetched JSON's own (arbitrary) key
+  // order. Falls back to plain JSON.stringify() if anything about data's
+  // shape trips up the printer, so a display bug there can never make the
+  // whole JSON view go blank.
+  var prettyText;
+  try {
+    prettyText = canonicalPrettyPrintXRegJSON(data);
+  } catch (e) {
+    prettyText = JSON.stringify(data, null, 2);
+  }
+  var jsonHtml = addTwisties(syntaxHighlight(prettyText));
   var serverURL = _state.serverURL || DEFAULT_SERVER_ORIGIN;
   el('main-view').innerHTML =
     '<div class="json-exp-wrap">' +

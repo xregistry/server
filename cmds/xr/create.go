@@ -450,7 +450,12 @@ func createFunc(cmd *cobra.Command, args []string) {
 		}
 
 		if output == "json" {
-			fmt.Printf("%s\n", xrlib.PrettyPrint(objects, "", "  "))
+			tree, xErr := xrlib.CanonicalPrettyReorderTree(res.Body)
+			Error(xErr, NewXRError("parsing_response", path,
+				"error_detail="+Err2String(xErr)))
+			buf, err := StringifyCanonicalTree(tree)
+			Error(err)
+			fmt.Printf("%s\n", string(buf))
 			return
 		}
 

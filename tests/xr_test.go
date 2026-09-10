@@ -555,13 +555,13 @@ func TestXRUpdateRegistry(t *testing.T) {
 
 	XCLI(t, "update -vo json /", "",
 		`{
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 5,
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "specversion": "1.0-rc4",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "2026-09-10T21:03:21.551707687Z",
+  "modifiedat": "2026-09-10T21:03:21.699933632Z"
 }
 `, "Updated: /\n", true)
 
@@ -569,13 +569,13 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLI(t, "update -o=json / --del name --del arrstr "+
 		"--del arrint[0] --del obj --del map", "",
 		`{
-  "createdat": "2026-06-27T18:24:46.263369607Z",
-  "epoch": 6,
-  "modifiedat": "2026-06-27T18:24:46.505533726Z",
+  "specversion": "1.0-rc4",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  "xid": "/",
+  "epoch": 6,
+  "createdat": "2026-09-10T21:04:37.194238574Z",
+  "modifiedat": "2026-09-10T21:04:37.400412906Z"
 }
 `, "", true)
 
@@ -583,21 +583,21 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLI(t, "update -o=json / --set name=myreg --set arrstr[0]=hi "+
 		"--set arrstr[1]=bye --set map.env=2", "",
 		`{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 7,
+  "name": "myreg",
+  "createdat": "2026-09-10T21:05:00.831787172Z",
+  "modifiedat": "2026-09-10T21:05:01.079150889Z",
   "arrstr": [
     "hi",
     "bye"
   ],
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 7,
   "map": {
     "env": 2
-  },
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "name": "myreg",
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  }
 }
 `, "", true)
 
@@ -605,43 +605,43 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLI(t, "update -o=json / --set name=xxx --set arrstr[2]=foo "+
 		"--set map.dev=1", "",
 		`{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 8,
+  "name": "xxx",
+  "createdat": "2026-09-10T21:05:27.46998384Z",
+  "modifiedat": "2026-09-10T21:05:27.749134157Z",
   "arrstr": [
     "hi",
     "bye",
     "foo"
   ],
-  "createdat": "2026-06-27T18:29:47.744969641Z",
-  "epoch": 8,
   "map": {
     "dev": 1,
     "env": 2
-  },
-  "modifiedat": "2026-06-27T18:29:48.057338381Z",
-  "name": "xxx",
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  }
 }
 `, "", true)
 
 	// Now do some deletes
 	XCLI(t, "update -o=json / --del name --del arrstr[1] --del map.env", "",
 		`{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 9,
+  "createdat": "2026-09-10T21:05:51.85974202Z",
+  "modifiedat": "2026-09-10T21:05:52.19694767Z",
   "arrstr": [
     "hi",
     "foo"
   ],
-  "createdat": "2026-06-27T19:08:11.933679098Z",
-  "epoch": 9,
   "map": {
     "dev": 1
-  },
-  "modifiedat": "2026-06-27T19:08:12.305014327Z",
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  }
 }
 `, "", true)
 
@@ -649,25 +649,25 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLI(t, "update -o=json / --set=name=nam --set description=desc "+
 		"--set labels.foo=bar", "",
 		`{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 10,
+  "name": "nam",
+  "description": "desc",
+  "labels": {
+    "foo": "bar"
+  },
+  "createdat": "2026-09-10T21:06:16.464050516Z",
+  "modifiedat": "2026-09-10T21:06:16.841068681Z",
   "arrstr": [
     "hi",
     "foo"
   ],
-  "createdat": "2026-06-27T19:43:16.483570589Z",
-  "description": "desc",
-  "epoch": 10,
-  "labels": {
-    "foo": "bar"
-  },
   "map": {
     "dev": 1
-  },
-  "modifiedat": "2026-06-27T19:43:16.920061355Z",
-  "name": "nam",
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  }
 }
 `, "", true)
 
@@ -675,23 +675,23 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLI(t, "update -o=json / --set=name --set description= "+
 		"--set labels.foo=null --set bool=false", "",
 		`{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 11,
+  "description": "",
+  "labels": {},
+  "createdat": "2026-09-10T21:06:43.608501699Z",
+  "modifiedat": "2026-09-10T21:06:44.030278141Z",
   "arrstr": [
     "hi",
     "foo"
   ],
   "bool": false,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "description": "",
-  "epoch": 11,
-  "labels": {},
   "map": {
     "dev": 1
-  },
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  }
 }
 `, "", true)
 
@@ -700,52 +700,52 @@ func TestXRUpdateRegistry(t *testing.T) {
 		`--set int=5 --set description='"4"' --set labels.foo='"null"' `+
 		`--set obj={} --set arrstr=[] --set labels.bar='""'`, ``,
 		`{
-  "arrstr": [],
-  "bool": true,
-  "createdat": "2026-06-27T20:01:02.444326941Z",
-  "description": "4",
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
   "epoch": 12,
-  "int": 5,
+  "name": "a b",
+  "description": "4",
   "labels": {
     "bar": "",
     "foo": "null"
   },
+  "createdat": "2026-09-10T21:07:14.499952363Z",
+  "modifiedat": "2026-09-10T21:07:14.965840666Z",
+  "arrstr": [],
+  "bool": true,
+  "int": 5,
   "map": {
     "dev": 1
   },
-  "modifiedat": "2026-06-27T20:01:02.9970089Z",
-  "name": "a b",
-  "obj": {},
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  "obj": {}
 }
 `, "", true)
 
 	// Empty obj and array
 	XCLI(t, "update -o=json / --set obj={} --set arrstr=[]", "",
 		`{
-  "arrstr": [],
-  "bool": true,
-  "createdat": "2026-06-27T20:04:03.803481557Z",
-  "description": "4",
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
   "epoch": 13,
-  "int": 5,
+  "name": "a b",
+  "description": "4",
   "labels": {
     "bar": "",
     "foo": "null"
   },
+  "createdat": "2026-09-10T21:07:34.241399942Z",
+  "modifiedat": "2026-09-10T21:07:34.750580459Z",
+  "arrstr": [],
+  "bool": true,
+  "int": 5,
   "map": {
     "dev": 1
   },
-  "modifiedat": "2026-06-27T20:04:04.387255719Z",
-  "name": "a b",
-  "obj": {},
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  "obj": {}
 }
 `, ``, true)
 
@@ -754,24 +754,24 @@ func TestXRUpdateRegistry(t *testing.T) {
 		`--set map.dev=2 --set map.dev=4 --del map --set map.dev=3 `+
 		`--del labels.bar --set labels={} --del labels --set labels.x=y`, ``,
 		`{
-  "arrstr": [],
-  "bool": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "description": "4",
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "xid": "/",
   "epoch": 14,
-  "int": 5,
+  "description": "4",
   "labels": {
     "x": "y"
   },
+  "createdat": "2026-09-10T21:07:57.658435669Z",
+  "modifiedat": "2026-09-10T21:07:58.207525638Z",
+  "arrstr": [],
+  "bool": true,
+  "int": 5,
   "map": {
     "dev": 3
   },
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "obj": {},
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  "obj": {}
 }
 `, ``, true)
 
@@ -782,13 +782,13 @@ func TestXRUpdateRegistry(t *testing.T) {
 		`--del epoch --del modifiedat --del registryid --del self `+
 		`--del xid --del specversion`, ``,
 		`{
-  "createdat": "2026-06-27T20:13:02.574334308Z",
-  "epoch": 15,
-  "modifiedat": "2026-06-27T20:13:02.574334308Z",
+  "specversion": "1.0-rc4",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  "xid": "/",
+  "epoch": 15,
+  "createdat": "2026-09-10T21:08:23.105835894Z",
+  "modifiedat": "2026-09-10T21:08:23.105835894Z"
 }
 `, ``, true)
 
@@ -796,15 +796,15 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLI(t, `update / -o=json --data '{"obj":{},"description":"foo"}' `+
 		`--set name=myname --del description`, ``,
 		`{
-  "createdat": "2026-06-27T20:24:00.486466752Z",
-  "epoch": 16,
-  "modifiedat": "2026-06-27T20:24:00.584401628Z",
-  "name": "myname",
-  "obj": {},
+  "specversion": "1.0-rc4",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  "xid": "/",
+  "epoch": 16,
+  "name": "myname",
+  "createdat": "2026-09-10T21:08:49.347801106Z",
+  "modifiedat": "2026-09-10T21:08:49.388273793Z",
+  "obj": {}
 }
 `, ``, true)
 
@@ -814,17 +814,17 @@ func TestXRUpdateRegistry(t *testing.T) {
           "name": "joe"
         }`,
 		`{
-  "createdat": "2026-06-27T20:27:45.622157547Z",
-  "description": "cool",
-  "epoch": 17,
-  "modifiedat": "2026-06-27T20:27:45.72520573Z",
-  "obj": {
-    "age": 12
-  },
+  "specversion": "1.0-rc4",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
+  "xid": "/",
+  "epoch": 17,
+  "description": "cool",
+  "createdat": "2026-09-10T21:09:14.643114978Z",
+  "modifiedat": "2026-09-10T21:09:14.722136276Z",
+  "obj": {
+    "age": 12
+  }
 }
 `, ``, true)
 

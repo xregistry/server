@@ -178,7 +178,12 @@ func setFunc(cmd *cobra.Command, args []string) {
 	Error(json.Unmarshal(res.Body, &object))
 
 	if output == "json" {
-		fmt.Printf("%s\n", xrlib.PrettyPrint(object, "", "  "))
+		tree, xErr := xrlib.CanonicalPrettyReorderTree(res.Body)
+		Error(xErr, NewXRError("parsing_response", xid.String(),
+			"error_detail="+Err2String(xErr)))
+		buf, err := StringifyCanonicalTree(tree)
+		Error(err)
+		fmt.Printf("%s\n", string(buf))
 		return
 	}
 
