@@ -920,3 +920,129 @@ func GetOrderedSpecAttrTypes() []SpecAttrInfo {
 	}
 	return result
 }
+
+// ---- Canonical-order JSON pretty-printer (TODO.md "json-pretty-printer") --
+//
+// CanonicalPrettyPrintJSON re-orders + reformats arbitrary xRegistry JSON
+// (a single entity, or a full nested Registry doc, possibly captured from
+// another server) into the spec's canonical attribute order (core/
+// spec.md "Design: JSON Serialization"), using this package's own
+// OrderedSpecProps (via GetOrderedSpecAttrTypes(), same source
+// cmds/genspecattrs uses for the SPA's mirror table) as the ordering
+// source of truth. See common.CanonicalReorderJSON() for the generic
+// (level-order-agnostic) walk/reorder/stringify engine this just feeds.
+//
+// Deliberate simplifications (this is a utility function only — nothing
+// calls it yet; see plan.md/TODO.md for the full design discussion):
+//   - Every nested entity is found structurally, via its own "xid" field
+//     — no server/model round-trip is needed or attempted.
+//   - Extension (non-spec) attributes are alphabetized at each level's
+//     "$extensions" position.
+//   - The Registry's own "id" attribute has a fixed, model-independent
+//     wire name ("registryid"), hardcoded directly into the ordering
+//     table. Group/Resource/Meta/Version's own "id" attribute wire name
+//     (e.g. "messageid") instead depends on the model's singular name —
+//     resolved by VALUE (not by guessing): the entity's own xid already
+//     tells us the exact ID string it must hold, so whichever of the
+//     entity's own keys holds that value (and ends in "id") is treated
+//     as the resolved "id" attribute (see common.resolveIDKeyByValue()).
+//   - "$RESOURCE"-family attrs on a Version (<singular>url/proxyurl/
+//     <singular>/<singular>base64) are resolved directly from that same
+//     singular name once found — no further guessing needed.
+//   - "$COLLECTIONS": a Resource's own collection is always the fixed,
+//     model-independent "versions"/"versionscount"/"versionsurl" triple.
+//     Registry's (group-type) and Group's (resource-type) collections
+//     have no fixed name and there can be any number of them, so those
+//     ARE detected heuristically instead: any "<name>count" key with a
+//     matching "<name>url" sibling is treated as one collection (see
+//     common.detectHeuristicCollections()).
+//   - If none of the above heuristics find a match (e.g. minimal/foreign
+//     JSON omitting the relevant keys), the corresponding token is
+//     simply skipped and the real data — if present under some other
+//     name — falls through to being treated as an ordinary (alphabetized)
+//     extension instead.
+func CanonicalPrettyPrintJSON(data []byte) ([]byte, error) {
+	return CanonicalReorderJSON(data, canonicalLevelOrderFor)
+}
+
+var canonicalLevelOrders map[int][]string
+
+// canonicalLevelOrderFor lazily builds (once) and returns the ordered
+// token list (spec attr names, in declaration order, plus surviving
+// "$space"/"$extensions" markers) for the given ENTITY_* level — mirrors
+// cmds/genspecattrs/main.go's identical per-level filter/collapse logic
+// (both consume the exact same GetOrderedSpecAttrTypes() declaration
+// order, so the Go and JS canonical printers can never silently diverge).
+func canonicalLevelOrderFor(entityType int) []string {
+	if canonicalLevelOrders == nil {
+		canonicalLevelOrders = buildCanonicalLevelOrders()
+	}
+	return canonicalLevelOrders[entityType]
+}
+
+func buildCanonicalLevelOrders() map[int][]string {
+	levels := []int{ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION}
+	attrs := GetOrderedSpecAttrTypes()
+	result := make(map[int][]string, len(levels))
+
+	for _, lvl := range levels {
+		digit := byte('0' + byte(lvl))
+		// A Resource's own HTTP GET response isn't just its own
+		// RESOURCE-typed attrs: the server mirrors its default
+		// Version's own attrs (isdefault/createdat/modifiedat/
+		// ancestorid/contenttype/the "$RESOURCE*" content family/etc.)
+		// directly onto the Resource's own row (see
+		// registry/resource.go's SaveDefaultVersionCascade()/
+		// IsDefaultVerCopy mechanism), so the Resource-level canonical
+		// order must ALSO include ENTITY_VERSION-typed attrs, in the
+		// same master declaration order — otherwise those mirrored
+		// attrs aren't recognized as spec attrs and incorrectly fall
+		// through to being alphabetized as plain extensions.
+		extraDigit := byte(0)
+		if lvl == ENTITY_RESOURCE {
+			extraDigit = '0' + byte(ENTITY_VERSION)
+		}
+		seen := map[string]bool{}
+		tokens := make([]string, 0, len(attrs))
+		for _, a := range attrs {
+			applies := a.Types == "" || strings.IndexByte(a.Types, digit) >= 0 ||
+				(extraDigit != 0 && strings.IndexByte(a.Types, extraDigit) >= 0)
+			if !applies {
+				continue
+			}
+			if a.Name == "$space" || a.Name == "$extensions" {
+				tokens = append(tokens, a.Name)
+				continue
+			}
+			if seen[a.Name] {
+				continue
+			}
+			seen[a.Name] = true
+			// The Registry's generic "id" attribute always has the fixed,
+			// model-independent wire name "registryid" — safe to
+			// hardcode (see CanonicalPrettyPrintJSON's doc comment).
+			// Group/Resource/Meta's own "<singular>id" wire name DOES
+			// depend on the model and is intentionally NOT substituted
+			// here (falls through to being treated as an extension).
+			if a.Name == "id" && lvl == ENTITY_REGISTRY {
+				tokens = append(tokens, "registryid")
+				continue
+			}
+			tokens = append(tokens, a.Name)
+		}
+
+		// Collapse consecutive "$space" runs, drop leading/trailing.
+		collapsed := make([]string, 0, len(tokens))
+		for _, t := range tokens {
+			if t == "$space" && (len(collapsed) == 0 || collapsed[len(collapsed)-1] == "$space") {
+				continue
+			}
+			collapsed = append(collapsed, t)
+		}
+		for len(collapsed) > 0 && collapsed[len(collapsed)-1] == "$space" {
+			collapsed = collapsed[:len(collapsed)-1]
+		}
+		result[lvl] = collapsed
+	}
+	return result
+}

@@ -71,6 +71,7 @@ func TestResourceCreate(t *testing.T) {
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -172,6 +173,7 @@ func TestResourceSet(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -202,6 +204,7 @@ func TestResourceSet(t *testing.T) {
   "ext2": 123,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -228,6 +231,7 @@ func TestResourceSet(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -401,6 +405,7 @@ func TestResourceMaxVersions(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -459,6 +464,7 @@ func TestResourceMaxVersions(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v2": {
@@ -559,6 +565,7 @@ func TestResourceMaxVersions(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v2": {
@@ -627,6 +634,7 @@ func TestResourceMaxVersions(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v2": {
@@ -960,6 +968,7 @@ func TestResourceMaxVersions(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v9",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1207,6 +1216,7 @@ func TestResourceDeprecated(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1285,6 +1295,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1319,6 +1330,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1360,6 +1372,7 @@ func TestResourceSamples(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   }
@@ -1401,6 +1414,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -1465,6 +1479,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -1532,6 +1547,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -1612,6 +1628,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -1697,6 +1714,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -1773,6 +1791,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -1831,6 +1850,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v0": {
@@ -1911,6 +1931,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v0",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v0": {
@@ -1973,6 +1994,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v0": {
@@ -2057,6 +2079,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v0": {
@@ -2140,6 +2163,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v0": {
@@ -2222,6 +2246,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -2299,6 +2324,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -2366,6 +2392,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -2446,6 +2473,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -2512,6 +2540,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -2591,6 +2620,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -2657,6 +2687,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -2728,6 +2759,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -2775,6 +2807,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -2835,6 +2868,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -2883,6 +2917,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -2944,6 +2979,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -2993,6 +3029,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3054,6 +3091,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3104,6 +3142,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3166,6 +3205,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3216,6 +3256,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3276,6 +3317,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3327,6 +3369,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3394,6 +3437,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -3469,6 +3513,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -3544,6 +3589,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3613,6 +3659,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3677,6 +3724,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3748,6 +3796,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
@@ -3810,6 +3859,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -3867,6 +3917,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -3939,6 +3990,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -4009,6 +4061,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -4077,6 +4130,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -4145,6 +4199,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
@@ -4239,6 +4294,7 @@ func TestResourceSamples(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {

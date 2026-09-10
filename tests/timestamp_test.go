@@ -132,6 +132,7 @@ func TestTimestampRegistry(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
@@ -190,6 +191,7 @@ func TestTimestampRegistry(t *testing.T) {
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }

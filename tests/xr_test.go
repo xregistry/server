@@ -252,6 +252,7 @@ GROUP: dirs / dir
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2031,7 +2032,9 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "ancestorid": "1",
+
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2049,7 +2052,9 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "ancestorid": "1",
+
   "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
   "versionscount": 1
 }
@@ -2068,7 +2073,9 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
+
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2086,7 +2093,9 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
+
   "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
   "versionscount": 1
 }
@@ -2106,7 +2115,9 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
+
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2126,7 +2137,9 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
+
   "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
   "versionscount": 1
 }
@@ -2147,7 +2160,9 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
+
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2167,7 +2182,9 @@ func TestXRResourceFlags(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "ancestorid": "1",
+
   "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
   "versionscount": 1
 }

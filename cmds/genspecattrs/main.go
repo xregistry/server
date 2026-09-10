@@ -213,5 +213,121 @@ func main() {
 	}
 	fmt.Fprintln(out, "};")
 
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "// Full canonical attribute order per entity level, INCLUDING the")
+	fmt.Fprintln(out, "// structural '$space' (blank-line separator) and '$extensions'")
+	fmt.Fprintln(out, "// (alphabetized-extension insertion point) markers from")
+	fmt.Fprintln(out, "// registry.OrderedSpecProps, in declaration order. Unlike")
+	fmt.Fprintln(out, "// SPEC_ATTRS_ORDER above (which drops '$'-prefixed entries — it's")
+	fmt.Fprintln(out, "// only used for UI column ordering), this preserves them so a")
+	fmt.Fprintln(out, "// canonical-order JSON pretty-printer can reproduce the spec's")
+	fmt.Fprintln(out, "// pseudo-JSON layout (see core/spec.md \"Design: JSON Serialization\").")
+	fmt.Fprintln(out, "// '$RESOURCE*'/'$COLLECTIONS' placeholder tokens are kept verbatim —")
+	fmt.Fprintln(out, "// a consumer without the real model can't resolve them to real")
+	fmt.Fprintln(out, "// attribute names, so it should just skip over them as no-ops.")
+	fmt.Fprintln(out, "// Consecutive '$space' entries (which can end up adjacent after")
+	fmt.Fprintln(out, "// per-level filtering removes everything between two of them) are")
+	fmt.Fprintln(out, "// already collapsed to one here, and no leading/trailing '$space'")
+	fmt.Fprintln(out, "// survives — so a consumer can treat every remaining '$space' as")
+	fmt.Fprintln(out, "// exactly one blank line to emit.")
+	fmt.Fprintln(out, "var SPEC_ATTRS_CANONICAL_ORDER = {")
+	canonicalByLevel := map[string][]string{}
+	for _, lv := range allLevels {
+		seen := map[string]bool{}
+		tokens := []string{}
+		for _, a := range registry.GetOrderedSpecAttrTypes() {
+			levels := allLevels
+			if a.Types != "" {
+				levels = []string{}
+				for i := 0; i < len(a.Types); i++ {
+					if l, ok := digitToLevel[a.Types[i]]; ok {
+						levels = append(levels, l)
+					}
+				}
+			}
+			applies := false
+			for _, l := range levels {
+				if l == lv {
+					applies = true
+					break
+				}
+				// A Resource's own HTTP GET response isn't just its own
+				// "resource"-typed attrs: the server mirrors its default
+				// Version's own attrs (isdefault/createdat/modifiedat/
+				// ancestorid/contenttype/the "$RESOURCE*" content
+				// family/etc.) directly onto the Resource's own row
+				// (see registry/resource.go's
+				// SaveDefaultVersionCascade()/IsDefaultVerCopy
+				// mechanism, and the identical comment in
+				// common/shared_entity's buildCanonicalLevelOrders()),
+				// so the "resource" canonical order must ALSO include
+				// "version"-typed attrs, in the same master declaration
+				// order — otherwise those mirrored attrs aren't
+				// recognized as spec attrs and incorrectly fall through
+				// to being alphabetized as plain extensions.
+				if lv == "resource" && l == "version" {
+					applies = true
+					break
+				}
+			}
+			if !applies {
+				continue
+			}
+			// $space/$extensions are structural — always kept, never
+			// deduped against a "seen name" (multiple $space markers are
+			// expected/legit; collapsing of consecutive ones happens
+			// below, after this per-attribute pass).
+			if a.Name == "$space" || a.Name == "$extensions" {
+				tokens = append(tokens, a.Name)
+				continue
+			}
+			if seen[a.Name] {
+				continue
+			}
+			seen[a.Name] = true
+			// The Registry's generic "id" attribute always has the
+			// fixed, model-independent wire name "registryid" — safe to
+			// hardcode here (mirrors the same substitution in
+			// common/shared_entity's canonicalLevelOrderFor()).
+			// Group/Resource/Meta's own "<singular>id" wire name DOES
+			// depend on the model and is intentionally left
+			// unsubstituted (falls through to being treated as an
+			// extension attribute by the canonical printer).
+			if a.Name == "id" && lv == "registry" {
+				tokens = append(tokens, "registryid")
+				continue
+			}
+			tokens = append(tokens, a.Name)
+		}
+
+		// Collapse consecutive "$space" runs into a single one, and drop
+		// any leading/trailing "$space".
+		collapsed := make([]string, 0, len(tokens))
+		for _, t := range tokens {
+			if t == "$space" {
+				if len(collapsed) == 0 || collapsed[len(collapsed)-1] == "$space" {
+					continue
+				}
+			}
+			collapsed = append(collapsed, t)
+		}
+		for len(collapsed) > 0 && collapsed[len(collapsed)-1] == "$space" {
+			collapsed = collapsed[:len(collapsed)-1]
+		}
+		canonicalByLevel[lv] = collapsed
+	}
+	for i, level := range allLevels {
+		quoted := make([]string, len(canonicalByLevel[level]))
+		for j, name := range canonicalByLevel[level] {
+			quoted[j] = fmt.Sprintf("%q", name)
+		}
+		comma := ","
+		if i == len(allLevels)-1 {
+			comma = ""
+		}
+		fmt.Fprintf(out, "  %-9s [%s]%s\n", level+":", strings.Join(quoted, ", "), comma)
+	}
+	fmt.Fprintln(out, "};")
+
 	// fmt.Fprintf(os.Stderr, "genspecattrs: wrote registry/ui/specattrs.js\n")
 }

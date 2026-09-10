@@ -238,7 +238,8 @@ func getFunc(cmd *cobra.Command, args []string) {
 			Error(err)
 		}
 
-		buf, err := PrettyPrintJSON(res.Body, "", "  ")
+		// buf, err := PrettyPrintJSON(res.Body, "", "  ")
+		buf, err := xrlib.CanonicalPrettyPrintJSON(res.Body)
 		Error(err, NewXRError("parsing_response", path,
 			"error_detail="+Err2String(err)).
 			SetDetail("Response: "+string(res.Body)+"."))

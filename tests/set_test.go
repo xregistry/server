@@ -200,6 +200,7 @@ func TestSetResource(t *testing.T) {
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -279,6 +280,7 @@ func TestSetVersion(t *testing.T) {
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -582,6 +584,7 @@ func TestSetLabels(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
@@ -684,6 +687,7 @@ func TestSetLabels(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
             "defaultversionsticky": true
           },
+
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {

@@ -357,6 +357,7 @@ func TestFiltersBasic(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versions": {
             "v1": {
@@ -486,6 +487,7 @@ func TestFiltersBasic(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versions": {
             "v1": {
@@ -1754,6 +1756,7 @@ func TestFiltersURLs(t *testing.T) {
     "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d2/datas/d2/meta",
+
     "versionsurl": "http://localhost:8181/dirs/d2/datas/d2/versions",
     "versionscount": 1
   }
@@ -2082,6 +2085,7 @@ func TestFiltersWildcardsInName(t *testing.T) {
     },
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   }

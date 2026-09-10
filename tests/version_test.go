@@ -86,6 +86,7 @@ func TestVersionCreate(t *testing.T) {
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -231,6 +232,7 @@ func TestVersionCreate(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -302,6 +304,7 @@ func TestVersionCreate(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d2/files/f1/versions/v3$details",
       "defaultversionsticky": true
     },
+
     "versionsurl": "http://localhost:8181/dirs/d2/files/f1/versions",
     "versionscount": 2
   }
@@ -347,6 +350,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -381,6 +385,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -414,6 +419,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -447,6 +453,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -482,6 +489,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 5
 }
@@ -515,6 +523,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 4
 }
@@ -560,6 +569,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -593,6 +603,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -625,6 +636,7 @@ func TestVersionDefault(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -680,6 +692,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -713,6 +726,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -752,6 +766,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v4": {
@@ -905,6 +920,7 @@ func TestVersionOrdering(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/z5",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "V1": {
@@ -1015,6 +1031,7 @@ func TestVersionOrdering(t *testing.T) {
   "ancestorid": "V1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 7
 }
@@ -1044,6 +1061,7 @@ func TestVersionOrdering(t *testing.T) {
   "ancestorid": "%s",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": %d
 }
@@ -1114,6 +1132,7 @@ func TestVersionOrdering2(t *testing.T) {
   "ancestorid": "v5",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 5
 }

@@ -1716,6 +1716,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1735,6 +1736,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
     "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   }
@@ -1755,6 +1757,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
     "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   }
@@ -1778,6 +1781,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }

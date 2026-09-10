@@ -105,6 +105,7 @@ func TestFormatSimple(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1027,6 +1028,7 @@ func TestFormatSimpleJson(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1050,6 +1052,7 @@ func TestFormatSimpleJson(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1211,6 +1214,7 @@ func TestFormatStrict(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/versions",
   "versionscount": 1
 }
@@ -1283,6 +1287,7 @@ func TestFormatStrict(t *testing.T) {
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/versions",
   "versionscount": 1
 }
@@ -1543,6 +1548,7 @@ func TestFormatNotStrict(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/versions",
   "versionscount": 1
 }
@@ -1615,6 +1621,7 @@ func TestFormatNotStrict(t *testing.T) {
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/versions",
   "versionscount": 1
 }
@@ -1642,6 +1649,7 @@ func TestFormatNotStrict(t *testing.T) {
   "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/versions",
   "versionscount": 1
 }
@@ -1820,6 +1828,7 @@ func TestFormatNotStrict(t *testing.T) {
   "fileurl": "http://example.com",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f.`+af.Name+`/versions",
   "versionscount": 1
 }
@@ -1897,6 +1906,7 @@ func TestFormatCompatModes(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -2022,6 +2032,7 @@ func TestFormatCompatModes(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -2089,6 +2100,7 @@ func TestFormatXrefCascadeOnDirectSave(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2129,6 +2141,7 @@ func TestFormatXrefCascadeOnDirectSave(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2177,6 +2190,7 @@ func TestFormatXrefCascadeOnDirectSave(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 2
 }
@@ -2248,6 +2262,7 @@ func TestFormatXrefCompatModeChangeCascade(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -2305,6 +2320,7 @@ func TestFormatXrefCompatModeChangeCascade(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 2
 }
@@ -2331,6 +2347,7 @@ func TestFormatXrefCompatModeChangeCascade(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -2372,6 +2389,7 @@ func TestFormatXrefCompatModeChangeCascade(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 2
 }
@@ -2448,6 +2466,7 @@ func TestFormatXrefValidationFailureCascade(t *testing.T) {
   "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2492,6 +2511,7 @@ func TestFormatXrefValidationFailureCascade(t *testing.T) {
   "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2519,6 +2539,7 @@ func TestFormatXrefValidationFailureCascade(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2540,6 +2561,7 @@ func TestFormatXrefValidationFailureCascade(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2608,6 +2630,7 @@ func TestFormatXrefValidationFailureCascadeAfterUpdate(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2648,6 +2671,7 @@ func TestFormatXrefValidationFailureCascadeAfterUpdate(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2677,6 +2701,7 @@ func TestFormatXrefValidationFailureCascadeAfterUpdate(t *testing.T) {
   "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2701,6 +2726,7 @@ func TestFormatXrefValidationFailureCascadeAfterUpdate(t *testing.T) {
   "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2771,6 +2797,7 @@ func TestFormatXrefTargetUpdateRejectionDoesNotCorruptMirror(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2811,6 +2838,7 @@ func TestFormatXrefTargetUpdateRejectionDoesNotCorruptMirror(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2855,6 +2883,7 @@ func TestFormatXrefTargetUpdateRejectionDoesNotCorruptMirror(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2879,6 +2908,7 @@ func TestFormatXrefTargetUpdateRejectionDoesNotCorruptMirror(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2970,6 +3000,7 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -2992,6 +3023,7 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -3032,6 +3064,7 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 2
 }
@@ -3681,6 +3714,7 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -3706,6 +3740,7 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 2
 }
@@ -3746,6 +3781,7 @@ func TestFormatModelOffClearsStaleFormatValidated(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -3773,6 +3809,7 @@ func TestFormatModelOffClearsStaleFormatValidated(t *testing.T) {
   "format": "numbers",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -3818,6 +3855,7 @@ func TestFormatModelOffClearsStaleCompatValidated(t *testing.T) {
   "compatibilityvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -3847,6 +3885,7 @@ func TestFormatModelOffClearsStaleCompatValidated(t *testing.T) {
   "formatvalidated": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }

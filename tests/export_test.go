@@ -194,6 +194,7 @@ func TestExportBasic(t *testing.T) {
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v2",
             "defaultversionsticky": false
           },
+
           "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
@@ -297,6 +298,7 @@ func TestExportBasic(t *testing.T) {
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v2",
             "defaultversionsticky": false
           },
+
           "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
@@ -1156,6 +1158,7 @@ func TestExportBasic(t *testing.T) {
           "defaultversionurl": "#/d1/files/f1/versions/v2",
           "defaultversionsticky": false
         },
+
         "versionsurl": "#/d1/files/f1/versions",
         "versions": {
           "v1": {
@@ -1239,6 +1242,7 @@ func TestExportBasic(t *testing.T) {
         "defaultversionurl": "#/files/f1/versions/v2",
         "defaultversionsticky": false
       },
+
       "versionsurl": "#/files/f1/versions",
       "versions": {
         "v1": {
@@ -1312,6 +1316,7 @@ func TestExportBasic(t *testing.T) {
       "defaultversionurl": "#/f1/versions/v2",
       "defaultversionsticky": false
     },
+
     "versionsurl": "#/f1/versions",
     "versions": {
       "v1": {
@@ -1382,6 +1387,7 @@ func TestExportBasic(t *testing.T) {
     "defaultversionurl": "#/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "#/versions",
   "versions": {
     "v1": {
@@ -1542,6 +1548,7 @@ func TestExportBasic(t *testing.T) {
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",
+
   "versionsurl": "#/versions",
   "versions": {
     "v1": {
@@ -1585,6 +1592,7 @@ func TestExportBasic(t *testing.T) {
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",
+
   "versionsurl": "#/versions",
   "versions": {
     "v2": {
@@ -1656,6 +1664,7 @@ func TestExportBasic(t *testing.T) {
           "xid": "/dirs/d1/files/f1",
 
           "metaurl": "#/dirs/d1/files/f1/meta",
+
           "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "v2": {
@@ -1797,6 +1806,7 @@ func TestExportBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions?filter=versionid=v2",
     "versionscount": 1
   },
@@ -1872,6 +1882,7 @@ func TestExportBasic(t *testing.T) {
     "xid": "/dirs/d1/files/f1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 2
   },
@@ -1892,6 +1903,7 @@ func TestExportBasic(t *testing.T) {
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -2258,6 +2270,7 @@ func TestExportURLs(t *testing.T) {
           "xid": "/dirs/d1/files/f1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
@@ -2311,6 +2324,7 @@ func TestExportURLs(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
@@ -2351,6 +2365,7 @@ func TestExportURLs(t *testing.T) {
           "xid": "/dirs/d1/files/f1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
           "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
@@ -2417,6 +2432,7 @@ func TestExportURLs(t *testing.T) {
             "defaultversionurl": "#/dirs/d1/files/f1/versions/1",
             "defaultversionsticky": false
           },
+
           "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
@@ -2463,6 +2479,7 @@ func TestExportURLs(t *testing.T) {
       "defaultversionurl": "#/f1/versions/1",
       "defaultversionsticky": false
     },
+
     "versionsurl": "#/f1/versions",
     "versions": {
       "1": {
@@ -2502,6 +2519,7 @@ func TestExportURLs(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   }
@@ -2515,6 +2533,7 @@ func TestExportURLs(t *testing.T) {
     "xid": "/dirs/d1/files/f1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
     "versionsurl": "#/f1/versions",
     "versions": {
       "1": {
@@ -2574,6 +2593,7 @@ func TestExportURLs(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
@@ -2614,6 +2634,7 @@ func TestExportURLs(t *testing.T) {
           "xid": "/dirs/d1/files/f1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
           "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
@@ -2743,6 +2764,7 @@ func TestExportURLs(t *testing.T) {
             "defaultversionurl": "#/dirs/d1/files/f1/versions/1",
             "defaultversionsticky": false
           },
+
           "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
@@ -2824,6 +2846,7 @@ func TestExportNoDoc(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2849,6 +2872,7 @@ func TestExportNoDoc(t *testing.T) {
     "defaultversionurl": "#/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "#/versions",
   "versions": {
     "v1": {
@@ -2988,6 +3012,7 @@ func TestExportImportModel(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "1": {

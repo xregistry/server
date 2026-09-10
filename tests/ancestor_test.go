@@ -43,6 +43,7 @@ func TestAncestorBasic(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -105,6 +106,7 @@ func TestAncestorBasic(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -150,6 +152,7 @@ func TestAncestorBasic(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
   "versionscount": 1
 }
@@ -167,6 +170,7 @@ func TestAncestorBasic(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
   "versionscount": 1
 }
@@ -212,6 +216,7 @@ func TestAncestorBasic(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f3/versions",
   "versionscount": 1
 }
@@ -580,6 +585,7 @@ func TestAncestorWithSicky(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -992,6 +998,7 @@ func TestAncestorMaxVersions(t *testing.T) {
   "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -1036,6 +1043,7 @@ func TestAncestorMaxVersions(t *testing.T) {
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -1055,6 +1063,7 @@ func TestAncestorMaxVersions(t *testing.T) {
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -1080,6 +1089,7 @@ func TestAncestorMaxVersions(t *testing.T) {
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }

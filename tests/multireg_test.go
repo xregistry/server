@@ -99,6 +99,7 @@ func TestMultiReg(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/`+registry.RegCollectionSegment+`/reg2/reg2_dirs/d2/reg2_files/f2/meta",
+
   "versionsurl": "http://localhost:8181/`+registry.RegCollectionSegment+`/reg2/reg2_dirs/d2/reg2_files/f2/versions",
   "versionscount": 1
 }
