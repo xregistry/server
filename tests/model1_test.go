@@ -6270,6 +6270,7 @@ func TestModelResourceCreate(t *testing.T) {
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
+
           "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
           "versionscount": 1
         }
@@ -10734,6 +10735,7 @@ func TestModelMult2Create(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs1/d1/files/f1/versions/v2$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs1/d1/files/f1/versions",
           "versions": {
             "v1": {
@@ -10799,6 +10801,7 @@ func TestModelMult2Create(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs1/d2/files/f2/versions/v1.1$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs1/d2/files/f2/versions",
           "versions": {
             "v1": {
@@ -10868,6 +10871,7 @@ func TestModelMult2Create(t *testing.T) {
             "defaultversionurl": "http://localhost:8181/dirs2/d2/files/f2/versions/v1$details",
             "defaultversionsticky": false
           },
+
           "versionsurl": "http://localhost:8181/dirs2/d2/files/f2/versions",
           "versions": {
             "v1": {

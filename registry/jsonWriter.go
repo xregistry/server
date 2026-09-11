@@ -257,7 +257,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	jw.Indent()
 
 	jsonIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
-		log.FuncPrintf("tx: %s jsonIt: %q", info.uuid, key)
+		log.VPrintf("WriteEntity", "tx: %s jsonIt: %q", info.uuid, key)
 		if key == "$space" {
 			addSpace = true
 			return nil
@@ -425,6 +425,11 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	// empty collections (WritePreCollections).
 	// When done with all children, WritePostCollections will serialize all
 	// empty collections that alphabetically come after the last child
+
+	if myType == ENTITY_RESOURCE && addSpace {
+		extra += "\n"
+	}
+
 	for jw.Entity != nil &&
 		(myAbstract == "" ||
 			strings.HasPrefix(jw.Entity.Abstract, myAbstract+string(DB_IN))) {
@@ -446,6 +451,9 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 		jw.Entity = cachedMeta
 		jw.info.extras["seenDefaultVid"] = jw.seenDefaultVid
 
+		if len(extra) > 0 && extra[len(extra)-1] == '\n' {
+			extra = extra[:len(extra)-1]
+		}
 		jw.Printf("%s\n%s%q: ", extra, jw.indent, "meta")
 		if xErr := jw.WriteEntity(); xErr != nil {
 			return xErr

@@ -83,6 +83,7 @@ func TestTypeMap(t *testing.T) {
   "contenttype": "bad/bad",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -102,6 +103,7 @@ func TestTypeMap(t *testing.T) {
   "filebase64": "Zm9v",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -136,6 +138,7 @@ func TestTypeMap(t *testing.T) {
   "file": "foo",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -170,6 +173,7 @@ func TestTypeMap(t *testing.T) {
   "file": "foo",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -204,6 +208,7 @@ func TestTypeMap(t *testing.T) {
   "file": "foo",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -238,6 +243,7 @@ func TestTypeMap(t *testing.T) {
   "filebase64": "Zm9v",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -272,6 +278,7 @@ func TestTypeMap(t *testing.T) {
   "file": "foo",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -292,6 +299,7 @@ func TestTypeMap(t *testing.T) {
   "contenttype": "bad/bad",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -311,6 +319,7 @@ func TestTypeMap(t *testing.T) {
   "file": "{\"foo\":\"bar\"}",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -347,6 +356,7 @@ func TestTypeMap(t *testing.T) {
   },
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -381,6 +391,7 @@ func TestTypeMap(t *testing.T) {
   "filebase64": "eyJmb28iOiJiYXIifQ==",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -400,6 +411,7 @@ func TestTypeMap(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -418,6 +430,7 @@ func TestTypeMap(t *testing.T) {
   "filebase64": "Zm9vImJhcg==",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -454,6 +467,7 @@ func TestTypeMap(t *testing.T) {
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -473,6 +487,7 @@ func TestTypeMap(t *testing.T) {
   "filebase64": "Zm9vImJhcg==",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -507,6 +522,7 @@ func TestTypeMap(t *testing.T) {
   "file": "foo\"bar",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }

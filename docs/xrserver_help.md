@@ -4,10 +4,30 @@
 
 The `xrserver` CLI boots and manages the API server and backing database:
 
+The `.xrserver` config file (default location: $HOME) supports:
+
+```
+db.host: STRING             # Hostname of MySQL server
+db.name: STRING             # MySQL DB name
+db.password: STRING         # MySQL DB password
+db.port: INTEGER            # MySQL port number
+db.user: STRING             # MySQL DB username
+defaultreg: STRING          # Default xRegistry name (for HOST/xreg path)
+http.addr: STRING           # HTTP listen address (":PORT")
+http.port: INTEGER          # HTTP listen port
+path.defaultreg: STRING     # HTTP path of default xReg ("xreg")
+path.regcollection: STRING  # HTTP path of xReg collection ("xregs")
+path.ui: STRING             # HTTP path of UI (eg: "ui" -> HOST/ui)
+rootapp: ui|xreg            # What should HOST/ return, UI or default xReg?
+ui.dir: STRING              # Directory of the UI static web pages
+ui.xrui.json: STRING        # Path to xrui.json config file for the UI
+```
+
 <!-- XRSERVER HELP START -->
 ```yaml
 xrserver [command]
   # Global flags:
+      --addr string         HTTP Listen address (""*)
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -169,6 +189,7 @@ xrserver registry list
 
 xrserver run
   # Run server (the default command)
+      --addr string         HTTP Listen address (""*)
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -214,6 +235,7 @@ the `xrserver` command is executed:
 
 | Env Var    | Value |
 | ---------- | ----- |
+| XR_ADDR    | Listening address of the `xrserver` API server (""*) |
 | XR_PORT    | Listening port of the `xrserver` API server (8080*) |
 | XR_MODEL_PATH | Where to find the sample's model files |
 | XR_LOAD_LARGE | If set, a very large default sample Registry will be loaded |

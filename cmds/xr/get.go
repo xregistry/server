@@ -118,57 +118,69 @@ func getFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if output == "json" {
+		// minimize walks an already-canonically-reordered *OrderedMap
+		// tree (see xrlib.CanonicalPrettyReorderTree(), called below)
+		// and deletes the same set of keys as before — but now via
+		// OrderedMap.Delete() (order-preserving), and recursing into
+		// nested *OrderedMap/[]interface{} structures instead of a
+		// generic map[string]any. Because the tree is already in
+		// canonical order (with real xid/model info intact) BEFORE any
+		// deletion happens, there's no need to re-derive that
+		// classifying information afterward — unlike the old pipeline,
+		// which deleted first and only then tried (and often failed) to
+		// reorder what minimize() had left behind.
 		minimize := (func(objAny any) *XRError)(nil)
 		minimize = func(objAny any) *XRError {
 			if IsNil(objAny) {
 				return nil
 			}
-			obj, ok := objAny.(map[string]any)
+			obj, ok := objAny.(*OrderedMap)
 			if !ok {
+				// Not an entity/object (e.g. an array), nothing to do.
 				return nil
 			}
 
-			xidStr, ok := obj["xid"].(string)
+			xidStr, ok := obj.Get("xid").(string)
 			if !ok {
-				// Not an entity, must be a collection, just iterate
-				for _, nextObj := range obj {
-					Error(minimize(nextObj))
+				// Not an entity, must be a collection map, just iterate
+				for _, k := range obj.Keys {
+					Error(minimize(obj.Values[k]))
 				}
 				return nil
 			}
 			xid, err := ParseXid(xidStr)
 			Error(err)
 
-			delete(obj, "xid")
-			delete(obj, "self")
+			obj.Delete("xid")
+			obj.Delete("self")
 			model, xErr := reg.GetModel()
 			Error(xErr)
 
 			switch xid.Type {
 			case ENTITY_REGISTRY:
-				delete(obj, "specversion")
-				delete(obj, "registryid")
+				obj.Delete("specversion")
+				obj.Delete("registryid")
 
 				for _, gm := range model.Groups {
-					delete(obj, gm.Plural+"url")
-					delete(obj, gm.Plural+"count")
-					Error(minimize(obj[gm.Plural]))
+					obj.Delete(gm.Plural + "url")
+					obj.Delete(gm.Plural + "count")
+					Error(minimize(obj.Get(gm.Plural)))
 				}
 			case ENTITY_GROUP:
 				gm, _ := model.Groups[xid.Group]
 
-				delete(obj, gm.Singular+"id")
+				obj.Delete(gm.Singular + "id")
 
 				for _, rm := range gm.Resources {
-					delete(obj, rm.Plural+"url")
-					delete(obj, rm.Plural+"count")
-					Error(minimize(obj[rm.Plural]))
+					obj.Delete(rm.Plural + "url")
+					obj.Delete(rm.Plural + "count")
+					Error(minimize(obj.Get(rm.Plural)))
 
 					// If collection is empty, delete it
-					if nextAny, ok := obj[rm.Plural]; ok {
-						if nextObj, ok := nextAny.(map[string]any); ok {
-							if len(nextObj) == 0 {
-								delete(obj, rm.Plural)
+					if nextAny := obj.Get(rm.Plural); !IsNil(nextAny) {
+						if nextObj, ok := nextAny.(*OrderedMap); ok {
+							if len(nextObj.Keys) == 0 {
+								obj.Delete(rm.Plural)
 							}
 						}
 					}
@@ -178,51 +190,51 @@ func getFunc(cmd *cobra.Command, args []string) {
 				gm, _ := model.Groups[xid.Group]
 				rm, _ := gm.Resources[xid.Resource]
 
-				if obj["versionscount"] == 1.0 {
-					delete(obj, "ancestorid")
+				if vc, ok := obj.Get("versionscount").(json.Number); ok && vc.String() == "1" {
+					obj.Delete("ancestorid")
 				}
 
 				if rm.GetMaxVersions() == 1 {
-					delete(obj, rm.Singular+"id")
-					delete(obj, "versionid")
-					delete(obj, "isdefault")
-					delete(obj, "versionscount")
-					delete(obj, "versionsurl")
-					delete(obj, "versions")
+					obj.Delete(rm.Singular + "id")
+					obj.Delete("versionid")
+					obj.Delete("isdefault")
+					obj.Delete("versionscount")
+					obj.Delete("versionsurl")
+					obj.Delete("versions")
 				} else {
-					for attr, _ := range obj {
+					for _, attr := range append([]string{}, obj.Keys...) {
 						if attr != "meta" && attr != "versions" {
-							delete(obj, attr)
+							obj.Delete(attr)
 						}
 					}
-					Error(minimize(obj["versions"]))
+					Error(minimize(obj.Get("versions")))
 				}
 
-				delete(obj, "metaurl")
-				Error(minimize(obj["meta"]))
+				obj.Delete("metaurl")
+				Error(minimize(obj.Get("meta")))
 
 			case ENTITY_META:
 				gm, _ := model.Groups[xid.Group]
 				rm, _ := gm.Resources[xid.Resource]
 
-				delete(obj, rm.Singular+"id")
-				delete(obj, "defaultversionurl")
-				if obj["defaultversionsticky"] == false {
-					delete(obj, "defaultversion")
-					delete(obj, "defaultversionsticky")
+				obj.Delete(rm.Singular + "id")
+				obj.Delete("defaultversionurl")
+				if obj.Get("defaultversionsticky") == false {
+					obj.Delete("defaultversion")
+					obj.Delete("defaultversionsticky")
 				}
-				if obj["readonly"] == false {
-					delete(obj, "readonly")
+				if obj.Get("readonly") == false {
+					obj.Delete("readonly")
 				}
 
 			case ENTITY_VERSION:
 				gm, _ := model.Groups[xid.Group]
 				rm, _ := gm.Resources[xid.Resource]
 
-				delete(obj, rm.Singular+"id")
-				delete(obj, "versionid")
-				if obj["isdefault"] == false {
-					delete(obj, "isdefault")
+				obj.Delete(rm.Singular + "id")
+				obj.Delete("versionid")
+				if obj.Get("isdefault") == false {
+					obj.Delete("isdefault")
 				}
 
 			default:
@@ -232,13 +244,27 @@ func getFunc(cmd *cobra.Command, args []string) {
 			return nil
 		}
 
-		if minimum {
-			Error(minimize(res.JSON))
-			res.Body, err = json.MarshalIndent(res.JSON, "", "  ")
-			Error(err)
+		// rawjson mode: if we don't need to examine/modify the data
+		// (i.e. no -m/--min), skip parsing entirely and just echo the
+		// server's own bytes verbatim - no reorder, no re-stringify.
+		if GetRawJSON() && !minimum {
+			fmt.Printf("%s", string(res.Body))
+			if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
+				fmt.Print("\n")
+			}
+			return
 		}
 
-		buf, err := PrettyPrintJSON(res.Body, "", "  ")
+		tree, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(res.Body, GetRawJSON())
+		Error(xErr, NewXRError("parsing_response", path,
+			"error_detail="+Err2String(xErr)).
+			SetDetail("Response: "+string(res.Body)+"."))
+
+		if minimum {
+			Error(minimize(tree))
+		}
+
+		buf, err := StringifyCanonicalTree(tree)
 		Error(err, NewXRError("parsing_response", path,
 			"error_detail="+Err2String(err)).
 			SetDetail("Response: "+string(res.Body)+"."))

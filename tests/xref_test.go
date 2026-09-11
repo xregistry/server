@@ -96,6 +96,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   },
@@ -125,6 +126,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versionscount": 1
   }
@@ -158,6 +160,7 @@ func TestXrefBasic(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -215,6 +218,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versions": {
       "v1": {
@@ -261,6 +265,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versions": {
       "v1": {
@@ -327,6 +332,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versions": {
       "v1": {
@@ -370,6 +376,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versions": {
       "1": {
@@ -425,6 +432,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versions": {
       "v1": {
@@ -471,6 +479,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versions": {
       "v1": {
@@ -526,6 +535,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versions": {
       "v1": {
@@ -571,6 +581,7 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1$details",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versions": {
       "1": {
@@ -896,6 +907,7 @@ func TestXrefErrors(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/ff/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/ff/versions",
   "versionscount": 1
 }
@@ -943,6 +955,7 @@ func TestXrefErrors(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/bars/b1/files/f2/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/bars/b1/files/f2/versions",
   "versionscount": 1
 }
@@ -1000,6 +1013,7 @@ func TestXrefRevert(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f0/versions/1",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/f0/versions",
     "versionscount": 1
   },
@@ -1030,6 +1044,7 @@ func TestXrefRevert(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
       "defaultversionsticky": false
     },
+
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versionscount": 1
   }
@@ -1075,6 +1090,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1116,6 +1132,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1123,6 +1140,7 @@ func TestXrefRevert(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
   "meta":{"xref":null},
+
   "versions": {}
 } `, 200, `{
   "fileid": "fx",
@@ -1149,6 +1167,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1188,6 +1207,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1225,6 +1245,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1265,6 +1286,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1301,6 +1323,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/z1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 2
 }
@@ -1341,6 +1364,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1367,6 +1391,7 @@ func TestXrefRevert(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta&setdefaultversionid=b3", `{
   "meta":{"xref":null },
+
   "versions": { "z2": {}, "b3": {} }
 } `, 200, `{
   "fileid": "fx",
@@ -1393,6 +1418,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/b3",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 2
 }
@@ -1433,6 +1459,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1487,6 +1514,7 @@ func TestXrefRevert(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/b3",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 2
 }
@@ -1580,6 +1608,7 @@ func TestXrefDocs(t *testing.T) {
   "fileurl": "http://localhost:8282/EMPTY-URL",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
   "versionscount": 1
 }
@@ -1600,6 +1629,7 @@ func TestXrefDocs(t *testing.T) {
   "filebase64": "aGVsbG8tUHJveHkK",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f3/versions",
   "versionscount": 1
 }
@@ -1962,6 +1992,7 @@ func TestXrefDocs(t *testing.T) {
   "fileurl": "http://localhost:8282/EMPTY-URL",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -1993,6 +2024,7 @@ func TestXrefDocs(t *testing.T) {
   "filebase64": "aGVsbG8tUHJveHkK",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2107,6 +2139,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2124,6 +2157,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2222,6 +2256,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
   "versionscount": 1
 }
@@ -2252,6 +2287,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fy/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fy/versions",
   "versionscount": 1
 }
@@ -2286,6 +2322,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fy/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fy/versions",
   "versionscount": 1
 }
@@ -2321,6 +2358,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fy/versions/1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fy/versions",
   "versionscount": 1
 }
@@ -2355,6 +2393,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fy/versions/2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fy/versions",
   "versionscount": 1
 }
@@ -2475,6 +2514,7 @@ func TestXrefSurvivesModelAttributeRemoval(t *testing.T) {
   "extra": "value1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2511,6 +2551,7 @@ func TestXrefSurvivesModelAttributeRemoval(t *testing.T) {
   "extra": "value1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2556,6 +2597,7 @@ func TestXrefSurvivesModelAttributeRemoval(t *testing.T) {
   "extra": "value1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
@@ -2576,6 +2618,7 @@ func TestXrefSurvivesModelAttributeRemoval(t *testing.T) {
   "extra": "value1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -2653,6 +2696,7 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
@@ -2688,6 +2732,7 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/`+rid+`/versions/v3",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/`+rid+`/versions",
   "versionscount": 3
 }
@@ -2789,6 +2834,7 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/`+rid+`/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/`+rid+`/versions",
   "versionscount": 2
 }
@@ -2824,6 +2870,7 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
@@ -2943,6 +2990,7 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
   "versionscount": 2
 }
@@ -2978,6 +3026,7 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/`+rid+`/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/`+rid+`/versions",
   "versionscount": 2
 }
@@ -3093,6 +3142,7 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 3
 }
@@ -3128,6 +3178,7 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
     "defaultversionsticky": true
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 4
 }
@@ -3263,6 +3314,7 @@ func TestXrefOrderDanglingTargetCreatedLater(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -3346,6 +3398,7 @@ func TestXrefOrderTargetDeletedThenRecreatedAtSamePath(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v2",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
   "versionscount": 1
 }
@@ -3400,6 +3453,7 @@ func TestXrefOrderTargetDeletedViaGroupBulkDelete(t *testing.T) {
     "defaultversionurl": "http://localhost:8181/dirs/d2/files/fx/versions/v1",
     "defaultversionsticky": false
   },
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }

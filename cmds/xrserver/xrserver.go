@@ -12,6 +12,7 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
+var defAddr = ""
 var defPort = 8080
 var defDBHost = "127.0.0.1"
 var defDBPort = 3306
@@ -31,6 +32,7 @@ func init() {
 	XRServerConfig.Set("rootapp", "ui")
 	XRServerConfig.Set("ui.dir", "")
 	XRServerConfig.Set("verbose", "")
+	XRServerConfig.Set("http.addr", defAddr)
 	XRServerConfig.Set("http.port", fmt.Sprintf("%d", defPort))
 	XRServerConfig.Set("db.name", defDBName)
 	XRServerConfig.Set("db.host", defDBHost)
@@ -120,6 +122,8 @@ func setupCmds() *cobra.Command {
 	serverCmd.Flags().StringP("registry", "r", defRegistryName,
 		"Default Registry name")
 	serverCmd.Flag("registry").DefValue = ""
+	serverCmd.Flags().StringP("addr", "", defAddr,
+		fmt.Sprintf("HTTP Listen address (%q*)", defAddr))
 	serverCmd.Flags().IntP("port", "p", defPort,
 		fmt.Sprintf("HTTP Listen port (%d*)", defPort))
 	serverCmd.Flag("port").DefValue = "0"
@@ -178,6 +182,8 @@ func setupCmds() *cobra.Command {
 	runCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
 	runCmd.Flags().StringP("rootapp", "", "ui", "Root application (ui,xreg)")
 	runCmd.Flags().BoolP("samples", "", false, "Load sample registries")
+	runCmd.Flags().StringP("addr", "", defAddr,
+		fmt.Sprintf("HTTP Listen address (%q*)", defAddr))
 	runCmd.Flags().IntP("port", "p", defPort,
 		fmt.Sprintf("HTTP Listen port (%d*)", defPort))
 	runCmd.Flag("port").DefValue = "0"
@@ -256,10 +262,12 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	// Override with non-global env vars
+	XRServerConfig.SetFromEnv("http.addr", "XR_ADDR")
 	XRServerConfig.SetFromEnv("http.port", "XR_PORT")
 
 	// Override with cmd-line params
 	XRServerConfig.SetFromCmd("defaultreg", cmd, "registry")
+	XRServerConfig.SetFromCmd("http.addr", cmd, "addr")
 	XRServerConfig.SetFromCmdInt("http.port", cmd, "port")
 	XRServerConfig.SetFromCmd("rootapp", cmd, "rootapp")
 	XRServerConfig.SetFromCmd("ui.dir", cmd, "ui-dir")
@@ -416,7 +424,8 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	registry.DefaultRegDbSID = reg.DbSID
-	registry.NewServer(XRServerConfig.GetAsInt("http.port")).Serve()
+	registry.NewServer(XRServerConfig.Get("http.addr"),
+		XRServerConfig.GetAsInt("http.port")).Serve()
 }
 
 func BufPrintf(buf *strings.Builder, fmtStr string, args ...any) {

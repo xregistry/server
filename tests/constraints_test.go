@@ -1869,6 +1869,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
           "mystr": "foo",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 2
         }
@@ -3413,6 +3414,7 @@ func TestConstraintsModelLevelXrefRealValue(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -3434,6 +3436,7 @@ func TestConstraintsModelLevelXrefRealValue(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/other/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/other/versions",
   "versionscount": 1
 }
@@ -3477,6 +3480,7 @@ func TestConstraintsModelLevelXrefRealValue(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -3521,6 +3525,7 @@ func TestConstraintsEqualsEnforcedOnXref(t *testing.T) {
   "myattr": "not-z",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -3592,6 +3597,7 @@ func TestConstraintsEqualsEnforcedOnXref(t *testing.T) {
   "myattr": "z",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -3626,6 +3632,7 @@ func TestConstraintsEqualsEnforcedOnXref(t *testing.T) {
   "myattr": "z",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -3661,6 +3668,7 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
   "myattr": "c",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -3741,6 +3749,7 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
   "myattr": "a",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -3775,6 +3784,7 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
   "myattr": "a",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -3818,6 +3828,7 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
   "myattr": "a",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -3877,6 +3888,7 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
   "myattr": "a",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -3918,6 +3930,7 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
   "myattr": "a",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -3936,6 +3949,7 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
   "myattr": "a",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -3994,6 +4008,7 @@ func TestConstraintsDefaultTransitionCascade(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -4031,6 +4046,7 @@ func TestConstraintsDefaultTransitionCascade(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -4052,6 +4068,7 @@ func TestConstraintsDefaultTransitionCascade(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -4073,6 +4090,7 @@ func TestConstraintsDefaultTransitionCascade(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -4127,6 +4145,7 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
       "myattr": "x",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
       "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
       "versionscount": 1
     }
@@ -4167,6 +4186,7 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
   "myattr": "x",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -4203,6 +4223,7 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
       "myattr": "z",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
       "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
       "versionscount": 1
     }
@@ -4227,6 +4248,7 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
   "myattr": "z",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -4318,6 +4340,7 @@ func TestConstraintsMultipleConstraintSourcesXrefCascade(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
   "versionscount": 1
 }
@@ -4359,6 +4382,7 @@ func TestConstraintsMultipleConstraintSourcesXrefCascade(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
   "versionscount": 1
 }
@@ -4557,6 +4581,7 @@ func TestConstraintsWithXrefs(t *testing.T) {
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }

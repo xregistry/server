@@ -51,6 +51,21 @@ func (c *Config) GetAsInt(name string) int {
 	return i
 }
 
+// GetAsBool returns name's value parsed as a bool (via strconv.ParseBool,
+// so "1"/"t"/"T"/"TRUE"/"true"/"True" etc. are all accepted), or false if
+// name is unset or its value isn't a valid bool.
+func (c *Config) GetAsBool(name string) bool {
+	if c.Data == nil {
+		return false
+	}
+	val := c.Data[name]
+	if val == "" {
+		return false
+	}
+	b, _ := strconv.ParseBool(val)
+	return b
+}
+
 func (c *Config) Set(name, value string) *Config {
 	name = strings.TrimSpace(name)
 	value = strings.TrimSpace(value)
