@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -130,6 +131,19 @@ func Verbose(args ...any) {
 
 func GetServer() string {
 	return XRConfig.Get("server.url")
+}
+
+// GetRawJSON reports whether the "rawjson" .xr config property is set
+// (e.g. in the config file, or via --cset rawjson:true). When true,
+// commands that would otherwise reorder JSON output into the spec's
+// canonical attribute order (see xrlib.CanonicalPrettyReorderTreeOrRaw())
+// instead preserve the server's own original attribute order — but
+// --min/--nodiff (cmds/xr/download.go) still fully apply either way,
+// only the reordering/blank-line-insertion step is skipped. Deliberately
+// NOT exposed as its own --rawjson command-line flag (unlike --server) —
+// per-invocation overrides should use --cset rawjson:true instead.
+func GetRawJSON() bool {
+	return XRConfig.GetAsBool("rawjson")
 }
 
 func mainFunc(cmd *cobra.Command, args []string) {
@@ -288,12 +302,29 @@ func main() {
 			// Override with --cset flags
 			sets, _ := cmd.Flags().GetStringArray("cset")
 			for _, set := range sets {
-				name, value, ok := strings.Cut(set, ":")
+				// Just to be nice
+				name, value, ok := strings.Cut(set, "=")
 				if !ok {
-					// Just to be nice
-					name, value, _ = strings.Cut(set, "=")
+					name, value, _ = strings.Cut(set, ":")
 				}
 				XRConfig.Set(name, value)
+			}
+
+			// Quick sniff test for alias names
+			for key, _ := range XRConfig.Data {
+				originKey := key
+				if !strings.HasPrefix(key, "server.alias.") {
+					continue
+				}
+				key = strings.TrimSpace(key[13:])
+				if len(key) == 0 {
+					Error("Bad config name: %q", originKey)
+				}
+				name, _, _ := strings.Cut(key, ".")
+				ok, _ := regexp.MatchString("^[a-zA-Z0-9]+$", name)
+				if !ok {
+					Error("Bad server.alias: %q", originKey)
+				}
 			}
 
 			// Load the HTTP headers, if specified
@@ -313,8 +344,40 @@ func main() {
 				}
 			}
 
-			// Clean & make sure 'server' starts with some variant of "http"
+			// Clean
 			server = strings.TrimSpace(server)
+
+			// Look to see if 'server' is an alias
+			ok, _ := regexp.MatchString("^[a-zA-Z0-9]+$", server)
+			if ok {
+				if data, ok := XRConfig.Data["server.alias."+server]; ok {
+					prefix := "server.alias." + server + ".header."
+					data := strings.TrimSpace(data)
+					if len(data) == 0 {
+						Error("Missing URL for server.alias.%s in config "+
+							"file(%s)", server, XRConfig.FileName)
+					}
+					server = data
+
+					for key, data := range XRConfig.Data {
+						// Doesn't start with prefix
+						if !strings.HasPrefix(key, prefix) {
+							continue
+						}
+						key = key[len(prefix):]
+						if len(key) == 0 {
+							Error("%s is missing a NAME in config file(%s)",
+								prefix, XRConfig.FileName)
+						}
+						if xrlib.HTTPHeaders == nil {
+							xrlib.HTTPHeaders = map[string]string{}
+						}
+						xrlib.HTTPHeaders[key] = data
+					}
+				}
+			}
+
+			// Clean & make sure 'server' starts with some variant of "http"
 			if server != "" && !strings.HasPrefix(server, "http") {
 				server = "http://" + strings.TrimLeft(server, "/")
 			}

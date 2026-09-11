@@ -990,6 +990,26 @@ func CanonicalPrettyReorderTree(data []byte) (interface{}, error) {
 	return CanonicalReorderTree(data, canonicalLevelOrderFor)
 }
 
+// CanonicalPrettyReorderTreeOrRaw is CanonicalPrettyReorderTree(), unless
+// rawJSON is true (see the "rawjson" .xr config option — cmds/xr/xr.go's
+// GetRawJSON()), in which case it just parses data into the same
+// OrderedMap/[]any tree shape (via ParseJSONToObject()) WITHOUT
+// reordering into canonical attribute order or inserting any blank-line
+// separators — i.e. exactly the attribute order the server itself
+// returned. This lets a single caller-side pipeline (parse -> optional
+// minimize/noDiff -> stringify, see cmds/xr/get.go/set.go/create.go/
+// download.go) serve both the default (canonically reordered) output
+// and the "rawjson" (server's own raw attribute order) output, without
+// duplicating the whole minimize/noDiff logic per mode. "--min"/
+// "--nodiff" (see cmds/xr/download.go) still fully apply either way -
+// only the reordering/blank-line step is skipped when rawJSON is true.
+func CanonicalPrettyReorderTreeOrRaw(data []byte, rawJSON bool) (interface{}, error) {
+	if rawJSON {
+		return ParseJSONToObject(data)
+	}
+	return CanonicalReorderTree(data, canonicalLevelOrderFor)
+}
+
 var canonicalLevelOrders map[int][]string
 
 // canonicalLevelOrderFor lazily builds (once) and returns the ordered

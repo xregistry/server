@@ -629,3 +629,70 @@ func TestOrderedMap_RealKeyCountIgnoresBlankSentinels(t *testing.T) {
 		t.Errorf("expected stringified output to collapse to exactly \"{}\", got %q", string(out))
 	}
 }
+
+// TestCanonicalPrettyReorderTreeOrRaw verifies the rawjson-mode helper
+// used by the "xr" CLI (`.xr` config option "rawjson"): with rawJSON
+// false it must behave identically to CanonicalPrettyReorderTree
+// (canonical order, blank-line sentinels inserted); with rawJSON true
+// it must preserve the input's original key order verbatim and insert
+// no blank-line sentinels at all.
+func TestCanonicalPrettyReorderTreeOrRaw(t *testing.T) {
+	input := `{
+		"description": "out of canonical order on purpose",
+		"dirid": "d1",
+		"xid": "/dirs/d1",
+		"self": "http://example.com/dirs/d1",
+		"epoch": 1,
+		"name": "D1"
+	}`
+
+	// rawJSON=false: same result as CanonicalPrettyReorderTree.
+	wantTree, err := CanonicalPrettyReorderTree([]byte(input))
+	if err != nil {
+		t.Fatalf("CanonicalPrettyReorderTree unexpected error: %v", err)
+	}
+	wantOut, err := StringifyCanonicalTree(wantTree)
+	if err != nil {
+		t.Fatalf("unexpected error stringifying want tree: %v", err)
+	}
+
+	gotTree, err := CanonicalPrettyReorderTreeOrRaw([]byte(input), false)
+	if err != nil {
+		t.Fatalf("CanonicalPrettyReorderTreeOrRaw(false) unexpected error: %v", err)
+	}
+	gotOut, err := StringifyCanonicalTree(gotTree)
+	if err != nil {
+		t.Fatalf("unexpected error stringifying got tree: %v", err)
+	}
+	if string(gotOut) != string(wantOut) {
+		t.Errorf("rawJSON=false should match CanonicalPrettyReorderTree exactly\nwant:\n%s\ngot:\n%s", wantOut, gotOut)
+	}
+
+	// rawJSON=true: original key order preserved, no blank lines.
+	rawTree, err := CanonicalPrettyReorderTreeOrRaw([]byte(input), true)
+	if err != nil {
+		t.Fatalf("CanonicalPrettyReorderTreeOrRaw(true) unexpected error: %v", err)
+	}
+	rawOm, ok := rawTree.(*OrderedMap)
+	if !ok {
+		t.Fatalf("expected *OrderedMap, got %T", rawTree)
+	}
+
+	wantKeyOrder := []string{"description", "dirid", "xid", "self", "epoch", "name"}
+	if len(rawOm.Keys) != len(wantKeyOrder) {
+		t.Fatalf("expected %d keys preserved in original order, got %d (%v)", len(wantKeyOrder), len(rawOm.Keys), rawOm.Keys)
+	}
+	for i, k := range wantKeyOrder {
+		if rawOm.Keys[i] != k {
+			t.Errorf("key[%d]: expected %q, got %q (full order: %v)", i, k, rawOm.Keys[i], rawOm.Keys)
+		}
+	}
+
+	rawOut, err := StringifyCanonicalTree(rawTree)
+	if err != nil {
+		t.Fatalf("unexpected error stringifying raw tree: %v", err)
+	}
+	if strings.Contains(string(rawOut), "\n\n") {
+		t.Errorf("rawJSON=true output should have no blank-line separators, got:\n%s", rawOut)
+	}
+}

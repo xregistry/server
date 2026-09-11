@@ -244,7 +244,18 @@ func getFunc(cmd *cobra.Command, args []string) {
 			return nil
 		}
 
-		tree, xErr := xrlib.CanonicalPrettyReorderTree(res.Body)
+		// rawjson mode: if we don't need to examine/modify the data
+		// (i.e. no -m/--min), skip parsing entirely and just echo the
+		// server's own bytes verbatim - no reorder, no re-stringify.
+		if GetRawJSON() && !minimum {
+			fmt.Printf("%s", string(res.Body))
+			if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
+				fmt.Print("\n")
+			}
+			return
+		}
+
+		tree, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(res.Body, GetRawJSON())
 		Error(xErr, NewXRError("parsing_response", path,
 			"error_detail="+Err2String(xErr)).
 			SetDetail("Response: "+string(res.Body)+"."))

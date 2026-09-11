@@ -19,15 +19,17 @@ import (
 )
 
 type Server struct {
+	Addr       string
 	Port       int
 	HTTPServer *http.Server
 }
 
-func NewServer(port int) *Server {
+func NewServer(addr string, port int) *Server {
 	server := &Server{
+		Addr: addr,
 		Port: port,
 		HTTPServer: &http.Server{
-			Addr: fmt.Sprintf(":%d", port),
+			Addr: fmt.Sprintf("%s:%d", addr, port),
 		},
 	}
 	server.HTTPServer.Handler = server
@@ -52,7 +54,7 @@ func (s *Server) Start() *Server {
 }
 
 func (s *Server) Serve() {
-	log.VPrintf(1, "Listening on %d", s.Port)
+	log.VPrintf(1, "Listening on %s:%d", s.Addr, s.Port)
 	err := s.HTTPServer.ListenAndServe()
 	if err != http.ErrServerClosed {
 		log.Printf("Serve: %s", err)

@@ -178,6 +178,13 @@ func setFunc(cmd *cobra.Command, args []string) {
 	Error(json.Unmarshal(res.Body, &object))
 
 	if output == "json" {
+		if GetRawJSON() {
+			fmt.Printf("%s", string(res.Body))
+			if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
+				fmt.Print("\n")
+			}
+			return
+		}
 		tree, xErr := xrlib.CanonicalPrettyReorderTree(res.Body)
 		Error(xErr, NewXRError("parsing_response", xid.String(),
 			"error_detail="+Err2String(xErr)))

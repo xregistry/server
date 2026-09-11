@@ -1,0 +1,10 @@
+#!/bin/bash
+
+count=0
+while ! "$@" 
+do
+    echo \'"$@""' Failed - trying again"
+    ((counter++))
+    [[ "$counter" == "10" ]] && echo "Stopping after 10 tries" && break
+    sleep 1
+done

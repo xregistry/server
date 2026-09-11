@@ -4,6 +4,16 @@
 
 The `xr` CLI lets you interact with an xRegistry server:
 
+The `.xr` config file (default location: $HOME) supports:
+
+```
+header.NAME: STRING     # Define an HTTP header to use on requests
+rawjson: true|false     # Turn off the JSON pretty-print logic
+server.alias.NAME.header.NAME: STRING  # Server-specific HTTP header/value
+server.alias.NAME: URL                 # Define a server alias and its URL
+server.url: URL         # HTTP URL of the xRegistry server (see -s flag)
+```
+
 <!-- XR HELP START -->
 ```yaml
 xr [command]

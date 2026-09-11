@@ -477,7 +477,7 @@ path.regcollection: more
 	XEqual(t, "", string(runRes.Err), "^(?m)^.*Path: / -> more/xRegistry")
 
 	// Check: http.port, path.ui and path.defaultreg
-	XEqual(t, "", string(runRes.Err), "^(?m)^.*Listening on 8686")
+	XEqual(t, "", string(runRes.Err), "^(?m)^.*Listening on :8686")
 	XEqual(t, "", string(runRes.Err), "^(?m)^.*Path: /iuiu -> UI")
 	XEqual(t, "", string(runRes.Err), "^(?m)^.*Path: /def -> more/xRegistry")
 

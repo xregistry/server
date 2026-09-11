@@ -398,8 +398,10 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		// Reorder BEFORE any deletion (noDiffObj/makeImportObj), while
 		// xid/model info is still intact - see common/pretty.go's
 		// CanonicalReorderTree() doc comment for why this ordering
-		// matters (mirrors cmds/xr/get.go's minimize() pipeline).
-		treeAny, xErr := xrlib.CanonicalPrettyReorderTree(rawData)
+		// matters (mirrors cmds/xr/get.go's minimize() pipeline). Skips
+		// the reordering step (but not noDiffObj/makeImportObj below) if
+		// the "rawjson" .xr config option is set — see GetRawJSON().
+		treeAny, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(rawData, GetRawJSON())
 		if xErr != nil {
 			Error(NewXRError("client_error", "",
 				"error_detail="+
@@ -849,7 +851,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				// If the user wants the "capabilities" to be modified for a
 				// static web site then we need to update them in the /export
 				// output too
-				treeAny, xErr := xrlib.CanonicalPrettyReorderTree(exportData)
+				treeAny, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(exportData, GetRawJSON())
 				Error(xErr, NewXRError("parsing_response",
 					reg.GetServerURL()+"/export",
 					"error_detail="+Err2String(xErr)))
@@ -924,7 +926,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			data, _ = Download(reg, "/export")
 		}
 
-		treeAny, xErr := xrlib.CanonicalPrettyReorderTree(data)
+		treeAny, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(data, GetRawJSON())
 		Error(xErr, NewXRError("parsing_response",
 			reg.GetServerURL()+"/export",
 			"error_detail="+Err2String(xErr)))

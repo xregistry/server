@@ -4176,3 +4176,111 @@ and some text
 }
 `, "", true)
 }
+
+func TestXRRawJSON(t *testing.T) {
+	reg := NewRegistry("TestXRRawJSON")
+	defer PassDeleteReg(t, reg)
+
+	XCLIServer("localhost:8282/xreg")
+
+	// Should be pretty-printed
+	XCLI(t, "get /", "", `{
+  "registryid": "testXReg",
+  "xid": "/",
+  "epoch": 666
+}
+`, "", true)
+
+	// Still pretty-printed
+	XCLI(t, "get --cset rawjson:false /", "", `{
+  "registryid": "testXReg",
+  "xid": "/",
+  "epoch": 666
+}
+`, "", true)
+
+	XCLI(t, "get --cset rawjson:true /", "",
+		`{ "xid": "/", "epoch": 666, "registryid": "testXReg" }`+"\n", "", true)
+}
+
+func TestXRConfigAlias(t *testing.T) {
+	reg := NewRegistry("TestXRConfigAlias")
+	defer PassDeleteReg(t, reg)
+
+	XCLIServer("localhost:8181")
+
+	XCLI(t, "get -s mine /", "", "", `^There was an error`, false)
+	XCLI(t, "get -s mine --cset server.alias.mine:localhost:8181", "", `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRConfigAlias",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-09-11T18:08:58.404899465Z",
+  "modifiedat": "2026-09-11T18:08:58.404899465Z"
+}
+`, "", true)
+	XCLI(t, "get -s mine --cset server.alias.mine:localhost:8181 -vv", "", `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRConfigAlias",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-09-11T18:08:58.404899465Z",
+  "modifiedat": "2026-09-11T18:08:58.404899465Z"
+}
+`,
+		`2026/09/11 18:10:25 Request: GET http://localhost:8181/
+2026/09/11 18:10:25 Body: <empty>
+2026/09/11 18:10:25 Response: 200 OK
+2026/09/11 18:10:25 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
+2026/09/11 18:10:25 access-control-allow-origin: *
+2026/09/11 18:10:25 content-type: application/json
+2026/09/11 18:10:25 Response Body:
+{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRConfigAlias",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-09-11T18:10:25.090709121Z",
+  "modifiedat": "2026-09-11T18:10:25.090709121Z"
+}
+2026/09/11 18:10:25 --------------------
+`, true, MASK_LOGS)
+
+	XCLI(t, "get -s mine --cset server.alias.mine:localhost:8181 "+
+		"--cset server.alias.mine.header.:foo -vv", "", "",
+		`^server.alias.mine.header. is missing a NAME in config file`, false)
+
+	XCLI(t, "get -s mine --cset server.alias.mine:localhost:8181 "+
+		"--cset server.alias.mine.header.foo:bar -vv", "", `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRConfigAlias",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-09-11T19:23:08.524830906Z",
+  "modifiedat": "2026-09-11T19:23:08.524830906Z"
+}
+`, `2026/09/11 19:23:27 Request: GET http://localhost:8181/
+2026/09/11 19:23:27 Header: foo: bar
+2026/09/11 19:23:27 Body: <empty>
+2026/09/11 19:23:27 Response: 200 OK
+2026/09/11 19:23:27 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
+2026/09/11 19:23:27 access-control-allow-origin: *
+2026/09/11 19:23:27 content-type: application/json
+2026/09/11 19:23:27 Response Body:
+{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRConfigAlias",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-09-11T19:23:27.353370803Z",
+  "modifiedat": "2026-09-11T19:23:27.353370803Z"
+}
+2026/09/11 19:23:27 --------------------
+`, true, MASK_LOGS)
+
+}
