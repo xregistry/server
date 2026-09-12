@@ -21,17 +21,10 @@ var WARN = 3
 var SKIP = 4
 var LOG = 5 // Only shown on failure or when they ask to see all logs
 var MSG = 6 // Like LOG but will always be printed
-
 var StatusText = []string{"", "PASS", "FAIL", "WARN", "SKIP", "LOG", "MSG"}
 
-var FailFast = false
-var IgnoreWarn = true
-var WrapAt = 79
-var TestsRun = map[string]*TD{}
-var nextStatus = 0
 var tdDebug = false
-var ShowSkips = false
-var ShowWarns = false
+var terminalWidth = 79
 
 type TestFn func(td *TD)
 
@@ -40,9 +33,27 @@ func init() {
 	if term.IsTerminal(fd) {
 		w, _, err := term.GetSize(fd)
 		if err == nil && w > 20 {
-			WrapAt = w - 1
+			terminalWidth = w - 1
 		}
 	}
+}
+
+type TDConfig struct {
+	Server       string
+	Registry     *xrlib.Registry
+	Model        *xrlib.Model
+	Capabilities *Capabilities
+
+	FailFast     bool
+	IgnoreWarn   bool
+	NextStatus   int
+	ShowSkips    bool
+	ShowWarns    bool
+	ShowLogs     bool // EnvBool("XR_SHOWLOGS", false)
+	ConsoleDepth int
+	RunFunc      string
+
+	TestRuns map[string]*TD
 }
 
 // TestData
@@ -52,7 +63,7 @@ type TD struct {
 	Logs     []*LogEntry
 
 	Status int // PASS, FAIL, ...
-	Props  map[string]any
+	Config *TDConfig
 
 	NumPass int // These will include the status of _this_ TD and its children
 	NumFail int
@@ -65,11 +76,6 @@ type LogEntry struct {
 	Type    int // pass, fail, warning, skip, else log or TD
 	Text    string
 	Subtest *TD
-}
-
-func TDClear() {
-	TestsRun = map[string]*TD{}
-	nextStatus = 0
 }
 
 func (fn TestFn) Name() string {
@@ -100,7 +106,7 @@ func NewTD(parent *TD, args ...any) *TD {
 		Logs:     []*LogEntry{},
 
 		Status:  PASS,
-		Props:   map[string]any{},
+		Config:  &TDConfig{},
 		NumPass: 1,
 	}
 
@@ -114,7 +120,7 @@ func NewTD(parent *TD, args ...any) *TD {
 		parent.Logs = append(parent.Logs, newLE)
 		parent.AddStatus(PASS)
 
-		newTD.Props = parent.Props
+		newTD.Config = parent.Config
 	}
 
 	return newTD
@@ -122,7 +128,8 @@ func NewTD(parent *TD, args ...any) *TD {
 
 func (td *TD) ExitCode() int {
 	if td.Status == PASS || td.Status == SKIP ||
-		(IgnoreWarn && td.Status == WARN) {
+		(td.Config.IgnoreWarn && td.Status == WARN) {
+
 		return 0
 	}
 	if td.Status == 0 {
@@ -148,11 +155,12 @@ func (td *TD) Dump(indent string) {
 	}
 }
 
-func (td *TD) Print(out io.Writer, indent string, showLogs bool, depth int) {
+func (td *TD) Print(out io.Writer, indent string, depth int) {
 	goDeep := depth >= 0 || td.Status == FAIL ||
-		(ShowWarns && td.NumWarn > 0) || (ShowSkips && td.NumSkip > 0)
+		(td.Config.ShowWarns && td.NumWarn > 0) ||
+		(td.Config.ShowSkips && td.NumSkip > 0)
 	if goDeep {
-		td.write(out, indent, showLogs, depth)
+		td.write(out, indent, depth)
 	}
 
 	fmt.Printf(indent+"Pass: %d   Fail: %d   Warn: %d   Skip: %d\n",
@@ -169,18 +177,20 @@ func Debug(out io.Writer, fmtStr string, args ...any) {
 	}
 }
 
-func (td *TD) write(out io.Writer, indent string, showLogs bool, depth int) {
+func (td *TD) write(out io.Writer, indent string, depth int) {
 	goDeep := depth >= 0 || td.Status == FAIL ||
-		(ShowWarns && td.NumWarn > 0) || (ShowSkips && td.NumSkip > 0)
+		(td.Config.ShowWarns && td.NumWarn > 0) ||
+		(td.Config.ShowSkips && td.NumSkip > 0)
 	if goDeep {
-		td.writeHeader(out, indent, showLogs, depth)
-		td.writeBody(out, indent, showLogs, depth-1)
+		td.writeHeader(out, indent, depth)
+		td.writeBody(out, indent, depth-1)
 	}
 }
 
-func (td *TD) writeHeader(out io.Writer, indent string, showLogs bool, depth int) {
+func (td *TD) writeHeader(out io.Writer, indent string, depth int) {
 	goDeep := depth >= 0 || td.Status == FAIL ||
-		(ShowWarns && td.NumWarn > 0) || (ShowSkips && td.NumSkip > 0)
+		(td.Config.ShowWarns && td.NumWarn > 0) ||
+		(td.Config.ShowSkips && td.NumSkip > 0)
 	if goDeep {
 		str := indent + StatusText[td.Status] + ": "
 
@@ -210,9 +220,10 @@ func (td *TD) writeHeader(out io.Writer, indent string, showLogs bool, depth int
 	}
 }
 
-func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) {
+func (td *TD) writeBody(out io.Writer, indent string, depth int) {
 	goDeep := depth >= 0 || td.Status == FAIL ||
-		(ShowWarns && td.NumWarn > 0) || (ShowSkips && td.NumSkip > 0)
+		(td.Config.ShowWarns && td.NumWarn > 0) ||
+		(td.Config.ShowSkips && td.NumSkip > 0)
 
 	if !goDeep {
 		return
@@ -222,12 +233,13 @@ func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) 
 
 	// Calc the last logEntry - skipping the LOG messages at the end
 	lastLog := len(td.Logs) - 1
-	Debug(out, "%sstat:%s sl:%v", indent, StatusText[td.Status], showLogs)
-	// if td.Status != FAIL && showLogs == false {
+	Debug(out, "%sstat:%s sl:%v", indent, StatusText[td.Status],
+		td.Config.ShowLogs)
+	// if td.Status != FAIL && td.Config.ShowLogs == false {
 	// I can't remember why I wanted to skip the trailing LOG messages, so
 	// for now just comment it out but keep it
 	/*
-				if showLogs == false {
+				if td.Config.ShowLogs == false {
 					for ; lastLog > 0; lastLog-- {
 						log := td.Logs[lastLog]
 						if log.Type == LOG {
@@ -264,7 +276,7 @@ func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) 
 			str = PrettyPrint(indent, StatusText[le.Type]+": ", le.Text)
 		} else if le.Subtest == nil { // log or msg
 			// Show logs it's a MSG, they asked for all logs, or TD=FAIL
-			if le.Type == MSG || showLogs || td.Status == FAIL {
+			if le.Type == MSG || td.Config.ShowLogs || td.Status == FAIL {
 				str = PrettyPrint(indent, "", le.Text)
 			}
 		} else { // subtest
@@ -273,10 +285,10 @@ func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) 
 			// nextDepth = nextDepth - 1
 			// }
 			if i == lastLog {
-				le.Subtest.writeHeader(out, endSaveIndent+"└─ ", showLogs, depth)
-				le.Subtest.writeBody(out, saveIndent+"   ", showLogs, depth-1)
+				le.Subtest.writeHeader(out, endSaveIndent+"└─ ", depth)
+				le.Subtest.writeBody(out, saveIndent+"   ", depth-1)
 			} else /* if i < lastLog */ {
-				le.Subtest.write(out, indent, showLogs, depth)
+				le.Subtest.write(out, indent, depth)
 			}
 		}
 		out.Write([]byte(str))
@@ -335,7 +347,7 @@ func (td *TD) AddStatus(status int) {
 // For testing of TD itself. Tell the system what the next status is meant
 // to be, and if it matches then it passed.
 func (td *TD) Expect(status int) {
-	nextStatus = status
+	td.Config.NextStatus = status
 }
 
 // PASS|FAIL|WARN|SKIP, testNameText, substitute args for testName
@@ -348,16 +360,16 @@ func (td *TD) Report(status int, args ...any) {
 	}
 
 	// Strictly for testing of TD itself
-	if nextStatus != 0 {
-		if nextStatus == status {
+	if td.Config.NextStatus != 0 {
+		if td.Config.NextStatus == status {
 			line = StatusText[status] + ": " + line
 			status = PASS
 		} else {
 			line = fmt.Sprintf("Expected %q, got: %s: %s",
-				StatusText[nextStatus], StatusText[status], line)
+				StatusText[td.Config.NextStatus], StatusText[status], line)
 			status = FAIL
 		}
-		nextStatus = 0
+		td.Config.NextStatus = 0
 	}
 
 	if len(args) > 0 {
@@ -376,7 +388,7 @@ func (td *TD) Report(status int, args ...any) {
 		})
 	} */
 	td.AddStatus(status)
-	if FailFast && status == FAIL {
+	if td.Config.FailFast && status == FAIL {
 		td.Stop()
 	}
 }
@@ -393,7 +405,7 @@ func (td *TD) Stop()               { panic("stop") }
 func (td *TD) DependsOn(fn TestFn) {
 	depStatus := PASS
 
-	if prevTD, ok := TestsRun[fn.Name()]; ok {
+	if prevTD, ok := td.Config.TestRuns[fn.Name()]; ok {
 		depStatus = prevTD.Status
 		td.Report(prevTD.Status, "%s (cached)", fn.Name())
 	} else {
@@ -415,7 +427,7 @@ func (td *TD) Run(fn TestFn) *TD {
 	newTD := NewTD(td, name)
 
 	// Save in the cache
-	TestsRun[fn.Name()] = newTD
+	td.Config.TestRuns[fn.Name()] = newTD
 
 	// Run it and catch any panic()
 	func() {
@@ -442,7 +454,7 @@ func (td *TD) Include(fn TestFn) *TD {
 	newTD := td // NewTD(td, name)
 
 	// Save in the cache
-	TestsRun[fn.Name()] = newTD
+	td.Config.TestRuns[fn.Name()] = newTD
 
 	// Run it and catch any panic()
 	func() {
@@ -791,7 +803,7 @@ func PrettyPrint(indent string, prefix string, text string) string {
 
 	cIndent := append([]rune{}, rIndent...) // clean-Indent
 	cIndent = append(cIndent, []rune(strings.Repeat(" ", len(rPrefix)))...)
-	width := WrapAt - len(cIndent)
+	width := terminalWidth - len(cIndent)
 
 	// Just for first line, then use cIndent
 	rIndent = append(rIndent, rPrefix...)
@@ -825,12 +837,12 @@ func PrettyPrint(indent string, prefix string, text string) string {
 			// Normally we'd check this before the \n and ' ' but if the next
 			// char (the one we want to skip on at the end of the line) is a
 			// space then go ahead and break on that instead
-			if (WrapAt > 20) && chopAt+1 > width {
+			if (terminalWidth > 20) && chopAt+1 > width {
 				break
 			}
 		}
 		if !skip {
-			if (WrapAt > 20) && chopAt+1 > width && lastSpace >= 0 {
+			if (terminalWidth > 20) && chopAt+1 > width && lastSpace >= 0 {
 				chopAt = lastSpace
 			}
 			str = append(str, rIndent...)
@@ -848,75 +860,40 @@ func PrettyPrint(indent string, prefix string, text string) string {
 	return string(str)
 }
 
-// Props funcs
-
-func (td *TD) GetProp(key string) any {
-	if td.Props == nil {
-		return nil
-	}
-	return td.Props[key]
-}
-
-func (td *TD) GetPropAsBool(key string) bool {
-	val := td.GetProp(key)
-	return val == true
-}
-
-func (td *TD) GetPropAsInt(key string) int {
-	val := td.GetProp(key)
-	if IsNil(val) {
-		return -1
-	}
-
-	i, ok := val.(int)
-	if !ok {
-		panic(fmt.Sprintf("td.Prop %q must be an int, not a %T", key, val))
-	}
-	return i
-}
-
-func (td *TD) SetProp(key string, val any) *TD {
-	if td.Props == nil {
-		td.Props = map[string]any{}
-	}
-	td.Props[key] = val
-	return td
-}
-
 func (td *TD) GetRegistry() *xrlib.Registry {
-	val := td.GetProp("xreg")
-	if IsNil(val) {
+	if td.Config.Registry == nil {
 		td.FailNow("Registry isn't set")
 	}
-	return val.(*xrlib.Registry)
+	return td.Config.Registry
 }
 
 func (td *TD) SetRegistry(r *xrlib.Registry) *TD {
-	return td.SetProp("xreg", r)
+	td.Config.Registry = r
+	return td
 }
 
 func (td *TD) GetModel() *xrlib.Model {
-	val := td.GetProp("model")
-	if IsNil(val) {
+	if td.Config.Model == nil {
 		td.FailNow("Model isn't set")
 	}
-	return val.(*xrlib.Model)
+	return td.Config.Model
 }
 
 func (td *TD) SetModel(m *xrlib.Model) *TD {
-	return td.SetProp("model", m)
+	td.Config.Model = m
+	return td
 }
 
 func (td *TD) GetCapabilities() *Capabilities {
-	val := td.GetProp("capabilities")
-	if IsNil(val) {
+	if td.Config.Capabilities == nil {
 		td.FailNow("Capabilities isn't set")
 	}
-	return val.(*Capabilities)
+	return td.Config.Capabilities
 }
 
 func (td *TD) SetCapabilities(c *Capabilities) *TD {
-	return td.SetProp("capabilities", c)
+	td.Config.Capabilities = c
+	return td
 }
 
 var TD_OPTIONAL = "optional" // MAY be present
