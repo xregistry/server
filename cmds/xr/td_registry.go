@@ -8,6 +8,15 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+func TestSniff(td *TD) {
+	reg := td.GetRegistry()
+	td.Log("Server URL: %s", reg.GetServerURL())
+
+	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "", nil)
+	td.HTTPStatusMustEqual(res, 200, "GET /")
+	td.HTTPBodyMustJSON(res, "GET /")
+}
+
 func TestRegistry(td *TD) {
 	td.DependsOn(TestSniff)
 	td.Run(TestModel)
@@ -27,8 +36,14 @@ func TestModel(td *TD) {
 	td.HTTPBodyMustJSON(res, "GET /model")
 
 	nTD := NewTD(td, "Parsing model MUST work")
-	_, xErr := xrlib.ParseModel(res.Body, reg)
+	model, xErr := xrlib.ParseModel(res.Body, reg)
 	nTD.NoError(xErr)
+	// if xErr == nil {
+	// td.Config.Model = model
+	// }
+
+	nTD = NewTD(td, "Verifying model MUST work")
+	nTD.NoError(model.Verify())
 }
 
 func TestCapabilities(td *TD) {
@@ -97,9 +112,13 @@ func TestCapabilities(td *TD) {
 	nTD = NewTD(td, "Parsing Capabilities MUST work")
 	_, xErr = ParseCapabilities(res1.Body) // caps, xErr := ...
 	nTD.NoError(xErr)
+	// if xErr == nil {
+	// td.Config.Capabilities = caps
+	// }
 
 	// Can't validate when on the client
-	// td.NoError(caps.Validate(), "Capabilities MUST validate")
+	// nTD = NewTD(td, "Capabilities MUST validate")
+	// nTD.NoError(caps.Validate(), "Capabilities MUST validate")
 }
 
 func TestRegistryRoot(td *TD) {
