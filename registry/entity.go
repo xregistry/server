@@ -3080,7 +3080,6 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 					}
 				} else if lowerNCS == "" || lowerNCS == "strict" {
 					if xErr := IsValidAttributeName(key, e.XID, path.UI()); xErr != nil {
-						ShowStack()
 						return xErr
 					}
 				} else {
@@ -3189,11 +3188,14 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 
 	// All values in the map must be of the same type
 	attr := &Attribute{
-		Type:       mapAttr.Item.Type,
-		Item:       mapAttr.Item.Item,
-		Attributes: mapAttr.Item.Attributes,
-		Enum:       mapAttr.Enum,
-		Strict:     mapAttr.Strict,
+		Type:        mapAttr.Item.Type,
+		Target:      mapAttr.Item.Target,
+		NameCharSet: mapAttr.Item.NameCharSet,
+		Attributes:  mapAttr.Item.Attributes,
+		Item:        mapAttr.Item.Item,
+
+		Enum:   mapAttr.Enum,
+		Strict: mapAttr.Strict,
 	}
 
 	for _, k := range valValue.MapKeys() {
@@ -3249,11 +3251,14 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 
 	// All values in the array must be of the same type
 	attr := &Attribute{
-		Type:       arrayAttr.Item.Type,
-		Item:       arrayAttr.Item.Item,
-		Attributes: arrayAttr.Item.Attributes,
-		Enum:       arrayAttr.Enum,
-		Strict:     arrayAttr.Strict,
+		Type:        arrayAttr.Item.Type,
+		Target:      arrayAttr.Item.Target,
+		NameCharSet: arrayAttr.Item.NameCharSet,
+		Attributes:  arrayAttr.Item.Attributes,
+		Item:        arrayAttr.Item.Item,
+
+		Enum:   arrayAttr.Enum,
+		Strict: arrayAttr.Strict,
 	}
 
 	for i := 0; i < valValue.Len(); i++ {
