@@ -5287,3 +5287,81 @@ func TestHTTPReadOnlyImmutable(t *testing.T) {
 `)
 
 }
+
+func TestHTTPAllow(t *testing.T) {
+	reg := NewRegistry("TestHTTPAllow")
+	defer PassDeleteReg(t, reg)
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:        "/",
+		Method:     "DELETE",
+		ReqHeaders: []string{},
+		ReqBody:    "",
+
+		Code: 405,
+		ResHeaders: []string{
+			"content-type: application/json; charset=utf-8",
+			"allow: GET, OPTIONS, PATCH, POST, PUT",
+		},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "title": "The specified action (DELETE) is not supported for: /.",
+  "subject": "/",
+  "args": {
+    "action": "DELETE"
+  },
+  "instance": "ea079b7aba134773",
+  "source": "550b564c0cbc:registry:httpStuff:2019"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:        "/",
+		Method:     "XXX",
+		ReqHeaders: []string{},
+		ReqBody:    "",
+
+		Code: 405,
+		ResHeaders: []string{
+			"content-type: application/json; charset=utf-8",
+			"allow: GET, OPTIONS, PATCH, POST, PUT",
+		},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "title": "The specified action (XXX) is not supported for: /.",
+  "subject": "/",
+  "args": {
+    "action": "XXX"
+  },
+  "instance": "ea079b7aba134773",
+  "source": "550b564c0cbc:registry:httpStuff:2019"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:        "/model",
+		Method:     "POST",
+		ReqHeaders: []string{},
+		ReqBody:    "",
+
+		Code: 405,
+		ResHeaders: []string{
+			"content-type: application/json; charset=utf-8",
+			"allow: GET, OPTIONS",
+		},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "title": "The specified action (POST) is not supported for: /model.",
+  "detail": "Use \"/modelsource\" instead of \"/model\".",
+  "subject": "/model",
+  "args": {
+    "action": "POST"
+  },
+  "instance": "ea079b7aba134773",
+  "source": "550b564c0cbc:registry:httpStuff:2019"
+}
+`,
+	})
+}

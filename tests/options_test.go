@@ -227,8 +227,8 @@ func TestOptionsWithResources(t *testing.T) {
 
 		Code: 200,
 		ResHeaders: []string{
-			"Allow:DELETE, GET, OPTIONS, PATCH, PUT",
-			"Access-Control-Allow-Methods:DELETE, GET, OPTIONS, PATCH, PUT",
+			"Allow: GET, OPTIONS, PATCH, PUT",
+			"Access-Control-Allow-Methods: GET, OPTIONS, PATCH, PUT",
 		},
 		ResBody: "",
 	})
