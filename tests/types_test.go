@@ -1460,3 +1460,324 @@ func TestTypesNameCharSet(t *testing.T) {
 `)
 
 }
+
+func TestTypesNameCharSet2(t *testing.T) {
+	reg := NewRegistry("TestTypesNameCharSet2")
+	defer PassDeleteReg(t, reg)
+
+	// Test outside of ifvalue first - good
+	src := `{
+  "attributes": {
+    "top": {
+      "type": "array",
+      "item": {
+        "type": "object",
+        "namecharset": "extended",
+        "attributes": {
+          "abc.def": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", src, 200, src)
+
+	// outside again, bad - missing "extended"
+	src = `{
+  "attributes": {
+    "top": {
+      "type": "array",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "abc.def": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", src, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"abc.def\" for \"/model\" is not valid: \"abc.def\" in \"top.item\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"abc.def\" in \"top.item\" must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "name": "abc.def"
+  },
+  "instance": "eae16a134faf42c9",
+  "source": "4e29b6b32118:registry:shared_model:48,registry:shared_model:3344"
+}
+`)
+
+	// outside again, bad - missing "extended", using "strict"
+	src = `{
+  "attributes": {
+    "top": {
+      "type": "array",
+      "item": {
+        "type": "object",
+        "namecharset": "strict",
+        "attributes": {
+          "abc.def": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", src, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"abc.def\" for \"/model\" is not valid: \"abc.def\" in \"top.item\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"abc.def\" in \"top.item\" must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "name": "abc.def"
+  },
+  "instance": "eae16a134faf42c9",
+  "source": "4e29b6b32118:registry:shared_model:48,registry:shared_model:3344"
+}
+`)
+
+	// test in ifvalues - good
+	src = `{
+  "attributes": {
+    "name": {
+      "type": "string",
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "arr": {
+              "type": "array",
+              "item": {
+                "type": "object",
+                "namecharset": "extended",
+                "attributes": {
+                  "xyz.zyx": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", src, 200, src)
+
+	// test in ifvalues - bad, missing 'extended', use 'strict'
+	src = `{
+  "attributes": {
+    "name": {
+      "type": "string",
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "arr": {
+              "type": "array",
+              "item": {
+                "type": "object",
+                "namecharset": "strict",
+                "attributes": {
+                  "xyz.zyx": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", src, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"xyz.zyx\" for \"/model\" is not valid: \"xyz.zyx\" in \"name.ifvalues.hi.arr.item\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"xyz.zyx\" in \"name.ifvalues.hi.arr.item\" must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "name": "xyz.zyx"
+  },
+  "instance": "def1d8d83ecb4783",
+  "source": "4e29b6b32118:registry:shared_model:48,registry:shared_model:3344"
+}
+`)
+
+	// test in ifvalues - bad, missing 'extended', missing
+	src = `{
+  "attributes": {
+    "name": {
+      "type": "string",
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "arr": {
+              "type": "array",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "xyz.zyx": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", src, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"xyz.zyx\" for \"/model\" is not valid: \"xyz.zyx\" in \"name.ifvalues.hi.arr.item\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"xyz.zyx\" in \"name.ifvalues.hi.arr.item\" must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "name": "xyz.zyx"
+  },
+  "instance": "def1d8d83ecb4783",
+  "source": "4e29b6b32118:registry:shared_model:48,registry:shared_model:3344"
+}
+`)
+
+	// test both at the same time - good
+	src = `{
+  "attributes": {
+    "top": {
+      "type": "array",
+      "item": {
+        "type": "object",
+        "namecharset": "extended",
+        "attributes": {
+          "abc.def": {
+            "type": "string"
+          },
+          "*": {
+            "type": "any"
+          }
+        }
+      }
+    },
+    "name": {
+      "type": "string",
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "arr": {
+              "type": "array",
+              "item": {
+                "type": "object",
+                "namecharset": "extended",
+                "attributes": {
+                  "xyz.zyx": {
+                    "type": "string"
+                  },
+                  "*": {
+                    "type": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", src, 200, src)
+
+	// Now test run-time dat
+	XHTTP(t, reg, "PUT", "/", `{
+  "top": [ { "abc.def": "hi", "aaa.qqq": "123" } ],
+  "name": "hi",
+  "arr": [ {"xyz.zyx": "aa", "qqq.qwe": "321" } ]
+}`, 200, `*`)
+
+	// again - bad 'top'
+	src = `{
+  "attributes": {
+    "top": {
+      "type": "array",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "type": "any"
+          }
+        }
+      }
+    },
+    "name": {
+      "type": "string",
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "arr": {
+              "type": "array",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "type": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/", `{}`, 200, `*`) // delete all first
+	XHTTP(t, reg, "PUT", "/modelsource", src, 200, src)
+
+	// Now test run-time dat
+	XHTTP(t, reg, "PUT", "/", `{
+  "top": [ { "abc.def": "hi" } ]
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"abc.def\" for \"/\" is not valid: \"abc.def\" in \"top[0]\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/",
+  "args": {
+    "error_detail": "\"abc.def\" in \"top[0]\" must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "name": "abc.def"
+  },
+  "instance": "c54bd9f605ed412f",
+  "source": "4e29b6b32118:registry:shared_model:48,registry:entity:3082"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/", `{
+  "name": "hi",
+  "arr": [ { "abc.def": "hi" } ]
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"abc.def\" for \"/\" is not valid: \"abc.def\" in \"arr[0]\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/",
+  "args": {
+    "error_detail": "\"abc.def\" in \"arr[0]\" must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "name": "abc.def"
+  },
+  "instance": "c54bd9f605ed412f",
+  "source": "4e29b6b32118:registry:shared_model:48,registry:entity:3082"
+}
+`)
+
+}
