@@ -1156,7 +1156,7 @@ func (info *RequestInfo) GetAllowedMethods() []string {
 			} else if numParts == 5 {
 				if parts[4] == "meta" {
 					// /GROUPS/gID/RESOURCES/rID/meta
-					methods = append(methods, "PUT", "PATCH", "DELETE")
+					methods = append(methods, "PUT", "PATCH")
 				} else if parts[4] == "versions" {
 					// /GROUPS/gID/RESOURCES/rID/versions
 					methods = append(methods, "POST", "PATCH", "DELETE")

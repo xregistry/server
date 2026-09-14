@@ -2840,6 +2840,10 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 			"error_detail="+fmt.Sprintf("%v", errAny))
 	}
 
+	if xErr.IsType("action_not_supported") {
+		info.AddHeader("Allow", strings.Join(info.GetAllowedMethods(), ", "))
+	}
+
 	// Add our tx uuid to the error for debugging
 	if xErr != nil && xErr.Instance == "" {
 		xErr.Instance = info.uuid
