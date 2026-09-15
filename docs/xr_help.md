@@ -37,6 +37,7 @@ xr conform [URL...]
   -?, --help               Help for xr
   -l, --logs               Show logs even on success
       --nowrap             Don't wrap output
+  -r, --run stringArray    Run test (all, smoke, entities)
   -s, --server string      xRegistry server URL
       --skips              Show SKIPs in console
   -v, --verbose            Be chatty

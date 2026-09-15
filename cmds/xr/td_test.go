@@ -158,7 +158,7 @@ func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 		IgnoreWarn:   true,
 		NextStatus:   FAIL,
 		ConsoleDepth: 2,
-		RunFunc:      "TestTDAllPass",
+		RunFuncs:     []TestFn{TestTDAllPass},
 		TestRuns: map[string]*TD{
 			TestFn(TestTDInit).Name(): staleRun,
 		},

@@ -2337,61 +2337,185 @@ header.bar2: foo2`
 `, true, MASK_LOGS)
 }
 
+func TestXRConformRunGroups(t *testing.T) {
+	XCLI(t,
+		"conform -d3 --run smoke --run entities --run smoke "+
+			"http://localhost:8282/conform",
+		"",
+		`PASS: http://localhost:8282/conform (skip:3)
+├─ PASS: TestTDSmoke (skip:1)
+│  ├─ PASS: TestSniff
+│  ├─ PASS: TestModel
+│  ├─ PASS: TestCapabilities (skip:1)
+│  └─ PASS: TestRegistryRoot
+└─ PASS: TestTDEntities (skip:2)
+   ├─ PASS: TestRegistryRoot (cached)
+   ├─ PASS: TestGroups (skip:1)
+   └─ PASS: TestResources (skip:1)
+Pass: 58   Fail: 0   Warn: 0   Skip: 3
+`,
+		"",
+		true,
+	)
+}
+
+func TestXRConformRunAllBeforeSmoke(t *testing.T) {
+	XCLI(t,
+		"conform -d3 --run all --run smoke "+
+			"http://localhost:8282/conform",
+		"",
+		`PASS: http://localhost:8282/conform (skip:3)
+├─ PASS: TestTDAll (skip:3)
+│  ├─ PASS: TestSniff
+│  ├─ PASS: TestModel
+│  ├─ PASS: TestCapabilities (skip:1)
+│  ├─ PASS: TestRegistryRoot
+│  ├─ PASS: TestGroups (skip:1)
+│  └─ PASS: TestResources (skip:1)
+└─ PASS: TestTDSmoke
+   ├─ PASS: TestSniff (cached)
+   ├─ PASS: TestModel (cached)
+   ├─ PASS: TestCapabilities (cached)
+   └─ PASS: TestRegistryRoot (cached)
+Pass: 61   Fail: 0   Warn: 0   Skip: 3
+`,
+		"",
+		true,
+	)
+}
+
+func TestXRConformRunAllAfterSmoke(t *testing.T) {
+	XCLI(t,
+		"conform -d3 --run smoke --run all "+
+			"http://localhost:8282/conform",
+		"",
+		`PASS: http://localhost:8282/conform (skip:3)
+├─ PASS: TestTDSmoke (skip:1)
+│  ├─ PASS: TestSniff
+│  ├─ PASS: TestModel
+│  ├─ PASS: TestCapabilities (skip:1)
+│  └─ PASS: TestRegistryRoot
+└─ PASS: TestTDAll (skip:2)
+   ├─ PASS: TestSniff (cached)
+   ├─ PASS: TestModel (cached)
+   ├─ PASS: TestCapabilities (cached)
+   ├─ PASS: TestRegistryRoot (cached)
+   ├─ PASS: TestGroups (skip:1)
+   └─ PASS: TestResources (skip:1)
+Pass: 61   Fail: 0   Warn: 0   Skip: 3
+`,
+		"",
+		true,
+	)
+}
+
+func TestXRConformUnknownRun(t *testing.T) {
+	result := XCLI(t,
+		"conform --run bogus http://127.0.0.1:1",
+		"",
+		"",
+		"Unknown --run value: \"bogus\". Valid values: "+
+			"all, smoke, entities.\n",
+		false,
+	)
+	XEqual(t, "Exit Code", result.Code, 1)
+}
+
+func TestXRConformRunFailfast(t *testing.T) {
+	result := XCLI(t,
+		"conform --failfast --run TestTDDepFail --run smoke "+
+			"http://one.example",
+		"",
+		`FAIL: http://one.example
+└─ FAIL: TestTDDepFail
+   ├─ FAIL: TestTDInitFail
+   │  └─ FAIL: Init
+   └─ Dependency "TestTDInitFail" failed, leaving
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+`,
+		"",
+		false,
+	)
+	XEqual(t, "Exit Code", result.Code, 1)
+}
+
+func TestXRConformRunHelp(t *testing.T) {
+	XCLI(t, "conform --help", "", `xRegistry Conformance Tester
+
+Usage:
+  xr conform [URL...] [flags]
+
+Flags:
+  -d, --depth int         Console depth (default 2)
+      --failfast          Stop on first failure
+  -l, --logs              Show logs even on success
+      --nowrap            Don't wrap output
+  -r, --run stringArray   Run test (all, smoke, entities)
+      --skips             Show SKIPs in console
+      --warns             Show WARNs in console
+
+Global Flags:
+      --config string      Config file ($HOME/.xr)
+      --cset stringArray   Override configFile property: --cset NAME[:VALUE]
+      --errjson            Print errors as json
+  -?, --help               Help for xr
+  -s, --server string      xRegistry server URL
+  -v, --verbose            Be chatty
+      --version            Print command version string
+`, "", true)
+}
+
 func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
 	const target = "http://localhost:8282/conform"
 	cliResult := XCLI(t, "conform --skips -vvv "+target+" "+target, "", `PASS: http://localhost:8282/conform (skip:3)
-├─ PASS: TestSniff
-├─ PASS: TestModel
-├─ PASS: TestCapabilities (skip:1)
-│  ├─ PASS: capabilities.available MUST include "capabilities"
-│  ├─ PASS: capabilities.available MUST include "entities"
-│  ├─ PASS: capabilities.available MUST include "model"
-│  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
-│  ├─ PASS: 'GET /capabilities' MUST return 200
-│  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
-│  ├─ PASS: 'GET /capabilities' MUST return a JSON body
-│  ├─ PASS: 'GET /' MUST return 200
-│  ├─ PASS: 'GET /' MUST return a non-empty body
-│  ├─ PASS: 'GET /' MUST return a JSON body
-│  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
-│  ├─ PASS: Testing ?inline=capabilities (skip:1)
-│  │  └─ SKIP: ?inline not supported
-├─ PASS: TestRegistryRoot
-├─ PASS: TestGroups (skip:1)
-│  ├─ PASS: TestModel (cached)
-│  ├─ PASS: TestCapabilities (cached)
-│  └─ SKIP: No Group Types defined - leaving
-└─ PASS: TestResources (skip:1)
-   ├─ PASS: TestGroups (cached)
-   └─ SKIP: No Group Types defined  - leaving
-Pass: 55   Fail: 0   Warn: 0   Skip: 3
+└─ PASS: TestRegistry (skip:3)
+   ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: capabilities.available MUST include "capabilities"
+   │  ├─ PASS: capabilities.available MUST include "entities"
+   │  ├─ PASS: capabilities.available MUST include "model"
+   │  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+   │  ├─ PASS: 'GET /capabilities' MUST return 200
+   │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+   │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  ├─ PASS: 'GET /' MUST return 200
+   │  ├─ PASS: 'GET /' MUST return a non-empty body
+   │  ├─ PASS: 'GET /' MUST return a JSON body
+   │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+   │  ├─ PASS: Testing ?inline=capabilities (skip:1)
+   │  │  └─ SKIP: ?inline not supported
+   ├─ PASS: TestGroups (skip:1)
+   │  ├─ PASS: TestModel (cached)
+   │  ├─ PASS: TestCapabilities (cached)
+   │  └─ SKIP: No Group Types defined - leaving
+   └─ PASS: TestResources (skip:1)
+      ├─ PASS: TestGroups (cached)
+      └─ SKIP: No Group Types defined  - leaving
+Pass: 56   Fail: 0   Warn: 0   Skip: 3
 
 PASS: http://localhost:8282/conform (skip:3)
-├─ PASS: TestSniff
-├─ PASS: TestModel
-├─ PASS: TestCapabilities (skip:1)
-│  ├─ PASS: capabilities.available MUST include "capabilities"
-│  ├─ PASS: capabilities.available MUST include "entities"
-│  ├─ PASS: capabilities.available MUST include "model"
-│  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
-│  ├─ PASS: 'GET /capabilities' MUST return 200
-│  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
-│  ├─ PASS: 'GET /capabilities' MUST return a JSON body
-│  ├─ PASS: 'GET /' MUST return 200
-│  ├─ PASS: 'GET /' MUST return a non-empty body
-│  ├─ PASS: 'GET /' MUST return a JSON body
-│  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
-│  ├─ PASS: Testing ?inline=capabilities (skip:1)
-│  │  └─ SKIP: ?inline not supported
-├─ PASS: TestRegistryRoot
-├─ PASS: TestGroups (skip:1)
-│  ├─ PASS: TestModel (cached)
-│  ├─ PASS: TestCapabilities (cached)
-│  └─ SKIP: No Group Types defined - leaving
-└─ PASS: TestResources (skip:1)
-   ├─ PASS: TestGroups (cached)
-   └─ SKIP: No Group Types defined  - leaving
-Pass: 55   Fail: 0   Warn: 0   Skip: 3
+└─ PASS: TestRegistry (skip:3)
+   ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: capabilities.available MUST include "capabilities"
+   │  ├─ PASS: capabilities.available MUST include "entities"
+   │  ├─ PASS: capabilities.available MUST include "model"
+   │  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+   │  ├─ PASS: 'GET /capabilities' MUST return 200
+   │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+   │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  ├─ PASS: 'GET /' MUST return 200
+   │  ├─ PASS: 'GET /' MUST return a non-empty body
+   │  ├─ PASS: 'GET /' MUST return a JSON body
+   │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+   │  ├─ PASS: Testing ?inline=capabilities (skip:1)
+   │  │  └─ SKIP: ?inline not supported
+   ├─ PASS: TestGroups (skip:1)
+   │  ├─ PASS: TestModel (cached)
+   │  ├─ PASS: TestCapabilities (cached)
+   │  └─ SKIP: No Group Types defined - leaving
+   └─ PASS: TestResources (skip:1)
+      ├─ PASS: TestGroups (cached)
+      └─ SKIP: No Group Types defined  - leaving
+Pass: 56   Fail: 0   Warn: 0   Skip: 3
 `, `*`, true)
 
 	for _, check := range []struct {
@@ -2506,13 +2630,8 @@ func TestXRConformBasic(t *testing.T) {
 	// Make sure the minimal looks ok
 	// Also verifies the default Registry is conformant
 	XCLI(t, "conform", "", `PASS: http://localhost:8181
-├─ PASS: TestSniff
-├─ PASS: TestModel
-├─ PASS: TestCapabilities
-├─ PASS: TestRegistryRoot
-├─ PASS: TestGroups
-└─ PASS: TestResources
-Pass: 99   Fail: 0   Warn: 0   Skip: 0
+└─ PASS: TestRegistry
+Pass: 103   Fail: 0   Warn: 0   Skip: 0
 `, ``, true, MASK_CONFORM_PASS)
 
 	XCLI(t, "conform --run TestTDAllPass -d0", "", `PASS: http://localhost:8181
