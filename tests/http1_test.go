@@ -11,32 +11,29 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func TestHTTPhtml(t *testing.T) {
-	reg := NewRegistry("TestHTTPhtml")
+func TestHTTPUIhtml(t *testing.T) {
+	reg := NewRegistry("TestHTTPUIhtml")
 	defer PassDeleteReg(t, reg)
 
-	// Check as part of Reg request
-	XCheckHTTP(t, reg, &HTTPTest{
-		Name:       "?html",
-		URL:        "?html",
+	// The old "?html"/"?noprops" JSON-wrapped-in-HTML viewer (and the old
+	// hand-rolled "?ui" page) have been removed - replaced entirely by the
+	// SPA served under /ui/. All this test needs to confirm now is that
+	// /ui/ actually serves back real HTML (not e.g. a JSON error or an
+	// empty body), not any particular page content.
+	res := XCheckHTTP(t, reg, &HTTPTest{
+		Name:       "/ui/",
+		URL:        "/ui/",
 		Method:     "GET",
 		ReqHeaders: []string{},
 		ReqBody:    "",
 
 		Code:       200,
-		ResHeaders: []string{"Content-Type:text/html"},
-		ResBody: `<pre>
-{
-  "specversion": "` + SPECVERSION + `",
-  "registryid": "TestHTTPhtml",
-  "self": "<a href="http://localhost:8181/?html">http://localhost:8181/?html</a>",
-  "xid": "/",
-  "epoch": 1,
-  "createdat": "2024-01-01T12:00:01Z",
-  "modifiedat": "2024-01-01T12:00:01Z"
-}
-`,
+		ResHeaders: []string{"Content-Type:text/html; charset=utf-8"},
+		ResBody:    "*",
 	})
+
+	XCheck(t, strings.Contains(res.body, "<html"),
+		"Expected /ui/ to return HTML, got:\n%s", res.body)
 }
 
 func TestHTTPModel(t *testing.T) {

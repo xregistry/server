@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	// "os"
 	"reflect"
 	"strconv"
@@ -126,11 +125,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.VPrintf(2, "tx: %s %s %s", uuid, r.Method, r.URL)
 	} else {
 		log.VPrintf(2, "%s %s", r.Method, r.URL)
-	}
-
-	if r.URL.Path == "/proxy" {
-		HTTPProxy(uuid, w, r)
-		return
 	}
 
 	if strings.HasPrefix(r.URL.Path, XRPROXY_PREFIX) {
@@ -303,14 +297,6 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 		return false
 	}
 
-	if r.URL.Query().Has("ui") { // Wrap in html page
-		info.HTTPWriter = NewPageWriter(info)
-	}
-
-	if r.URL.Query().Has("html") || r.URL.Query().Has("noprops") { //HTMLify it
-		info.HTTPWriter = NewBufferedWriter(info)
-	}
-
 	/*
 		if sv := info.GetFlag("specversion"); sv != "" {
 			if !info.Registry.Capabilities.SpecVersionEnabled(sv) {
@@ -371,9 +357,7 @@ type HTTPWriter interface {
 }
 
 var _ HTTPWriter = &DefaultWriter{}
-var _ HTTPWriter = &BufferedWriter{}
 var _ HTTPWriter = &DiscardWriter{}
-var _ HTTPWriter = &PageWriter{}
 
 func DefaultHTTPWriter(info *RequestInfo) HTTPWriter {
 	return &DefaultWriter{
@@ -460,67 +444,6 @@ func (dw *DefaultWriter) GetHeaderValues(name string) []string {
 
 func (dw *DefaultWriter) Done() {
 	dw.Write(nil)
-}
-
-type BufferedWriter struct {
-	Info      *RequestInfo
-	OldWriter HTTPWriter
-	Headers   *map[string][]string
-	Buffer    *bytes.Buffer
-}
-
-func NewBufferedWriter(info *RequestInfo) *BufferedWriter {
-	return &BufferedWriter{
-		Info:      info,
-		OldWriter: info.HTTPWriter,
-		Headers:   &map[string][]string{},
-		Buffer:    &bytes.Buffer{},
-	}
-}
-
-func (bw *BufferedWriter) Write(b []byte) (int, error) {
-	return bw.Buffer.Write(b)
-}
-
-func (bw *BufferedWriter) SetHeader(name, value string) {
-	(*bw.Headers)[name] = []string{value}
-}
-
-func (bw *BufferedWriter) AddHeader(name, value string) {
-	(*bw.Headers)[name] = append((*bw.Headers)[name], value)
-}
-
-func (bw *BufferedWriter) GetHeader(name string) string {
-	vals := (*bw.Headers)[name]
-	if len(vals) == 0 {
-		return ""
-	}
-	return vals[0]
-}
-
-func (bw *BufferedWriter) GetHeaderValues(name string) []string {
-	return (*bw.Headers)[name]
-}
-
-func (bw *BufferedWriter) Done() {
-	req := bw.Info.OriginalRequest
-	if req.URL.Query().Has("html") {
-		// Override content-type
-		bw.SetHeader("Content-Type", "text/html")
-	}
-
-	for k, values := range *bw.Headers {
-		for _, val := range values {
-			bw.OldWriter.AddHeader(k, val)
-		}
-	}
-
-	buf := bw.Buffer.Bytes()
-	if req.URL.Query().Has("html") {
-		bw.OldWriter.Write([]byte("<pre>\n"))
-		buf = HTMLify(req, buf)
-	}
-	bw.OldWriter.Write(buf)
 }
 
 type DiscardWriter struct{}
@@ -2766,69 +2689,6 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 	}
 
 	return IncomingObj, nil
-}
-
-func HTTPProxy(uuid string, w http.ResponseWriter, r *http.Request) {
-	host := r.URL.Query().Get("host") // http://xregistry.io/xreg
-	path := r.URL.Query().Get("path") // /GROUPS?inline
-
-	host = strings.Trim(host, "/")
-	path = "/" + strings.Trim(path, "/")
-	data := []byte(nil)
-
-	reg, xErr := LoadRemoteRegistry(host)
-	if xErr != nil {
-		data = []byte(xErr.String())
-	}
-
-	log.FuncPrintf("tx: %s Download: %s%s", uuid, host, path)
-
-	var err error
-	if data == nil {
-		data, err = DownloadURL(host + path)
-		if !IsNil(err) {
-			// See if we can be tricky and load the index.html file ourselves
-			data, err = DownloadURL(host + path + "/index.html")
-			if !IsNil(err) {
-				data = []byte(err.Error())
-			}
-		}
-	}
-
-	if log.IsFuncVerbose() {
-		log.Printf("tx: %s Data:\n%s", uuid, string(data))
-	}
-
-	r.URL, err = url.Parse(path)
-	r.RequestURI = path
-	if err != nil {
-		data = []byte(err.Error())
-	}
-
-	info := &RequestInfo{
-		OriginalPath:    r.URL.Path, // path,
-		OriginalRequest: r,          // not sure this is the best option
-		Registry:        reg,
-		BaseURL:         host,
-		ProxyHost:       host,
-		ProxyPath:       path,
-	}
-
-	if reg != nil && reg.Model != nil {
-		if xErr = info.ParseRequestURL(); xErr != nil {
-			data = []byte(xErr.String())
-		}
-	}
-
-	w.Header().Add("Content-Type", "text/html")
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Access-Control-Allow-Methods",
-		"GET, PATCH, POST, PUT, DELETE")
-	w.Header().Add("Link", fmt.Sprintf("<http://%s>;rel=xregistry-root",
-		r.Host))
-
-	html := GenerateUI(info, data)
-	w.Write(html)
 }
 
 func HTTPWriteError(info *RequestInfo, errAny any) {

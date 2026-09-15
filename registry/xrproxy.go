@@ -2,14 +2,15 @@ package registry
 
 // This file implements a generic, byte-level JSON reverse-proxy used by the
 // new SPA (registry/ui/app.js) to talk to remote xRegistry servers that
-// don't set permissive CORS headers. Unlike the older /proxy endpoint (see
-// HTTPProxy in httpStuff.go), which re-renders the old HTML-templated UI
-// around fetched remote data, this proxy is a transparent pass-through: it
-// forwards the request as-is to the remote server, then rewrites the
-// remote's own absolute URLs (self/*url attributes, Location headers, etc.)
-// in the response so they point back through this proxy. The SPA never
-// needs to know it's talking through a proxy - it just uses the rewritten
-// URL as if it were a normal registry root.
+// don't set permissive CORS headers. Unlike the old "/proxy" endpoint that
+// used to back the retired hand-rolled "?ui" HTML viewer (re-rendering an
+// HTML-templated page around fetched remote data - since removed along with
+// that viewer), this proxy is a transparent pass-through: it forwards the
+// request as-is to the remote server, then rewrites the remote's own
+// absolute URLs (self/*url attributes, Location headers, etc.) in the
+// response so they point back through this proxy. The SPA never needs to
+// know it's talking through a proxy - it just uses the rewritten URL as if
+// it were a normal registry root.
 //
 // URL scheme: /xrproxy/<base64url(remoteOrigin)>/<rest-of-path>[?query]
 // The remote origin (e.g. "https://example.com:8080") is base64url-encoded

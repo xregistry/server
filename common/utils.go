@@ -370,15 +370,6 @@ func RemoveProps(buf []byte) []byte {
 	return buf
 }
 
-func HTMLify(r *http.Request, buf []byte) []byte {
-	str := fmt.Sprintf(`"(https?://[^"\n]*?)"`)
-	re := regexp.MustCompile(str)
-	repl := fmt.Sprintf(`"<a href="$1?%s">$1?%s</a>"`,
-		r.URL.RawQuery, r.URL.RawQuery)
-
-	return re.ReplaceAll(buf, []byte(repl))
-}
-
 func AnyToUInt(val any) (int, error) {
 	var err error
 
