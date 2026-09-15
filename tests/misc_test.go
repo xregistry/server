@@ -237,9 +237,7 @@ func TestMiscCORS(t *testing.T) {
 
 	for _, test := range []Test{
 		{"GET", "/", "", 200},
-		{"GET", "/?ui", "", 200},
 		{"GET", "/ui", "", 301},
-		{"GET", "/proxy?host=http://xregistry.io/xreg", "", 200},
 		{"GET", "/" + registry.RegCollectionSegment + "/TestMiscCORS", "", 200},
 		{"DELETE", "/", "", 405},
 		{"PUT", "/dirs/d1", "{}", 201},
@@ -262,7 +260,7 @@ func TestMiscCORS(t *testing.T) {
 		expectedMethods := "DELETE, GET, OPTIONS, PATCH, POST, PUT"
 		testLinkHeader := true
 
-		if test.url == "/" || test.url == "/?ui" ||
+		if test.url == "/" ||
 			test.url == "/"+registry.RegCollectionSegment+"/TestMiscCORS" {
 
 			// Root doesn't support DELETE
@@ -270,9 +268,6 @@ func TestMiscCORS(t *testing.T) {
 		} else if test.url == "/ui" {
 			expectedMethods = ""
 			testLinkHeader = false
-		} else if test.url == "/proxy?host=http://xregistry.io/xreg" {
-			// Proxy has its own methods, skip check
-			expectedMethods = res.Header.Get("Access-Control-Allow-Methods")
 		} else if test.url == "/dirs" {
 			// Collection
 			expectedMethods = "DELETE, GET, OPTIONS, PATCH, POST"

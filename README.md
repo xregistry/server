@@ -17,7 +17,7 @@ encounter problems.
 
 ### Where to go from here...
 
-- [Try it online now!](http://xregistry.soaphub.org?ui)
+- [Try it online now!](http://xregistry.soaphub.org)
 - [Quick Start](docs/quick_start.md) (requires Docker)
 - [Installation Options](docs/installation.md)
 - [`xr` Command](docs/xr_help.md)

@@ -231,10 +231,6 @@ func XCheckGet(t *testing.T, reg *registry.Registry, url string, expected string
 	buf := bytes.NewBuffer(body)
 	daURL, _ := gourl.Parse(url)
 
-	if daURL.Query().Has("noprops") {
-		buf = bytes.NewBuffer(RemoveProps(buf.Bytes()))
-		// expected = string(RemoveProps([]byte(expected)))
-	}
 	if daURL.Query().Has("oneline") {
 		buf = bytes.NewBuffer(OneLine(buf.Bytes()))
 		expected = string(OneLine([]byte(expected)))

@@ -54,9 +54,6 @@ type RequestInfo struct {
 	SentStatus bool
 	HTTPWriter HTTPWriter `json:"-"`
 
-	ProxyHost string
-	ProxyPath string
-
 	// extra stuff if we ever need to pass around data while processing
 	extras map[string]any
 }
