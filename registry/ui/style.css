@@ -94,6 +94,27 @@ html, body {
 .bc-link:hover { color: #003d80; }
 .bc-current { color: #333; font-weight: bold; white-space: nowrap; }
 
+/* Sibling-switcher dropdown caret — experimental Config-page-gated feature
+   (see optBreadcrumbDropdowns()/openBreadcrumbSiblingMenu()). Kept quiet
+   (muted color, no border/background) so it doesn't visually clutter the
+   breadcrumb bar when enabled, but sized/weighted enough to read clearly
+   as a dropdown caret rather than a stray dot; only shown next to
+   segments that have a resolvable sibling context. */
+.bc-sib-caret {
+  background: none;
+  border: none;
+  padding: 0 3px;
+  margin: 0 1px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: bold;
+  line-height: 1;
+  color: #888;
+  vertical-align: middle;
+}
+.bc-sib-caret:hover { color: #2060a0; }
+
+
 /* Collapsed breadcrumb ellipsis button */
 .bc-ellipsis {
   background: none;
@@ -165,6 +186,19 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
    just unavailable right now. */
 .popup-item-disabled { color: #aaa; cursor: default; }
 .popup-sep { margin: 4px 0; border: none; border-top: 1px solid #eee; }
+
+/* Non-clickable section label within the shared header popup — e.g. the
+   breadcrumb sibling dropdown's "Versions" sub-section at a Resource
+   segment (see openBreadcrumbSiblingMenu()). Mirrors the left sibling
+   panel's own .sib-panel-header styling. */
+.popup-section-header {
+  font-size: 11px;
+  font-weight: bold;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 14px 4px;
+}
 
 /* Small icons shown to the left of each menu item's label — roughly half
    the size of the equivalent toolbar button's icon, reusing the same

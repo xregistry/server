@@ -122,3 +122,4 @@ TODOs:
 ** support "xr upload", upload files from a dir
 ** see what it would take to support a registry proxy (at the group level) that
    would expose lots of registries as a single one.
+** make sure "format" attr + "format" resource generates an error, groups too
