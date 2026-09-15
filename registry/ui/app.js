@@ -394,6 +394,18 @@ function optXregFocused() { return !!_opts.xregFocused; }
 // navigateToCollOrSingleItem().
 function optOptimizedBrowsing() { return _opts.optimizedBrowsing !== false; }
 
+// "Breadcrumb dropdowns" — adds a small sibling-switcher dropdown caret
+// next to every breadcrumb segment (including the current one), letting
+// the user jump directly to a sibling at that level (e.g. another
+// Registry, another Group) without first navigating up via the breadcrumb
+// and back down. On by default; the Config-page checkbox lets people turn
+// it off if they'd rather keep the breadcrumb bar caret-free — see
+// plan.md "Breadcrumb sibling-switcher dropdowns". Unlike the existing
+// left sibling panel (List view only — see getSiblingContext()), this
+// works in both List and JSON view, since it lives in the breadcrumb bar
+// itself rather than a List-view-only side panel.
+function optBreadcrumbDropdowns() { return _opts.breadcrumbDropdowns !== false; }
+
 
 // Per-session override of optXregFocused(), toggled via the kebab menu's
 // "Show/Hide xReg Data" entry (see buildMoreMenuItems()/toggleXregOverride())
@@ -982,15 +994,24 @@ function updateSiblingToggleBtn() {
     + '</svg>';
 }
 
-// Resolves the current page's sibling context, or null if this page has no
-// applicable parent/sibling concept (Home, JSON view, or a page depth this
-// feature doesn't cover). Returns:
-//   { label, currentKey, load(cb), navigate(item), versions: {...} (Resource pages only) }
+// Resolves the sibling context for an arbitrary path prefix, or null if that
+// path has no applicable parent/sibling concept (Home, a non-data section, or
+// a depth this feature doesn't cover). Returns:
+//   { label, currentKey, load(cb), navigate(item), versions: {...} (Resource/Version paths only) }
 // `load(cb)` calls cb(items) with an array of {key, label, isDefault}.
-function getSiblingContext() {
-  if (_state.view === 'home' || _state.view === 'json' || _state.dataView === 'json') return null;
+//
+// This is the shared depth-keyed resolver used by both the (List-view-only,
+// current-page-depth-only) left sibling panel — see getSiblingContext() below
+// — and the breadcrumb dropdown carets, which need the SAME per-depth
+// sibling logic but for an arbitrary ancestor prefix of _state.path, not just
+// the current page's own depth. `path` must be a prefix of _state.path (or
+// _state.path itself) — depths 5/6 (versions/version-id) rely on
+// page-scoped globals (_resVersionsList etc.) that only reflect the
+// currently-loaded Resource, so callers must not pass an unrelated path here.
+function getSiblingContextForPath(path) {
+  if (_state.view === 'home') return null;
   if (_state.section !== 'data') return null;
-  var depth = _state.path.length;
+  var depth = path.length;
   var svBase0 = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var model0  = _modelCache[normalizeURL(svBase0)] || null;
 
@@ -999,7 +1020,7 @@ function getSiblingContext() {
     // Group Type collections declared by the model (not the items inside
     // this collection — those are this page's own children, not siblings).
     if (!model0 || !model0.groups) return null;
-    var curPlural1 = _state.path[0];
+    var curPlural1 = path[0];
     return {
       label: 'Group Types',
       currentKey: curPlural1,
@@ -1016,10 +1037,10 @@ function getSiblingContext() {
     // Resources collection page within a Group instance (e.g.
     // "endpoints/e1/messages") — siblings are the other Resource Type
     // collections declared for this Group type.
-    var grpType3 = _state.path[0], grpId3 = _state.path[1];
+    var grpType3 = path[0], grpId3 = path[1];
     var grpDef3 = model0 && model0.groups && model0.groups[grpType3];
     if (!grpDef3 || !grpDef3.resources) return null;
-    var curPlural3 = _state.path[2];
+    var curPlural3 = path[2];
     return {
       label: 'Resource Types',
       currentKey: curPlural3,
@@ -1049,14 +1070,14 @@ function getSiblingContext() {
 
   if (depth === 2) {
     // Group instance — siblings are the Groups collection of the same type.
-    var grpType = _state.path[0];
+    var grpType = path[0];
     var svBaseG = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
     return {
       label: capitalize(grpType),
-      currentKey: _state.path[1],
+      currentKey: path[1],
       load: function(cb) {
         loadSiblingCollection(svBaseG + '|' + grpType, function() {
-          return buildAPIURLForPath(_state.path.slice(0, 1));
+          return buildAPIURLForPath(path.slice(0, 1));
         }, cb);
       },
       navigate: function(item) {
@@ -1066,19 +1087,118 @@ function getSiblingContext() {
     };
   }
 
-  if (depth === 4) {
-    // Resource instance — siblings are the Resources collection of the
-    // same type within this Group, PLUS (per user's scoping) this
+  if (depth === 4 || depth === 5 || depth >= 6) {
+    // Resource instance (depth 4), the literal "versions" segment (depth 5,
+    // no real siblings — there's only one versions collection name per
+    // Resource, so no dropdown is offered there), or a specific version id
+    // (depth >= 6) — siblings for depth 4/6 are the Resources collection of
+    // the same type within this Group, PLUS (per user's scoping) this
     // Resource's own Versions, shown as a second list within the same
     // panel. See renderSiblingPanel().
-    var grpType4 = _state.path[0], grpId4 = _state.path[1], resType4 = _state.path[2];
+    var grpType4 = path[0], grpId4 = path[1], resType4 = path[2];
     var svBaseR = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
+    var resPath4 = path.slice(0, 4);
+    var versionsCtx = {
+      label: 'Versions',
+      // At depth >= 6 the version id is already right there in `path` — no
+      // need for the List-view-only globals below. At depth 4 (viewing the
+      // Resource's own default page), fall back to whatever those globals
+      // say IF this page happens to have been rendered in List view at
+      // some point (they're left populated across a later dataView=json
+      // switch); a fresh/bookmarked JSON-view load never populates them
+      // (see loadResourceVersionsForPath()'s own fetch below), so there's
+      // simply no "current" row to highlight then — acceptable, matches
+      // every other depth's currentKey being best-effort only.
+      currentKey: (depth >= 6) ? path[5]
+        : ((_resSelectedVersionId === 'default') ? (_resDefaultData && _resDefaultData.versionid) || 'default' : _resSelectedVersionId),
+      load: function(cb) {
+        if (_resVersionsList) {
+          // Already fetched by the List-view page (loadVersionsForSelect())
+          // for this same Resource — reuse it instead of fetching twice.
+          var items = _resVersionsList.map(function(v) {
+            return {key: itemNavKey(v), label: itemNavKey(v), self: v.self || '',
+              isDefault: !!(_resDefaultData && _resDefaultData.versionid === itemNavKey(v))};
+          });
+          cb(items);
+          return;
+        }
+        // Nothing cached (e.g. a fresh/bookmarked JSON-view load, which
+        // never populates the List-view-only globals above) — fetch the
+        // versions collection directly so the dropdown still works.
+        loadResourceVersionsForPath(resPath4, cb);
+      },
+      navigate: function(item) {
+        if (_state.dataView === 'json') {
+          // JSON view has no "Version:" selector to drive in place (that's
+          // a List-view-only control) — a version there is its own
+          // addressable page (see normalizeVersionDepth()), so jump to it
+          // like any other JSON-view link/navigation.
+          pushState({path: resPath4.concat(['versions', item.key]), apiURL: item.self || ''});
+          return;
+        }
+        // List view: drive the existing "Version:" dropdown in place
+        // (same page, no navigation) via onVersionSelectChange()/
+        // onVersionSelectChangeReal() — normally triggered by that
+        // <select>'s own onchange (which already updated its displayed
+        // value before firing); calling it directly here, bypassing the
+        // actual <select>, needs this same extra sync step
+        // verTabRowClick() uses for the Versions List tab's row-click,
+        // otherwise the dropdown keeps showing the previously-selected
+        // version even though the page content below it did update.
+        var sel = document.getElementById('eg-doc-version-select');
+        if (sel) sel.value = item.key;
+        onVersionSelectChange(item.key, true);
+      }
+    };
+
+
+    if (depth === 5) {
+      // path[4] is either the literal "versions" collection-name segment,
+      // or (per buildBreadcrumbSegments()'s synthetic "meta" segment, which
+      // borrows this same depth-5 shape purely so it can share this branch)
+      // the literal "meta" sub-object segment. These two are JSON-view-only
+      // siblings of EACH OTHER — both are alternate whole-page "routes" for
+      // viewing this same Resource (its Versions collection vs its
+      // Metadata object), unlike every other depth here where siblings are
+      // other INSTANCES at the same level. Only meaningful in JSON view —
+      // List view never reaches either of these as its own page (see
+      // normalizeVersionDepth() for "versions", buildBreadcrumbSegments()'s
+      // dataView==='json' gate for "meta") — so this ctx is simply never
+      // asked for otherwise.
+      var curKind5 = path[4];
+      return {
+        label: 'View',
+        currentKey: curKind5,
+        load: function(cb) { cb([{key: 'versions', label: 'versions'}, {key: 'meta', label: 'meta'}]); },
+        navigate: function(item) {
+          if (item.key === curKind5) return; // already there
+          if (item.key === 'versions') {
+            pushState({path: resPath4.concat(['versions']), docTab: '', dataView: 'json'});
+          } else {
+            pushState({path: resPath4, docTab: 'meta', dataView: 'json'});
+          }
+        }
+      };
+    }
+
+    if (depth >= 6) {
+      // A specific version id — siblings are the other versions of the
+      // same Resource (reuse versionsCtx as the primary list, no nested
+      // `versions` sub-context this time since we're already there).
+      return {
+        label: versionsCtx.label,
+        currentKey: versionsCtx.currentKey,
+        load: versionsCtx.load,
+        navigate: versionsCtx.navigate
+      };
+    }
+
     return {
       label: capitalize(resType4),
-      currentKey: _state.path[3],
+      currentKey: path[3],
       load: function(cb) {
         loadSiblingCollection(svBaseR + '|' + grpType4 + '/' + grpId4 + '/' + resType4, function() {
-          return buildAPIURLForPath(_state.path.slice(0, 3));
+          return buildAPIURLForPath(path.slice(0, 3));
         }, cb);
       },
       navigate: function(item) {
@@ -1091,33 +1211,44 @@ function getSiblingContext() {
         // which sibling resource it shows.
         pushState({path: itemPath, apiURL: item.self || '', docTab: _state.docTab});
       },
-      versions: {
-        label: 'Versions',
-        currentKey: (_resSelectedVersionId === 'default') ? (_resDefaultData && _resDefaultData.versionid) || 'default' : _resSelectedVersionId,
-        load: function(cb) {
-          var items = (_resVersionsList || []).map(function(v) {
-            return {key: itemNavKey(v), label: itemNavKey(v), isDefault: !!(_resDefaultData && _resDefaultData.versionid === itemNavKey(v))};
-          });
-          cb(items);
-        },
-        navigate: function(item) {
-          // onVersionSelectChange()/onVersionSelectChangeReal() normally run
-          // as a result of the "Version:" dropdown's own onchange (the
-          // browser already updated its displayed value before that fires)
-          // — calling them from here directly, bypassing the actual
-          // <select>, needs this same extra sync step verTabRowClick() uses
-          // for the Versions List tab's row-click, otherwise the dropdown
-          // keeps showing the previously-selected version even though the
-          // page content below it did update.
-          var sel = document.getElementById('eg-doc-version-select');
-          if (sel) sel.value = item.key;
-          onVersionSelectChange(item.key, true);
-        }
-      }
+      versions: versionsCtx
     };
   }
 
   return null;
+}
+
+// Own tiny cache (one entry, mirroring _siblingPanelDataKey/_siblingPanelItems
+// below) for versionsCtx.load()'s fallback fetch — used only when the
+// List-view-only _resVersionsList global isn't already populated for this
+// Resource (a fresh/bookmarked JSON-view load never populates it, since
+// loadVersionsForSelect() is only ever called from the List-view Resource
+// page render — see getSiblingContextForPath()'s depth 4/6 case). Keeps its
+// own raw "isdefault" field straight off the server response — unlike
+// loadSiblingCollection()'s generic {key,label,self} mapping (reused by
+// every OTHER depth here), versions actually need that flag to mark the
+// default row in the dropdown.
+var _verSibCacheKey   = null;
+var _verSibCacheItems = null;
+function loadResourceVersionsForPath(resPath4, cb) {
+  var key = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '') + '|' + resPath4.join('/') + '/versions';
+  if (_verSibCacheKey === key && _verSibCacheItems) { cb(_verSibCacheItems); return; }
+  fetchJSON(buildAPIURLForPath(resPath4) + '/versions').then(function(data) {
+    var items = collectionItems(data).map(function(v) {
+      return {key: itemNavKey(v), label: itemNavKey(v), self: v.self || '', isDefault: !!v.isdefault};
+    });
+    _verSibCacheKey   = key;
+    _verSibCacheItems = items;
+    cb(items);
+  }).catch(function() { cb([]); });
+}
+
+// Resolves the CURRENT page's sibling context for the left sibling panel —
+// List view only, never JSON view (unlike the breadcrumb dropdown carets,
+// which reuse getSiblingContextForPath() directly and DO work in JSON view).
+function getSiblingContext() {
+  if (_state.view === 'json' || _state.dataView === 'json') return null;
+  return getSiblingContextForPath(_state.path);
 }
 
 // Shared collection fetch/cache used by getSiblingContext()'s Group/
@@ -1506,13 +1637,16 @@ function pushStateReal(patch) {
     var newSection = patch.section !== undefined ? patch.section : _state.section;
     var savedView  = defaultDataView(newSection, newDepth, newPath);
     // JSON view is "sticky" across navigation — moving up/down within a section's
-    // pages, or switching between Registry Data / Model / Model Source / Capabilities
+    // pages, switching between Registry Data / Model / Model Source / Capabilities
     // / Capabilities Offered (e.g. via the Registry Endpoints panel or the
-    // "← Registry Data" link) — all keep JSON view, just like clicking a URL inside
-    // the JSON content itself always stays in JSON. Only breaks when changing
-    // servers or freshly entering the data section from Home/Config, where the
-    // section/depth default should apply instead.
-    if (!changingServer && !enteringData && (changingPath || changingSection)
+    // "← Registry Data" link), or switching to a different Registry entirely
+    // (e.g. via the Home page or a breadcrumb/sibling-panel Registry switch) —
+    // all keep JSON view, just like clicking a URL inside the JSON content
+    // itself always stays in JSON. The user is switching WHICH registry/path
+    // they're looking at, not asking to change HOW they view it. Only breaks
+    // when freshly entering the data section from Home/Config, where there's
+    // no "current view" yet to inherit, so the section/depth default applies.
+    if (!enteringData && (changingServer || changingPath || changingSection)
         && _state.dataView === 'json' && patch.dataView === undefined) {
       savedView = 'json';
     }
@@ -1863,6 +1997,29 @@ function serverBase() {
 function buildBaseURL() {
   var path = _state.path;
   return serverBase() + (path.length ? '/' + path.join('/') : '');
+}
+
+// "Is `urlPath` a link into the same registry as `svBase`, and if so what's
+// its relative path?" — shared by every same-server-vs-external link check
+// (renderUrlLinkValue()/navigateJsonUrl()/syntaxHighlight()/urlMenuOpen()).
+// Compares scheme-agnostically (strips a leading http(s):// from both
+// sides before comparing) rather than requiring an exact string prefix
+// match — some registries return absolute links using a DIFFERENT scheme
+// than the one the browser actually used to reach them (e.g.
+// hub.xregistry.io/xreg is a static, hand-authored document whose
+// self/categoriesurl/etc. are hardcoded to https://, even when fetched
+// over a plain http:// request that never gets scheme-upgraded). Without
+// this, such a registry's own child-collection links would wrongly be
+// treated as "external", opening a new tab/window instead of navigating
+// within the SPA. Returns the relative path (leading slash stripped, ''
+// for the root) on a match, or null if `urlPath` points elsewhere
+// entirely.
+function relPathIfSameServer(urlPath, svBase) {
+  var stripScheme = function(u) { return u.replace(/^https?:\/\//i, ''); };
+  var uNoScheme = stripScheme(urlPath);
+  var sNoScheme = stripScheme(svBase);
+  if (uNoScheme.indexOf(sNoScheme) !== 0) return null;
+  return uNoScheme.slice(sNoScheme.length).replace(/^\//, '');
 }
 
 function buildAPIURL() {
@@ -2642,7 +2799,21 @@ function toggleXregOverride() {
 var _bcSep  = '<span class="bc-space"></span><span class="bc-sep">/</span><span class="bc-space"></span>';
 var _bcSegs = []; // current segments, shared with popup openers
 
-// Returns [{label, onclick|null, href|null, isCurrent}] for the current state
+// Last-opened sibling dropdown's rows — set by openBreadcrumbSiblingMenu()
+// (via showBreadcrumbSiblingMenu()), consumed by breadcrumbSiblingNavigate()
+// when a row in the shared #header-popup is clicked. Each row is
+// {ctx, item}: `ctx` is whichever sibling context that row belongs to (the
+// segment's own main context, or — at a Resource segment — its nested
+// `versions` sub-context, mirrored alongside the main list just like the
+// left sibling panel does), so a single popup can mix rows from more than
+// one section while still dispatching each click to the right navigate().
+var _bcSibRows = [];
+
+// Returns [{label, onclick|null, href|null, isCurrent, path|null}] for the
+// current state. `path` is the data-path prefix that segment represents
+// (used by renderSegment() to resolve/offer a sibling dropdown caret via
+// getSiblingContextForPath()) — null for segments that aren't part of the
+// data path (section labels, the synthetic "meta" segment).
 function buildBreadcrumbSegments() {
   if (_state.view === 'home')   return null; // handled specially in renderBreadcrumbs
   if (_state.view === 'config') return [{label:'Config',     onclick:null, isCurrent:true}];
@@ -2656,12 +2827,14 @@ function buildBreadcrumbSegments() {
   // rootApiURL's declaration comment / pushStateReal().
   var regHref  = pageHref([], _state.rootApiURL || '', {useExport: false});
   var isSection = _state.section !== 'data';
-  segs.push({label: regLabel, onclick: isSection || _state.path.length > 0 ? regClick : null, href: regHref, isCurrent: !isSection && _state.path.length === 0});
+  segs.push({label: regLabel, onclick: isSection || _state.path.length > 0 ? regClick : null, href: regHref, isCurrent: !isSection && _state.path.length === 0, path: []});
 
   // If in a section view, add the section name as the last breadcrumb
   if (isSection) {
     var sectionLabels = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered', xregistry:'.xregistry'};
-    segs.push({label: sectionLabels[_state.section] || _state.section, onclick: null, href: null, isCurrent: true});
+    // No sibling dropdown for section segments (Model/Capabilities/etc. —
+    // not part of the data path getSiblingContextForPath() understands).
+    segs.push({label: sectionLabels[_state.section] || _state.section, onclick: null, href: null, isCurrent: true, path: null});
     return segs;
   }
 
@@ -2675,7 +2848,7 @@ function buildBreadcrumbSegments() {
     // (_state.crumbURLs[i]) if this ancestor was visited this session,
     // otherwise the same trim fallback pushStateReal() would use.
     var href = isLast ? null : pageHref(newPath, _state.crumbURLs[i] || '');
-    segs.push({label: seg, onclick: click, href: href, isCurrent: isLast});
+    segs.push({label: seg, onclick: click, href: href, isCurrent: isLast, path: newPath});
   });
 
   // When the Resource/Version page's Metadata tab is active, the visible
@@ -2709,7 +2882,15 @@ function buildBreadcrumbSegments() {
         + ',section:\'data\',docTab:\'\'})');
       lastSeg.href = pageHref(lastPath, _state.crumbURLs[metaDepth - 1] || '');
     }
-    segs.push({label: 'meta', onclick: null, href: null, isCurrent: true});
+    // Give this segment a path only at the Resource level (depth 4) — it's
+    // shaped like a literal depth-5 "versions" segment ([...resPath, 'meta'])
+    // so getSiblingContextForPath()'s depth-5 case (which already handles
+    // the literal "versions" segment) treats the two as siblings of each
+    // other and offers a toggle between them. Deliberately left `null` at
+    // the Version level (depth >= 6) — a Version has no analogous
+    // "versions" collection of its own to pair "meta" with there.
+    var metaSegPath = (metaDepth === 4) ? _state.path.slice(0, 4).concat(['meta']) : null;
+    segs.push({label: 'meta', onclick: null, href: null, isCurrent: true, path: metaSegPath});
   }
   return segs;
 }
@@ -2897,10 +3078,26 @@ function filtersRelevantForEntity(filters, path) {
 }
 
 function renderSegment(seg) {
-  if (seg.isCurrent || !seg.onclick) {
-    return '<span class="bc-current">' + esc(seg.label) + '</span>';
+  var caret = '';
+  // Sibling dropdown caret — only when the Config-page toggle is on AND
+  // this segment has a resolvable sibling context (see
+  // getSiblingContextForPath()); segments with path:null (section labels,
+  // and the synthetic "meta" segment at the Version level — see
+  // buildBreadcrumbSegments()) never get one. Building the ctx here is
+  // cheap (no fetch happens until the caret is actually clicked and
+  // ctx.load() runs).
+  if (optBreadcrumbDropdowns() && seg.path) {
+    var sibCtx = getSiblingContextForPath(seg.path);
+    if (sibCtx) {
+      caret = '<button class="bc-sib-caret" onclick="openBreadcrumbSiblingMenu(event,'
+        + esc(JSON.stringify(seg.path)) + ');return false" title="Switch '
+        + esc(sibCtx.label) + '\u2026">&#9662;</button>';
+    }
   }
-  return '<a class="bc-link" href="' + esc(seg.href || '#') + '" onclick="' + seg.onclick + '">' + esc(seg.label) + '</a>';
+  if (seg.isCurrent || !seg.onclick) {
+    return '<span class="bc-current">' + esc(seg.label) + '</span>' + caret;
+  }
+  return '<a class="bc-link" href="' + esc(seg.href || '#') + '" onclick="' + seg.onclick + '">' + esc(seg.label) + '</a>' + caret;
 }
 
 function breadcrumbsFromSegments(segs) {
@@ -3118,6 +3315,11 @@ function openHeaderPopup(anchorEl, items, rightAlign) {
   if (!popup) return;
   popup.innerHTML = items.map(function(item) {
     if (item.sep) return '<hr class="popup-sep">';
+    // Non-clickable section label — e.g. the breadcrumb sibling dropdown's
+    // "Versions" sub-section at a Resource segment (see
+    // openBreadcrumbSiblingMenu()), mirroring the left sibling panel's own
+    // .sib-panel-header. Never combined with item.onclick/disabled.
+    if (item.header) return '<div class="popup-section-header">' + esc(item.header) + '</div>';
     var cls = 'popup-item' + (item.active ? ' popup-item-active' : '');
     // item.icon is optional — only the kebab "more" menu passes it; the
     // breadcrumb ellipsis/full popups (openBcEllipsis()/openBcFull()) don't
@@ -3201,7 +3403,7 @@ function toggleUrlAddMenu(e, btn, url) {
 function urlMenuOpen(url) {
   var svBase = serverBase();
   var urlPath = url.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
-  if (urlPath.indexOf(svBase) === 0) {
+  if (relPathIfSameServer(urlPath, svBase) !== null) {
     navigateJsonUrl(url);
   } else {
     window.open(url, '_blank', 'noopener');
@@ -3335,6 +3537,80 @@ function openBcFull(e) {
   toggleHeaderPopup(e.currentTarget, _bcSegs.map(function(s) {
     return {label: s.label, onclick: s.onclick, active: s.isCurrent};
   }));
+}
+
+// Opens (via the shared #header-popup — see toggleHeaderPopup()) the
+// sibling-switcher dropdown for one breadcrumb segment's `path` (see
+// renderSegment()'s caret button). Resolves the context fresh from `path`
+// rather than trusting any previously-cached one, then lazily loads that
+// context's items (same load(cb)/navigate(item) contract getSiblingContext()
+// already defines) before showing the popup — so an uncached Group/Resource
+// collection only fetches once the user actually opens the dropdown.
+//
+// At a Resource segment, `ctx.versions` is also present (see
+// getSiblingContextForPath()'s depth-4 case) — mirrors the left sibling
+// panel's own behavior of showing the Resource's sibling Resources AND its
+// own Versions together (see renderSiblingPanel()), so the two dropdown
+// styles stay in sync rather than the breadcrumb caret being a strictly
+// reduced version of the side panel.
+function openBreadcrumbSiblingMenu(e, path) {
+  e.stopPropagation();
+  var ctx = getSiblingContextForPath(path);
+  if (!ctx) return;
+  var anchor = e.currentTarget;
+  ctx.load(function(items) {
+    if (ctx.versions) {
+      ctx.versions.load(function(vItems) {
+        showBreadcrumbSiblingMenu(anchor, [
+          {ctx: ctx, label: ctx.label, items: items},
+          {ctx: ctx.versions, label: ctx.versions.label, items: vItems}
+        ]);
+      });
+      return;
+    }
+    showBreadcrumbSiblingMenu(anchor, [{ctx: ctx, label: ctx.label, items: items}]);
+  });
+}
+
+// Renders one or more {ctx, label, items} sections into the shared
+// #header-popup, building _bcSibRows in lockstep so
+// breadcrumbSiblingNavigate() can dispatch each row's click to the right
+// section's ctx.navigate(). Section headers/separators are only shown when
+// there's more than one section (a plain Resource-Type/Group-Type/etc.
+// segment with just one section renders exactly as before — no header
+// clutter for the common case).
+function showBreadcrumbSiblingMenu(anchor, sections) {
+  _bcSibRows = [];
+  var menuItems = [];
+  var multi = sections.length > 1;
+  sections.forEach(function(sec, si) {
+    if (multi) {
+      if (si > 0) menuItems.push({sep: true});
+      menuItems.push({header: sec.label});
+    }
+    if (!sec.items.length) {
+      menuItems.push({label: 'No siblings', disabled: true});
+      return;
+    }
+    sec.items.forEach(function(it) {
+      var nameHtml = (it.label && it.label !== it.key) ? ' (' + it.label + ')' : '';
+      var badge    = it.isDefault ? ' [default]' : '';
+      var rowIdx   = _bcSibRows.length;
+      _bcSibRows.push({ctx: sec.ctx, item: it});
+      menuItems.push({label: it.key + nameHtml + badge, active: it.key === sec.ctx.currentKey,
+        onclick: 'breadcrumbSiblingNavigate(' + rowIdx + ')'});
+    });
+  });
+  toggleHeaderPopup(anchor, menuItems, false);
+}
+
+// Row-click dispatcher for the breadcrumb sibling dropdown — mirrors
+// siblingPanelNavigate()'s pattern for the left sibling panel, generalized
+// to a flat row list that may span more than one section (see
+// showBreadcrumbSiblingMenu()).
+function breadcrumbSiblingNavigate(i) {
+  var row = _bcSibRows[i];
+  if (row) row.ctx.navigate(row.item);
 }
 
 function openMoreMenu(e) {
@@ -5036,6 +5312,24 @@ function renderConfig() {
     +   ' item</span>'
     + '</div>'
 
+    + '<div class="cfg-option-row cfg-option-group"'
+    +   ' title="Adds a small dropdown caret next to every breadcrumb'
+    +   ' segment (including the current one) listing its siblings, so'
+    +   ' you can jump straight to another Registry/Group/Resource/Version'
+    +   ' at that level without navigating up and back down. Works in'
+    +   ' both List and JSON view.">'
+    +   '<span class="cfg-option-label">Breadcrumb dropdowns</span>'
+    +   '<label class="cfg-radio-row">'
+    +     '<input type="checkbox" id="cfg-breadcrumb-dropdowns"'
+    +     (optBreadcrumbDropdowns() ? ' checked' : '')
+    +     ' onchange="cfgSetBreadcrumbDropdowns(this.checked)">'
+    +     '<span class="cfg-radio-label">Show sibling-switcher dropdowns on breadcrumbs</span>'
+    +   '</label>'
+    +   '<span class="cfg-option-desc">Adds a \u25be caret to each'
+    +   ' breadcrumb segment for jumping directly to a sibling at that'
+    +   ' level</span>'
+    + '</div>'
+
     + '</div>'
 
     // ---- Reset section ----
@@ -5402,6 +5696,16 @@ function cfgSetXregFocused(checked) {
 function cfgSetOptimizedBrowsing(checked) {
   _opts.optimizedBrowsing = !!checked;
   saveOpts();
+}
+
+// Flips the "Breadcrumb dropdowns" option (see optBreadcrumbDropdowns()).
+// Re-renders the current page's breadcrumbs immediately (like
+// cfgSetXregFocused()) so the caret buttons appear/disappear without a
+// manual reload.
+function cfgSetBreadcrumbDropdowns(checked) {
+  _opts.breadcrumbDropdowns = !!checked;
+  saveOpts();
+  renderBreadcrumbs();
 }
 
 // Adds a new server from the Config page's Add row. Blocks (shows an
@@ -7299,11 +7603,21 @@ function ensureModelCached(baseURL, cb) {
       _modelCache[key] = m;
       var shapeErr = validateModelDoc(m);
       if (shapeErr) { _modelLoadError[key] = shapeErr; } else { delete _modelLoadError[key]; }
+      // getSiblingContextForPath()'s depth-1/depth-3 cases (Group Types /
+      // Resource Types breadcrumb carets) need the model, which may still
+      // be in flight when the FIRST renderBreadcrumbs() of a fresh page
+      // load runs — unlike the main content area, nothing else re-renders
+      // the breadcrumb bar once this resolves, so those two carets would
+      // otherwise silently never appear until some unrelated re-render.
+      // Cheap/idempotent (just rebuilds the same segments), so it's safe
+      // to call even when this resolution is for a different registry.
+      if (optBreadcrumbDropdowns()) renderBreadcrumbs();
       if (cb) cb(m);
     })
     .catch(function(err) {
       _modelCache[key] = null;
       _modelLoadError[key] = (err && err.message) ? err.message : String(err);
+      if (optBreadcrumbDropdowns()) renderBreadcrumbs();
       if (cb) cb(null);
     });
 }
@@ -8562,8 +8876,8 @@ function renderUrlLinkValue(rawText, isMono, showAddMenu) {
   var svBase = serverBase();
   var urlPath = rawText.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
   var href, target = '', onclick = '', displayText = rawText;
-  if (urlPath.indexOf(svBase) === 0) {
-    var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
+  var rel = relPathIfSameServer(urlPath, svBase);
+  if (rel !== null) {
     var segments = rel ? rel.split('/') : [];
     // filters is set here (in addition to apiURL) purely so buildURL()'s
     // apiurl-vs-filter dedup logic sees them already matching and skips
@@ -15625,8 +15939,8 @@ function navigateJsonUrl(encodedUrl) {
   var svBase = serverBase();
   var urlPath = raw.split('?')[0].split('#')[0];   // strip query + fragment
   urlPath = urlPath.replace(/\/?\$details$/, '');   // strip $details suffix
-  if (urlPath.indexOf(svBase) === 0) {
-    var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
+  var rel = relPathIfSameServer(urlPath, svBase);
+  if (rel !== null) {
     var segments = rel ? rel.split('/') : [];
     // Pass the clicked link through verbatim as apiURL (like every other
     // real-link navigation call site in this file) instead of only
@@ -15661,7 +15975,8 @@ function syntaxHighlight(str) {
           if (/^https?:\/\//.test(inner)) {
             var urlPath = inner.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
             var href, target = '', onclick, displayM = m;
-            if (urlPath.indexOf(svBase) === 0) {
+            var rel = relPathIfSameServer(urlPath, svBase);
+            if (rel !== null) {
               // Same-server: build SPA href for right-click "open in new
               // tab" support. Set apiURL to the link's own raw value
               // (verbatim, all query params included — not just filter=)
@@ -15675,7 +15990,6 @@ function syntaxHighlight(str) {
               // syncFiltersFromApiURL() — and buildURL() needs filters to
               // already match apiURL's embedded filter to avoid appending
               // a redundant, stale top-level filter= on top of it.
-              var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
               var segments = rel ? rel.split('/') : [];
               var fakeSt   = Object.assign({}, _state, {
                 view: 'table', section: 'data', path: segments,
