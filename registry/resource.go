@@ -412,12 +412,62 @@ func (r *Resource) GetVersionMode() VersionMode {
 	return apis
 }
 
-func (r *Resource) GetNewestVersionID() (string, *XRError) {
-	return r.GetVersionMode().NewestVersionID(r)
+func (r *Resource) GetNewestVersionID(excludeTBD bool) (string, *XRError) {
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	exclude := ""
+	if excludeTBD {
+		exclude = ` AND v.AncestorID <> '` + ANCESTORID_TBD + `'`
+	}
+
+	results := Query(r.tx, `
+                SELECT v.UID FROM Versions AS v
+                WHERE
+                  v.ResourceSID=? `+exclude+`
+                  AND NOT EXISTS (
+                    SELECT 1 FROM Versions AS v2
+                    WHERE v2.ResourceSID=v.ResourceSID AND
+                      v2.AncestorID=v.UID AND
+                      v2.UID <> v.UID`+lockExpr+`)
+                ORDER BY v.CreatedAt DESC, v.UID `+FILTER_CI_COLLATE+` DESC
+                LIMIT 1`+lockExpr,
+		r.DbSID)
+
+	defer results.Close()
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+
+		return NotNilString(row[0]), nil
+	}
+
+	// Must have a cycle - pick based on vID and timestamp
+	vad, _ := r.GetVersionAncestorData()
+	newestID := ""
+	newestTS := ""
+	newestLowerID := ""
+
+	for _, va := range vad.Versions {
+		if newestID == "" || va.CreatedAt > newestTS ||
+			(va.CreatedAt == newestTS && va.lowerUID > newestLowerID) {
+
+			newestID = va.UID
+			newestLowerID = va.lowerUID
+			newestTS = va.CreatedAt
+		}
+	}
+
+	return newestID, nil
 }
 
 func (r *Resource) GetNewest() (*Version, *XRError) {
-	vid, xErr := r.GetNewestVersionID()
+	vid, xErr := r.GetNewestVersionID(true)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -446,7 +496,7 @@ func (r *Resource) EnsureLatest() *XRError {
 	}
 
 	if meta.Get("defaultversionsticky") != true || currentDefault == "" {
-		newDefault, xErr := r.GetNewestVersionID()
+		newDefault, xErr := r.GetNewestVersionID(true)
 		Must(xErr)
 		PanicIf(newDefault == "", "No versions")
 
@@ -513,7 +563,7 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 			return xErr
 		}
 
-		newDefaultID, xErr = r.GetNewestVersionID()
+		newDefaultID, xErr = r.GetNewestVersionID(true)
 		if xErr != nil {
 			return xErr
 		}
@@ -1595,7 +1645,6 @@ type VersionAncestor struct {
 	VID        string
 	AncestorID string
 	CreatedAt  string
-	Pos        string // 0-root, 1-middle, 2-leaf
 }
 
 func (r *Resource) GetVersionIDs() ([]string, *XRError) {
@@ -1629,8 +1678,7 @@ func (r *Resource) GetRootVersionIDs() ([]string, *XRError) {
 	// Find all versions whose AncestorID = its vID
 
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
-	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
-	// GetOrderedVersionIDs().
+	// RR-snapshot-staleness reasoning as HasCircularAncestors()
 	lockExpr := ""
 	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
@@ -1692,7 +1740,6 @@ func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, *XRError) {
 			VID:        NotNilString(row[0]),
 			AncestorID: NotNilString(row[1]),
 			CreatedAt:  NotNilString(row[2]),
-			Pos:        "n/a",
 		})
 	}
 
@@ -1752,8 +1799,8 @@ func (r *Resource) HasCircularAncestors() ([]string, *XRError) {
 	// Get the list of Version IDs that are part of circular ancestor refs
 
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
-	// RR-snapshot-staleness reasoning as ManualVersionMode.newestVersionID()
-	// / GetOrderedVersionIDs(): otherwise this query runs against this
+	// RR-snapshot-staleness reasoning as ManualVersionMode.newestVersionID(),
+	// otherwise this query runs against this
 	// tx's original REPEATABLE-READ snapshot and can miss Version rows
 	// committed by other Txs after that snapshot was established,
 	// producing false "circular reference" errors.
@@ -1845,6 +1892,8 @@ func (r *Resource) EnsureSingleVersionRoot() *XRError {
 }
 
 func (r *Resource) EnsureMaxVersions() *XRError {
+	defer log.Trace("tx: %s %s", r.tx.uuid, r.XID)()
+
 	// xref resource have no versios, so exit
 	if r.IsXref() {
 		return nil
@@ -1856,45 +1905,86 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 		return nil
 	}
 
-	verIDs, xErr := r.GetOrderedVersionIDs()
+	vad, xErr := r.GetVersionAncestorData()
 	if xErr != nil {
 		return xErr
 	}
 
-	count := len(verIDs)
+	count := len(vad.Versions)
 	PanicIf(count == 0, "Query can't be empty")
 
 	tmp := r.Get("defaultversionid")
 	defaultID := NotNilString(&tmp)
 	PanicIf(defaultID == "", "No defaultid set!!")
 
-	/*
-				log.Printf("tx: %s ensuremax: defID: %s", r.tx.uuid, defaultID)
-				log.Printf("tx: %s ensuremax: sticky: %v", r.tx.uuid,
-		        r.Get("defalutversionsticky"))
-				log.Printf("tx: %s ensuremax: ancestors: %s", r.tx.uuid, ToJSON(verIDs))
-	*/
-
-	// Starting with the oldest, keep deleting until we reach the max
+	// Starting with the oldest ROOT, keep deleting until we reach the max
 	// number of Versions allowed. Technically, this should always just
 	// delete 1, but ya never know. Also, skip the one that's tagged
-	// as "default" since that one is special
+	// as "default" since that one is special - and in that case remove it
+	// from the list, turn its children into roots, and try again
 	for count > rm.GetMaxVersions() {
-		// Skip the "default" Version
-		if verIDs[0].VID != defaultID {
-			v, xErr := r.FindVersion(verIDs[0].VID, false)
+		// Loop thru the Roots looking for the oldest and to see if one is
+		// the default Version
+		oldestVD := (*VersionData)(nil)
+		oldestIndex := -1
+
+		if len(vad.Roots) == 0 {
+			// No roots? Weird but can happen, so just pick the oldest
+			// from the list of known versions
+			for _, vd := range vad.Versions {
+				if oldestVD == nil || vd.CreatedAt < oldestVD.CreatedAt ||
+					(vd.CreatedAt == oldestVD.CreatedAt &&
+						vd.lowerUID < oldestVD.lowerUID) {
+					oldestVD = vd
+				}
+
+			}
+		} else {
+			for i, vd := range vad.Roots {
+				log.FuncPrintf("tx: %s Comparing: %s(%s)", r.tx.uuid,
+					vd.UID, vd.CreatedAt)
+				if oldestVD == nil || vd.CreatedAt < oldestVD.CreatedAt ||
+					(vd.CreatedAt == oldestVD.CreatedAt &&
+						vd.lowerUID < oldestVD.lowerUID) {
+					oldestVD = vd
+					oldestIndex = i
+					log.FuncPrintf("tx: %s -  Is older", r.tx.uuid)
+				}
+			}
+		}
+
+		if oldestVD.UID != defaultID {
+			v, xErr := r.FindVersion(oldestVD.UID, false)
 			if xErr != nil {
 				return xErr
 			}
 			// log.Printf("tx: %s ensuremax: Deleting: %s", r.tx.uuid, v.XID)
 			// ShowStack()
+			log.FuncPrintf("Deleting: %q", v.UID)
 			xErr = v.DeleteSetNextVersion("")
 			if xErr != nil {
 				return xErr
 			}
+
+			// Only shrink the count if we actually deleted one
 			count--
 		}
-		verIDs = verIDs[1:]
+
+		// If we're going to loop then we need to remove the version we just
+		// looked at (even if it's the default), from the collection and loop
+		if count > rm.GetMaxVersions() {
+			if len(vad.Roots) != 0 {
+				log.FuncPrintf("tx: %s Removing %q", r.tx.uuid, oldestVD.UID)
+				vad.Roots = append(vad.Roots[:oldestIndex],
+					vad.Roots[oldestIndex+1:]...)
+			}
+
+			for _, childVD := range oldestVD.Children {
+				log.FuncPrintf("tx: %s Adding new root: %q", r.tx.uuid,
+					childVD.UID)
+				vad.Roots = append(vad.Roots, childVD)
+			}
+		}
 	}
 
 	meta := r.MustFindMeta(false)
@@ -2013,17 +2103,6 @@ func (r *Resource) WillDelete(vID string) *XRError {
 	return r.GetVersionMode().WillDelete(r, vID)
 }
 
-func (r *Resource) GetOrderedVersionIDs() ([]*VersionAncestor, *XRError) {
-	return r.GetVersionMode().GetOrderedVersionIDs(r)
-}
-
-func (r *Resource) DumpOrderedVersions() {
-	vs, xErr := r.GetOrderedVersionIDs()
-	Must(xErr)
-	log.Printf("tx: %s Resource(%s).OrderedVersions:\n%s", r.tx.uuid,
-		r.XID, ToJSON(vs))
-}
-
 type FormatChecker interface {
 	// 1st return arg: bool - did we do the check?
 	// 2nd return arg: if no check done, then why?
@@ -2068,6 +2147,88 @@ func GetFormatChecker(format string) (FormatChecker, string) {
 	return nil, ""
 }
 
+type VersionAncestorData struct {
+	Versions map[string]*VersionData
+	Roots    []*VersionData // versionIDs
+}
+
+type VersionData struct {
+	UID       string // versionID/UID
+	lowerUID  string
+	Ancestor  *VersionData // ancestorID
+	CreatedAt string
+	Children  []*VersionData // []child.UID ; also list of "root" UIDs
+}
+
+func (r *Resource) GetVersionAncestorData() (*VersionAncestorData, *XRError) {
+	vad := &VersionAncestorData{
+		Versions: map[string]*VersionData{},
+		Roots:    []*VersionData{},
+	}
+
+	lockExpr := ""
+	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	results := Query(r.tx, `
+                SELECT v.UID, v.AncestorID, v.CreatedAt
+                FROM Versions AS v
+                WHERE v.ResourceSID=? AND
+                      v.AncestorID<>'`+ANCESTORID_TBD+`' `+lockExpr,
+		r.DbSID)
+
+	defer results.Close()
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+
+		vID := NotNilString(row[0])
+		ancID := NotNilString(row[1])
+		PanicIf(ancID == "", "Not good")
+
+		/* Maybe one day we'll need this when the query returns them
+		        if ancID == ANCESTORID_TBD {
+					continue
+				}
+		*/
+
+		vd := vad.Versions[vID]
+		if vd == nil {
+			vd = &VersionData{
+				UID:      vID,
+				lowerUID: strings.ToLower(vID),
+				Children: []*VersionData{},
+			}
+			vad.Versions[vID] = vd
+		}
+
+		anc := vad.Versions[ancID]
+		if anc == nil {
+			anc = &VersionData{
+				UID:      ancID,
+				lowerUID: strings.ToLower(ancID),
+				Children: []*VersionData{},
+			}
+			vad.Versions[ancID] = anc
+		}
+
+		vd.Ancestor = anc
+		vd.CreatedAt = NotNilString(row[2])
+
+		if ancID == vID {
+			vad.Roots = append(vad.Roots, vd)
+		} else {
+			anc.Children = append(anc.Children, vd)
+		}
+	}
+
+	return vad, nil
+}
+
 // This will check "format" as well.
 // "force" check all Verisons even if we don't think we need to.
 func (r *Resource) EnsureCompat(force bool) *XRError {
@@ -2104,18 +2265,14 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	doAll := force ||
 		(validateCompat && oldCompat != newCompat && newCompat != "")
 
-	// Get the complete list of Versions and ancestor orders.
-	// We'll use this to build our easy look-ups as we process things.
-	orderedVAs, xErr := r.GetOrderedVersionIDs()
+		// Get the complete list of Versions and ancestor orders.
+	vad, xErr := r.GetVersionAncestorData()
 	if xErr != nil {
 		return xErr
 	}
 
-	childrenMap := map[string][]string{} // v.UID -> []child.UID
-	changedVersions := []string{}        // v.UID
-
-	doneChecks := map[string]bool{}    // "direction>oldID">"newID" -> true
-	ancestorMap := map[string]string{} // v.UID -> v.ancestorID
+	changedVersions := []string{}   // v.UID
+	doneChecks := map[string]bool{} // "direction>oldID">"newID" -> true
 
 	// 'direction' = 'backward', 'forward'
 	doCheckCompat := func(direction string, oldVID string, newVID string) *XRError {
@@ -2174,23 +2331,11 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	}
 
 	// Loop over all of the Resource's Versions
-	for _, va := range orderedVAs {
-		ver, xErr := r.FindVersion(va.VID, false)
+	for _, va := range vad.Versions {
+		ver, xErr := r.FindVersion(va.UID, false)
 		if xErr != nil {
 			return xErr
 		}
-
-		// For each Version, save it's list of ancestors for easy lookup later.
-		// Note that we may need this even if the Version didn't change
-		oldList := childrenMap[va.AncestorID]
-		if va.AncestorID != va.VID {
-			// Don't add roots to themselves
-			childrenMap[va.AncestorID] = append(oldList, va.VID)
-		}
-
-		// Save for easy look-up later
-		ancestorMap[va.VID] = va.AncestorID
-		PanicIf(va.AncestorID == "", "Not good")
 
 		// Build our list of changed Versions.
 		// So, either doAll=true, or version's epoch was changed, otherwise
@@ -2277,7 +2422,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			// We don't do Compat checking here because we need to populate
 			// our cache of data first (maps, arrays, etc)
 			if validateCompat {
-				changedVersions = append(changedVersions, va.VID)
+				changedVersions = append(changedVersions, va.UID)
 			} else {
 				ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
 				ver.SetSystemDBProperty(NewPPP("compatibilityvalidatedreason"),
@@ -2309,6 +2454,9 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	// compat is case-insensitive
 	newCompat = strings.ToLower(newCompat.(string))
 
+	// Just to be consistent
+	sort.Strings(changedVersions)
+
 	// for all changed versions do compat checking
 	compatFound := false
 	for _, verID := range changedVersions {
@@ -2330,14 +2478,14 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		if newCompat == "backward" || newCompat == "full" {
 			compatFound = true
 			// compatible w/ the next oldest Ver
-			xErr := doCheckCompat("backward", ancestorMap[verID], verID)
+			xErr := doCheckCompat("backward", vad.Versions[verID].Ancestor.UID, verID)
 			if xErr != nil {
 				return xErr
 			}
 
 			// compatible w/ all children
-			for _, childUID := range childrenMap[verID] {
-				xErr := doCheckCompat("backward", verID, childUID)
+			for _, childVA := range vad.Versions[verID].Children {
+				xErr := doCheckCompat("backward", verID, childVA.UID)
 				if xErr != nil {
 					return xErr
 				}
@@ -2349,7 +2497,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			// compatible w/ all older Ver
 			currentID := verID
 			for {
-				prevID := ancestorMap[currentID]
+				prevID := vad.Versions[currentID].Ancestor.UID
 				if prevID == currentID { // root, so stop
 					break
 				}
@@ -2363,8 +2511,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			}
 
 			// Make sure we didn't break our children's compat
-			for _, childUID := range childrenMap[verID] {
-				xErr := doCheckCompat("backward", verID, childUID)
+			for _, childVA := range vad.Versions[verID].Children {
+				xErr := doCheckCompat("backward", verID, childVA.UID)
 				if xErr != nil {
 					return xErr
 				}
@@ -2374,16 +2522,16 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		if newCompat == "forward" || newCompat == "full" {
 			compatFound = true
 			// compatible w/ the next newest Ver
-			for _, childUID := range childrenMap[verID] {
+			for _, childVA := range vad.Versions[verID].Children {
 				// Compatible with a descendent
-				xErr := doCheckCompat("forward", verID, childUID)
+				xErr := doCheckCompat("forward", verID, childVA.UID)
 				if xErr != nil {
 					return xErr
 				}
 			}
 
 			// Compatible w/ our ancestor
-			xErr := doCheckCompat("forward", ancestorMap[verID], verID)
+			xErr := doCheckCompat("forward", vad.Versions[verID].Ancestor.UID, verID)
 			if xErr != nil {
 				return xErr
 			}
@@ -2394,8 +2542,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			// compatible w/ all newer Versions
 			list := [][2]string{} // [old,new]
 			// Start our psuedo-recursive list of old/new pairs to check
-			for _, childID := range childrenMap[verID] {
-				list = append(list, [2]string{verID, childID})
+			for _, childVA := range vad.Versions[verID].Children {
+				list = append(list, [2]string{verID, childVA.UID})
 			}
 
 			for len(list) != 0 {
@@ -2408,13 +2556,13 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				}
 
 				// Now be recursive by adding this item's children to "list"
-				for _, childID := range childrenMap[item[1]] {
-					list = append(list, [2]string{item[1], childID})
+				for _, childVA := range vad.Versions[item[1]].Children {
+					list = append(list, [2]string{item[1], childVA.UID})
 				}
 			}
 
 			// Now check our ancestor
-			xErr := doCheckCompat("forward", ancestorMap[verID], verID)
+			xErr := doCheckCompat("forward", vad.Versions[verID].Ancestor.UID, verID)
 			if xErr != nil {
 				return xErr
 			}
@@ -2440,8 +2588,8 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 	mvs := r.ResourceModel.GetMatchVersionAttributes()
 
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
-	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
-	// GetOrderedVersionIDs(): otherwise this can miss sibling Version
+	// RR-snapshot-staleness reasoning as HasCircularAncestors(),
+	// otherwise this can miss sibling Version
 	// rows committed by other Txs after this tx's snapshot was taken.
 	lockExpr := ""
 	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
