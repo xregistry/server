@@ -147,7 +147,9 @@ func TestExportBasic(t *testing.T) {
     ],
     "versionmodes": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ]
   },
   "modelsource": {
@@ -481,7 +483,9 @@ func TestExportBasic(t *testing.T) {
     ],
     "versionmodes": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ]
   },
 

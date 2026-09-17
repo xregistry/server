@@ -262,8 +262,9 @@ CREATE TABLE Versions (
     XID                 VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
 
-    AncestorID          VARCHAR(65) NOT NULL COLLATE utf8mb4_bin,  # Generated
-    CreatedAt           VARCHAR(255),           # Generated (for ancestor stuff
+    AncestorID          VARCHAR(65) NOT NULL COLLATE utf8mb4_bin,  # PropsMirror
+    CreatedAt           VARCHAR(255),   # Generated - mirror from Props
+    ModifiedAt          VARCHAR(255),   # Generated - mirror from Props
 
     PRIMARY KEY (SID),
     UNIQUE INDEX (ResourceSID, UID),
@@ -386,7 +387,7 @@ CREATE TABLE Entities (
   UNIQUE INDEX (RegSID, LowerXID )
 );
 
-# These maintain Versions.AncestorID/CreatedAt and Metas.xRefXID /
+# These maintain Versions.AncestorID/CreatedAt/ModifiedAt and Metas.xRefXID /
 # defaultVID whenever the corresponding OWN (non-cascaded, non-
 # calculated) property row is written/removed on Props, which
 # is the sole authoritative store for entity properties now (see
@@ -409,6 +410,10 @@ BEGIN
         END IF $$
         IF (NEW.PropName='createdat$DB_IN') THEN
           UPDATE Versions SET CreatedAt=NEW.PropValue
+              WHERE SID=NEW.eSID $$
+        END IF $$
+        IF (NEW.PropName='modifiedat$DB_IN') THEN
+          UPDATE Versions SET ModifiedAt=NEW.PropValue
               WHERE SID=NEW.eSID $$
         END IF $$
     END IF $$
