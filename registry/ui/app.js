@@ -5660,14 +5660,22 @@ function cfgUpdateScanSelectAll() {
 // "Add Selected" in the scan-results dialog: adds every checked "Not yet
 // added" entry (addServer() itself still guards against a URL that
 // somehow became known in the meantime), then closes the dialog and
-// re-renders Config so the new rows appear immediately.
+// re-renders whichever page triggered the scan — Home (e.g. via the
+// per-card "Scan for Registries" menu, see svCardMenuScan()) stays on
+// Home and just refreshes its list, while the Config page's bulk
+// "Scan for registries" action (see cfgScanSelected()) re-renders
+// Config as before.
 function cfgConfirmScanResults() {
   document.querySelectorAll('.cfg-scan-result-input:checked').forEach(function(inp) {
     addServer(inp.dataset.url, inp.dataset.from);
   });
   var overlay = document.getElementById('cfg-scan-results-overlay');
   if (overlay) overlay.remove();
-  renderConfig();
+  if (_state.view === 'home') {
+    refresh();
+  } else {
+    renderConfig();
+  }
 }
 
 function cfgSetOpt(key, val) {
