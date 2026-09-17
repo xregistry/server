@@ -670,7 +670,9 @@ func TestRegistryRoot(t *testing.T) {
     ],
     "versionmodes": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ]
   },
   "modelsource": {}

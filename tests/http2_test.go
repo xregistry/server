@@ -9937,7 +9937,9 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `

@@ -132,7 +132,9 @@ func TestCapabilitySimple(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -256,7 +258,9 @@ func TestCapabilitySimple(t *testing.T) {
     ],
     "versionmodes": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ]
   }
 }
@@ -518,7 +522,9 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -774,7 +780,7 @@ func TestCapabilityPath(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
-  "versionmodes": [ "createdat", "manual" ]
+  "versionmodes": [ "createdat", "manual", "modifiedat", "semver" ]
 }`, 200,
 		`{
   "available": {
@@ -883,7 +889,9 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -995,7 +1003,9 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -1343,7 +1353,7 @@ func TestCapabilityAttr(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
-  "versionmodes": [ "createdat", "manual" ]
+  "versionmodes": [ "createdat", "manual", "modifiedat", "semver" ]
 }}`, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
@@ -1461,7 +1471,9 @@ func TestCapabilityAttr(t *testing.T) {
     ],
     "versionmodes": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ]
   }
 }
@@ -1574,7 +1586,9 @@ func TestCapabilityAttr(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -2026,7 +2040,9 @@ func TestCapabilityOffered(t *testing.T) {
     "type": "array",
     "enum": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ],
     "item": {
       "type": "string"
@@ -2677,7 +2693,9 @@ func TestCapabilityPatch(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -2812,7 +2830,9 @@ func TestCapabilityPatch(t *testing.T) {
     ],
     "versionmodes": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ]
   }
 }
@@ -2970,7 +2990,9 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -3090,7 +3112,9 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
     ],
     "versionmodes": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ]
   }
 }
@@ -3214,7 +3238,9 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -3411,7 +3437,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -3519,7 +3547,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -3646,7 +3676,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -3842,7 +3874,9 @@ func TestCapabilityNullHandling(t *testing.T) {
     ],
     "versionmodes": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ]
   }
 }
@@ -3959,7 +3993,9 @@ func TestCapabilityNullHandling(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -4155,7 +4191,9 @@ func TestCapabilityNullHandling(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
@@ -4640,7 +4678,9 @@ func TestCapabilityWildcard(t *testing.T) {
   ],
   "versionmodes": [
     "createdat",
-    "manual"
+    "manual",
+    "modifiedat",
+    "semver"
   ]
 }
 `)
