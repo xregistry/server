@@ -612,6 +612,239 @@ func TestAncestorWithSicky(t *testing.T) {
 
 	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v3->v3,0)")
+
+	// Weird order testing
+	model2 = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 7
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
+
+	// timeline: left->right
+	//        A <- B <- C
+	// Z <- Y <- X <- W    Z is default/sticky
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "meta": { "defaultversionid": "Z", "defaultversionsticky": true },
+  "versions": {
+    "Z": { "createdat": "2021-01-01T12:00:00", "ancestorid": "Z" },
+    "Y": { "createdat": "2022-01-01T12:00:00", "ancestorid": "Z" },
+    "A": { "createdat": "2023-01-01T12:00:00", "ancestorid": "A" },
+    "X": { "createdat": "2024-01-01T12:00:00", "ancestorid": "Y" },
+    "B": { "createdat": "2025-01-01T12:00:00", "ancestorid": "A" },
+    "W": { "createdat": "2026-01-01T12:00:00", "ancestorid": "X" },
+    "C": { "createdat": "2027-01-01T12:00:00", "ancestorid": "B" }
+  }
+}`, 201, `*`)
+
+	// Setup
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(Z->Z,0)(A->A,0)(Y->Z,1)(X->Y,1)(B->A,1)(W->X,2)(C->B,2)")
+
+	// Now add a version and force maxversions to delete one, but it can't
+	// delete Z since it's the default
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", "{}", 201, "*")
+	// See the resulting ancestor list: Y should have been deleted
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(Z->Z,0)(A->A,0)(X->X,0)(B->A,1)(C->B,1)(W->X,2)(1->C,2)")
+
+	// timeline: left->right
+	//   A <- B <- C
+	// Z               <- Y <- X <- W    Z is default/sticky
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "meta": { "defaultversionid": "Z", "defaultversionsticky": true },
+  "versions": {
+    "Z": { "createdat": "2021-01-01T12:00:00", "ancestorid": "Z" },
+    "A": { "createdat": "2022-01-01T12:00:00", "ancestorid": "A" },
+    "B": { "createdat": "2023-01-01T12:00:00", "ancestorid": "A" },
+    "C": { "createdat": "2024-01-01T12:00:00", "ancestorid": "B" },
+    "Y": { "createdat": "2025-01-01T12:00:00", "ancestorid": "Z" },
+    "X": { "createdat": "2026-01-01T12:00:00", "ancestorid": "Y" },
+    "W": { "createdat": "2027-01-01T12:00:00", "ancestorid": "X" }
+  }
+}`, 201, `*`)
+
+	// Setup
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(Z->Z,0)(A->A,0)(B->A,1)(Y->Z,1)(X->Y,1)(C->B,2)(W->X,2)")
+
+	// Now add a version and force maxversions to delete one, but it can't
+	// delete Z since it's the default
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", "{}", 201, "*")
+	// See the resulting ancestor list: A should have been deleted
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(Z->Z,0)(B->B,0)(Y->Z,1)(X->Y,1)(W->X,1)(C->B,2)(1->W,2)")
+
+	// timeline: left->right
+	//                    C -> B -> A
+	// W -> X -> Y -> Z                      Z is default/sticky
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "meta": { "defaultversionid": "Z", "defaultversionsticky": true },
+  "versions": {
+    "W": { "createdat": "2021-01-01T12:00:00", "ancestorid": "X" },
+    "X": { "createdat": "2022-01-01T12:00:00", "ancestorid": "Y" },
+    "Y": { "createdat": "2023-01-01T12:00:00", "ancestorid": "Z" },
+    "Z": { "createdat": "2024-01-01T12:00:00", "ancestorid": "Z" },
+    "C": { "createdat": "2025-01-01T12:00:00", "ancestorid": "B" },
+    "B": { "createdat": "2026-01-01T12:00:00", "ancestorid": "A" },
+    "A": { "createdat": "2027-01-01T12:00:00", "ancestorid": "A" }
+  }
+}`, 201, `*`)
+
+	// Setup
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(Z->Z,0)(A->A,0)(X->Y,1)(Y->Z,1)(B->A,1)(W->X,2)(C->B,2)")
+
+	// Now add a version and force maxversions to delete one, but it can't
+	// delete Z since it's the default
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", "{}", 201, "*")
+	// Y should have been deleted
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(X->X,0)(Z->Z,0)(A->A,0)(C->B,1)(B->A,1)(W->X,2)(1->C,2)")
+
+	// timeline: left->right
+	//        C -> B -> A
+	// W -> X -> Y -> Z                      Z is default/sticky
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "meta": { "defaultversionid": "Z", "defaultversionsticky": true },
+  "versions": {
+    "W": { "createdat": "2021-01-01T12:00:00", "ancestorid": "X" },
+    "X": { "createdat": "2022-01-01T12:00:00", "ancestorid": "Y" },
+    "C": { "createdat": "2023-01-01T12:00:00", "ancestorid": "B" },
+    "Y": { "createdat": "2024-01-01T12:00:00", "ancestorid": "Z" },
+    "B": { "createdat": "2025-01-01T12:00:00", "ancestorid": "A" },
+    "Z": { "createdat": "2026-01-01T12:00:00", "ancestorid": "Z" },
+    "A": { "createdat": "2027-01-01T12:00:00", "ancestorid": "A" }
+  }
+}`, 201, `*`)
+
+	// Setup
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(Z->Z,0)(A->A,0)(X->Y,1)(Y->Z,1)(B->A,1)(W->X,2)(C->B,2)")
+
+	// Now add a version and force maxversions to delete one, but it can't
+	// delete Z since it's the default
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", "{}", 201, "*")
+	// Y should have been deleted
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(X->X,0)(Z->Z,0)(A->A,0)(C->B,1)(B->A,1)(W->X,2)(1->C,2)")
+
+	// timeline: left->right
+	//    C -> B -> A
+	// W -> X -> Y -> Z                      Z is default/sticky
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "meta": { "defaultversionid": "Z", "defaultversionsticky": true },
+  "versions": {
+    "W": { "createdat": "2021-01-01T12:00:00", "ancestorid": "X" },
+    "C": { "createdat": "2022-01-01T12:00:00", "ancestorid": "B" },
+    "X": { "createdat": "2023-01-01T12:00:00", "ancestorid": "Y" },
+    "B": { "createdat": "2024-01-01T12:00:00", "ancestorid": "A" },
+    "Y": { "createdat": "2025-01-01T12:00:00", "ancestorid": "Z" },
+    "A": { "createdat": "2026-01-01T12:00:00", "ancestorid": "A" },
+    "Z": { "createdat": "2027-01-01T12:00:00", "ancestorid": "Z" }
+  }
+}`, 201, `*`)
+
+	// Setup
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(A->A,0)(Z->Z,0)(X->Y,1)(B->A,1)(Y->Z,1)(W->X,2)(C->B,2)")
+
+	// Now add a version and force maxversions to delete one, but it can't
+	// delete Z since it's the default
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", "{}", 201, "*")
+	// A should have been deleted
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(B->B,0)(Z->Z,0)(C->B,1)(X->Y,1)(Y->Z,1)(W->X,2)(1->C,2)")
+
+	// timeline: left->right
+	//    A <- B <- C
+	// W -> X -> Y -> Z                      Z is default/sticky
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "meta": { "defaultversionid": "Z", "defaultversionsticky": true },
+  "versions": {
+    "W": { "createdat": "2021-01-01T12:00:00", "ancestorid": "X" },
+    "A": { "createdat": "2022-01-01T12:00:00", "ancestorid": "A" },
+    "X": { "createdat": "2023-01-01T12:00:00", "ancestorid": "Y" },
+    "B": { "createdat": "2024-01-01T12:00:00", "ancestorid": "A" },
+    "Y": { "createdat": "2025-01-01T12:00:00", "ancestorid": "Z" },
+    "C": { "createdat": "2026-01-01T12:00:00", "ancestorid": "B" },
+    "Z": { "createdat": "2027-01-01T12:00:00", "ancestorid": "Z" }
+  }
+}`, 201, `*`)
+
+	// Setup
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(A->A,0)(Z->Z,0)(X->Y,1)(B->A,1)(Y->Z,1)(W->X,2)(C->B,2)")
+
+	// Now add a version and force maxversions to delete one, but it can't
+	// delete Z since it's the default
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", "{}", 201, "*")
+	// A should have been deleted
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(B->B,0)(Z->Z,0)(X->Y,1)(Y->Z,1)(C->B,1)(W->X,2)(1->C,2)")
+
+	// Now test some VID ordering - must be case-insensitive
+
+	model2 = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 3
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
+
+	// All the same times, and all roots
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "meta": { "defaultversionid": "Z1", "defaultversionsticky": true },
+  "versions": {
+    "v1": { "createdat": "2021-01-01T12:00:00", "ancestorid": "v1" },
+    "V2": { "createdat": "2021-01-01T12:00:00", "ancestorid": "V2" },
+    "Z1": { "createdat": "2021-01-01T12:00:00", "ancestorid": "Z1" }
+  }
+}`, 201, `*`)
+
+	// Setup
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(v1->v1,0)(V2->V2,0)(Z1->Z1,0)")
+
+	// Now add a version and force maxversions to delete one, but it can't
+	// delete Z since it's the default
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", "{}", 201, "*")
+	// A should have been deleted
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
+		"(V2->V2,0)(Z1->Z1,0)(1->Z1,2)")
+
 }
 
 func TestAncestorOrdering(t *testing.T) {

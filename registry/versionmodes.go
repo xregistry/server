@@ -7,9 +7,7 @@ import (
 type VersionMode interface {
 	Name() string
 	CheckAncestors(r *Resource) *XRError
-	NewestVersionID(r *Resource) (string, *XRError)
 	WillDelete(r *Resource, vID string) *XRError
-	GetOrderedVersionIDs(r *Resource) ([]*VersionAncestor, *XRError)
 }
 
 // keys MUST be lowercase
@@ -51,7 +49,7 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 			// First time thru, grab the Resource's newest (already
 			// resolved, i.e. non-TBD) versionID to anchor this orphan to.
 			var xErr *XRError
-			newestVerID, xErr = vm.newestVersionID(r, true)
+			newestVerID, xErr = r.GetNewestVersionID(true)
 			if xErr != nil {
 				return xErr
 			}
@@ -75,108 +73,6 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 	return nil
 }
 
-func (vm *ManualVersionMode) NewestVersionID(r *Resource) (string, *XRError) {
-	return vm.newestVersionID(r, false)
-}
-
-// newestVersionID implements the spec's manual-versionmode "Newest
-// Version" rule directly: among all Versions that are NOT referenced as
-// the ancestorid of any OTHER Version, pick the one with the newest
-// createdat (ties broken by highest versionid, case-insensitive). This
-// is intentionally independent of root status - GetOrderedVersionIDs()'s
-// Pos ('0-root'/'1-middle'/'2-leaf') classification checks root-ness
-// first, so a Version that just became a self-referencing root (e.g. via
-// WillDelete()'s "Deleted Ancestor" handling) but is otherwise still
-// unreferenced by anything else would be wrongly excluded from newest-
-// candidacy if we derived the answer from that ordering instead.
-//
-// If excludeTBD is true, Versions whose own ancestorid is still
-// ANCESTORID_TBD are left out of consideration (used by CheckAncestors()
-// while it's still resolving pending orphans, so it doesn't anchor a new
-// orphan to another not-yet-resolved one).
-func (vm *ManualVersionMode) newestVersionID(r *Resource, excludeTBD bool) (string, *XRError) {
-	// FOR UPDATE only when r's Meta is already locked FOR_WRITE (i.e.
-	// we're on a write path, like EnsureLatest()): even with
-	// Entity.Lock()'s Resource+Meta+Versions family-lock in place
-	// (which fixes write-conflict serialization between Txs), this
-	// Tx's OWN plain SELECT here can still be pinned to its original RR
-	// snapshot from before another Tx's Version INSERT committed - the
-	// family-lock only guarantees this Tx now safely blocks/serializes
-	// against concurrent writers, it does not retroactively refresh a
-	// snapshot already established by an earlier plain read elsewhere
-	// in this same Tx. FOR UPDATE here forces THIS read itself to see
-	// latest-committed data. Skipped on pure-read paths (e.g.
-	// GetNewest()) so we don't take unnecessary row locks there.
-	// Verified necessary via TestMiscConcurrency (versionmode=manual).
-	lockExpr := ""
-	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
-	}
-
-	base := `
-        SELECT v.UID FROM Versions AS v
-        WHERE v.ResourceSID=?`
-	if excludeTBD {
-		base += ` AND v.AncestorID<>'` + ANCESTORID_TBD + `'`
-	}
-
-	// NOTE: this correlated subquery must get its OWN "FOR UPDATE"
-	// (lockExpr, same as the outer query) on write paths. MySQL's
-	// outer-query "FOR UPDATE" does NOT implicitly force a fresh/
-	// latest-committed read for rows examined only within a correlated
-	// subquery - without its own lock hint the subquery can still be
-	// evaluated against this Tx's original RR snapshot (e.g. established
-	// by an earlier plain read elsewhere in this Tx), silently ignoring
-	// a concurrently committed new leaf Version and causing the outer
-	// query to treat an already-referenced (non-leaf) Version as if it
-	// were still a leaf. Confirmed via a standalone repro against MySQL
-	// 8.4: same-Tx plain read -> concurrent commit of a new leaf
-	// elsewhere -> outer query (FOR UPDATE, no lock on subquery)
-	// returned the OLD/wrong leaf; adding FOR UPDATE to the subquery too
-	// fixed it. Root cause of the observed Meta.Epoch drift under
-	// TestMiscConcurrency.
-	notReferenced := `
-        AND NOT EXISTS (
-          SELECT 1 FROM Versions AS v2
-          WHERE v2.ResourceSID=v.ResourceSID AND
-                v2.AncestorID=v.UID AND v2.SID<>v.SID` + lockExpr + `)`
-	order := `
-        ORDER BY v.CreatedAt DESC, v.UID ` + FILTER_CI_COLLATE + ` DESC
-        LIMIT 1`
-
-	results := Query(r.tx, base+notReferenced+order+lockExpr, r.DbSID)
-	row := results.NextRow()
-	results.Close()
-
-	if row != nil {
-		return NotNilString(row[0]), nil
-	}
-
-	// No Version qualifies as "not referenced by another" - this only
-	// happens when every Version's ancestorid chain forms a full circle.
-	// That's NOT necessarily a final error state yet though: e.g.
-	// EnsureMaxVersions() (which runs later in ValidateResource(), after
-	// EnsureLatest()) may still delete enough of the offending Versions
-	// to break the cycle before EnsureCircularReferences() actually
-	// checks for real (see TestAncestorMaxVersions, which intentionally
-	// creates a temporary 2-Version cycle that's resolved once
-	// maxversions=1 evicts the oldest one). So don't hard-error here -
-	// just fall back to picking an arbitrary candidate amongst all of
-	// them (same leniency the old Pos-based logic had, since every
-	// Version always gets a Pos bucket even when circular) and let the
-	// later EnsureCircularReferences() call be the one to authoritatively
-	// decide if this is actually a problem once the rest of validation
-	// (including any max-versions eviction) has run.
-	results = Query(r.tx, base+order+lockExpr, r.DbSID)
-	defer results.Close()
-
-	row = results.NextRow()
-	if row == nil {
-		return "", nil
-	}
-	return NotNilString(row[0]), nil
-}
-
 func (vm *ManualVersionMode) WillDelete(r *Resource, vID string) *XRError {
 	// Before we delete a version, make all versions that point to this
 	// one become "roots"
@@ -195,72 +91,6 @@ func (vm *ManualVersionMode) WillDelete(r *Resource, vID string) *XRError {
 	}
 
 	return nil
-}
-
-func (vm *ManualVersionMode) GetOrderedVersionIDs(r *Resource) ([]*VersionAncestor, *XRError) {
-	// Get the list of Version IDs for this resource.
-	// The list is sorted such that:
-	// - the roots are first
-	// - then non-roots and non-leaves
-	// - then leaves
-	// Within each group if there's more than one then it's sorted as:
-	// - newest (lowest) createdat timestamp first
-	// If more than one share the same timestamp, then it's sorted as:
-	// - lowest versionid alphabetically (case insensitive) first
-
-	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
-	// RR-snapshot-staleness reasoning as ManualVersionMode.newestVersionID().
-	//
-	// This used to query the VersionAncestors view instead of inlining
-	// its definition here, but the view's own Pos-computing correlated
-	// EXISTS subquery doesn't inherit this outer FOR UPDATE (same class
-	// of issue as newestVersionID()'s notReferenced subquery - MySQL
-	// doesn't propagate an outer query's lock hint into a correlated
-	// subquery, and a view definition can't have a caller-supplied lock
-	// hint baked into its own internal subqueries). Confirmed via a
-	// standalone repro against MySQL 8: RR snapshot established by an
-	// early plain read -> concurrent Tx commits a new leaf Version
-	// elsewhere -> FOR UPDATE query via the view still returned the
-	// PRE-EXISTING version's Pos as "leaf" even though it's now a
-	// "middle" (the new version's ancestor) - inlining the view's SQL
-	// here and adding lockExpr to the EXISTS subquery too fixes it.
-	lockExpr := ""
-	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
-	}
-	results := Query(r.tx, `
-                SELECT v.UID, v.AncestorID,
-                    CASE
-                        WHEN v.UID=v.AncestorID THEN '0-root'
-                        WHEN EXISTS(SELECT 1 FROM Versions AS v2
-                                    WHERE v2.ResourceSID=v.ResourceSID AND
-                                          v2.AncestorID=v.UID`+lockExpr+`)
-                             THEN '1-middle'
-                        ELSE '2-leaf'
-                    END AS Pos,
-                    v.CreatedAt
-                FROM Versions AS v
-                WHERE v.RegistrySID=? AND v.ResourceSID=? AND
-                  v.AncestorID<>'`+ANCESTORID_TBD+`'
-                ORDER BY Pos ASC, v.CreatedAt ASC, v.UID ASC`+lockExpr,
-		r.Registry.DbSID, r.DbSID)
-	defer results.Close()
-
-	vers := []*VersionAncestor{}
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-		vers = append(vers, &VersionAncestor{
-			VID:        NotNilString(row[0]),
-			AncestorID: NotNilString(row[1]),
-			Pos:        NotNilString(row[2]),
-			CreatedAt:  NotNilString(row[3]),
-		})
-	}
-
-	return vers, nil
 }
 
 // CREATEDAT VERSION MODE
@@ -320,19 +150,9 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	return nil
 }
 
-func (vm *CreatedatVersionMode) NewestVersionID(r *Resource) (string, *XRError) {
-	vers, xErr := r.GetVersionMode().GetOrderedVersionIDs(r)
-	Must(xErr)
-
-	if len(vers) > 0 {
-		return vers[len(vers)-1].VID, nil
-	}
-	return "", nil
-}
-
 func (vm *CreatedatVersionMode) WillDelete(r *Resource, vID string) *XRError {
 	// Before we delete a version, make all versions that point to this
-	// one "roots"
+	// one become "roots"
 
 	v, xErr := r.FindVersion(vID, false)
 	if xErr != nil {
@@ -356,64 +176,4 @@ func (vm *CreatedatVersionMode) WillDelete(r *Resource, vID string) *XRError {
 	}
 
 	return nil
-}
-
-func (vm *CreatedatVersionMode) GetOrderedVersionIDs(r *Resource) ([]*VersionAncestor, *XRError) {
-	// Get the list of Version IDs for this resource.
-	// The list is sorted such that:
-	// - the roots are first
-	// - then non-roots and non-leaves
-	// - then leaves
-	// Within each group if there's more than one then it's sorted as:
-	// - newest (lowest) createdat timestamp first
-	// If more than one share the same timestamp, then it's sorted as:
-	// - lowest alphabetically (case insensitive) first
-
-	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
-	// RR-snapshot-staleness reasoning as ManualVersionMode.newestVersionID().
-	//
-	// See ManualVersionMode.GetOrderedVersionIDs()'s doc comment for why
-	// this inlines the VersionAncestors view's definition instead of
-	// querying the view directly: the view's own Pos-computing
-	// correlated EXISTS subquery doesn't inherit the outer query's FOR
-	// UPDATE, so it can return stale Pos values for pre-existing rows
-	// after a concurrent Tx commits a new Version - confirmed via a
-	// standalone MySQL repro.
-	lockExpr := ""
-	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
-	}
-	results := Query(r.tx, `
-                SELECT v.UID, v.AncestorID,
-                    CASE
-                        WHEN v.UID=v.AncestorID THEN '0-root'
-                        WHEN EXISTS(SELECT 1 FROM Versions AS v2
-                                    WHERE v2.ResourceSID=v.ResourceSID AND
-                                          v2.AncestorID=v.UID`+lockExpr+`)
-                             THEN '1-middle'
-                        ELSE '2-leaf'
-                    END AS Pos,
-                    v.CreatedAt
-                FROM Versions AS v
-                WHERE v.RegistrySID=? AND v.ResourceSID=? AND
-                  v.AncestorID<>'`+ANCESTORID_TBD+`'
-                ORDER BY Pos ASC, v.CreatedAt ASC, v.UID ASC`+lockExpr,
-		r.Registry.DbSID, r.DbSID)
-	defer results.Close()
-
-	vers := []*VersionAncestor{}
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-		vers = append(vers, &VersionAncestor{
-			VID:        NotNilString(row[0]),
-			AncestorID: NotNilString(row[1]),
-			Pos:        NotNilString(row[2]),
-			CreatedAt:  NotNilString(row[3]),
-		})
-	}
-
-	return vers, nil
 }
