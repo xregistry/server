@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -544,7 +545,13 @@ func XCLIServer(serverURL string) {
 	os.Setenv("XR_SERVER", serverURL)
 }
 
-func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool, flags ...string) {
+type CLIResult struct {
+	Code   int
+	Stdout string
+	Stderr string
+}
+
+func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool, flags ...string) *CLIResult {
 	t.Helper()
 
 	args := SplitCommandLine(line)
@@ -560,6 +567,19 @@ func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool, flags ...
 
 	err := cmd.Run()
 
+	cliRes := &CLIResult{
+		Code:   0,
+		Stdout: stdout.String(),
+		Stderr: stderr.String(),
+	}
+
+	if !IsNil(err) {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			cliRes.Code = exitErr.ExitCode()
+		}
+	}
+
 	if !IsNil(err) && work {
 		t.Fatalf("Should have worked: %s\nStdout: %s\nStderr: %s",
 			err, stdout.String(), stderr.String())
@@ -568,8 +588,10 @@ func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool, flags ...
 			stdout.String(), stderr.String())
 	}
 
-	XEqual(t, "Stdout:", stdout.String(), Eout, flags...)
-	XEqual(t, "Stderr:", stderr.String(), Eerr, flags...)
+	XEqual(t, "Stdout:", cliRes.Stdout, Eout, flags...)
+	XEqual(t, "Stderr:", cliRes.Stderr, Eerr, flags...)
+
+	return cliRes
 }
 
 func XServer(t *testing.T, line string, in, Eout, Eerr string, code int) {
