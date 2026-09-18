@@ -174,6 +174,14 @@ func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 		},
 	}
 	targets := []string{"http://one.example", "http://one.example"}
+	expected := `PASS: http://one.example
+└─ PASS: TestTDAllPass
+Pass: 18   Fail: 0   Warn: 0   Skip: 0
+
+PASS: http://one.example
+└─ PASS: TestTDAllPass
+Pass: 18   Fail: 0   Warn: 0   Skip: 0
+`
 
 	var first string
 	stdout := captureTestStdout(t, func() {
@@ -185,7 +193,10 @@ func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("Conform wrote outside config.Out: %q", stdout)
 	}
-	assertRepeatedTargetOutput(t, first)
+	if first != expected {
+		t.Fatalf("Wrong first conform output:\nExpected:\n%s\nGot:\n%s",
+			expected, first)
+	}
 	assertBaseConfigUnchanged(t, config, staleRegistry, staleRun)
 
 	out.Reset()
@@ -197,9 +208,9 @@ func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("Second conform run leaked to stdout: %q", stdout)
 	}
-	if first != out.String() {
-		t.Fatalf("Conform output changed between in-process runs:\n"+
-			"First:\n%s\nSecond:\n%s", first, out.String())
+	if out.String() != expected {
+		t.Fatalf("Wrong second conform output:\nExpected:\n%s\nGot:\n%s",
+			expected, out.String())
 	}
 	assertBaseConfigUnchanged(t, config, staleRegistry, staleRun)
 }
@@ -383,18 +394,6 @@ func assertFailedDependency(
 	}
 	if !strings.HasSuffix(output, "Warn: 0   Skip: 0\n") {
 		t.Fatalf("Missing complete dependency summary:\n%s", output)
-	}
-}
-
-func assertRepeatedTargetOutput(t *testing.T, output string) {
-	t.Helper()
-
-	parts := strings.Split(output, "\n\n")
-	if len(parts) != 2 || parts[0]+"\n" != parts[1] {
-		t.Fatalf("Repeated targets changed output or separators:\n%s", output)
-	}
-	if strings.Count(output, "\nPass: ") != 2 {
-		t.Fatalf("Expected a tree and summary for each target:\n%s", output)
 	}
 }
 

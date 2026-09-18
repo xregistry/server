@@ -2339,6 +2339,61 @@ header.bar2: foo2`
 
 func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
 	const target = "http://localhost:8282/conform"
+	XCLI(t, "conform --skips "+target+" "+target, "", `PASS: http://localhost:8282/conform (skip:3)
+├─ PASS: TestSniff
+├─ PASS: TestModel
+├─ PASS: TestCapabilities (skip:1)
+│  ├─ PASS: capabilities.available MUST include "capabilities"
+│  ├─ PASS: capabilities.available MUST include "entities"
+│  ├─ PASS: capabilities.available MUST include "model"
+│  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+│  ├─ PASS: 'GET /capabilities' MUST return 200
+│  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+│  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+│  ├─ PASS: 'GET /' MUST return 200
+│  ├─ PASS: 'GET /' MUST return a non-empty body
+│  ├─ PASS: 'GET /' MUST return a JSON body
+│  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+│  ├─ PASS: Testing ?inline=capabilities (skip:1)
+│  │  └─ SKIP: ?inline not supported
+├─ PASS: TestRegistryRoot
+├─ PASS: TestGroups (skip:1)
+│  ├─ PASS: TestModel (cached)
+│  ├─ PASS: TestCapabilities (cached)
+│  └─ SKIP: No Group Types defined - leaving
+└─ PASS: TestResources (skip:1)
+   ├─ PASS: TestGroups (cached)
+   └─ SKIP: No Group Types defined  - leaving
+Pass: 55   Fail: 0   Warn: 0   Skip: 3
+
+PASS: http://localhost:8282/conform (skip:3)
+├─ PASS: TestSniff
+├─ PASS: TestModel
+├─ PASS: TestCapabilities (skip:1)
+│  ├─ PASS: capabilities.available MUST include "capabilities"
+│  ├─ PASS: capabilities.available MUST include "entities"
+│  ├─ PASS: capabilities.available MUST include "model"
+│  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+│  ├─ PASS: 'GET /capabilities' MUST return 200
+│  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+│  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+│  ├─ PASS: 'GET /' MUST return 200
+│  ├─ PASS: 'GET /' MUST return a non-empty body
+│  ├─ PASS: 'GET /' MUST return a JSON body
+│  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+│  ├─ PASS: Testing ?inline=capabilities (skip:1)
+│  │  └─ SKIP: ?inline not supported
+├─ PASS: TestRegistryRoot
+├─ PASS: TestGroups (skip:1)
+│  ├─ PASS: TestModel (cached)
+│  ├─ PASS: TestCapabilities (cached)
+│  └─ SKIP: No Group Types defined - leaving
+└─ PASS: TestResources (skip:1)
+   ├─ PASS: TestGroups (cached)
+   └─ SKIP: No Group Types defined  - leaving
+Pass: 55   Fail: 0   Warn: 0   Skip: 3
+`, ``, true)
+
 	cmd := exec.Command("../xr", "conform", "-vvv", target, target)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -2365,36 +2420,24 @@ func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
 
 func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
 	const target = "http://localhost:8282/conform-error"
-	cmd := exec.Command(
-		"../xr",
-		"conform",
-		"--run",
-		"TestTDUtils",
-		"-d0",
-		target,
-	)
-	output, err := cmd.CombinedOutput()
-	exitErr, ok := err.(*exec.ExitError)
-	if !ok || exitErr.ExitCode() != 2 {
-		t.Fatalf("Malformed capabilities exit = %v, expected 2:\n%s",
-			err, output)
-	}
-
-	got := string(output)
-	if !strings.HasPrefix(got, "FAIL: "+target+"\n") {
-		t.Fatalf("Missing failed target header:\n%s", got)
-	}
-	if !strings.Contains(got, "Retrieving capabilities MUST work") {
-		t.Fatalf("Missing capabilities diagnostic:\n%s", got)
-	}
-	if !strings.Contains(got, "There was an error parsing") {
-		t.Fatalf("Missing original capabilities error:\n%s", got)
-	}
-	if !strings.Contains(got, "\nPass: ") ||
-		!strings.HasSuffix(got, "\n") {
-
-		t.Fatalf("Missing complete target summary:\n%s", got)
-	}
+	XCLI(t, "conform --run TestTDUtils -d0 "+target, "", `FAIL: http://localhost:8282/conform-error
+└─ FAIL: TestTDUtils
+   ├─ ==== PASSing tests ====
+   ├─ PASS: 'GET /' MUST return 200
+   ├─ PASS: 'GET /' MUST return a non-empty body
+   ├─ PASS: 'GET /' MUST return a JSON body
+   ├─ PASS: "specversion" (1.0-rc4) MUST = "1.0-rc4"
+   ├─ PASS: "registryid" (conform-error) MUST != ""
+   ├─ PASS: "self" (http://localhost:8282/conform-error/) MUST != ""
+   ├─ PASS: "xid" (/) MUST = "/"
+   ├─ PASS: "epoch" (1) MUST >= 0
+   ├─ PASS: "createdat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
+   ├─ PASS: "modifiedat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
+   ├─ Unexpected error: There was an error parsing "/capabilities": unexpected
+   │  end of JSON input.
+   └─ FAIL: Retrieving capabilities MUST work
+Pass: 10   Fail: 3   Warn: 0   Skip: 0
+`, ``, false)
 }
 
 func TestXRConformBasic(t *testing.T) {
