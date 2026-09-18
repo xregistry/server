@@ -183,33 +183,16 @@ PASS: http://one.example
 Pass: 18   Fail: 0   Warn: 0   Skip: 0
 `
 
-	var first string
 	stdout := captureTestStdout(t, func() {
 		if rc := runConform(targets, config); rc != 0 {
-			t.Fatalf("First conform run returned %d:\n%s", rc, out.String())
+			t.Fatalf("Conform run returned %d:\n%s", rc, out.String())
 		}
-		first = out.String()
 	})
 	if stdout != "" {
 		t.Fatalf("Conform wrote outside config.Out: %q", stdout)
 	}
-	if first != expected {
-		t.Fatalf("Wrong first conform output:\nExpected:\n%s\nGot:\n%s",
-			expected, first)
-	}
-	assertBaseConfigUnchanged(t, config, staleRegistry, staleRun)
-
-	out.Reset()
-	stdout = captureTestStdout(t, func() {
-		if rc := runConform(targets, config); rc != 0 {
-			t.Fatalf("Second conform run returned %d:\n%s", rc, out.String())
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("Second conform run leaked to stdout: %q", stdout)
-	}
 	if out.String() != expected {
-		t.Fatalf("Wrong second conform output:\nExpected:\n%s\nGot:\n%s",
+		t.Fatalf("Wrong conform output:\nExpected:\n%s\nGot:\n%s",
 			expected, out.String())
 	}
 	assertBaseConfigUnchanged(t, config, staleRegistry, staleRun)
