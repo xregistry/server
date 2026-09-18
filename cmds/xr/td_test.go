@@ -7,16 +7,12 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/common"
 )
 
 func TestPrettyPrint(t *testing.T) {
@@ -161,13 +157,9 @@ Pass: 2   Fail: 0   Warn: 0   Skip: 0
 	}
 }
 
-func TestRunConformIsolatesOutputAndTargetState(t *testing.T) {
-	server, requestCount := newTestConformServer(t)
-	t.Cleanup(func() {
-		delete(xrlib.Registries, server.URL)
-	})
-
+func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 	staleRun := NewTD(nil, "stale")
+	staleRun.Fail("stale failure")
 	staleRegistry := xrlib.DefineRegistry("http://stale.example")
 	out := bytes.Buffer{}
 	config := &TDConfig{
@@ -176,17 +168,16 @@ func TestRunConformIsolatesOutputAndTargetState(t *testing.T) {
 		IgnoreWarn:   true,
 		NextStatus:   FAIL,
 		ConsoleDepth: 2,
+		RunFunc:      "TestTDAllPass",
 		TestRuns: map[string]*TD{
-			TestFn(TestSniff).Name(): staleRun,
+			TestFn(TestTDInit).Name(): staleRun,
 		},
 	}
+	targets := []string{"http://one.example", "http://one.example"}
 
 	var first string
 	stdout := captureTestStdout(t, func() {
-		if rc := runConform(
-			[]string{server.URL, server.URL},
-			config,
-		); rc != 0 {
+		if rc := runConform(targets, config); rc != 0 {
 			t.Fatalf("First conform run returned %d:\n%s", rc, out.String())
 		}
 		first = out.String()
@@ -195,16 +186,11 @@ func TestRunConformIsolatesOutputAndTargetState(t *testing.T) {
 		t.Fatalf("Conform wrote outside config.Out: %q", stdout)
 	}
 	assertRepeatedTargetOutput(t, first)
-	assertRequestCount(t, requestCount, "/model", 4)
-	assertRequestCount(t, requestCount, "/capabilities", 4)
 	assertBaseConfigUnchanged(t, config, staleRegistry, staleRun)
 
 	out.Reset()
 	stdout = captureTestStdout(t, func() {
-		if rc := runConform(
-			[]string{server.URL, server.URL},
-			config,
-		); rc != 0 {
+		if rc := runConform(targets, config); rc != 0 {
 			t.Fatalf("Second conform run returned %d:\n%s", rc, out.String())
 		}
 	})
@@ -215,8 +201,6 @@ func TestRunConformIsolatesOutputAndTargetState(t *testing.T) {
 		t.Fatalf("Conform output changed between in-process runs:\n"+
 			"First:\n%s\nSecond:\n%s", first, out.String())
 	}
-	assertRequestCount(t, requestCount, "/model", 8)
-	assertRequestCount(t, requestCount, "/capabilities", 8)
 	assertBaseConfigUnchanged(t, config, staleRegistry, staleRun)
 }
 
@@ -280,57 +264,23 @@ func TestFailedDependenciesPropagateConsistently(t *testing.T) {
 	)
 }
 
-func TestConformanceErrorsRenderCompleteResults(t *testing.T) {
-	server := newErrorTestConformServer(t)
+func TestConformanceStateErrorRendersCompleteResult(t *testing.T) {
+	const target = "http://example.com"
 
-	t.Run("utility capabilities", func(t *testing.T) {
-		td := newTestTD(server.URL)
-		td.SetRegistry(xrlib.DefineRegistry(server.URL))
-		td.Run(TestTDUtils)
+	td := newTestTD(target)
+	cachePassedTest(td, TestGroups)
+	reg := xrlib.DefineRegistry(target)
+	reg.SetStuff("gm", "not a GroupModel")
+	td.SetRegistry(reg)
+	td.Run(TestResources)
 
-		got := renderTD(td)
-		assertCompleteTargetResult(
-			t,
-			got,
-			server.URL,
-			"Retrieving capabilities MUST work",
-		)
-	})
-
-	t.Run("registry capabilities", func(t *testing.T) {
-		td := newTestTD(server.URL)
-		cachePassedTest(td, TestModel)
-		cachePassedTest(td, TestCapabilities)
-		td.SetRegistry(xrlib.DefineRegistry(server.URL))
-		td.Run(TestRegistryRoot)
-
-		got := renderTD(td)
-		assertCompleteTargetResult(
-			t,
-			got,
-			server.URL,
-			"Retrieving capabilities MUST work",
-		)
-	})
-
-	t.Run("resource state", func(t *testing.T) {
-		const target = "http://example.com"
-
-		td := newTestTD(target)
-		cachePassedTest(td, TestGroups)
-		reg := xrlib.DefineRegistry(target)
-		reg.SetStuff("gm", "not a GroupModel")
-		td.SetRegistry(reg)
-		td.Run(TestResources)
-
-		got := renderTD(td)
-		assertCompleteTargetResult(
-			t,
-			got,
-			target,
-			"reg.stuff.gm != *GroupModel",
-		)
-	})
+	got := renderTD(td)
+	assertCompleteTargetResult(
+		t,
+		got,
+		target,
+		"reg.stuff.gm != *GroupModel",
+	)
 }
 
 func TestConformanceFunctionsDoNotCallError(t *testing.T) {
@@ -448,20 +398,6 @@ func assertRepeatedTargetOutput(t *testing.T, output string) {
 	}
 }
 
-func assertRequestCount(
-	t *testing.T,
-	requestCount func(string) int,
-	path string,
-	expected int,
-) {
-	t.Helper()
-
-	if got := requestCount(path); got != expected {
-		t.Fatalf("%s received %d requests, expected %d",
-			path, got, expected)
-	}
-}
-
 func assertBaseConfigUnchanged(
 	t *testing.T,
 	config *TDConfig,
@@ -474,91 +410,10 @@ func assertBaseConfigUnchanged(
 		config.NextStatus != FAIL ||
 		config.ConsoleDepth != 2 ||
 		len(config.TestRuns) != 1 ||
-		config.TestRuns[TestFn(TestSniff).Name()] != staleRun {
+		config.TestRuns[TestFn(TestTDInit).Name()] != staleRun {
 
 		t.Fatalf("Base TDConfig was mutated: %#v", config)
 	}
-}
-
-func newTestConformServer(
-	t *testing.T,
-) (*httptest.Server, func(string) int) {
-	t.Helper()
-
-	requests := map[string]int{}
-	requestLock := sync.Mutex{}
-	server := httptest.NewServer(http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			requestLock.Lock()
-			requests[r.URL.Path]++
-			requestLock.Unlock()
-
-			w.Header().Set("Content-Type", "application/json")
-			switch r.URL.Path {
-			case "/":
-				writeTestConformRoot(w, r)
-			case "/model":
-				_, _ = io.WriteString(w, "{}")
-			case "/capabilities":
-				fmt.Fprintf(w, `{
-  "available": {
-    "capabilities": {"mutable": true},
-    "entities": {"mutable": true},
-    "model": {"mutable": false}
-  },
-  "compatibilities": {},
-  "flags": [],
-  "formats": [],
-  "ignores": [],
-  "pagination": false,
-  "shortself": false,
-  "specversions": [%q],
-  "versionmodes": []
-}`, common.SPECVERSION)
-			default:
-				http.NotFound(w, r)
-			}
-		}))
-	t.Cleanup(server.Close)
-
-	return server, func(path string) int {
-		requestLock.Lock()
-		defer requestLock.Unlock()
-		return requests[path]
-	}
-}
-
-func newErrorTestConformServer(t *testing.T) *httptest.Server {
-	t.Helper()
-
-	server := httptest.NewServer(http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			switch r.URL.Path {
-			case "/":
-				writeTestConformRoot(w, r)
-			case "/model":
-				_, _ = io.WriteString(w, "{}")
-			case "/capabilities":
-				_, _ = io.WriteString(w, "{")
-			default:
-				http.NotFound(w, r)
-			}
-		}))
-	t.Cleanup(server.Close)
-	return server
-}
-
-func writeTestConformRoot(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, `{
-  "specversion": %q,
-  "registryid": "test",
-  "self": "http://%s/",
-  "xid": "/",
-  "epoch": 1,
-  "createdat": "2026-01-01T00:00:00Z",
-  "modifiedat": "2026-01-01T00:00:00Z"
-}`, common.SPECVERSION, r.Host)
 }
 
 func assertCompleteTargetResult(
@@ -574,11 +429,6 @@ func assertCompleteTargetResult(
 	}
 	if !strings.Contains(got, diagnostic) {
 		t.Fatalf("Missing diagnostic %q:\n%s", diagnostic, got)
-	}
-	if !strings.Contains(got, "There was an error parsing") &&
-		diagnostic != "reg.stuff.gm != *GroupModel" {
-
-		t.Fatalf("Missing original error detail:\n%s", got)
 	}
 	summary := strings.LastIndex(got, "\nPass: ")
 	if summary < 0 || !strings.HasSuffix(got, "\n") {

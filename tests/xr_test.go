@@ -2337,6 +2337,66 @@ header.bar2: foo2`
 `, true, MASK_LOGS)
 }
 
+func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
+	const target = "http://localhost:8282/conform"
+	cmd := exec.Command("../xr", "conform", "-vvv", target, target)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Repeated-target conform run failed: %s\n%s", err, output)
+	}
+	if got := strings.Count(string(output), "PASS: "+target); got != 2 {
+		t.Fatalf("Expected two target results, got %d:\n%s", got, output)
+	}
+
+	for _, check := range []struct {
+		request string
+		count   int
+	}{
+		{request: "Request: GET " + target + "/model", count: 4},
+		{request: "Request: GET " + target + "/capabilities", count: 4},
+	} {
+		got := strings.Count(string(output), check.request)
+		if got != check.count {
+			t.Fatalf("%s logged %d times, expected %d:\n%s",
+				check.request, got, check.count, output)
+		}
+	}
+}
+
+func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
+	const target = "http://localhost:8282/conform-error"
+	cmd := exec.Command(
+		"../xr",
+		"conform",
+		"--run",
+		"TestTDUtils",
+		"-d0",
+		target,
+	)
+	output, err := cmd.CombinedOutput()
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok || exitErr.ExitCode() != 2 {
+		t.Fatalf("Malformed capabilities exit = %v, expected 2:\n%s",
+			err, output)
+	}
+
+	got := string(output)
+	if !strings.HasPrefix(got, "FAIL: "+target+"\n") {
+		t.Fatalf("Missing failed target header:\n%s", got)
+	}
+	if !strings.Contains(got, "Retrieving capabilities MUST work") {
+		t.Fatalf("Missing capabilities diagnostic:\n%s", got)
+	}
+	if !strings.Contains(got, "There was an error parsing") {
+		t.Fatalf("Missing original capabilities error:\n%s", got)
+	}
+	if !strings.Contains(got, "\nPass: ") ||
+		!strings.HasSuffix(got, "\n") {
+
+		t.Fatalf("Missing complete target summary:\n%s", got)
+	}
+}
+
 func TestXRConformBasic(t *testing.T) {
 	reg := NewRegistry("TestXRConformBasic")
 	defer PassDeleteReg(t, reg)
