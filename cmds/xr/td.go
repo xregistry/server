@@ -356,10 +356,13 @@ func (td *TD) Expect(status int) {
 
 // PASS|FAIL|WARN|SKIP, testNameText, substitute args for testName
 func (td *TD) Report(status int, args ...any) {
-	td.report(status, true, args...)
+	status = td.recordStatus(status, args...)
+	if td.Config.FailFast && status == FAIL {
+		td.Stop()
+	}
 }
 
-func (td *TD) report(status int, stopOnFail bool, args ...any) {
+func (td *TD) recordStatus(status int, args ...any) int {
 	// fmt.Printf("Report: %q %s : %v\n", td.TestName, StatusText[status], args)
 
 	line := ""
@@ -396,9 +399,7 @@ func (td *TD) report(status int, stopOnFail bool, args ...any) {
 		})
 	} */
 	td.AddStatus(status)
-	if stopOnFail && td.Config.FailFast && status == FAIL {
-		td.Stop()
-	}
+	return status
 }
 
 func (td *TD) Pass(args ...any)    { td.Report(PASS, args...) }
@@ -415,7 +416,7 @@ func (td *TD) DependsOn(fn TestFn) {
 
 	if prevTD, ok := td.Config.TestRuns[fn.Name()]; ok {
 		depStatus = prevTD.Status
-		td.report(prevTD.Status, false, "%s (cached)", fn.Name())
+		td.recordStatus(prevTD.Status, "%s (cached)", fn.Name())
 	} else {
 		newTD := td.Run(fn)
 		depStatus = newTD.Status
