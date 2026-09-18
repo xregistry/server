@@ -1094,7 +1094,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		}
 
 		if what == "Coll" {
-			_, xErr = jw.WriteCollection()
+			_, _, _, xErr = jw.WriteCollection()
 		} else {
 			xErr = jw.WriteEntity()
 		}

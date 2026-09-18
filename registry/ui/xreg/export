@@ -204,8 +204,6 @@
     }
   },
 
-  "dirsurl": "#/dirs",
-  "dirscount": 2,
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -268,15 +266,12 @@
         }
       },
 
-      "eventsurl": "#/dirs/d1/events",
-      "eventscount": 2,
       "events": {
         "e1": {
           "eventid": "e1",
           "self": "#/dirs/d1/events/e1",
           "xid": "/dirs/d1/events/e1",
 
-          "metaurl": "#/dirs/d1/events/e1/meta",
           "meta": {
             "eventid": "e1",
             "self": "#/dirs/d1/events/e1/meta",
@@ -290,9 +285,8 @@
             "defaultversionurl": "#/dirs/d1/events/e1/versions/1",
             "defaultversionsticky": false
           },
+          "metaurl": "#/dirs/d1/events/e1/meta",
 
-          "versionsurl": "#/dirs/d1/events/e1/versions",
-          "versionscount": 1,
           "versions": {
             "1": {
               "eventid": "e1",
@@ -308,14 +302,15 @@
               "modifiedat": "2000-01-01T12:00:00.00Z",
               "ancestorid": "1"
             }
-          }
+          },
+          "versionsurl": "#/dirs/d1/events/e1/versions",
+          "versionscount": 1
         },
         "e2": {
           "eventid": "e2",
           "self": "#/dirs/d1/events/e2",
           "xid": "/dirs/d1/events/e2",
 
-          "metaurl": "#/dirs/d1/events/e2/meta",
           "meta": {
             "eventid": "e2",
             "self": "#/dirs/d1/events/e2/meta",
@@ -329,9 +324,8 @@
             "defaultversionurl": "#/dirs/d1/events/e2/versions/1",
             "defaultversionsticky": false
           },
+          "metaurl": "#/dirs/d1/events/e2/meta",
 
-          "versionsurl": "#/dirs/d1/events/e2/versions",
-          "versionscount": 1,
           "versions": {
             "1": {
               "eventid": "e2",
@@ -347,18 +341,19 @@
               "modifiedat": "2000-01-01T12:00:00.00Z",
               "ancestorid": "1"
             }
-          }
+          },
+          "versionsurl": "#/dirs/d1/events/e2/versions",
+          "versionscount": 1
         }
       },
-      "filesurl": "#/dirs/d1/files",
-      "filescount": 2,
+      "eventsurl": "#/dirs/d1/events",
+      "eventscount": 2,
       "files": {
         "f1": {
           "fileid": "f1",
           "self": "#/dirs/d1/files/f1",
           "xid": "/dirs/d1/files/f1",
 
-          "metaurl": "#/dirs/d1/files/f1/meta",
           "meta": {
             "fileid": "f1",
             "self": "#/dirs/d1/files/f1/meta",
@@ -378,9 +373,8 @@
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v3.0",
             "defaultversionsticky": false
           },
+          "metaurl": "#/dirs/d1/files/f1/meta",
 
-          "versionsurl": "#/dirs/d1/files/f1/versions",
-          "versionscount": 3,
           "versions": {
             "v1.0": {
               "fileid": "f1",
@@ -432,14 +426,15 @@
 
               "file": 123
             }
-          }
+          },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
+          "versionscount": 3
         },
         "f2": {
           "fileid": "f2",
           "self": "#/dirs/d1/files/f2",
           "xid": "/dirs/d1/files/f2",
 
-          "metaurl": "#/dirs/d1/files/f2/meta",
           "meta": {
             "fileid": "f2",
             "self": "#/dirs/d1/files/f2/meta",
@@ -453,9 +448,8 @@
             "defaultversionurl": "#/dirs/d1/files/f2/versions/v1.0",
             "defaultversionsticky": false
           },
+          "metaurl": "#/dirs/d1/files/f2/meta",
 
-          "versionsurl": "#/dirs/d1/files/f2/versions",
-          "versionscount": 3,
           "versions": {
             "v1.0": {
               "fileid": "f2",
@@ -490,9 +484,13 @@
               "modifiedat": "2000-01-01T12:00:00.00Z",
               "ancestorid": "v3.0"
             }
-          }
+          },
+          "versionsurl": "#/dirs/d1/files/f2/versions",
+          "versionscount": 3
         }
-      }
+      },
+      "filesurl": "#/dirs/d1/files",
+      "filescount": 2
     },
     "d2": {
       "dirid": "d2",
@@ -503,18 +501,15 @@
       "modifiedat": "2000-01-01T12:00:00.00Z",
       "deprecated": {},
 
+      "events": {},
       "eventsurl": "#/dirs/d2/events",
       "eventscount": 0,
-      "events": {},
-      "filesurl": "#/dirs/d2/files",
-      "filescount": 2,
       "files": {
         "f1": {
           "fileid": "f1",
           "self": "#/dirs/d2/files/f1",
           "xid": "/dirs/d2/files/f1",
 
-          "metaurl": "#/dirs/d2/files/f1/meta",
           "meta": {
             "fileid": "f1",
             "self": "#/dirs/d2/files/f1/meta",
@@ -528,9 +523,8 @@
             "defaultversionurl": "#/dirs/d2/files/f1/versions/v1.0",
             "defaultversionsticky": false
           },
+          "metaurl": "#/dirs/d2/files/f1/meta",
 
-          "versionsurl": "#/dirs/d2/files/f1/versions",
-          "versionscount": 3,
           "versions": {
             "v1.0": {
               "fileid": "f1",
@@ -565,14 +559,15 @@
               "modifiedat": "2000-01-01T12:00:00.00Z",
               "ancestorid": "v3.0"
             }
-          }
+          },
+          "versionsurl": "#/dirs/d2/files/f1/versions",
+          "versionscount": 3
         },
         "f2": {
           "fileid": "f2",
           "self": "#/dirs/d2/files/f2",
           "xid": "/dirs/d2/files/f2",
 
-          "metaurl": "#/dirs/d2/files/f2/meta",
           "meta": {
             "fileid": "f2",
             "self": "#/dirs/d2/files/f2/meta",
@@ -586,9 +581,8 @@
             "defaultversionurl": "#/dirs/d2/files/f2/versions/v3.0",
             "defaultversionsticky": false
           },
+          "metaurl": "#/dirs/d2/files/f2/meta",
 
-          "versionsurl": "#/dirs/d2/files/f2/versions",
-          "versionscount": 3,
           "versions": {
             "v1.0": {
               "fileid": "f2",
@@ -623,9 +617,15 @@
               "modifiedat": "2000-01-01T12:00:00.00Z",
               "ancestorid": "v2.0"
             }
-          }
+          },
+          "versionsurl": "#/dirs/d2/files/f2/versions",
+          "versionscount": 3
         }
-      }
+      },
+      "filesurl": "#/dirs/d2/files",
+      "filescount": 2
     }
-  }
+  },
+  "dirsurl": "#/dirs",
+  "dirscount": 2
 }

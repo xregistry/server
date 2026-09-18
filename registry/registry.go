@@ -1019,6 +1019,288 @@ func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[stri
 	return groups, nil
 }
 
+// GenerateFilterCTE builds the "cte(...) AS (...), FilterMatches AS (...)"
+// portion (everything *after* the "WITH RECURSIVE " keyword) of the query
+// used to find entities matching the (OR'd, AND'd) filter expressions.
+//
+// Each top-level OR expression (arm) is tagged with a bit (1<<i). The seed
+// of the recursive CTE aggregates those bits per matching eSID with
+// BIT_OR, and the recursive (parent-walking) step carries the mask
+// forward unchanged. A node reached via more than one child (each
+// possibly carrying a different mask) is reconciled by the final
+// "FilterMatches" step, which does a BIT_OR(mask) GROUP BY eSID over the
+// whole (already small, since it's per-node not per-leaf) cte.
+//
+// This lets callers (see FiltersRelativeToAbstractMasked in info.go)
+// later determine, for any given entity in the result, exactly which top-
+// level OR expression(s) are responsible for it being there -- which is
+// required to compute a correct (neither too broad nor too narrow) nested
+// <COLLECTION>url filter for that entity.
+//
+// IMPORTANT (perf): the recursive member below must stay "UNION DISTINCT"
+// (not "UNION ALL"). MySQL materializes each iteration of a recursive CTE
+// as an (unindexed) temp table, and distinctness is what keeps the walk
+// bounded to ~one pass per tree node. Since "mask" is now part of the
+// tuple being compared, at most one row per (node, distinct-mask) survives
+// each iteration -- still bounded (a node can only be reached via a
+// handful of distinct arm combinations in practice) -- rather than one row
+// per *matching leaf* underneath that node, which is what plain "UNION
+// ALL" here would produce. The one-time, non-recursive arm-tagging seed
+// (built via "UNION ALL" below) doesn't have this concern since it's a
+// flat aggregation, not something that compounds across recursion depth.
+func GenerateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interface{}) {
+	query := ""
+	args := []interface{}{}
+
+	query += `cte(eSID,Type,ParentSID,XID,OrMask) AS (
+    -- The seed: entities that directly match one (or more) of the OR
+    -- expressions below, tagged with a bit-mask of which one(s).
+    SELECT e.eSID,e.Type,e.ParentSID,e.XID,matched.OrMask
+    FROM Entities AS e
+    JOIN (
+      SELECT tagged.eSID, BIT_OR(tagged.ArmMask) AS OrMask
+      FROM ( -- start of the OR Filter groupings`
+	firstOr := true
+	for orIndex, OrFilters := range filters {
+		if !firstOr {
+			query += `
+        UNION ALL -- Adding another OR`
+		}
+		firstOr = false
+		armBit := fmt.Sprintf("%d", uint64(1)<<uint(orIndex))
+		query += `
+      -- start of one Filter AND grouping (expr1 AND expr2).
+      -- Find all SIDs for the leaves for entities (SIDs) of interest,
+      -- tagged with this OR arm's bit (` + armBit + `).
+      SELECT list.eSID, ` + armBit + ` AS ArmMask FROM (
+        SELECT count(*) as cnt,e2.eSID,e2.XID FROM Entities AS e1
+        RIGHT JOIN (
+          -- start of expr1 - below finds SearchNodes/SIDs of interest`
+		firstAnd := true
+		andCount := 0
+		for _, filter := range OrFilters { // AndFilters
+			propNameSearch := "PropName=?"
+			filterPropName := filter.PropName
+
+			if filter.PP.HasWild {
+				// mysql format: column_name REGEXP 'pattern'
+				propNameSearch = "PropName REGEXP ?"
+				has := false
+
+				// Convert wildcards into appropriate regexp
+				if filter.Operator == FILTER_PRESENT ||
+					filter.Operator == FILTER_ABSENT {
+					// include .* at the end
+					filterPropName, has = filter.PP.DBFilterExists()
+				} else {
+					filterPropName, has = filter.PP.DBFilter()
+				}
+
+				PanicIf(!has, "Must have *") // Sanity check
+				// log.Printf("tx: %s fpn: %q", reg.tx.uuid, filterPropName)
+				// log.Printf("tx: %s fpn: %s", reg.tx.uuid, filter.PP.Debug())
+			} else {
+				if filter.Operator == FILTER_PRESENT ||
+					filter.Operator == FILTER_ABSENT {
+
+					// convert from "=" to "LIKE"
+					propNameSearch = "PropName LIKE ?"
+					// include % at the end
+					filterPropName = filter.PropName + "%"
+				}
+			}
+
+			andCount++
+			if !firstAnd {
+				query += `
+          UNION ALL`
+			}
+			firstAnd = false
+
+			if filter.Operator == FILTER_PRESENT { // ?filter=xxx
+				check := "(Abstract=? AND " + propNameSearch + " AND "
+
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+				check += "PropValue IS NOT NULL)"
+				// We may match lots of attrs, but we only want
+				// 1 to appear so the list.cnt check doesn't treat
+				// 2+ rows at matching more than one filter expression
+				check += " GROUP BY eSID" // " LIMIT 1"
+				query += `
+          (SELECT eSID,Type,XID,ParentSID FROM Props  -- FILTER_PRESENT
+           WHERE RegSID=? AND ` + check + ")" // Need () for groupBy/limit
+
+			} else if filter.Operator == FILTER_ABSENT { // ?filter=xxx=null
+				// Look for non-existing prop
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+
+				query += `
+          -- Entities that don't have the specified prop
+          SELECT e.eSID,e.Type,e.XID,ParentSID FROM Entities AS e
+          WHERE e.RegSID=? AND e.Abstract=? AND
+            NOT EXISTS (SELECT 1 FROM Props WHERE
+              RegSID=e.RegSID AND eSID=e.eSID AND ( ` +
+					propNameSearch + `))`
+
+			} else if filter.Operator == FILTER_EQUAL { // ?filter=xxx=zzz
+				check := "(Abstract=? AND " + propNameSearch + " AND "
+
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+				value, wildcard := LikeWildcardIt(filter.Value)
+				args = append(args, value)
+				if !wildcard {
+					// Strings:case-insensitive per spec; others:exact match
+					args = append(args, value)
+					check += "((PropType='string' AND PropValue " +
+						FILTER_CI_COLLATE + "=?)" +
+						" OR (PropType<>'string' AND PropValue=?))"
+				} else {
+					args = append(args, value)
+					check += "((PropType<>'string' AND PropValue=?) " +
+						" OR (PropType='string' AND PropValue " +
+						FILTER_CI_COLLATE + " LIKE ?))"
+				}
+				check += ")"
+				query += `
+          SELECT eSID,Type,XID,ParentSID FROM Props
+            WHERE RegSID=? AND ` + check
+
+			} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+				query += `
+          -- Entities that don't have the specified prop
+          SELECT e.eSID,e.Type,e.XID,e.ParentSID FROM Entities AS e
+          WHERE e.RegSID=? AND e.Abstract=? AND
+            NOT EXISTS (SELECT 1 FROM Props WHERE
+              RegSID=e.RegSID AND eSID=e.eSID AND (` +
+					propNameSearch + ` AND `
+
+				value, wildcard := LikeWildcardIt(filter.Value)
+				args = append(args, value)
+				if !wildcard {
+					// Strings:case-insensitive per spec;others:exact match
+					args = append(args, value)
+					query += "((PropType='string' AND PropValue " +
+						FILTER_CI_COLLATE + "=?)" +
+						" OR (PropType<>'string' AND PropValue=?))"
+				} else {
+					args = append(args, value)
+					query += "((PropType<>'string' AND PropValue=?) " +
+						" OR (PropType='string' AND PropValue " +
+						FILTER_CI_COLLATE + " LIKE ?))"
+				}
+				query += "))"
+
+			} else if filter.Operator == FILTER_LESS ||
+				filter.Operator == FILTER_LESS_EQUAL ||
+				filter.Operator == FILTER_GREATER ||
+				filter.Operator == FILTER_GREATER_EQUAL { // ?filter=x<z etc
+
+				var sqlOp string
+				switch filter.Operator {
+				case FILTER_LESS:
+					sqlOp = "<"
+				case FILTER_LESS_EQUAL:
+					sqlOp = "<="
+				case FILTER_GREATER:
+					sqlOp = ">"
+				case FILTER_GREATER_EQUAL:
+					sqlOp = ">="
+				}
+
+				check := "(Abstract=? AND " + propNameSearch + " AND "
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+
+				// Numeric: numeric comparison
+				// String and others: case-insensitive string comparison
+				args = append(args, filter.Value, filter.Value)
+				check += "(CASE WHEN PropType IN ('integer','decimal','uinteger')" +
+					" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +
+					" ELSE PropValue " + FILTER_CI_COLLATE + " " + sqlOp + " ? END))"
+				query += `
+          SELECT eSID,Type,XID,ParentSID FROM Props
+            WHERE RegSID=? AND ` + check
+
+			} else {
+				PanicIf(true, "Bad filter.op: %#v", filter)
+			}
+		} // end of AndFilter
+		query += `
+          -- end of expr1
+        ) AS result ON ( result.eSID=e1.eSID )
+        -- For each result found, find all Leaves under the matching entity.
+        -- The Leaves that show up 'cnt' times, where cnt is the # of
+        -- expressions in each filter (the ANDs), are branches to return.
+        -- Note we return the XID of each Leaf, not the XID of the matching
+        -- entity. The entity that matches isn't important.
+        JOIN Entities AS e2 ON (
+          (
+            (
+              -- Non-meta objects, just compare the XID
+              result.Type<>` + StrTypes(ENTITY_META) + ` AND
+              ( result.XID = '/' OR
+                e2.XID=result.XID OR
+                e2.XID LIKE CONCAT(result.XID,'/%')
+              )
+            )
+            OR
+            (
+              -- For 'meta' objects, compare it's parent's XID
+              result.Type=` + StrTypes(ENTITY_META) + ` AND
+              (e2.eSID = result.ParentSID OR e2.ParentSID = result.ParentSID)
+              -- ( e2.XID=TRIM(TRAILING '/meta' FROM result.XID) OR
+                -- e2.XID LIKE CONCAT(TRIM(TRAILING 'meta' FROM result.XID),'%')
+              -- )
+            )
+          )
+          AND e2.eSID IN (SELECT * from Leaves)
+        ) GROUP BY e2.eSID
+        -- end of RIGHT JOIN
+      ) as list
+      WHERE list.cnt=?   -- cnt is the # of operands in the AND filter
+      -- end of one Filter AND grouping (expr1 AND expr2 ...)`
+		args = append(args, andCount)
+	} // end of OrFilter
+
+	query += `
+      ) AS tagged -- end of all OR Filter groupings
+      GROUP BY tagged.eSID
+    ) AS matched ON e.eSID = matched.eSID
+
+    -- This is the recursive part of the query.
+    -- Find all of the parents (and 'meta' sub-objects) of the found
+    -- entities, up to root of Reg, carrying the OrMask along the way.
+    -- NOTE: this must stay "UNION DISTINCT" (see the perf comment on
+    -- GenerateFilterCTE above) -- do not change to "UNION ALL".
+    UNION DISTINCT SELECT
+      e.eSID,e.Type,e.ParentSID,e.XID,cte.OrMask
+    FROM Entities AS e
+    INNER JOIN cte ON
+      (
+        -- Find its parent
+        e.eSID=cte.ParentSID
+        OR
+        -- If this is a Resource, grab its 'meta' sub-object
+        ( cte.Type=` + StrTypes(ENTITY_RESOURCE) + ` AND
+          e.Type=` + StrTypes(ENTITY_META) + ` AND
+          e.ParentSID=cte.eSID
+        )
+      )
+  ),
+  -- A node can be reached via multiple children, potentially carrying
+  -- different OrMask values; reconcile those here with one final BIT_OR.
+  FilterMatches AS (
+    SELECT eSID, BIT_OR(OrMask) AS OrMask FROM cte GROUP BY eSID
+  )`
+
+	return query, args
+}
+
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
 func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*FilterExpr, docView bool, sortKey string) (string, []interface{}, *XRError) {
 	query := ""
@@ -1091,11 +1373,54 @@ func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*Filte
 `
 	}
 
-	args = []interface{}{reg.DbSID}
-	query = `
+	// A cap of 64 is imposed because each top-level OR expression is
+	// tagged with a bit (1<<i) so we can BIT_OR them together while
+	// walking the tree, and track (per entity) which OR expression(s)
+	// actually caused it to be included in the result set. This is what
+	// lets us compute an accurate (not overly-broad, not overly-narrow)
+	// nested <COLLECTION>url filter for each entity in the result.
+	if len(filters) > 64 {
+		return "", nil, NewXRError("bad_filter",
+			reg.tx.RequestInfo.OriginalRequest.URL.RequestURI(),
+			"value=filter",
+			"error_detail=too many OR'd filter expressions "+
+				fmt.Sprintf("(%d), the max supported is 64", len(filters)))
+	}
+
+	// filterCTE/filterArgs hold the "WITH RECURSIVE cte(...) AS (...),
+	// FilterMatches AS (...)" definition (sans the leading "WITH
+	// RECURSIVE" keyword) that's prepended to the whole query when
+	// filters are in use. FilterMatches maps each matching eSID (and all
+	// of its ancestors, and the eSID's the 'meta' sub-objects) to a
+	// bit-mask (BIT_OR'd) of which top-level OR expression(s) are
+	// responsible for it being in the result. See FiltersRelativeToAbstractMasked
+	// in info.go for how this mask is later used to compute the correct
+	// nested <COLLECTION>url filter for each entity.
+	filterCTE, filterArgs := "", []interface{}(nil)
+	if len(filters) != 0 {
+		filterCTE, filterArgs = GenerateFilterCTE(reg, filters)
+	}
+
+	maskCol := "'0' AS FilterMask"
+	filterJoin := ""
+	if len(filters) != 0 {
+		// CAST to CHAR so the Go driver always hands us a consistent,
+		// full-range (up to 64-bit) string regardless of how it would
+		// otherwise represent a BIGINT UNSIGNED.
+		maskCol = "CAST(IFNULL(fm.OrMask,0) AS CHAR) AS FilterMask"
+		filterJoin = " LEFT JOIN FilterMatches AS fm ON fm.eSID=ft.eSID"
+	}
+
+	args = []interface{}{}
+	if len(filters) != 0 {
+		query = "WITH RECURSIVE " + filterCTE + "\n"
+		args = append(args, filterArgs...)
+	}
+	args = append(args, reg.DbSID)
+	query += `
 SELECT
-  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.XID,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp
-  FROM Props AS ft` + sortJoin + `
+  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.XID,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp,` + maskCol + `
+  FROM Props AS ft` + filterJoin + sortJoin + `
   WHERE ft.RegSID=?
 `
 
@@ -1122,245 +1447,11 @@ SELECT
 	}
 
 	if len(filters) != 0 {
-		query += `
-AND
-(
-ft.eSID IN ( -- eSID from query
-  -- Find all entities that match the filters, and then grab all parents
-  -- This "RECURSIVE" stuff finds all parents
-  WITH RECURSIVE cte(eSID,Type,ParentSID,XID) AS (
-    -- This defines the init set of rows of the query. We'll recurse later on
-    SELECT eSID,Type,ParentSID,XID FROM Entities
-    WHERE eSID in ( -- start of the OR Filter groupings`
-		// This section will find all matching entities
-		firstOr := true
-		for _, OrFilters := range filters {
-			if !firstOr {
-				query += `
-      UNION -- Adding another OR`
-			}
-			firstOr = false
-			query += `
-      -- start of one Filter AND grouping (expr1 AND expr2).
-      -- Find all SIDs for the leaves for entities (SIDs) of interest.
-      SELECT list.eSID FROM (
-        SELECT count(*) as cnt,e2.eSID,e2.XID FROM Entities AS e1
-        RIGHT JOIN (
-          -- start of expr1 - below finds SearchNodes/SIDs of interest`
-			firstAnd := true
-			andCount := 0
-			for _, filter := range OrFilters { // AndFilters
-				propNameSearch := "PropName=?"
-				filterPropName := filter.PropName
-
-				if filter.PP.HasWild {
-					// mysql format: column_name REGEXP 'pattern'
-					propNameSearch = "PropName REGEXP ?"
-					has := false
-
-					// Convert wildcards into appropriate regexp
-					if filter.Operator == FILTER_PRESENT ||
-						filter.Operator == FILTER_ABSENT {
-						// include .* at the end
-						filterPropName, has = filter.PP.DBFilterExists()
-					} else {
-						filterPropName, has = filter.PP.DBFilter()
-					}
-
-					PanicIf(!has, "Must have *") // Sanity check
-					// log.Printf("tx: %s fpn: %q", reg.tx.uuid, filterPropName)
-					// log.Printf("tx: %s fpn: %s", reg.tx.uuid, filter.PP.Debug())
-				} else {
-					if filter.Operator == FILTER_PRESENT ||
-						filter.Operator == FILTER_ABSENT {
-
-						// convert from "=" to "LIKE"
-						propNameSearch = "PropName LIKE ?"
-						// include % at the end
-						filterPropName = filter.PropName + "%"
-					}
-				}
-
-				andCount++
-				if !firstAnd {
-					query += `
-          UNION ALL`
-				}
-				firstAnd = false
-
-				if filter.Operator == FILTER_PRESENT { // ?filter=xxx
-					check := "(Abstract=? AND " + propNameSearch + " AND "
-
-					args = append(args, reg.DbSID, filter.Abstract,
-						filterPropName)
-					check += "PropValue IS NOT NULL)"
-					// We may match lots of attrs, but we only want
-					// 1 to appear so the list.cnt check doesn't treat
-					// 2+ rows at matching more than one filter expression
-					check += " GROUP BY eSID" // " LIMIT 1"
-					query += `
-          (SELECT eSID,Type,XID,ParentSID FROM Props  -- FILTER_PRESENT
-           WHERE RegSID=? AND ` + check + ")" // Need () for groupBy/limit
-
-				} else if filter.Operator == FILTER_ABSENT { // ?filter=xxx=null
-					// Look for non-existing prop
-					args = append(args, reg.DbSID, filter.Abstract,
-						filterPropName)
-
-					query += `
-          -- Entities that don't have the specified prop
-          SELECT e.eSID,e.Type,e.XID,ParentSID FROM Entities AS e
-          WHERE e.RegSID=? AND e.Abstract=? AND
-            NOT EXISTS (SELECT 1 FROM Props WHERE
-              RegSID=e.RegSID AND eSID=e.eSID AND ( ` +
-						propNameSearch + `))`
-
-				} else if filter.Operator == FILTER_EQUAL { // ?filter=xxx=zzz
-					check := "(Abstract=? AND " + propNameSearch + " AND "
-
-					args = append(args, reg.DbSID, filter.Abstract,
-						filterPropName)
-					value, wildcard := LikeWildcardIt(filter.Value)
-					args = append(args, value)
-					if !wildcard {
-						// Strings:case-insensitive per spec; others:exact match
-						args = append(args, value)
-						check += "((PropType='string' AND PropValue " +
-							FILTER_CI_COLLATE + "=?)" +
-							" OR (PropType<>'string' AND PropValue=?))"
-					} else {
-						args = append(args, value)
-						check += "((PropType<>'string' AND PropValue=?) " +
-							" OR (PropType='string' AND PropValue " +
-							FILTER_CI_COLLATE + " LIKE ?))"
-					}
-					check += ")"
-					query += `
-          SELECT eSID,Type,XID,ParentSID FROM Props
-            WHERE RegSID=? AND ` + check
-
-				} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
-					args = append(args, reg.DbSID, filter.Abstract,
-						filterPropName)
-					query += `
-          -- Entities that don't have the specified prop
-          SELECT e.eSID,e.Type,e.XID,e.ParentSID FROM Entities AS e
-          WHERE e.RegSID=? AND e.Abstract=? AND
-            NOT EXISTS (SELECT 1 FROM Props WHERE
-              RegSID=e.RegSID AND eSID=e.eSID AND (` +
-						propNameSearch + ` AND `
-
-					value, wildcard := LikeWildcardIt(filter.Value)
-					args = append(args, value)
-					if !wildcard {
-						// Strings:case-insensitive per spec;others:exact match
-						args = append(args, value)
-						query += "((PropType='string' AND PropValue " +
-							FILTER_CI_COLLATE + "=?)" +
-							" OR (PropType<>'string' AND PropValue=?))"
-					} else {
-						args = append(args, value)
-						query += "((PropType<>'string' AND PropValue=?) " +
-							" OR (PropType='string' AND PropValue " +
-							FILTER_CI_COLLATE + " LIKE ?))"
-					}
-					query += "))"
-
-				} else if filter.Operator == FILTER_LESS ||
-					filter.Operator == FILTER_LESS_EQUAL ||
-					filter.Operator == FILTER_GREATER ||
-					filter.Operator == FILTER_GREATER_EQUAL { // ?filter=x<z etc
-
-					var sqlOp string
-					switch filter.Operator {
-					case FILTER_LESS:
-						sqlOp = "<"
-					case FILTER_LESS_EQUAL:
-						sqlOp = "<="
-					case FILTER_GREATER:
-						sqlOp = ">"
-					case FILTER_GREATER_EQUAL:
-						sqlOp = ">="
-					}
-
-					check := "(Abstract=? AND " + propNameSearch + " AND "
-					args = append(args, reg.DbSID, filter.Abstract,
-						filterPropName)
-
-					// Numeric: numeric comparison
-					// String and others: case-insensitive string comparison
-					args = append(args, filter.Value, filter.Value)
-					check += "(CASE WHEN PropType IN ('integer','decimal','uinteger')" +
-						" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +
-						" ELSE PropValue " + FILTER_CI_COLLATE + " " + sqlOp + " ? END))"
-					query += `
-          SELECT eSID,Type,XID,ParentSID FROM Props
-            WHERE RegSID=? AND ` + check
-
-				} else {
-					PanicIf(true, "Bad filter.op: %#v", filter)
-				}
-			} // end of AndFilter
-			query += `
-          -- end of expr1
-        ) AS result ON ( result.eSID=e1.eSID )
-        -- For each result found, find all Leaves under the matching entity.
-        -- The Leaves that show up 'cnt' times, where cnt is the # of
-        -- expressions in each filter (the ANDs), are branches to return.
-        -- Note we return the XID of each Leaf, not the XID of the matching
-        -- entity. The entity that matches isn't important.
-        JOIN Entities AS e2 ON (
-          (
-            (
-              -- Non-meta objects, just compare the XID
-              result.Type<>` + StrTypes(ENTITY_META) + ` AND
-              ( result.XID = '/' OR
-                e2.XID=result.XID OR
-                e2.XID LIKE CONCAT(result.XID,'/%')
-              )
-            )
-            OR
-            (
-              -- For 'meta' objects, compare it's parent's XID
-              result.Type=` + StrTypes(ENTITY_META) + ` AND
-              (e2.eSID = result.ParentSID OR e2.ParentSID = result.ParentSID)
-              -- ( e2.XID=TRIM(TRAILING '/meta' FROM result.XID) OR
-                -- e2.XID LIKE CONCAT(TRIM(TRAILING 'meta' FROM result.XID),'%')
-              -- )
-            )
-          )
-          AND e2.eSID IN (SELECT * from Leaves)
-        ) GROUP BY e2.eSID
-        -- end of RIGHT JOIN
-      ) as list
-      WHERE list.cnt=?   -- cnt is the # of operands in the AND filter
-      -- end of one Filter AND grouping (expr1 AND expr2 ...)`
-			args = append(args, andCount)
-		} // end of OrFilter
-
-		query += `
-    ) -- end of all OR Filter groupings
-
-    -- This is the recusive part of the query.
-    -- Find all of the parents (and 'meta' sub-objects) of the found
-    -- entities, up to root of Reg.
-    UNION DISTINCT SELECT
-      e.eSID,e.Type,e.ParentSID,e.XID
-    FROM Entities AS e
-    INNER JOIN cte ON
-      (
-        -- Find its parent
-        e.eSID=cte.ParentSID
-        OR
-        -- If this is a Resource, grab its 'meta' sub-object
-        ( cte.Type=` + StrTypes(ENTITY_RESOURCE) + ` AND
-          e.Type=` + StrTypes(ENTITY_META) + ` AND
-          e.ParentSID=cte.eSID
-        )
-      )
-  )
-  SELECT DISTINCT eSID FROM cte )
-)
+		// The actual eSID-matching/tree-walking logic lives in the
+		// "FilterMatches" CTE built by GenerateFilterCTE() above (joined
+		// in via "fm" in the FROM clause). All we need here is to
+		// restrict the result to entities that showed up in it.
+		query += `  AND fm.eSID IS NOT NULL
 `
 	}
 

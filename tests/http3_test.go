@@ -48,7 +48,6 @@ func TestHTTPMixedCase(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
-      "filesurl": "#/dirs/Dir1/files",
       "files": {
         "File1": {
           "fileid": "File1",
@@ -70,7 +69,6 @@ func TestHTTPMixedCase(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "#/dirs/Dir1/files/File1/versions",
           "versions": {
             "_": {
               "fileid": "File1",
@@ -88,9 +86,11 @@ func TestHTTPMixedCase(t *testing.T) {
               }
             }
           },
+          "versionsurl": "#/dirs/Dir1/files/File1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "#/dirs/Dir1/files",
       "filescount": 1
     },
     "DiR2_.-~@DiR": {
@@ -101,7 +101,6 @@ func TestHTTPMixedCase(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
-      "filesurl": "#/dirs/DiR2_.-~@DiR/files",
       "files": {
         "FiLe2_.-~@FiL": {
           "fileid": "FiLe2_.-~@FiL",
@@ -123,7 +122,6 @@ func TestHTTPMixedCase(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions",
           "versions": {
             "666": {
               "fileid": "FiLe2_.-~@FiL",
@@ -137,9 +135,11 @@ func TestHTTPMixedCase(t *testing.T) {
               "ancestorid": "666"
             }
           },
+          "versionsurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "#/dirs/DiR2_.-~@DiR/files",
       "filescount": 1
     }
   }
@@ -676,13 +676,6 @@ func TestHTTPModelSource(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
-              "metaurl": {
-                "name": "metaurl",
-                "type": "url",
-                "readonly": true,
-                "immutable": true,
-                "required": true
-              },
               "meta": {
                 "name": "meta",
                 "type": "object",
@@ -692,6 +685,13 @@ func TestHTTPModelSource(t *testing.T) {
                     "type": "any"
                   }
                 }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "versionsurl": {
                 "name": "versionsurl",
@@ -3207,7 +3207,6 @@ func TestHTTPModelEnum(t *testing.T) {
   "createdat": "2026-06-09T17:06:18.951828521Z",
   "modifiedat": "2026-06-09T17:06:19.160126764Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -3217,7 +3216,6 @@ func TestHTTPModelEnum(t *testing.T) {
       "createdat": "2026-06-09T17:06:18.996549746Z",
       "modifiedat": "2026-06-09T17:06:19.160126764Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -3249,9 +3247,11 @@ func TestHTTPModelEnum(t *testing.T) {
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -3571,7 +3571,6 @@ func TestHTTPBinaryFlag(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
-  "filesurl": "http://localhost:8181/dirs/d1/files",
   "files": {
     "f1": {
       "fileid": "f1",
@@ -3592,6 +3591,7 @@ func TestHTTPBinaryFlag(t *testing.T) {
       "versionscount": 1
     }
   },
+  "filesurl": "http://localhost:8181/dirs/d1/files",
   "filescount": 1
 }
 `)
@@ -5106,7 +5106,6 @@ func TestHTTPShortSelf(t *testing.T) {
     "defaultversionsticky": false
   },
 
-  "versionsurl": "#/versions",
   "versions": {
     "v1": {
       "fileid": "f1",
@@ -5121,6 +5120,7 @@ func TestHTTPShortSelf(t *testing.T) {
       "filebase64": "aGVsbG8gd29ybGQ="
     }
   },
+  "versionsurl": "#/versions",
   "versionscount": 1
 }
 `)
@@ -5213,7 +5213,6 @@ func TestHTTPReadOnlyImmutable(t *testing.T) {
   "createdat": "2026-08-18T15:03:31.097818353Z",
   "modifiedat": "2026-08-18T15:03:31.121660147Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -5223,7 +5222,6 @@ func TestHTTPReadOnlyImmutable(t *testing.T) {
       "createdat": "2026-08-18T15:03:31.121660147Z",
       "modifiedat": "2026-08-18T15:03:31.121660147Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -5251,7 +5249,6 @@ func TestHTTPReadOnlyImmutable(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -5276,12 +5273,15 @@ func TestHTTPReadOnlyImmutable(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)

@@ -317,7 +317,6 @@ func TestFiltersBasic(t *testing.T) {
   "createdat": "2024-12-01T12:00:01Z",
   "modifiedat": "2024-12-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1=1elif",
   "dirs": {
     "d2": {
       "dirid": "d2",
@@ -327,7 +326,6 @@ func TestFiltersBasic(t *testing.T) {
       "createdat": "2024-12-01T12:00:02Z",
       "modifiedat": "2024-12-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1=1elif",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -358,7 +356,6 @@ func TestFiltersBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -386,12 +383,15 @@ func TestFiltersBasic(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1=1elif",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1=1elif",
   "dirscount": 1
 }
 `,
@@ -447,7 +447,6 @@ func TestFiltersBasic(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1",
   "dirs": {
     "d2": {
       "dirid": "d2",
@@ -457,7 +456,6 @@ func TestFiltersBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -488,7 +486,6 @@ func TestFiltersBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -516,12 +513,15 @@ func TestFiltersBasic(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1",
   "dirscount": 1
 }
 `,
@@ -1639,7 +1639,6 @@ func TestFiltersURLs(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1668,6 +1667,7 @@ func TestFiltersURLs(t *testing.T) {
       "filescount": 2
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 2
 }
 `)
@@ -1685,7 +1685,6 @@ func TestFiltersURLs(t *testing.T) {
   "createdat": "2026-05-24T15:56:21.489831698Z",
   "modifiedat": "2026-05-24T15:56:21.510904221Z",
 
-  "dirsurl": "http://localhost:8181/dirs?filter=dirid=d2,datas.dataid=d2",
   "dirs": {
     "d2": {
       "dirid": "d2",
@@ -1701,6 +1700,7 @@ func TestFiltersURLs(t *testing.T) {
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs?filter=dirid=d2,datas.dataid=d2",
   "dirscount": 1
 }
 `)
@@ -1775,7 +1775,6 @@ func TestFiltersURLs(t *testing.T) {
   "createdat": "2026-05-24T16:04:17.48194014Z",
   "modifiedat": "2026-05-24T16:04:17.502254683Z",
 
-  "dirsurl": "http://localhost:8181/dirs?filter=files.fileid=f1&filter=datas.dataid=d2",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1804,6 +1803,7 @@ func TestFiltersURLs(t *testing.T) {
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs?filter=files.fileid=f1&filter=datas.dataid=d2",
   "dirscount": 2
 }
 `)
@@ -1869,7 +1869,6 @@ func TestFiltersURLs(t *testing.T) {
   "createdat": "2026-05-24T16:17:02.012652627Z",
   "modifiedat": "2026-05-24T16:17:02.032361913Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1898,6 +1897,7 @@ func TestFiltersURLs(t *testing.T) {
       "filescount": 1
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 2
 }
 `)

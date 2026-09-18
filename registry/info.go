@@ -294,25 +294,63 @@ func (fe *FilterExpr) StringRelativeToAbstract(abs string) string {
 }
 
 func (info *RequestInfo) FiltersRelativeToAbstract(abs string) string {
+	return info.FiltersRelativeToAbstractMasked(abs, 0, false)
+}
+
+// FiltersRelativeToAbstractMasked is like FiltersRelativeToAbstract but
+// mask-aware: "mask" is the per-entity bit-mask (see GenerateFilterCTE in
+// registry.go) telling us exactly which top-level OR expression(s) in
+// info.Filters actually caused this specific entity to appear in the
+// result set. "maskOK" is false when no mask is available (e.g. no
+// filter was applied at all), in which case every OR arm is treated as
+// active, matching the old (unmasked) behavior.
+//
+// Without the mask, this can't tell "this OR arm didn't match this
+// entity at all" apart from "this OR arm matched, but has nothing to do
+// with the nested abstract" -- and those two cases need very different
+// treatment: the former should be dropped, the latter means the arm
+// matched *unconditionally* for the whole nested subtree, so the nested
+// <COLLECTION>url must have NO filter at all (an OR'd with "always true"
+// is "always true").
+func (info *RequestInfo) FiltersRelativeToAbstractMasked(abs string, mask uint64, maskOK bool) string {
 	filterString := ""
-	for _, orFilters := range info.Filters { // [][]*Filter OR/AND
+	for i, orFilters := range info.Filters { // [][]*Filter OR/AND
+		if maskOK && mask&(uint64(1)<<uint(i)) == 0 {
+			// This OR expression had nothing to do with this entity
+			// showing up in the result set - ignore it.
+			continue
+		}
+
+		armString := ""
+		armHasScopedClause := false
 		firstAnd := true
 		for _, filterExpr := range orFilters {
 			str := filterExpr.StringRelativeToAbstract(abs)
 			if str != "" {
-				if firstAnd {
-					if filterString == "" {
-						filterString += "?filter="
-					} else {
-						filterString += "&filter="
-					}
-					firstAnd = false
-				} else {
-					filterString += ","
+				armHasScopedClause = true
+				if !firstAnd {
+					armString += ","
 				}
-				filterString += str
+				firstAnd = false
+				armString += str
 			}
 		}
+
+		if !armHasScopedClause {
+			// This OR arm is active (or we have no mask info to say
+			// otherwise) but none of its AND clauses fall under this
+			// abstract, meaning it matches unconditionally for the
+			// whole nested subtree. ORed with "always true" collapses
+			// the entire expression to "no filter at all".
+			return ""
+		}
+
+		if filterString == "" {
+			filterString += "?filter="
+		} else {
+			filterString += "&filter="
+		}
+		filterString += armString
 	}
 
 	return filterString

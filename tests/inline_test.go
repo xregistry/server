@@ -146,7 +146,6 @@ func TestInlineBasic(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -156,7 +155,6 @@ func TestInlineBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:03Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -184,7 +182,6 @@ func TestInlineBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -209,9 +206,11 @@ func TestInlineBasic(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     },
     "d2": {
@@ -222,7 +221,6 @@ func TestInlineBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:05Z",
       "modifiedat": "2024-01-01T12:00:05Z",
 
-      "filesurl": "http://localhost:8181/dirs/d2/files",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -250,7 +248,6 @@ func TestInlineBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -275,14 +272,16 @@ func TestInlineBasic(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d2/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 2,
-  "dirs2url": "http://localhost:8181/dirs2",
   "dirs2": {
     "d2": {
       "dir2id": "d2",
@@ -292,7 +291,6 @@ func TestInlineBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs2/d2/files",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -320,7 +318,6 @@ func TestInlineBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs2/d2/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -334,12 +331,15 @@ func TestInlineBasic(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs2/d2/files/f2/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs2/d2/files",
       "filescount": 1
     }
   },
+  "dirs2url": "http://localhost:8181/dirs2",
   "dirs2count": 1
 }
 `,
@@ -735,7 +735,6 @@ func TestInlineResource(t *testing.T) {
 			Exp: `{
   "dirs": {
     "d1": {
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1-proxy": {
           "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
@@ -796,6 +795,7 @@ func TestInlineResource(t *testing.T) {
           "versionscount": 3
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 3
     }
   },
@@ -809,7 +809,6 @@ func TestInlineResource(t *testing.T) {
 			Exp: `{
   "dirs": {
     "d1": {
-      "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1-proxy",
       "files": {
         "f1-proxy": {
           "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
@@ -820,6 +819,7 @@ func TestInlineResource(t *testing.T) {
           "versionscount": 3
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1-proxy",
       "filescount": 1
     }
   },
@@ -833,7 +833,6 @@ func TestInlineResource(t *testing.T) {
 			Exp: `{
   "dirs": {
     "d1": {
-      "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1-proxy",
       "files": {
         "f1-proxy": {
           "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
@@ -855,6 +854,7 @@ func TestInlineResource(t *testing.T) {
           "versionscount": 3
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1-proxy",
       "filescount": 1
     }
   },
@@ -1039,7 +1039,6 @@ func TestInlineWildcards(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1049,7 +1048,6 @@ func TestInlineWildcards(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -1081,7 +1079,6 @@ func TestInlineWildcards(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -1099,12 +1096,15 @@ func TestInlineWildcards(t *testing.T) {
               }
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -1119,7 +1119,6 @@ func TestInlineWildcards(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1129,7 +1128,6 @@ func TestInlineWildcards(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -1161,7 +1159,6 @@ func TestInlineWildcards(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -1179,12 +1176,15 @@ func TestInlineWildcards(t *testing.T) {
               }
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -1199,7 +1199,6 @@ func TestInlineWildcards(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1209,7 +1208,6 @@ func TestInlineWildcards(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -1241,7 +1239,6 @@ func TestInlineWildcards(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -1259,12 +1256,15 @@ func TestInlineWildcards(t *testing.T) {
               }
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -1279,7 +1279,6 @@ func TestInlineWildcards(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1289,7 +1288,6 @@ func TestInlineWildcards(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -1305,7 +1303,6 @@ func TestInlineWildcards(t *testing.T) {
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -1323,12 +1320,15 @@ func TestInlineWildcards(t *testing.T) {
               }
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -1343,7 +1343,6 @@ func TestInlineWildcards(t *testing.T) {
     "createdat": "2025-01-01T12:00:02Z",
     "modifiedat": "2025-01-01T12:00:02Z",
 
-    "filesurl": "http://localhost:8181/dirs/d1/files",
     "files": {
       "f1": {
         "fileid": "f1",
@@ -1359,7 +1358,6 @@ func TestInlineWildcards(t *testing.T) {
 
         "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
 
-        "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
         "versions": {
           "v1": {
             "fileid": "f1",
@@ -1377,9 +1375,11 @@ func TestInlineWildcards(t *testing.T) {
             }
           }
         },
+        "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
         "versionscount": 1
       }
     },
+    "filesurl": "http://localhost:8181/dirs/d1/files",
     "filescount": 1
   }
 }
@@ -1395,7 +1395,6 @@ func TestInlineWildcards(t *testing.T) {
     "createdat": "2025-01-01T12:00:02Z",
     "modifiedat": "2025-01-01T12:00:02Z",
 
-    "filesurl": "http://localhost:8181/dirs/d1/files",
     "files": {
       "f1": {
         "fileid": "f1",
@@ -1427,7 +1426,6 @@ func TestInlineWildcards(t *testing.T) {
           "defaultversionsticky": false
         },
 
-        "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
         "versions": {
           "v1": {
             "fileid": "f1",
@@ -1445,9 +1443,11 @@ func TestInlineWildcards(t *testing.T) {
             }
           }
         },
+        "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
         "versionscount": 1
       }
     },
+    "filesurl": "http://localhost:8181/dirs/d1/files",
     "filescount": 1
   }
 }
@@ -1462,7 +1462,6 @@ func TestInlineWildcards(t *testing.T) {
   "createdat": "2025-01-01T12:00:02Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "filesurl": "http://localhost:8181/dirs/d1/files",
   "files": {
     "f1": {
       "fileid": "f1",
@@ -1478,7 +1477,6 @@ func TestInlineWildcards(t *testing.T) {
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
 
-      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
       "versions": {
         "v1": {
           "fileid": "f1",
@@ -1496,9 +1494,11 @@ func TestInlineWildcards(t *testing.T) {
           }
         }
       },
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
       "versionscount": 1
     }
   },
+  "filesurl": "http://localhost:8181/dirs/d1/files",
   "filescount": 1
 }
 `)
@@ -1512,7 +1512,6 @@ func TestInlineWildcards(t *testing.T) {
   "createdat": "2025-01-01T12:00:02Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "filesurl": "http://localhost:8181/dirs/d1/files",
   "files": {
     "f1": {
       "fileid": "f1",
@@ -1544,7 +1543,6 @@ func TestInlineWildcards(t *testing.T) {
         "defaultversionsticky": false
       },
 
-      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
       "versions": {
         "v1": {
           "fileid": "f1",
@@ -1562,9 +1560,11 @@ func TestInlineWildcards(t *testing.T) {
           }
         }
       },
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
       "versionscount": 1
     }
   },
+  "filesurl": "http://localhost:8181/dirs/d1/files",
   "filescount": 1
 }
 `)
@@ -1827,8 +1827,8 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
 }
 `)
@@ -1842,8 +1842,8 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
 }
 `)
@@ -1857,8 +1857,8 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
 }
 `)
@@ -1872,8 +1872,8 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
 }
 `)
@@ -1887,8 +1887,8 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
 }
 `)
@@ -1915,7 +1915,6 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1925,11 +1924,12 @@ func TestInlineEmpty(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {},
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -1943,7 +1943,6 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1957,6 +1956,7 @@ func TestInlineEmpty(t *testing.T) {
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -1970,7 +1970,6 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1980,11 +1979,12 @@ func TestInlineEmpty(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {},
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -1998,7 +1998,6 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2008,11 +2007,12 @@ func TestInlineEmpty(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {},
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -2026,7 +2026,6 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2036,11 +2035,12 @@ func TestInlineEmpty(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {},
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -2054,8 +2054,8 @@ func TestInlineEmpty(t *testing.T) {
     "createdat": "2025-01-01T12:00:02Z",
     "modifiedat": "2025-01-01T12:00:02Z",
 
-    "filesurl": "http://localhost:8181/dirs/d1/files",
     "files": {},
+    "filesurl": "http://localhost:8181/dirs/d1/files",
     "filescount": 0
   }
 }
@@ -2069,8 +2069,8 @@ func TestInlineEmpty(t *testing.T) {
   "createdat": "2025-01-01T12:00:02Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "filesurl": "http://localhost:8181/dirs/d1/files",
   "files": {},
+  "filesurl": "http://localhost:8181/dirs/d1/files",
   "filescount": 0
 }
 `)

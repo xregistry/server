@@ -219,7 +219,6 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versions": {
       "v1": {
         "fileid": "f1",
@@ -235,6 +234,7 @@ func TestXrefBasic(t *testing.T) {
         "ancestorid": "v1"
       }
     },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   },
   "fx": {
@@ -266,7 +266,6 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versions": {
       "v1": {
         "fileid": "fx",
@@ -282,6 +281,7 @@ func TestXrefBasic(t *testing.T) {
         "ancestorid": "v1"
       }
     },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versionscount": 1
   }
 }
@@ -333,7 +333,6 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versions": {
       "v1": {
         "fileid": "f1",
@@ -349,6 +348,7 @@ func TestXrefBasic(t *testing.T) {
         "ancestorid": "v1"
       }
     },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   },
   "fx": {
@@ -377,7 +377,6 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versions": {
       "1": {
         "fileid": "fx",
@@ -391,6 +390,7 @@ func TestXrefBasic(t *testing.T) {
         "ancestorid": "1"
       }
     },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versionscount": 1
   }
 }
@@ -433,7 +433,6 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versions": {
       "v1": {
         "fileid": "f1",
@@ -449,6 +448,7 @@ func TestXrefBasic(t *testing.T) {
         "ancestorid": "v1"
       }
     },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   },
   "fx": {
@@ -480,7 +480,6 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versions": {
       "v1": {
         "fileid": "fx",
@@ -496,6 +495,7 @@ func TestXrefBasic(t *testing.T) {
         "ancestorid": "v1"
       }
     },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versionscount": 1
   }
 }
@@ -536,7 +536,6 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versions": {
       "v1": {
         "fileid": "f1",
@@ -552,6 +551,7 @@ func TestXrefBasic(t *testing.T) {
         "ancestorid": "v1"
       }
     },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
     "versionscount": 1
   },
   "fx": {
@@ -582,7 +582,6 @@ func TestXrefBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versions": {
       "1": {
         "fileid": "fx",
@@ -598,6 +597,7 @@ func TestXrefBasic(t *testing.T) {
         "ancestorid": "1"
       }
     },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
     "versionscount": 1
   }
 }

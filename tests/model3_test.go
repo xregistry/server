@@ -893,13 +893,6 @@ func TestModelResourceAttrs(t *testing.T) {
               "name": "rstring",
               "type": "string"
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -909,6 +902,13 @@ func TestModelResourceAttrs(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -1505,13 +1505,6 @@ func TestModelResourceAttrs(t *testing.T) {
               "name": "myattr",
               "type": "string"
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -1521,6 +1514,13 @@ func TestModelResourceAttrs(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -2436,13 +2436,6 @@ func TestModelFullModel(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
-              "metaurl": {
-                "name": "metaurl",
-                "type": "url",
-                "readonly": true,
-                "immutable": true,
-                "required": true
-              },
               "meta": {
                 "name": "meta",
                 "type": "object",
@@ -2452,6 +2445,13 @@ func TestModelFullModel(t *testing.T) {
                     "type": "any"
                   }
                 }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "versionsurl": {
                 "name": "versionsurl",
@@ -2608,7 +2608,6 @@ func TestModelFullModel(t *testing.T) {
     }
   },
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2626,7 +2625,6 @@ func TestModelFullModel(t *testing.T) {
       "modifiedat": "2026-01-02T12:02:02Z",
       "gext1": "d1 ext 1",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -2672,7 +2670,6 @@ func TestModelFullModel(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -2695,12 +2692,15 @@ func TestModelFullModel(t *testing.T) {
               "vext1": false
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `, NOMASK_TS)
@@ -3039,8 +3039,8 @@ func TestModelSourceSpecCompliance(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
 }
 `)

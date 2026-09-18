@@ -1030,13 +1030,6 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -1046,6 +1039,13 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -1839,7 +1839,6 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
   "createdat": "2026-06-22T20:37:39.962543564Z",
   "modifiedat": "2026-06-22T20:37:39.977265265Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1850,7 +1849,6 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
       "modifiedat": "2026-06-22T20:37:39.977265265Z",
       "gstr": "foo",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -1874,9 +1872,11 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -4130,7 +4130,6 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
   "modifiedat": "2026-07-27T00:26:08.943866833Z",
   "gattr": "x",
 
-  "filesurl": "http://localhost:8181/dirs/d1/files",
   "files": {
     "t1": {
       "fileid": "t1",
@@ -4150,6 +4149,7 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
       "versionscount": 1
     }
   },
+  "filesurl": "http://localhost:8181/dirs/d1/files",
   "filescount": 1
 }
 `)
@@ -4208,7 +4208,6 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
   "modifiedat": "2026-07-27T00:26:15.060297738Z",
   "gattr": "z",
 
-  "filesurl": "http://localhost:8181/dirs/d1/files",
   "files": {
     "t1": {
       "fileid": "t1",
@@ -4228,6 +4227,7 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
       "versionscount": 1
     }
   },
+  "filesurl": "http://localhost:8181/dirs/d1/files",
   "filescount": 1
 }
 `)

@@ -165,7 +165,6 @@ func TestExportBasic(t *testing.T) {
     }
   },
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -175,7 +174,6 @@ func TestExportBasic(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -197,7 +195,6 @@ func TestExportBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -230,6 +227,7 @@ func TestExportBasic(t *testing.T) {
               }
             }
           },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versionscount": 2
         },
         "fx": {
@@ -246,9 +244,11 @@ func TestExportBasic(t *testing.T) {
           }
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 2
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -269,7 +269,6 @@ func TestExportBasic(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -279,7 +278,6 @@ func TestExportBasic(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -301,7 +299,6 @@ func TestExportBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -334,6 +331,7 @@ func TestExportBasic(t *testing.T) {
               }
             }
           },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versionscount": 2
         },
         "fx": {
@@ -350,9 +348,11 @@ func TestExportBasic(t *testing.T) {
           }
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 2
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -958,13 +958,6 @@ func TestExportBasic(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
-              "metaurl": {
-                "name": "metaurl",
-                "type": "url",
-                "readonly": true,
-                "immutable": true,
-                "required": true
-              },
               "meta": {
                 "name": "meta",
                 "type": "object",
@@ -974,6 +967,13 @@ func TestExportBasic(t *testing.T) {
                     "type": "any"
                   }
                 }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "versionsurl": {
                 "name": "versionsurl",
@@ -1141,7 +1141,6 @@ func TestExportBasic(t *testing.T) {
     "createdat": "2025-01-01T12:00:02Z",
     "modifiedat": "2025-01-01T12:00:03Z",
 
-    "filesurl": "#/d1/files",
     "files": {
       "f1": {
         "fileid": "f1",
@@ -1163,7 +1162,6 @@ func TestExportBasic(t *testing.T) {
           "defaultversionsticky": false
         },
 
-        "versionsurl": "#/d1/files/f1/versions",
         "versions": {
           "v1": {
             "fileid": "f1",
@@ -1196,6 +1194,7 @@ func TestExportBasic(t *testing.T) {
             }
           }
         },
+        "versionsurl": "#/d1/files/f1/versions",
         "versionscount": 2
       },
       "fx": {
@@ -1212,6 +1211,7 @@ func TestExportBasic(t *testing.T) {
         }
       }
     },
+    "filesurl": "#/d1/files",
     "filescount": 2
   }
 }
@@ -1225,7 +1225,6 @@ func TestExportBasic(t *testing.T) {
   "createdat": "2025-01-01T12:00:02Z",
   "modifiedat": "2025-01-01T12:00:03Z",
 
-  "filesurl": "#/files",
   "files": {
     "f1": {
       "fileid": "f1",
@@ -1247,7 +1246,6 @@ func TestExportBasic(t *testing.T) {
         "defaultversionsticky": false
       },
 
-      "versionsurl": "#/files/f1/versions",
       "versions": {
         "v1": {
           "fileid": "f1",
@@ -1280,6 +1278,7 @@ func TestExportBasic(t *testing.T) {
           }
         }
       },
+      "versionsurl": "#/files/f1/versions",
       "versionscount": 2
     },
     "fx": {
@@ -1296,6 +1295,7 @@ func TestExportBasic(t *testing.T) {
       }
     }
   },
+  "filesurl": "#/files",
   "filescount": 2
 }
 `)
@@ -1321,7 +1321,6 @@ func TestExportBasic(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "#/f1/versions",
     "versions": {
       "v1": {
         "fileid": "f1",
@@ -1354,6 +1353,7 @@ func TestExportBasic(t *testing.T) {
         }
       }
     },
+    "versionsurl": "#/f1/versions",
     "versionscount": 2
   },
   "fx": {
@@ -1392,7 +1392,6 @@ func TestExportBasic(t *testing.T) {
     "defaultversionsticky": false
   },
 
-  "versionsurl": "#/versions",
   "versions": {
     "v1": {
       "fileid": "f1",
@@ -1425,6 +1424,7 @@ func TestExportBasic(t *testing.T) {
       }
     }
   },
+  "versionsurl": "#/versions",
   "versionscount": 2
 }
 `)
@@ -1553,7 +1553,6 @@ func TestExportBasic(t *testing.T) {
 
   "metaurl": "#/meta",
 
-  "versionsurl": "#/versions",
   "versions": {
     "v1": {
       "fileid": "f1",
@@ -1571,6 +1570,7 @@ func TestExportBasic(t *testing.T) {
       }
     }
   },
+  "versionsurl": "#/versions",
   "versionscount": 1,
   "meta": {
     "fileid": "f1",
@@ -1597,7 +1597,6 @@ func TestExportBasic(t *testing.T) {
 
   "metaurl": "#/meta",
 
-  "versionsurl": "#/versions",
   "versions": {
     "v2": {
       "fileid": "f1",
@@ -1615,6 +1614,7 @@ func TestExportBasic(t *testing.T) {
       }
     }
   },
+  "versionsurl": "#/versions",
   "versionscount": 1,
   "meta": {
     "fileid": "f1",
@@ -1650,7 +1650,6 @@ func TestExportBasic(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1660,7 +1659,6 @@ func TestExportBasic(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -1669,7 +1667,6 @@ func TestExportBasic(t *testing.T) {
 
           "metaurl": "#/dirs/d1/files/f1/meta",
 
-          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "v2": {
               "fileid": "f1",
@@ -1687,6 +1684,7 @@ func TestExportBasic(t *testing.T) {
               }
             }
           },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versionscount": 1,
           "meta": {
             "fileid": "f1",
@@ -1716,9 +1714,11 @@ func TestExportBasic(t *testing.T) {
           }
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 2
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -1753,7 +1753,6 @@ func TestExportBasic(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1763,7 +1762,6 @@ func TestExportBasic(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "fx": {
           "fileid": "fx",
@@ -1779,9 +1777,11 @@ func TestExportBasic(t *testing.T) {
           }
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2143,8 +2143,8 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {},
+  "dirsurl": "#/dirs",
   "dirscount": 0
 }
 `)
@@ -2160,7 +2160,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2176,6 +2175,7 @@ func TestExportURLs(t *testing.T) {
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2189,8 +2189,8 @@ func TestExportURLs(t *testing.T) {
     "createdat": "2025-01-01T12:00:02Z",
     "modifiedat": "2025-01-01T12:00:02Z",
 
-    "filesurl": "#/d1/files",
     "files": {},
+    "filesurl": "#/d1/files",
     "filescount": 0,
     "schemasurl": "http://localhost:8181/dirs/d1/schemas",
     "schemascount": 0
@@ -2207,7 +2207,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2217,13 +2216,14 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {},
+      "filesurl": "#/dirs/d1/files",
       "filescount": 0,
       "schemasurl": "http://localhost:8181/dirs/d1/schemas",
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2256,7 +2256,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2266,7 +2265,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -2279,11 +2277,13 @@ func TestExportURLs(t *testing.T) {
           "versionscount": 1
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 1,
       "schemasurl": "http://localhost:8181/dirs/d1/schemas",
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2297,7 +2297,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2307,7 +2306,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -2333,11 +2331,13 @@ func TestExportURLs(t *testing.T) {
           "versionscount": 1
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 1,
       "schemasurl": "http://localhost:8181/dirs/d1/schemas",
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2351,7 +2351,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2361,7 +2360,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -2370,7 +2368,6 @@ func TestExportURLs(t *testing.T) {
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
 
-          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
               "fileid": "f1",
@@ -2384,14 +2381,17 @@ func TestExportURLs(t *testing.T) {
               "ancestorid": "1"
             }
           },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 1,
       "schemasurl": "http://localhost:8181/dirs/d1/schemas",
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2405,7 +2405,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2415,7 +2414,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -2437,7 +2435,6 @@ func TestExportURLs(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
               "fileid": "f1",
@@ -2451,14 +2448,17 @@ func TestExportURLs(t *testing.T) {
               "ancestorid": "1"
             }
           },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 1,
       "schemasurl": "http://localhost:8181/dirs/d1/schemas",
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2484,7 +2484,6 @@ func TestExportURLs(t *testing.T) {
       "defaultversionsticky": false
     },
 
-    "versionsurl": "#/f1/versions",
     "versions": {
       "1": {
         "fileid": "f1",
@@ -2498,6 +2497,7 @@ func TestExportURLs(t *testing.T) {
         "ancestorid": "1"
       }
     },
+    "versionsurl": "#/f1/versions",
     "versionscount": 1
   }
 }
@@ -2538,7 +2538,6 @@ func TestExportURLs(t *testing.T) {
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
 
-    "versionsurl": "#/f1/versions",
     "versions": {
       "1": {
         "fileid": "f1",
@@ -2552,6 +2551,7 @@ func TestExportURLs(t *testing.T) {
         "ancestorid": "1"
       }
     },
+    "versionsurl": "#/f1/versions",
     "versionscount": 1
   }
 }
@@ -2566,7 +2566,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2576,7 +2575,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -2602,11 +2600,13 @@ func TestExportURLs(t *testing.T) {
           "versionscount": 1
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 1,
       "schemasurl": "http://localhost:8181/dirs/d1/schemas",
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2620,7 +2620,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2630,7 +2629,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -2639,7 +2637,6 @@ func TestExportURLs(t *testing.T) {
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
 
-          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
               "fileid": "f1",
@@ -2653,14 +2650,17 @@ func TestExportURLs(t *testing.T) {
               "ancestorid": "1"
             }
           },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 1,
       "schemasurl": "http://localhost:8181/dirs/d1/schemas",
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2737,7 +2737,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2747,7 +2746,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:03Z",
 
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -2769,7 +2767,6 @@ func TestExportURLs(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
               "fileid": "f1",
@@ -2783,6 +2780,7 @@ func TestExportURLs(t *testing.T) {
               "ancestorid": "1"
             }
           },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
           "versionscount": 1
         },
         "fx": {
@@ -2799,12 +2797,14 @@ func TestExportURLs(t *testing.T) {
           }
         }
       },
+      "filesurl": "#/dirs/d1/files",
       "filescount": 2,
-      "schemasurl": "#/dirs/d1/schemas",
       "schemas": {},
+      "schemasurl": "#/dirs/d1/schemas",
       "schemascount": 0
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 1
 }
 `)
@@ -2877,7 +2877,6 @@ func TestExportNoDoc(t *testing.T) {
     "defaultversionsticky": false
   },
 
-  "versionsurl": "#/versions",
   "versions": {
     "v1": {
       "fileid": "f1",
@@ -2891,6 +2890,7 @@ func TestExportNoDoc(t *testing.T) {
       "ancestorid": "v1"
     }
   },
+  "versionsurl": "#/versions",
   "versionscount": 1
 }
 `)
@@ -2976,7 +2976,6 @@ func TestExportImportModel(t *testing.T) {
   "modifiedat": "2026-06-29T21:14:59.433057599Z",
   "ext": 666,
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -2986,7 +2985,6 @@ func TestExportImportModel(t *testing.T) {
       "createdat": "2026-06-29T21:14:59.433057599Z",
       "modifiedat": "2026-06-29T21:14:59.433057599Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -3017,7 +3015,6 @@ func TestExportImportModel(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "1": {
               "fileid": "f1",
@@ -3034,12 +3031,15 @@ func TestExportImportModel(t *testing.T) {
               "test": "d1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)

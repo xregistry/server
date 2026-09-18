@@ -95,7 +95,6 @@ func TestTimestampRegistry(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:03Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -105,7 +104,6 @@ func TestTimestampRegistry(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:03Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -133,7 +131,6 @@ func TestTimestampRegistry(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -147,12 +144,15 @@ func TestTimestampRegistry(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)

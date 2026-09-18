@@ -497,13 +497,6 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -513,6 +506,13 @@ func TestModelLabels(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -1131,13 +1131,6 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -1147,6 +1140,13 @@ func TestModelLabels(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -1800,13 +1800,6 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -1816,6 +1809,13 @@ func TestModelLabels(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -3130,13 +3130,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
-              "metaurl": {
-                "name": "metaurl",
-                "type": "url",
-                "readonly": true,
-                "immutable": true,
-                "required": true
-              },
               "meta": {
                 "name": "meta",
                 "type": "object",
@@ -3146,6 +3139,13 @@ func TestModelUseSpecAttrs(t *testing.T) {
                     "type": "any"
                   }
                 }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "versionsurl": {
                 "name": "versionsurl",
@@ -3468,7 +3468,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
     }
   },
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -3518,7 +3517,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "xref": 4
       },
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -3632,7 +3630,6 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -3689,12 +3686,15 @@ func TestModelUseSpecAttrs(t *testing.T) {
               }
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -4262,13 +4262,6 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -4278,6 +4271,13 @@ func TestModelCompatibleWith(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -4594,13 +4594,6 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -4610,6 +4603,13 @@ func TestModelCompatibleWith(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -4925,13 +4925,6 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -4941,6 +4934,13 @@ func TestModelCompatibleWith(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -5922,13 +5922,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -5938,6 +5931,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -6584,13 +6584,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -6600,6 +6593,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -7063,13 +7063,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -7079,6 +7072,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -7815,13 +7815,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -7831,6 +7824,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -8294,13 +8294,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -8310,6 +8303,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -8949,13 +8949,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -8965,6 +8958,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -9428,13 +9428,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -9444,6 +9437,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -10083,13 +10083,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -10099,6 +10092,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -10562,13 +10562,6 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -10578,6 +10571,13 @@ func TestModelIncludes(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -11305,13 +11305,6 @@ func TestModelMissingFields(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -11321,6 +11314,13 @@ func TestModelMissingFields(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",

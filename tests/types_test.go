@@ -675,7 +675,6 @@ func TestTypesBasic(t *testing.T) {
   "reguint1": 0,
   "reguint2": 333,
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -696,7 +695,6 @@ func TestTypesBasic(t *testing.T) {
       "dirstring1": "str2",
       "dirstring2": "",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -740,7 +738,6 @@ func TestTypesBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -770,9 +767,11 @@ func TestTypesBasic(t *testing.T) {
               "xidtype2": "/dirs/files/versions"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     },
     "dir2": {
@@ -789,11 +788,12 @@ func TestTypesBasic(t *testing.T) {
       "dirmapint": {},
       "dirobj": {},
 
-      "filesurl": "http://localhost:8181/dirs/dir2/files",
       "files": {},
+      "filesurl": "http://localhost:8181/dirs/dir2/files",
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 2
 }
 `)
