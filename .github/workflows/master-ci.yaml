@@ -43,11 +43,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: build, test, push
-        run: make mysql test benchmark push
-
-      - name: build cmds for all platforms
-        run: make cmds-all
+      - name: build, test, push, build for all platforms
+        run: make master
 
       - name: push all cmds to the 'dev' release
         uses: ncipollo/release-action@v1

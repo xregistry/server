@@ -1,5 +1,11 @@
 all: mysql cmds docs test xreg images run
 
+# Run for each PR
+pr: mysql cmds docs test xreg nodiff images benchmark
+
+# Run on 'master' change
+master: pr push cmds-all
+
 MAKEFLAGS  += --no-print-directory
 SHELL      := /bin/bash -o pipefail
 
@@ -40,6 +46,11 @@ TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep 
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
+
+nodiff:
+	@git diff --name-only --exit-code HEAD || \
+		(echo "There are uncommitted changes! Missed generated files?" ; \
+		exit 1)
 
 cmds: .cmds
 .cmds: xrserver xr
@@ -149,12 +160,12 @@ registry/ui/xreg/index.html: cmds/xrserver/test-reg.json xrserver xr
 	@echo
 	@echo "# Regenerating the xreg static site"
 	@-pkill -f "[x]rserver.*8181" || true
-	@xrserver -p 8181 -r HardCoded --recreatereg --rootapp=xreg &
+	@./xrserver -p 8181 -r HardCoded --recreatereg --rootapp=xreg &
 	@sleep 1
-	@xr -s localhost:8181 update / -d @cmds/xrserver/test-reg.json
+	@./xr -s localhost:8181 update / -d @cmds/xrserver/test-reg.json
 	@rm -rf registry/ui/xreg/*
-	@cd registry/ui/xreg && ../../../misc/errOutput @xr -s localhost:8181 \
-		download . --nodiff=* --all -c -u '$$HOST/ui/xreg'
+	@misc/errOutput @./xr -s localhost:8181 \
+		download registry/ui/xreg --nodiff=* --all -c -u '$$HOST/ui/xreg'
 	@pkill -f xrserver.*8181
 
 docs: docs/xr_help.md docs/xrserver_help.md
