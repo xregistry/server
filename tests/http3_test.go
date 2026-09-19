@@ -4957,9 +4957,10 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 
 	XNoErr(t, WaitForURL("http://localhost:8383"))
 
+	// Even when /ui is the UI, .xregistry should still work
 	res, xErr = CommonHttpDo("GET", "http://localhost:8383/.xregistry", nil, nil)
-	t.Logf("res.Code: %v", res.Code)
-	XEqual(t, "", res.Code, 404)
+	XNoErr(t, xErr)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
 
 	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xreg/.xregistry", nil, nil)
 	XNoErr(t, xErr)

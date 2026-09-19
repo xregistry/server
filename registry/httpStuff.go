@@ -153,7 +153,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		serveUI = true
 	}
 
-	if path == DefaultRegSegment ||
+	if path == ".xregistry" ||
+		path == DefaultRegSegment ||
 		strings.HasPrefix(path, DefaultRegSegment+"/") ||
 		path == RegCollectionSegment ||
 		strings.HasPrefix(path, RegCollectionSegment+"/") {
