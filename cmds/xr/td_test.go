@@ -191,7 +191,14 @@ Pass: 18   Fail: 0   Warn: 0   Skip: 0
 		t.Fatalf("Wrong conform output:\nExpected:\n%s\nGot:\n%s",
 			expected, out.String())
 	}
-	assertBaseConfigUnchanged(t, config, staleRegistry, staleRun)
+	if config.Registry != staleRegistry ||
+		config.NextStatus != FAIL ||
+		config.ConsoleDepth != 2 ||
+		len(config.TestRuns) != 1 ||
+		config.TestRuns[TestFn(TestTDInit).Name()] != staleRun {
+
+		t.Fatalf("Base TDConfig was mutated: %#v", config)
+	}
 }
 
 func TestRunConformPreservesNumericExitCodes(t *testing.T) {
@@ -373,24 +380,6 @@ func assertFailedDependency(
 	}
 	if !strings.HasSuffix(output, "Warn: 0   Skip: 0\n") {
 		t.Fatalf("Missing complete dependency summary:\n%s", output)
-	}
-}
-
-func assertBaseConfigUnchanged(
-	t *testing.T,
-	config *TDConfig,
-	registry *xrlib.Registry,
-	staleRun *TD,
-) {
-	t.Helper()
-
-	if config.Registry != registry ||
-		config.NextStatus != FAIL ||
-		config.ConsoleDepth != 2 ||
-		len(config.TestRuns) != 1 ||
-		config.TestRuns[TestFn(TestTDInit).Name()] != staleRun {
-
-		t.Fatalf("Base TDConfig was mutated: %#v", config)
 	}
 }
 
