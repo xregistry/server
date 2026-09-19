@@ -2339,7 +2339,7 @@ header.bar2: foo2`
 
 func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
 	const target = "http://localhost:8282/conform"
-	XCLI(t, "conform --skips "+target+" "+target, "", `PASS: http://localhost:8282/conform (skip:3)
+	cliResult := XCLI(t, "conform --skips -vvv "+target+" "+target, "", `PASS: http://localhost:8282/conform (skip:3)
 ├─ PASS: TestSniff
 ├─ PASS: TestModel
 ├─ PASS: TestCapabilities (skip:1)
@@ -2392,16 +2392,7 @@ PASS: http://localhost:8282/conform (skip:3)
    ├─ PASS: TestGroups (cached)
    └─ SKIP: No Group Types defined  - leaving
 Pass: 55   Fail: 0   Warn: 0   Skip: 3
-`, ``, true)
-
-	cmd := exec.Command("../xr", "conform", "-vvv", target, target)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Repeated-target conform run failed: %s\n%s", err, output)
-	}
-	if got := strings.Count(string(output), "PASS: "+target); got != 2 {
-		t.Fatalf("Expected two target results, got %d:\n%s", got, output)
-	}
+`, `*`, true)
 
 	for _, check := range []struct {
 		request string
@@ -2410,10 +2401,10 @@ Pass: 55   Fail: 0   Warn: 0   Skip: 3
 		{request: "Request: GET " + target + "/model", count: 4},
 		{request: "Request: GET " + target + "/capabilities", count: 4},
 	} {
-		got := strings.Count(string(output), check.request)
+		got := strings.Count(cliResult.Stderr, check.request)
 		if got != check.count {
 			t.Fatalf("%s logged %d times, expected %d:\n%s",
-				check.request, got, check.count, output)
+				check.request, got, check.count, cliResult.Stderr)
 		}
 	}
 }
