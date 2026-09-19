@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/xregistry/server/cmds/xr/xrlib"
+	. "github.com/xregistry/server/common"
 )
 
 func TestPrettyPrint(t *testing.T) {
@@ -148,13 +149,8 @@ func TestTDPrintUsesSuppliedWriter(t *testing.T) {
 └─ PASS: entry
 Pass: 2   Fail: 0   Warn: 0   Skip: 0
 `
-	if out.String() != expected {
-		t.Fatalf("Wrong writer output:\nExpected:\n%s\nGot:\n%s",
-			expected, out.String())
-	}
-	if stdout != "" {
-		t.Fatalf("TD.Print wrote outside the supplied writer: %q", stdout)
-	}
+	XEqual(t, "Writer Output", out.String(), expected)
+	XEqual(t, "Stdout", stdout, "")
 }
 
 func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
