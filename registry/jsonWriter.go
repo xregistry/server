@@ -143,6 +143,7 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 		if xErr != nil {
 			return "", xErr
 		}
+		extra = ","
 	} else {
 		// If we're not inlining this collection then just skip over any
 		// Entities in the result that are children, but count them (and
@@ -192,13 +193,8 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 			myAbstract, mask, maskOK)
 	}
 
-	if inlineCollection {
-		jw.Printf(",\n%s\"%surl\": %q,\n", jw.indent, myPlural,
-			baseURL+filterString)
-	} else {
-		jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.indent, myPlural,
-			baseURL+filterString)
-	}
+	jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.indent, myPlural,
+		baseURL+filterString)
 	jw.Printf("%s\"%scount\": %d", jw.indent, myPlural, count)
 
 	return ",", nil
@@ -687,12 +683,12 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 
 	if inlineCollection {
 		jw.Printf("%s\n%s\"%s\": {},\n", extra, jw.indent, collName)
-		jw.Printf("%s\"%surl\": \"%s%s%s%s\",\n", jw.indent, collName,
-			baseURL, path, collName, filterString)
+		extra = ""
 	} else {
-		jw.Printf("%s\n%s\"%surl\": \"%s%s%s%s\",\n", extra, jw.indent, collName,
-			baseURL, path, collName, filterString)
+		extra += "\n"
 	}
+	jw.Printf("%s%s\"%surl\": \"%s%s%s%s\",\n", extra, jw.indent,
+		collName, baseURL, path, collName, filterString)
 
 	jw.Printf("%s\"%scount\": 0", jw.indent, collName)
 	extra = ","

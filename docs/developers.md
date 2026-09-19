@@ -34,6 +34,9 @@ welcome from anyone.
   - The tooling utils (e.g. `XHTTP`) should mask most of the fields already
     by default (e.g. timestamps, error's `source` field).
 
+- If there are coding rules (or checks) that we want to enforce, and they're
+  automatable, add those checks to `cmds/xr/xrlint`.
+
 ### Pull Requests
 
 Simple guidelines for PRs:

@@ -374,15 +374,21 @@ func TestCanonicalPrettyPrintJSON_ResourceVersionsCollectionBodyFirst(t *testing
 	}
 	got := string(out)
 
-	idxVersions := strings.Index(got, `"versions"`)
-	idxVersionsURL := strings.Index(got, `"versionsurl"`)
-	idxVersionsCount := strings.Index(got, `"versionscount"`)
-	if idxVersions < 0 || idxVersionsURL < 0 || idxVersionsCount < 0 {
-		t.Fatalf("missing expected keys, got:\n%s", got)
-	}
-	if !(idxVersions < idxVersionsURL && idxVersionsURL < idxVersionsCount) {
-		t.Errorf("expected versions before versionsurl before versionscount, got:\n%s", got)
-	}
+	want := `{
+  "messageid": "r1",
+  "self": "http://example.com/r1",
+  "xid": "/groups/g1/resources/r1",
+
+  "versions": {
+    "1": {
+      "messageid": "r1",
+      "versionid": "1"
+    }
+  },
+  "versionsurl": "http://example.com/r1/versions",
+  "versionscount": 1
+}`
+	XEqual(t, "", got, want)
 }
 
 // TestCanonicalPrettyPrintJSON_ResourceVersionMirroredAttrs verifies that

@@ -1343,7 +1343,18 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 			// "stuff" rather than a dedicated struct field.
 			if len(row) > 13 {
 				if maskStr := NotNilString(row[13]); maskStr != "" {
-					if mask, err := strconv.ParseUint(maskStr, 10, 64); err == nil && mask != 0 {
+					mask, err := strconv.ParseUint(maskStr, 10, 64)
+					if err != nil {
+						// FilterMask is always the result of
+						// CAST(...AS CHAR) on a BIGINT UNSIGNED (or
+						// the literal '0') on the SQL side, so this
+						// should never fail - if it does, something
+						// is seriously wrong
+						panic(fmt.Sprintf(
+							"error parsing FilterMask: %q: %s",
+							maskStr, err))
+					}
+					if mask != 0 {
 						entity.SetStuff("filterMask", mask)
 					}
 				}
