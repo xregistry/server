@@ -25,6 +25,7 @@ func conformFunc(cmd *cobra.Command, args []string) {
 		// FailFast:   false,
 		IgnoreWarn: true,
 		NextStatus: 0,
+		Out:        os.Stdout,
 		// ShowSkips:  false,
 		// ShowWarns:  false,
 		// ShowLogs:   false, // EnvBool("XR_SHOWLOGS", false)
@@ -37,27 +38,43 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	config.ConsoleDepth, _ = cmd.Flags().GetInt("depth")
 	config.RunFunc, _ = cmd.Flags().GetString("run")
 
+	rc := runConform(servers, config)
+	if rc != 0 {
+		os.Exit(rc)
+	}
+}
+
+func runConform(servers []string, config *TDConfig) int {
+	out := config.Out
+	if out == nil {
+		out = os.Stdout
+	}
+
 	rc := 0
 	for i, server := range servers {
 		// Create new config for each server tested
 		nextConfig := *config
 		nextConfig.Server = server
+		nextConfig.Registry = nil
+		nextConfig.Model = nil
+		nextConfig.Capabilities = nil
+		nextConfig.NextStatus = 0
+		nextConfig.Out = out
 		nextConfig.TestRuns = map[string]*TD{}
 
 		if i != 0 {
-			fmt.Printf("\n")
+			fmt.Fprintln(out)
 		}
 
-		rc = rc + testServer(&nextConfig)
-
-		if rc != 0 && nextConfig.FailFast {
-			break
+		if testServer(&nextConfig) != 0 {
+			rc = 1
+			if nextConfig.FailFast {
+				break
+			}
 		}
 	}
 
-	if rc != 0 {
-		os.Exit(rc)
-	}
+	return rc
 }
 
 func testServer(config *TDConfig) int {
@@ -67,20 +84,15 @@ func testServer(config *TDConfig) int {
 	defer func() {
 		// Print the results
 		// td.Dump("")
-		if config.ConsoleDepth <= 0 {
+		printDepth := config.ConsoleDepth
+		if printDepth <= 0 {
 			// Can't actually do zero, so zero = -1 (all)
-			config.ConsoleDepth = 9999999
+			printDepth = 9999999
 		}
-		td.Print(os.Stdout, "", config.ConsoleDepth-1)
+		td.Print(config.Out, "", printDepth-1)
 	}()
 
-	reg, xErr := xrlib.GetRegistry(config.Server)
-	if xErr != nil {
-		td.Fail(xErr.GetTitle())
-		return td.ExitCode()
-	}
-
-	td.SetRegistry(reg)
+	td.SetRegistry(xrlib.DefineRegistry(config.Server))
 
 	if config.RunFunc == "" {
 		td.Include(TestRegistry)

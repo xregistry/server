@@ -2337,6 +2337,141 @@ header.bar2: foo2`
 `, true, MASK_LOGS)
 }
 
+func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
+	const target = "http://localhost:8282/conform"
+	cliResult := XCLI(t, "conform --skips -vvv "+target+" "+target, "", `PASS: http://localhost:8282/conform (skip:3)
+├─ PASS: TestSniff
+├─ PASS: TestModel
+├─ PASS: TestCapabilities (skip:1)
+│  ├─ PASS: capabilities.available MUST include "capabilities"
+│  ├─ PASS: capabilities.available MUST include "entities"
+│  ├─ PASS: capabilities.available MUST include "model"
+│  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+│  ├─ PASS: 'GET /capabilities' MUST return 200
+│  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+│  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+│  ├─ PASS: 'GET /' MUST return 200
+│  ├─ PASS: 'GET /' MUST return a non-empty body
+│  ├─ PASS: 'GET /' MUST return a JSON body
+│  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+│  ├─ PASS: Testing ?inline=capabilities (skip:1)
+│  │  └─ SKIP: ?inline not supported
+├─ PASS: TestRegistryRoot
+├─ PASS: TestGroups (skip:1)
+│  ├─ PASS: TestModel (cached)
+│  ├─ PASS: TestCapabilities (cached)
+│  └─ SKIP: No Group Types defined - leaving
+└─ PASS: TestResources (skip:1)
+   ├─ PASS: TestGroups (cached)
+   └─ SKIP: No Group Types defined  - leaving
+Pass: 55   Fail: 0   Warn: 0   Skip: 3
+
+PASS: http://localhost:8282/conform (skip:3)
+├─ PASS: TestSniff
+├─ PASS: TestModel
+├─ PASS: TestCapabilities (skip:1)
+│  ├─ PASS: capabilities.available MUST include "capabilities"
+│  ├─ PASS: capabilities.available MUST include "entities"
+│  ├─ PASS: capabilities.available MUST include "model"
+│  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+│  ├─ PASS: 'GET /capabilities' MUST return 200
+│  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+│  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+│  ├─ PASS: 'GET /' MUST return 200
+│  ├─ PASS: 'GET /' MUST return a non-empty body
+│  ├─ PASS: 'GET /' MUST return a JSON body
+│  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+│  ├─ PASS: Testing ?inline=capabilities (skip:1)
+│  │  └─ SKIP: ?inline not supported
+├─ PASS: TestRegistryRoot
+├─ PASS: TestGroups (skip:1)
+│  ├─ PASS: TestModel (cached)
+│  ├─ PASS: TestCapabilities (cached)
+│  └─ SKIP: No Group Types defined - leaving
+└─ PASS: TestResources (skip:1)
+   ├─ PASS: TestGroups (cached)
+   └─ SKIP: No Group Types defined  - leaving
+Pass: 55   Fail: 0   Warn: 0   Skip: 3
+`, `*`, true)
+
+	for _, check := range []struct {
+		request string
+		count   int
+	}{
+		{request: "Request: GET " + target + "/model", count: 4},
+		{request: "Request: GET " + target + "/capabilities", count: 4},
+	} {
+		got := strings.Count(cliResult.Stderr, check.request)
+		if got != check.count {
+			t.Fatalf("%s logged %d times, expected %d:\n%s",
+				check.request, got, check.count, cliResult.Stderr)
+		}
+	}
+}
+
+func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
+	const target = "http://localhost:8282/conform-error"
+	XCLI(t, "conform --run TestTDUtils -d0 "+target, "", `FAIL: http://localhost:8282/conform-error
+└─ FAIL: TestTDUtils
+   ├─ ==== PASSing tests ====
+   ├─ PASS: 'GET /' MUST return 200
+   ├─ PASS: 'GET /' MUST return a non-empty body
+   ├─ PASS: 'GET /' MUST return a JSON body
+   ├─ PASS: "specversion" (1.0-rc4) MUST = "1.0-rc4"
+   ├─ PASS: "registryid" (conform-error) MUST != ""
+   ├─ PASS: "self" (http://localhost:8282/conform-error/) MUST != ""
+   ├─ PASS: "xid" (/) MUST = "/"
+   ├─ PASS: "epoch" (1) MUST >= 0
+   ├─ PASS: "createdat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
+   ├─ PASS: "modifiedat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
+   ├─ Unexpected error: There was an error parsing "/capabilities": unexpected
+   │  end of JSON input.
+   └─ FAIL: Retrieving capabilities MUST work
+Pass: 10   Fail: 3   Warn: 0   Skip: 0
+`, ``, false)
+}
+
+func TestXRConformFailureExitCode(t *testing.T) {
+	result := XCLI(t,
+		"conform --run TestTDDepFail -d0 "+
+			"http://one.example http://two.example",
+		"",
+		`FAIL: http://one.example
+└─ FAIL: TestTDDepFail
+   ├─ FAIL: TestTDInitFail
+   │  └─ FAIL: Init
+   └─ Dependency "TestTDInitFail" failed, leaving
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+
+FAIL: http://two.example
+└─ FAIL: TestTDDepFail
+   ├─ FAIL: TestTDInitFail
+   │  └─ FAIL: Init
+   └─ Dependency "TestTDInitFail" failed, leaving
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+`,
+		"",
+		false,
+	)
+	XEqual(t, "Exit Code", result.Code, 1)
+
+	result = XCLI(t,
+		"conform --run TestTDDepFail -d0 --failfast "+
+			"http://one.example http://two.example",
+		"",
+		`FAIL: http://one.example
+└─ FAIL: TestTDDepFail
+   ├─ FAIL: TestTDInitFail
+   │  └─ FAIL: Init
+   └─ Dependency "TestTDInitFail" failed, leaving
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+`,
+		"",
+		false,
+	)
+	XEqual(t, "Failfast Exit Code", result.Code, 1)
+}
+
 func TestXRConformBasic(t *testing.T) {
 	reg := NewRegistry("TestXRConformBasic")
 	defer PassDeleteReg(t, reg)
