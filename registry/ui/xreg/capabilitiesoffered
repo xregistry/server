@@ -227,7 +227,9 @@
     "type": "array",
     "enum": [
       "createdat",
-      "manual"
+      "manual",
+      "modifiedat",
+      "semver"
     ],
     "item": {
       "type": "string"

@@ -13,4 +13,4 @@ jobs:
         run: env | sort
 
       - name: build, test
-        run: make mysql test benchmark
+        run: make pr
