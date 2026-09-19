@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -218,20 +217,24 @@ func TestFailedDependenciesPropagateConsistently(t *testing.T) {
 	cachedDependent := cachedRoot.Run(dependencyCaller)
 	cached := renderTD(cachedRoot)
 
-	assertFailedDependency(
-		t,
-		freshRoot,
-		freshDependent,
-		fresh,
-		false,
-	)
-	assertFailedDependency(
-		t,
-		cachedRoot,
-		cachedDependent,
-		cached,
-		true,
-	)
+	XEqual(t, "Fresh Root Status", freshRoot.Status, FAIL)
+	XEqual(t, "Fresh Dependent Status", freshDependent.Status, FAIL)
+	XEqual(t, "Fresh Dependency Output", fresh, `FAIL: fresh
+└─ FAIL: dependencyCaller
+   ├─ FAIL: dependencyFailure
+   │  └─ FAIL: dependency failed
+   └─ Dependency "com/xregistry/server/cmds/xr.dependencyFailure" failed, leaving
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+`)
+
+	XEqual(t, "Cached Root Status", cachedRoot.Status, FAIL)
+	XEqual(t, "Cached Dependent Status", cachedDependent.Status, FAIL)
+	XEqual(t, "Cached Dependency Output", cached, `FAIL: cached
+└─ FAIL: dependencyCaller
+   ├─ FAIL: com/xregistry/server/cmds/xr.dependencyFailure (cached)
+   └─ Dependency "com/xregistry/server/cmds/xr.dependencyFailure" failed, leaving
+Pass: 0   Fail: 3   Warn: 0   Skip: 0
+`)
 }
 
 func TestConformanceStateErrorRendersCompleteResult(t *testing.T) {
@@ -245,12 +248,12 @@ func TestConformanceStateErrorRendersCompleteResult(t *testing.T) {
 	td.Run(TestResources)
 
 	got := renderTD(td)
-	assertCompleteTargetResult(
-		t,
-		got,
-		target,
-		"reg.stuff.gm != *GroupModel",
-	)
+	XEqual(t, "State Error Output", got, `FAIL: http://example.com
+└─ FAIL: TestResources
+   ├─ PASS: com/xregistry/server/cmds/xr.TestGroups (cached)
+   └─ FAIL: reg.stuff.gm != *GroupModel
+Pass: 1   Fail: 3   Warn: 0   Skip: 0
+`)
 }
 
 func dependencyFailure(td *TD) {
@@ -281,67 +284,6 @@ func cachePassedTest(td *TD, fn TestFn) {
 	cached := NewTD(nil, fn.Name())
 	cached.Config = td.Config
 	td.Config.TestRuns[fn.Name()] = cached
-}
-
-func assertFailedDependency(
-	t *testing.T,
-	root *TD,
-	dependent *TD,
-	output string,
-	cached bool,
-) {
-	t.Helper()
-
-	if root.Status != FAIL || dependent.Status != FAIL {
-		t.Fatalf("Dependency failure did not propagate: root=%s child=%s",
-			StatusText[root.Status], StatusText[dependent.Status])
-	}
-	dependencyName := TestFn(dependencyFailure).Name()
-	if !strings.Contains(
-		output,
-		fmt.Sprintf("Dependency %q failed, leaving", dependencyName),
-	) {
-		t.Fatalf("Missing dependency stop diagnostic:\n%s", output)
-	}
-	if strings.Contains(output, "unreachable") {
-		t.Fatalf("Dependent continued after failed dependency:\n%s", output)
-	}
-
-	cacheText := dependencyName
-	if cached {
-		cacheText += " (cached)"
-	} else if _, displayName, ok := strings.Cut(
-		dependencyName,
-		".",
-	); ok {
-		cacheText = displayName
-	}
-	if !strings.Contains(output, "FAIL: "+cacheText) {
-		t.Fatalf("Missing failed dependency result:\n%s", output)
-	}
-	if !strings.HasSuffix(output, "Warn: 0   Skip: 0\n") {
-		t.Fatalf("Missing complete dependency summary:\n%s", output)
-	}
-}
-
-func assertCompleteTargetResult(
-	t *testing.T,
-	got string,
-	target string,
-	diagnostic string,
-) {
-	t.Helper()
-
-	if !strings.HasPrefix(got, "FAIL: "+target+"\n") {
-		t.Fatalf("Missing failed target header:\n%s", got)
-	}
-	if !strings.Contains(got, diagnostic) {
-		t.Fatalf("Missing diagnostic %q:\n%s", diagnostic, got)
-	}
-	summary := strings.LastIndex(got, "\nPass: ")
-	if summary < 0 || !strings.HasSuffix(got, "\n") {
-		t.Fatalf("Missing complete target summary:\n%s", got)
-	}
 }
 
 func captureTestStdout(t *testing.T, fn func()) string {
