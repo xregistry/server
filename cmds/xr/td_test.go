@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -198,26 +197,6 @@ Pass: 18   Fail: 0   Warn: 0   Skip: 0
 		config.TestRuns[TestFn(TestTDInit).Name()] != staleRun {
 
 		t.Fatalf("Base TDConfig was mutated: %#v", config)
-	}
-}
-
-func TestRunConformPreservesNumericExitCodes(t *testing.T) {
-	config := &TDConfig{
-		Out:          io.Discard,
-		IgnoreWarn:   true,
-		ConsoleDepth: 2,
-		RunFunc:      "TestTDDepFail",
-	}
-	servers := []string{"http://one.example", "http://two.example"}
-
-	if rc := runConform(servers, config); rc != FAIL*len(servers) {
-		t.Fatalf("Non-failfast exit code = %d, expected %d",
-			rc, FAIL*len(servers))
-	}
-
-	config.FailFast = true
-	if rc := runConform(servers, config); rc != FAIL {
-		t.Fatalf("Failfast exit code = %d, expected %d", rc, FAIL)
 	}
 }
 

@@ -66,10 +66,11 @@ func runConform(servers []string, config *TDConfig) int {
 			fmt.Fprintln(out)
 		}
 
-		rc = rc + testServer(&nextConfig)
-
-		if rc != 0 && nextConfig.FailFast {
-			break
+		if testServer(&nextConfig) != 0 {
+			rc = 1
+			if nextConfig.FailFast {
+				break
+			}
 		}
 	}
 

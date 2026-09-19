@@ -2431,6 +2431,47 @@ Pass: 10   Fail: 3   Warn: 0   Skip: 0
 `, ``, false)
 }
 
+func TestXRConformFailureExitCode(t *testing.T) {
+	result := XCLI(t,
+		"conform --run TestTDDepFail -d0 "+
+			"http://one.example http://two.example",
+		"",
+		`FAIL: http://one.example
+└─ FAIL: TestTDDepFail
+   ├─ FAIL: TestTDInitFail
+   │  └─ FAIL: Init
+   └─ Dependency "TestTDInitFail" failed, leaving
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+
+FAIL: http://two.example
+└─ FAIL: TestTDDepFail
+   ├─ FAIL: TestTDInitFail
+   │  └─ FAIL: Init
+   └─ Dependency "TestTDInitFail" failed, leaving
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+`,
+		"",
+		false,
+	)
+	XEqual(t, "Exit Code", result.Code, 1)
+
+	result = XCLI(t,
+		"conform --run TestTDDepFail -d0 --failfast "+
+			"http://one.example http://two.example",
+		"",
+		`FAIL: http://one.example
+└─ FAIL: TestTDDepFail
+   ├─ FAIL: TestTDInitFail
+   │  └─ FAIL: Init
+   └─ Dependency "TestTDInitFail" failed, leaving
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+`,
+		"",
+		false,
+	)
+	XEqual(t, "Failfast Exit Code", result.Code, 1)
+}
+
 func TestXRConformBasic(t *testing.T) {
 	reg := NewRegistry("TestXRConformBasic")
 	defer PassDeleteReg(t, reg)
