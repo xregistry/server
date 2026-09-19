@@ -1,5 +1,5 @@
 // xrlint is a small suite of repo-specific static checks, each of which
-// can be individually enabled/disabled via flags (both run by default):
+// can be individually enabled/disabled via flags (all run by default):
 //
 //   - "nilcheck" (--nilcheck): finds callers that compare the result of
 //     a function/method whose return type is the empty interface
@@ -18,6 +18,9 @@
 //     statements that are missing the trailing "()" needed to actually
 //     invoke the func returned by log.Trace, i.e. code that should
 //     read "defer log.Trace(...)()".
+//
+//   - "tderror" (--tderror): finds process-exiting Error() calls in
+//     functions and methods that operate on *TD conformance test data.
 //
 // More checks are expected to be added here over time.
 //
@@ -88,10 +91,18 @@
 // and flags any whose deferred call is directly a call to log.Trace
 // (i.e. not wrapped in an extra pair of invoking parens).
 //
+// # tderror details
+//
+// Conformance test functions need to report failures through TD so the
+// complete result tree can be rendered. Calling the xr command's Error()
+// helper exits the process immediately and loses that output. This check
+// finds direct calls to that helper from functions or methods whose
+// receiver or parameters include *TD.
+//
 // Usage:
 //
 //	go run ./cmds/xrlint [--nilcheck] [--unused] [--gofmt]
-//	    [--defertrace] [packages...]
+//	    [--defertrace] [--tderror] [packages...]
 //
 // With no package args it checks ./registry/... ./common/... ./cmds/...
 // ./tests/... (the tmp/ directory is intentionally excluded - it's a
@@ -121,16 +132,17 @@ func isEmptyInterface(t types.Type) bool {
 }
 
 func main() {
-	var nilcheckEnabled, unusedEnabled, gofmtEnabled, defertraceEnabled bool
+	var nilcheckEnabled, unusedEnabled, gofmtEnabled bool
+	var defertraceEnabled, tderrorEnabled bool
 
 	rootCmd := &cobra.Command{
 		Use: "xrlint [packages...]",
 		Short: "Repo-specific static checks (nilcheck, unused funcs," +
-			" gofmt, defertrace)",
+			" gofmt, defertrace, tderror)",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(args, nilcheckEnabled, unusedEnabled, gofmtEnabled,
-				defertraceEnabled)
+				defertraceEnabled, tderrorEnabled)
 		},
 	}
 	rootCmd.Flags().BoolVar(&nilcheckEnabled, "nilcheck", true,
@@ -141,6 +153,8 @@ func main() {
 		"check for files that aren't gofmt-formatted (via 'gofmt -l')")
 	rootCmd.Flags().BoolVar(&defertraceEnabled, "defertrace", true,
 		"check for 'defer log.Trace(...)' missing the trailing '()'")
+	rootCmd.Flags().BoolVar(&tderrorEnabled, "tderror", true,
+		"check for process-exiting Error() calls in TD functions")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -154,6 +168,7 @@ func run(
 	unusedEnabled bool,
 	gofmtEnabled bool,
 	defertraceEnabled bool,
+	tderrorEnabled bool,
 ) error {
 	if len(patterns) == 0 {
 		patterns = []string{
@@ -198,6 +213,9 @@ func run(
 	}
 	if defertraceEnabled {
 		hits += runDeferTraceCheck(pkgs, fset)
+	}
+	if tderrorEnabled {
+		hits += runTDErrorCheck(pkgs, fset)
 	}
 
 	if hits > 0 {
@@ -707,6 +725,93 @@ func runDeferTraceCheck(pkgs []*packages.Package, fset *token.FileSet) int {
 		)
 	} else {
 		fmt.Println("\ndefertrace: no bad 'defer log.Trace(...)' usages found")
+	}
+	return hits
+}
+
+func isTDType(t types.Type) bool {
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = ptr.Elem()
+	}
+	named, ok := t.(*types.Named)
+	if !ok || named.Obj().Pkg() == nil {
+		return false
+	}
+	return named.Obj().Name() == "TD" &&
+		named.Obj().Pkg().Path() == "github.com/xregistry/server/cmds/xr"
+}
+
+func isTDFunc(info *types.Info, decl *ast.FuncDecl) bool {
+	fn, ok := info.Defs[decl.Name].(*types.Func)
+	if !ok {
+		return false
+	}
+	sig, ok := fn.Type().(*types.Signature)
+	if !ok {
+		return false
+	}
+	if sig.Recv() != nil && isTDType(sig.Recv().Type()) {
+		return true
+	}
+	for i := 0; i < sig.Params().Len(); i++ {
+		if isTDType(sig.Params().At(i).Type()) {
+			return true
+		}
+	}
+	return false
+}
+
+func isXRErrorCall(info *types.Info, call *ast.CallExpr) bool {
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok || ident.Name != "Error" {
+		return false
+	}
+	fn, ok := info.Uses[ident].(*types.Func)
+	if !ok || fn.Pkg() == nil {
+		return false
+	}
+	return fn.Pkg().Path() == "github.com/xregistry/server/cmds/xr"
+}
+
+// runTDErrorCheck finds process-exiting Error() calls inside functions
+// and methods that operate on *TD.
+func runTDErrorCheck(pkgs []*packages.Package, fset *token.FileSet) int {
+	fmt.Println("\n=== Process-exiting Error() calls in TD functions ===")
+	hits := 0
+
+	for _, pkg := range pkgs {
+		info := pkg.TypesInfo
+		for _, file := range pkg.Syntax {
+			for _, decl := range file.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if !ok || fn.Body == nil || !isTDFunc(info, fn) {
+					continue
+				}
+				ast.Inspect(fn.Body, func(n ast.Node) bool {
+					call, ok := n.(*ast.CallExpr)
+					if !ok || !isXRErrorCall(info, call) {
+						return true
+					}
+					pos := fset.Position(call.Pos())
+					fmt.Printf("%s:%d: %s\n",
+						pos.Filename, pos.Line,
+						lineText(fset, call.Pos()))
+					hits++
+					return true
+				})
+			}
+		}
+	}
+
+	if hits > 0 {
+		fmt.Fprintf(
+			os.Stderr,
+			"\ntderror: found %d process-exiting Error() call(s)"+
+				" in TD functions\n",
+			hits,
+		)
+	} else {
+		fmt.Println("\ntderror: no process-exiting Error() calls found")
 	}
 	return hits
 }

@@ -3,11 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -257,38 +253,6 @@ func TestConformanceStateErrorRendersCompleteResult(t *testing.T) {
 		target,
 		"reg.stuff.gm != *GroupModel",
 	)
-}
-
-func TestConformanceFunctionsDoNotCallError(t *testing.T) {
-	files, err := filepath.Glob("td*.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	files = append(files, "conform.go")
-
-	fset := token.NewFileSet()
-	for _, name := range files {
-		if strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		file, err := parser.ParseFile(fset, name, nil, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ast.Inspect(file, func(node ast.Node) bool {
-			call, ok := node.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			ident, ok := call.Fun.(*ast.Ident)
-			if !ok || ident.Name != "Error" {
-				return true
-			}
-			t.Errorf("%s calls process-exiting Error()",
-				fset.Position(call.Pos()))
-			return true
-		})
-	}
 }
 
 func dependencyFailure(td *TD) {
