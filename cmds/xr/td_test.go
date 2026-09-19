@@ -209,10 +209,8 @@ func TestFailedDependenciesPropagateConsistently(t *testing.T) {
 	fresh := renderTD(freshRoot)
 
 	cachedRoot := newTestTD("cached")
-	cachedRoot.Config.FailFast = true
+	// Seed the cached failure before enabling FailFast for the dependent.
 	cachedDependency := NewTD(nil, TestFn(dependencyFailure).Name())
-	cachedDependency.Config = cachedRoot.Config
-	cachedRoot.Config.FailFast = false
 	cachedDependency.Fail("dependency failed")
 	cachedRoot.Config.FailFast = true
 	cachedRoot.Config.TestRuns[TestFn(dependencyFailure).Name()] =
