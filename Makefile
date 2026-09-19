@@ -1,7 +1,7 @@
-all: mysql cmds docs test xreg images run
+all: mysql cmds docs test images run
 
 # Run for each PR
-pr: mysql cmds docs test xreg nodiff images benchmark
+pr: mysql cmds docs test images benchmark
 
 # Run on 'master' change
 master: pr push cmds-all
@@ -14,7 +14,7 @@ SHELL      := /bin/bash -o pipefail
 # Override these env vars as needed:
 export GIT_ORG        ?= xregistry
 export GIT_REPO       ?= $(shell basename `git rev-parse --show-toplevel`)
-# DOCKERHUB must end with /, if it's set at all
+# DOCKERHUB must end with / if it's set at all
 export DOCKERHUB      ?=
 export DBNAME         ?= registry
 export DBHOST         ?= 127.0.0.1
@@ -47,11 +47,6 @@ UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirnam
 
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
-nodiff:
-	@git diff --name-only --exit-code HEAD || \
-		(echo "There are uncommitted changes! Missed generated files?" ; \
-		exit 1)
-
 cmds: .cmds
 .cmds: xrserver xr
 	@touch .cmds
@@ -82,7 +77,6 @@ utest: .utest
 	@echo "go test -failfast $(UTESTDIRS)"
 	@$(TIMEIT) for s in $(UTESTDIRS); do \
 		if ! $(GO_TEST) $$s; then exit 1; fi; done $(SED)
-	@echo
 	@touch .utest
 
 qtest: .qtest
@@ -92,6 +86,9 @@ qtest: .qtest
 	@echo
 	@echo "# Testing"
 	@! grep -e '	' registry/init.sql||(echo "Remove tabs in init.db";exit 1)
+	@if curl localhost:8080 > /dev/null 2>&1 ; then \
+     	echo "Stop server on :8080 first" ; exit 1 ; \
+	 else true ; fi
 	@go clean -testcache
 	@echo "go test -failfast $(TESTDIRS) $(TEST)"
 	@$(TIMEIT) for s in $(TESTDIRS); do \
@@ -133,7 +130,7 @@ registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@go run ./cmds/genspecattrs
 
 xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
-	common/* $(filter-out registry/ui/xreg/%, registry/*)
+	common/* registry/*
 	@echo
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \
@@ -154,19 +151,6 @@ xr: .sharedfiles cmds/xr/* common/*
 	@echo "# Building xr (cli)"
 	@misc/errOutput -"go build -o $@ cmds/xr/*.go" \
 		go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
-
-xreg: cmds mysql registry/ui/xreg/index.html
-registry/ui/xreg/index.html: cmds/xrserver/test-reg.json xrserver xr
-	@echo
-	@echo "# Regenerating the xreg static site"
-	@-pkill -f "[x]rserver.*8181" || true
-	@./xrserver -p 8181 -r HardCoded --recreatereg --rootapp=xreg &
-	@sleep 1
-	@./xr -s localhost:8181 update / -d @cmds/xrserver/test-reg.json
-	@rm -rf registry/ui/xreg/*
-	@misc/errOutput @./xr -s localhost:8181 \
-		download registry/ui/xreg --nodiff=* --all -c -u '$$HOST/ui/xreg'
-	@pkill -f xrserver.*8181
 
 docs: docs/xr_help.md docs/xrserver_help.md
 
@@ -368,7 +352,7 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .sharedfiles .errors .xrlint .utest .qtest .ftest \
+	@rm -f .sharedfiles .errors .xrlint .cmds .utest .qtest .ftest \
 		.testimages .devimage .images .push \
 		.xr-all .xrserver-all
 	@go clean -cache -testcache

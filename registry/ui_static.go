@@ -5,10 +5,8 @@ import (
 	"embed"
 	"io"
 	"io/fs"
-	"mime"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -91,12 +89,6 @@ func ServeUIStatic(uuid string, w http.ResponseWriter, r *http.Request) {
 	// treating the UI's own root as the API root.
 	if path == "/" || !uiFileExists(path) {
 		serveIndexHTML(uuid, w, r, isRecognizedPath)
-		return
-	}
-
-	// Files under /xreg/ get $HOST substituted with the request's scheme+host.
-	if strings.HasPrefix(path, "/xreg/") {
-		serveXregFile(uuid, w, r, path)
 		return
 	}
 
@@ -243,64 +235,6 @@ func serveIndexHTML(uuid string, w http.ResponseWriter, r *http.Request, found b
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	w.Write(content)
-}
-
-// serveXregFile reads a file from the ui/xreg directory, replaces $HOST with
-// the incoming request's scheme://host, and writes the result.
-func serveXregFile(uuid string, w http.ResponseWriter, r *http.Request, path string) {
-	// If path is a directory (trailing slash or stat confirms it), serve index.html
-	if strings.HasSuffix(path, "/") {
-		path += "index.html"
-	} else if isXregDir(path) {
-		http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
-		return
-	}
-
-	// Determine scheme
-	scheme := "http"
-	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
-		scheme = proto
-	} else if r.TLS != nil {
-		scheme = "https"
-	}
-	host := scheme + "://" + r.Host
-
-	// Read the file
-	var content []byte
-	var err error
-	if UIDir != "" {
-		content, err = os.ReadFile(UIDir + path)
-	} else {
-		var f fs.File
-		sub, subErr := fs.Sub(uiEmbedded, "ui")
-		if subErr != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		f, err = sub.Open(strings.TrimPrefix(path, "/"))
-		if err == nil {
-			content, err = io.ReadAll(f)
-			f.Close()
-		}
-	}
-	if err != nil {
-		log.Printf("tx: %s Error loading %q: %s", uuid, path, err)
-		http.NotFound(w, r)
-		return
-	}
-
-	// Replace $HOST
-	content = bytes.ReplaceAll(content, []byte("$HOST"), []byte(host))
-
-	// Set Content-Type based on file extension
-	ext := filepath.Ext(path)
-	ct := mime.TypeByExtension(ext)
-	if ct == "" {
-		ct = "application/octet-stream"
-	}
-	w.Header().Set("Content-Type", ct)
-	w.WriteHeader(http.StatusOK)
 	w.Write(content)
 }
 
