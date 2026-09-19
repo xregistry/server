@@ -3527,13 +3527,6 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -3543,6 +3536,13 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",

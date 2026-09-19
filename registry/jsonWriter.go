@@ -102,47 +102,63 @@ func (jw *JsonWriter) Pop() *Entity {
 // the collection, it also writes the COLLECTIONSurl and COLLECTIONscount
 // headers/attributes.
 // WriteCollection will do the actual processing of the entities in there.
+//
+// Order note: the nested <COLLECTION>url's filter string (see
+// FiltersRelativeToAbstractMasked in info.go) depends on the BIT_OR'd
+// mask of all of this collection's direct children, and that's only
+// fully known once we've finished walking them (either by writing them
+// out, if inlined, or by skip-counting them, if not). So COLLECTIONurl/
+// COLLECTIONcount are written AFTER the collection body (if any) -
+// there's no need to buffer/peek ahead at all, since the walk we need
+// to do anyway (to write the body, or to just count) already visits
+// every direct child exactly once, in order.
 func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 	myPlural := jw.Entity.Plural
+	myAbstract := jw.Entity.Abstract
 	baseURL := ""
 
 	inlineCollection := jw.info.ShouldInline(jw.Entity.Abstract)
-	filterString := ""
+	docViewInline := jw.info.DoDocView() && inlineCollection
 
-	if jw.info.DoDocView() && inlineCollection {
+	if docViewInline {
 		// remove GET's base path
-		path := path.Dir(jw.Entity.XID)
-		path = path[1+len(jw.info.Root):]
-		if len(path) == 0 || path[0] != '/' {
-			path = "/" + path
+		p := path.Dir(jw.Entity.XID)
+		p = p[1+len(jw.info.Root):]
+		if len(p) == 0 || p[0] != '/' {
+			p = "/" + p
 		}
-		baseURL = "#" + path
+		baseURL = "#" + p
 	} else {
 		baseURL = jw.info.BaseURL + path.Dir(jw.Entity.XID)
-		filterString = jw.info.FiltersRelativeToAbstract(jw.Entity.Abstract)
 	}
 
-	jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.indent, myPlural,
-		baseURL+filterString)
-	extra = ""
-
 	count := 0
+	mask := uint64(0)
+	maskOK := false
 	var xErr *XRError
 
-	if !inlineCollection {
+	if inlineCollection {
+		jw.Printf("%s\n%s%q: ", extra, jw.indent, jw.Entity.Plural)
+		count, mask, maskOK, xErr = jw.WriteCollection()
+		if xErr != nil {
+			return "", xErr
+		}
+		extra = ","
+	} else {
 		// If we're not inlining this collection then just skip over any
-		// Entities in the result that are children, but count them so we
-		// still show the PLURALcount attribute for the collection
-		myAbstract := "-"
-		myPlural := ""
+		// Entities in the result that are children, but count them (and
+		// accumulate their filter-arm mask, if filtering) so we can still
+		// show the correct PLURALurl/PLURALcount attributes.
+		loopAbstract := "-"
+		loopPlural := ""
 
 		for jw.Entity != nil {
-			if myAbstract == "-" {
-				myAbstract = jw.Entity.Abstract
-				myPlural = jw.Entity.Plural
+			if loopAbstract == "-" {
+				loopAbstract = jw.Entity.Abstract
+				loopPlural = jw.Entity.Plural
 			}
 
-			if strings.HasPrefix(jw.Entity.Abstract, myAbstract+string(DB_IN)) {
+			if strings.HasPrefix(jw.Entity.Abstract, loopAbstract+string(DB_IN)) {
 				// Skip descendants that are not immediate children
 				if _, xErr = jw.NextEntity(); xErr != nil {
 					return "", xErr
@@ -150,10 +166,17 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 				continue
 			}
 
-			if strings.HasPrefix(myAbstract, jw.Entity.Abstract+string(DB_IN)) ||
-				jw.Entity.Plural != myPlural {
+			if strings.HasPrefix(loopAbstract, jw.Entity.Abstract+string(DB_IN)) ||
+				jw.Entity.Plural != loopPlural {
 				// Stop on a new parent or a new sibling collection
 				break
+			}
+
+			if len(jw.info.Filters) != 0 {
+				if val, ok := jw.Entity.GetStuff("filterMask"); ok {
+					mask |= val.(uint64)
+					maskOK = true
+				}
 			}
 
 			if _, xErr = jw.NextEntity(); xErr != nil {
@@ -162,21 +185,30 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 
 			count++
 		}
-	} else {
-		jw.Printf("%s%q: ", jw.indent, jw.Entity.Plural)
-		count, xErr = jw.WriteCollection()
-		if xErr != nil {
-			return "", xErr
-		}
-		extra = ",\n"
 	}
 
-	jw.Printf("%s%s\"%scount\": %d", extra, jw.indent, myPlural, count)
+	filterString := ""
+	if len(jw.info.Filters) != 0 && !docViewInline {
+		filterString = jw.info.FiltersRelativeToAbstractMasked(
+			myAbstract, mask, maskOK)
+	}
+
+	jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.indent, myPlural,
+		baseURL+filterString)
+	jw.Printf("%s\"%scount\": %d", jw.indent, myPlural, count)
 
 	return ",", nil
 }
 
-func (jw *JsonWriter) WriteCollection() (int, *XRError) {
+// WriteCollection writes out the "{ ...entities... }" body of a
+// collection and, since it's already walking each direct child anyway,
+// also accumulates (BIT_OR) each direct child's own "filterMask" (see
+// GenerateFilterCTE in registry.go) into a single mask for the whole
+// collection - so the caller can compute the correct nested
+// <COLLECTION>url filter string without any separate look-ahead/peek
+// pass. maskOK is true iff at least one child had a mask available
+// (i.e. filtering is in play).
+func (jw *JsonWriter) WriteCollection() (int, uint64, bool, *XRError) {
 	jw.Printf("{")
 	jw.Indent()
 
@@ -184,6 +216,8 @@ func (jw *JsonWriter) WriteCollection() (int, *XRError) {
 	myAbstract := "-"
 	myPlural := ""
 	count := 0
+	mask := uint64(0)
+	maskOK := false
 
 	for jw.Entity != nil {
 		if myAbstract == "-" {
@@ -194,7 +228,7 @@ func (jw *JsonWriter) WriteCollection() (int, *XRError) {
 		if strings.HasPrefix(jw.Entity.Abstract, myAbstract+string(DB_IN)) {
 			// Process a child
 			if _, xErr := jw.NextEntity(); xErr != nil {
-				return count, xErr
+				return count, mask, maskOK, xErr
 			}
 			continue
 		}
@@ -209,9 +243,16 @@ func (jw *JsonWriter) WriteCollection() (int, *XRError) {
 			jw.seenDefaultVid = jw.Entity.UID
 		}
 
+		if len(jw.info.Filters) != 0 {
+			if val, ok := jw.Entity.GetStuff("filterMask"); ok {
+				mask |= val.(uint64)
+				maskOK = true
+			}
+		}
+
 		jw.Printf("%s\n%s%q: ", extra, jw.indent, jw.Entity.UID)
 		if xErr := jw.WriteEntity(); xErr != nil {
-			return count, xErr
+			return count, mask, maskOK, xErr
 		}
 
 		count++
@@ -224,7 +265,7 @@ func (jw *JsonWriter) WriteCollection() (int, *XRError) {
 	}
 	jw.Print("}")
 
-	return count, nil
+	return count, mask, maskOK, nil
 }
 
 func (jw *JsonWriter) WriteEntity() *XRError {
@@ -640,12 +681,14 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 		// filterString = jw.info.FiltersRelativeToAbstract(p)
 	}
 
-	jw.Printf("%s\n%s\"%surl\": \"%s%s%s%s\",\n", extra, jw.indent, collName,
-		baseURL, path, collName, filterString)
-
 	if inlineCollection {
-		jw.Printf("%s\"%s\": {},\n", jw.indent, collName)
+		jw.Printf("%s\n%s\"%s\": {},\n", extra, jw.indent, collName)
+		extra = ""
+	} else {
+		extra += "\n"
 	}
+	jw.Printf("%s%s\"%surl\": \"%s%s%s%s\",\n", extra, jw.indent,
+		collName, baseURL, path, collName, filterString)
 
 	jw.Printf("%s\"%scount\": 0", jw.indent, collName)
 	extra = ","

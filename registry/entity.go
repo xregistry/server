@@ -1293,9 +1293,9 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 	entity := (*Entity)(nil)
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
-	// PropName,PropValue,PropType,IsSystemProp
+	// PropName,PropValue,PropType,IsSystemProp,FilterMask
 	//   0     1     2       3         4      5   6     7      8
-	//     9        10         11         12
+	//     9        10         11         12        13
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		// log.Printf("tx: %s Row(%d): %#v", tx.uuid, len(row), row)
 		if log.HasVerbose("readNextEntity") {
@@ -1334,6 +1334,31 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 
 			entity.GroupModel, entity.ResourceModel =
 				AbstractToModels(tx.Registry, entity.Abstract)
+
+			// FilterMask is only meaningful/present when the query
+			// applied a ?filter=. It tells us which top-level OR
+			// filter expression(s) actually caused this entity to be
+			// in the result set, which is needed to compute a correct
+			// nested <COLLECTION>url filter for it. Stored as generic
+			// "stuff" rather than a dedicated struct field.
+			if len(row) > 13 {
+				if maskStr := NotNilString(row[13]); maskStr != "" {
+					mask, err := strconv.ParseUint(maskStr, 10, 64)
+					if err != nil {
+						// FilterMask is always the result of
+						// CAST(...AS CHAR) on a BIGINT UNSIGNED (or
+						// the literal '0') on the SQL side, so this
+						// should never fail - if it does, something
+						// is seriously wrong
+						panic(fmt.Sprintf(
+							"error parsing FilterMask: %q: %s",
+							maskStr, err))
+					}
+					if mask != 0 {
+						entity.SetStuff("filterMask", mask)
+					}
+				}
+			}
 		} else {
 			// If the next row isn't part of the current Entity then
 			// push it back into the result set so we'll grab it the next time

@@ -7862,7 +7862,7 @@ function specAttrOrder(path) {
 //     <singular>/<singular>base64) are resolved directly once the
 //     singular name is known from the step above.
 //   - A Resource's own collection is always the fixed, model-independent
-//     "versions"/"versionscount"/"versionsurl" triple (hardcoded). A
+//     "versions"/"versionsurl"/"versionscount" triple (hardcoded). A
 //     Registry's/Group's collection(s) have arbitrary, model-defined
 //     names, so those are detected heuristically: any unconsumed
 //     "<name>count" key paired with a matching unconsumed "<name>url"
@@ -7991,7 +7991,7 @@ function writePlainMap(obj, indent, lines) {
 //     (Version level only): resolved directly from the singular name
 //     found above.
 //   - "$COLLECTIONS": a Resource's own collection is always the fixed
-//     "versions"/"versionscount"/"versionsurl" triple (hardcoded).
+//     "versions"/"versionsurl"/"versionscount" triple (hardcoded).
 //     Registry's/Group's collections have no fixed name, so those ARE
 //     detected heuristically (matching "<name>count"/"<name>url" pairs).
 //
@@ -8021,8 +8021,10 @@ function writeCanonicalEntity(obj, indent, tokens, info, lines) {
   if (hasCollectionsToken) {
     if (info.level === 'resource') {
       // Fixed, model-independent — every Resource has exactly one
-      // collection, always literally named "versions".
-      ['versionsurl', 'versionscount', 'versions'].forEach(function (k) {
+      // collection, always literally named "versions". Body first,
+      // then url, then count (matches the server's own ordering, see
+      // registry/jsonWriter.go's WriteCollectionHeader).
+      ['versions', 'versionsurl', 'versionscount'].forEach(function (k) {
         if (Object.prototype.hasOwnProperty.call(obj, k)) {
           collectionsKeys.push(k);
           consumed[k] = true;
@@ -8159,7 +8161,7 @@ function resolveIDKeyByValue(obj, info, consumed) {
 // collection names are model-defined (arbitrary), unlike a Resource's
 // fixed "versions" collection, so this heuristic is only used at the
 // Registry/Group levels. Returns keys in the spec's sub-order
-// ("<name>url", "<name>count", "<name>"), sorted alphabetically by
+// ("<name>", "<name>url", "<name>count"), sorted alphabetically by
 // base name across multiple detected collections.
 function detectHeuristicCollections(obj, consumed) {
   var bases = [];
@@ -8178,9 +8180,9 @@ function detectHeuristicCollections(obj, consumed) {
   var out = [];
   for (var i = 0; i < bases.length; i++) {
     var base = bases[i];
+    if (Object.prototype.hasOwnProperty.call(obj, base)) out.push(base);
     out.push(base + 'url');
     out.push(base + 'count');
-    if (Object.prototype.hasOwnProperty.call(obj, base)) out.push(base);
   }
   return out;
 }

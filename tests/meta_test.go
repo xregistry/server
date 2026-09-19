@@ -82,7 +82,6 @@ func TestMetaSimple(t *testing.T) {
     "defaultversionsticky": false
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "1": {
       "fileid": "f1",
@@ -96,6 +95,7 @@ func TestMetaSimple(t *testing.T) {
       "ancestorid": "1"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
 `)
@@ -299,7 +299,6 @@ func TestMetaSimple(t *testing.T) {
     "defaultversionsticky": false
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
   "versions": {
     "1": {
       "fileid": "f2",
@@ -313,6 +312,7 @@ func TestMetaSimple(t *testing.T) {
       "ancestorid": "1"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
   "versionscount": 1
 }
 `)
@@ -668,7 +668,6 @@ func TestMetaCombos(t *testing.T) {
     "defaultversionsticky": false
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1.0": {
       "fileid": "f1",
@@ -682,6 +681,7 @@ func TestMetaCombos(t *testing.T) {
       "ancestorid": "v1.0"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
 `)
@@ -800,7 +800,6 @@ func TestMetaCombos(t *testing.T) {
     "defaultversionsticky": false
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1.0": {
       "fileid": "f1",
@@ -825,6 +824,7 @@ func TestMetaCombos(t *testing.T) {
       "ancestorid": "v1.0"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
 `)

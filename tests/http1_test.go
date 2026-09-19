@@ -946,13 +946,6 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -962,6 +955,13 @@ func TestHTTPModel(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -1610,13 +1610,6 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -1626,6 +1619,13 @@ func TestHTTPModel(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -2296,13 +2296,6 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -2312,6 +2305,13 @@ func TestHTTPModel(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -8157,7 +8157,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -8171,6 +8170,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -8210,7 +8210,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -8220,7 +8219,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -8248,7 +8246,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -8262,6 +8259,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         },
         "f2": {
@@ -8290,7 +8288,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -8304,12 +8301,15 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 2
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -8376,7 +8376,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -8386,7 +8385,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -8414,7 +8412,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -8439,6 +8436,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 2
         },
         "f2": {
@@ -8467,7 +8465,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -8481,12 +8478,15 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 2
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -8530,7 +8530,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -8540,7 +8539,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -8568,7 +8566,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -8593,6 +8590,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 2
         },
         "f2": {
@@ -8621,7 +8619,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -8635,12 +8632,15 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 2
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -8658,7 +8658,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -8668,7 +8667,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -8696,7 +8694,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -8710,6 +8707,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 1
         },
         "f2": {
@@ -8738,7 +8736,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -8752,12 +8749,15 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 2
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -8796,7 +8796,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -8806,7 +8805,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:04Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -8834,7 +8832,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -8848,12 +8845,15 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -8881,7 +8881,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -8891,11 +8890,12 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:04Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {},
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -8940,8 +8940,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
 }
 `)
@@ -8991,7 +8991,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -9001,7 +9000,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -9029,7 +9027,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -9054,12 +9051,15 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -12606,7 +12606,6 @@ func TestHTTPDelete(t *testing.T) {
     "defaultversionsticky": true
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v10": {
       "fileid": "f1",
@@ -12664,6 +12663,7 @@ func TestHTTPDelete(t *testing.T) {
       "ancestorid": "v9"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 5
 }
 `)
@@ -12737,7 +12737,6 @@ func TestHTTPDelete(t *testing.T) {
     "defaultversionsticky": true
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v10": {
       "fileid": "f1",
@@ -12773,6 +12772,7 @@ func TestHTTPDelete(t *testing.T) {
       "ancestorid": "v6"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
 `)
@@ -12836,7 +12836,6 @@ func TestHTTPDelete(t *testing.T) {
     "defaultversionsticky": true
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
       "fileid": "f1",
@@ -12872,6 +12871,7 @@ func TestHTTPDelete(t *testing.T) {
       "ancestorid": "v3"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 3
 }
 `)
@@ -12904,7 +12904,6 @@ func TestHTTPDelete(t *testing.T) {
     "defaultversionsticky": true
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
       "fileid": "f1",
@@ -12929,6 +12928,7 @@ func TestHTTPDelete(t *testing.T) {
       "ancestorid": "v10"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
 `)
@@ -12959,7 +12959,6 @@ func TestHTTPDelete(t *testing.T) {
     "defaultversionsticky": true
   },
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
     "v1": {
       "fileid": "f1",
@@ -12984,6 +12983,7 @@ func TestHTTPDelete(t *testing.T) {
       "ancestorid": "v10"
     }
   },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
 `)

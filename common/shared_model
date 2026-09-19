@@ -3476,6 +3476,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 						tmpLD.UI()))
 		}
 		*/
+
 		if len(attr.Enum) > 0 {
 			daType := attr.Type
 

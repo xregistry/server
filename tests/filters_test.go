@@ -317,7 +317,6 @@ func TestFiltersBasic(t *testing.T) {
   "createdat": "2024-12-01T12:00:01Z",
   "modifiedat": "2024-12-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1=1elif",
   "dirs": {
     "d2": {
       "dirid": "d2",
@@ -327,7 +326,6 @@ func TestFiltersBasic(t *testing.T) {
       "createdat": "2024-12-01T12:00:02Z",
       "modifiedat": "2024-12-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1=1elif",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -358,7 +356,6 @@ func TestFiltersBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -386,12 +383,15 @@ func TestFiltersBasic(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1=1elif",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1=1elif",
   "dirscount": 1
 }
 `,
@@ -447,7 +447,6 @@ func TestFiltersBasic(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1",
   "dirs": {
     "d2": {
       "dirid": "d2",
@@ -457,7 +456,6 @@ func TestFiltersBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -488,7 +486,6 @@ func TestFiltersBasic(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -516,12 +513,15 @@ func TestFiltersBasic(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1",
   "dirscount": 1
 }
 `,
@@ -1639,7 +1639,6 @@ func TestFiltersURLs(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1668,6 +1667,7 @@ func TestFiltersURLs(t *testing.T) {
       "filescount": 2
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 2
 }
 `)
@@ -1685,7 +1685,6 @@ func TestFiltersURLs(t *testing.T) {
   "createdat": "2026-05-24T15:56:21.489831698Z",
   "modifiedat": "2026-05-24T15:56:21.510904221Z",
 
-  "dirsurl": "http://localhost:8181/dirs?filter=dirid=d2,datas.dataid=d2",
   "dirs": {
     "d2": {
       "dirid": "d2",
@@ -1701,6 +1700,7 @@ func TestFiltersURLs(t *testing.T) {
       "filescount": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs?filter=dirid=d2,datas.dataid=d2",
   "dirscount": 1
 }
 `)
@@ -1775,7 +1775,6 @@ func TestFiltersURLs(t *testing.T) {
   "createdat": "2026-05-24T16:04:17.48194014Z",
   "modifiedat": "2026-05-24T16:04:17.502254683Z",
 
-  "dirsurl": "http://localhost:8181/dirs?filter=files.fileid=f1&filter=datas.dataid=d2",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1804,6 +1803,7 @@ func TestFiltersURLs(t *testing.T) {
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs?filter=files.fileid=f1&filter=datas.dataid=d2",
   "dirscount": 2
 }
 `)
@@ -1869,7 +1869,6 @@ func TestFiltersURLs(t *testing.T) {
   "createdat": "2026-05-24T16:17:02.012652627Z",
   "modifiedat": "2026-05-24T16:17:02.032361913Z",
 
-  "dirsurl": "#/dirs",
   "dirs": {
     "d1": {
       "dirid": "d1",
@@ -1898,10 +1897,503 @@ func TestFiltersURLs(t *testing.T) {
       "filescount": 1
     }
   },
+  "dirsurl": "#/dirs",
   "dirscount": 2
 }
 `)
 
+}
+
+// TestFiltersORMask is the regression test for the original bug report:
+// an OR'd filter where one arm (a bare, top-level attribute like
+// "registryid") trivially matches everything, combined with another arm
+// that targets a specific nested path (e.g.
+// "schemagroups.schemas.name=mine"). Before the per-entity bit-mask
+// fix, the nested path's arm would get blindly projected onto EVERY
+// nested <COLLECTION>url that its path touched, even for entities that
+// only appear in the result because of the OTHER (unrelated) arm - e.g.
+// "schemagroupsurl"/"schemasurl" would incorrectly show
+// "?filter=schemas.name=mine"/"?filter=name=mine" even though ALL
+// schemagroups/schemas are present (because "registryid" matches, not
+// because of the "name=mine" arm). This verifies that:
+//  1. Everything is still returned (since the "registryid" arm matches).
+//  2. Nested collections that only appear due to the "registryid" arm
+//     (dirs/files, and the schemagroups/schemas "other"-named sibling)
+//     do NOT get an incorrectly-restrictive filter projected onto their
+//     <COLLECTION>url.
+func TestFiltersORMask(t *testing.T) {
+	reg := NewRegistry("TestFiltersORMask")
+	defer PassDeleteReg(t, reg)
+
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    },
+    "schemagroups": {
+      "singular": "schemagroup",
+      "resources": {
+        "schemas": {
+          "singular": "schema"
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	XHTTP(t, reg, "PUT", "/", `{
+  "dirs": { "d1": { "files": { "f1": {} } } },
+  "schemagroups": {
+    "sg1": {
+      "schemas": {
+        "s1": { "name": "mine" },
+        "s2": { "name": "other" }
+      }
+    }
+  }
+}`, 200, "*")
+
+	// Everything must still be present - the "registryid" arm matches
+	// unconditionally, so the "name=mine" arm being false for "s2"/"d1"
+	// must not exclude them. And none of the nested collections'
+	// <COLLECTION>url should carry a filter - "dirs"/"files" aren't
+	// referenced by either OR arm at all, and "schemagroups"/"schemas"
+	// only appear here because of the "registryid" arm (which doesn't
+	// target them), not because of the "name=mine" arm (which only
+	// "s1", not "s2", would satisfy) - so projecting "name=mine" onto
+	// schemagroupsurl/schemasurl would be wrong (it would incorrectly
+	// imply that a fresh GET of those URLs would omit "s2", when the
+	// actual result set includes it).
+	XHTTP(t, reg, "GET",
+		"/?inline=*&filter=registryid=TestFiltersORMask&"+
+			"filter=schemagroups.schemas.name=mine",
+		"", 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestFiltersORMask",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
+
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "1",
+          "self": "http://localhost:8181/dirs/d1/files/f1$details",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+            "defaultversionsticky": false
+          },
+
+          "versions": {
+            "1": {
+              "fileid": "f1",
+              "versionid": "1",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+              "xid": "/dirs/d1/files/f1/versions/1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "1"
+            }
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versionscount": 1
+        }
+      },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filescount": 1
+    }
+  },
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1,
+  "schemagroups": {
+    "sg1": {
+      "schemagroupid": "sg1",
+      "self": "http://localhost:8181/schemagroups/sg1",
+      "xid": "/schemagroups/sg1",
+      "epoch": 1,
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
+
+      "schemas": {
+        "s1": {
+          "schemaid": "s1",
+          "versionid": "1",
+          "self": "http://localhost:8181/schemagroups/sg1/schemas/s1$details",
+          "xid": "/schemagroups/sg1/schemas/s1",
+          "epoch": 1,
+          "name": "mine",
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "1",
+
+          "metaurl": "http://localhost:8181/schemagroups/sg1/schemas/s1/meta",
+          "meta": {
+            "schemaid": "s1",
+            "self": "http://localhost:8181/schemagroups/sg1/schemas/s1/meta",
+            "xid": "/schemagroups/sg1/schemas/s1/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "1",
+            "defaultversionurl": "http://localhost:8181/schemagroups/sg1/schemas/s1/versions/1$details",
+            "defaultversionsticky": false
+          },
+
+          "versions": {
+            "1": {
+              "schemaid": "s1",
+              "versionid": "1",
+              "self": "http://localhost:8181/schemagroups/sg1/schemas/s1/versions/1$details",
+              "xid": "/schemagroups/sg1/schemas/s1/versions/1",
+              "epoch": 1,
+              "name": "mine",
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "1"
+            }
+          },
+          "versionsurl": "http://localhost:8181/schemagroups/sg1/schemas/s1/versions",
+          "versionscount": 1
+        },
+        "s2": {
+          "schemaid": "s2",
+          "versionid": "1",
+          "self": "http://localhost:8181/schemagroups/sg1/schemas/s2$details",
+          "xid": "/schemagroups/sg1/schemas/s2",
+          "epoch": 1,
+          "name": "other",
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "1",
+
+          "metaurl": "http://localhost:8181/schemagroups/sg1/schemas/s2/meta",
+          "meta": {
+            "schemaid": "s2",
+            "self": "http://localhost:8181/schemagroups/sg1/schemas/s2/meta",
+            "xid": "/schemagroups/sg1/schemas/s2/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "1",
+            "defaultversionurl": "http://localhost:8181/schemagroups/sg1/schemas/s2/versions/1$details",
+            "defaultversionsticky": false
+          },
+
+          "versions": {
+            "1": {
+              "schemaid": "s2",
+              "versionid": "1",
+              "self": "http://localhost:8181/schemagroups/sg1/schemas/s2/versions/1$details",
+              "xid": "/schemagroups/sg1/schemas/s2/versions/1",
+              "epoch": 1,
+              "name": "other",
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "1"
+            }
+          },
+          "versionsurl": "http://localhost:8181/schemagroups/sg1/schemas/s2/versions",
+          "versionscount": 1
+        }
+      },
+      "schemasurl": "http://localhost:8181/schemagroups/sg1/schemas",
+      "schemascount": 2
+    }
+  },
+  "schemagroupsurl": "http://localhost:8181/schemagroups",
+  "schemagroupscount": 1
+}
+`)
+}
+
+// TestFiltersORMaskDiscriminating is a mask-discriminating regression
+// test: unlike TestFiltersORMask (whose scenario happens to be resolved
+// correctly even without the per-entity bit-mask, via the older/simpler
+// "an OR arm with no scoped clause under this abstract collapses the
+// whole filter" logic alone), THIS scenario genuinely requires the
+// bit-mask to get right. It was verified, while writing it, to actually
+// FAIL if the per-entity mask is disabled (i.e. if every OR arm is
+// treated as unconditionally "active" for every entity, matching the
+// pre-bit-mask behavior).
+//
+// Setup: two dirs (d1, d2), each with two files (one named "mine", one
+// named "other"). Filter is an OR of:
+//   - arm0: dirs.dirid=d1               (matches d1 wholesale, and (via
+//     the server's "Leaves" expansion - see GenerateFilterCTE in
+//     registry.go) tags ALL of d1's descendants, regardless of their own
+//     attributes, with arm0's bit)
+//   - arm1: dirs.files.name=mine        (matches only files literally
+//     named "mine", wherever they are - d1/f1 and d2/f3)
+//
+// Expected result: d1 shows BOTH f1 and f2 (unfiltered - wholesale
+// matched via arm0), but d2 shows ONLY f3 (arm1's match - f4 does NOT
+// appear at all, since it matches neither arm and isn't a descendant of
+// anything arm0 matched).
+//
+// This makes d1's own mask (for its "files" abstract) carry arm0's bit
+// (which has NO scoped clause relative to "dirs.files", since "dirid" is
+// a "dirs"-level attribute) - collapsing that <COLLECTION>url's filter to
+// nothing, correctly, since ALL of d1's files really are present.
+//
+// But d2's own mask (for its "files" abstract) carries ONLY arm1's bit
+// (arm0 never matched anything under d2), so arm0 must NOT be considered
+// here - without masking, arm0 would incorrectly collapse d2's
+// "filesurl" filter to nothing too, which would be WRONG: a fresh GET of
+// that (unfiltered) URL would incorrectly also return f4.
+func TestFiltersORMaskDiscriminating(t *testing.T) {
+	reg := NewRegistry("TestFiltersORMaskDiscriminating")
+	defer PassDeleteReg(t, reg)
+
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	XHTTP(t, reg, "PUT", "/", `{
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": { "name": "mine" },
+        "f2": { "name": "other" }
+      }
+    },
+    "d2": {
+      "files": {
+        "f3": { "name": "mine" },
+        "f4": { "name": "other" }
+      }
+    }
+  }
+}`, 200, "*")
+
+	XHTTP(t, reg, "GET",
+		"/?inline=*&filter=dirs.dirid=d1&filter=dirs.files.name=mine",
+		"", 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestFiltersORMaskDiscriminating",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
+
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "1",
+          "self": "http://localhost:8181/dirs/d1/files/f1$details",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "name": "mine",
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+            "defaultversionsticky": false
+          },
+
+          "versions": {
+            "1": {
+              "fileid": "f1",
+              "versionid": "1",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+              "xid": "/dirs/d1/files/f1/versions/1",
+              "epoch": 1,
+              "name": "mine",
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "1"
+            }
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versionscount": 1
+        },
+        "f2": {
+          "fileid": "f2",
+          "versionid": "1",
+          "self": "http://localhost:8181/dirs/d1/files/f2$details",
+          "xid": "/dirs/d1/files/f2",
+          "epoch": 1,
+          "name": "other",
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "http://localhost:8181/dirs/d1/files/f2/meta",
+            "xid": "/dirs/d1/files/f2/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/1$details",
+            "defaultversionsticky": false
+          },
+
+          "versions": {
+            "1": {
+              "fileid": "f2",
+              "versionid": "1",
+              "self": "http://localhost:8181/dirs/d1/files/f2/versions/1$details",
+              "xid": "/dirs/d1/files/f2/versions/1",
+              "epoch": 1,
+              "name": "other",
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "1"
+            }
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+          "versionscount": 1
+        }
+      },
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filescount": 2
+    },
+    "d2": {
+      "dirid": "d2",
+      "self": "http://localhost:8181/dirs/d2",
+      "xid": "/dirs/d2",
+      "epoch": 1,
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
+
+      "files": {
+        "f3": {
+          "fileid": "f3",
+          "versionid": "1",
+          "self": "http://localhost:8181/dirs/d2/files/f3$details",
+          "xid": "/dirs/d2/files/f3",
+          "epoch": 1,
+          "name": "mine",
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "1",
+
+          "metaurl": "http://localhost:8181/dirs/d2/files/f3/meta",
+          "meta": {
+            "fileid": "f3",
+            "self": "http://localhost:8181/dirs/d2/files/f3/meta",
+            "xid": "/dirs/d2/files/f3/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "1",
+            "defaultversionurl": "http://localhost:8181/dirs/d2/files/f3/versions/1$details",
+            "defaultversionsticky": false
+          },
+
+          "versions": {
+            "1": {
+              "fileid": "f3",
+              "versionid": "1",
+              "self": "http://localhost:8181/dirs/d2/files/f3/versions/1$details",
+              "xid": "/dirs/d2/files/f3/versions/1",
+              "epoch": 1,
+              "name": "mine",
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "1"
+            }
+          },
+          "versionsurl": "http://localhost:8181/dirs/d2/files/f3/versions",
+          "versionscount": 1
+        }
+      },
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=name=mine",
+      "filescount": 1
+    }
+  },
+  "dirsurl": "http://localhost:8181/dirs?filter=dirid=d1&filter=files.name=mine",
+  "dirscount": 2
+}
+`)
 }
 
 func TestFiltersMisc(t *testing.T) {

@@ -1353,4 +1353,33 @@ WITH RECURSIVE cte(eID,ParentID,Path) AS (
   UNION ALL SELECT e.eID,e.ParentID,e.Path FROM Entities AS e
   INNER JOIN cte ON e.eID=cte.ParentID)
 SELECT * FROM cte ;
+
+NOTE: the design notes above are historical (they predate the current
+Props/Entities schema and eSID/XID column names) and are kept only as
+background on how this query evolved. The ACTUAL query built today by
+registry.go:GenerateQuery()/GenerateFilterCTE() differs in one
+important way: each top-level OR expression ("arm") is tagged with a
+bit (1<<i) instead of being combined with a plain UNION/UNION DISTINCT
+that loses arm identity. The per-arm SELECTs are combined with
+UNION ALL and then BIT_OR(...)'d together (GROUP BY eSID) into a
+matched(eSID, mask) set, which seeds the recursive CTE; the recursive
+member propagates that mask upward, and a final BIT_OR(...) GROUP BY
+eSID reconciles nodes reached via multiple children with different
+masks. Every row returned by the outer query also carries this mask
+(as the FilterMask column), so that the JSON serializer
+(jsonWriter.go: WriteCollectionHeader/PeekCollectionMask,
+info.go: FiltersRelativeToAbstractMasked) can tell *which* OR arm(s)
+actually caused a given entity to be included, and therefore knows
+exactly which arm(s) - if any - to project onto a nested
+<COLLECTION>url's filter. An arm whose AND-clauses don't fall under a
+given nested collection's abstract path is "unconditionally true" for
+that subtree, and collapses the whole OR'd filter down to none.
+
+IMPORTANT: the recursive (parent-walking) member of the CTE must stay
+UNION DISTINCT, not UNION ALL - MySQL recursive CTEs materialize each
+iteration as an (unindexed) temp table, so switching to UNION ALL would
+let a node with many matching descendants get re-walked once per
+descendant (instead of once per distinct mask reaching it), turning an
+O(tree size) walk into O(matches x depth). Only the one-time,
+non-iterative arm-tagging seed aggregation uses UNION ALL.
 */

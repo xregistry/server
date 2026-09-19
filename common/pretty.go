@@ -454,7 +454,7 @@ func reorderArray(arr []any, order CanonicalLevelOrder) []any {
 //     "messagebase64") — no guessing needed once the singular is known.
 //   - "$COLLECTIONS" (Registry/Group/Resource levels): a Resource's own
 //     collection is always the fixed, model-independent "versions"/
-//     "versionscount"/"versionsurl" triple, so it's hardcoded. Registry's
+//     "versionsurl"/"versionscount" triple, so it's hardcoded. Registry's
 //     (group-type) and Group's (resource-type) collections have no such
 //     fixed name and there can be any number of them, so those ARE
 //     detected heuristically: any unconsumed "<name>count" key with a
@@ -495,8 +495,10 @@ func reorderEntity(om *OrderedMap, tokens []string, xid *Xid, order CanonicalLev
 	if hasCollectionsToken {
 		if xid.Type == ENTITY_RESOURCE {
 			// Fixed, model-independent — every Resource has exactly one
-			// collection, always literally named "versions".
-			for _, k := range []string{"versionsurl", "versionscount", "versions"} {
+			// collection, always literally named "versions". Body
+			// first, then url, then count (see WriteCollectionHeader
+			// in registry/jsonWriter.go for the server's own ordering).
+			for _, k := range []string{"versions", "versionsurl", "versionscount"} {
 				if _, present := om.Values[k]; present {
 					collectionsKeys = append(collectionsKeys, k)
 					consumed[k] = true
@@ -786,8 +788,8 @@ func resolveIDKeyByValue(om *OrderedMap, xid *Xid, consumed map[string]bool) (ke
 // a matching not-yet-consumed "<name>url" sibling is treated as one
 // collection; its own inlined map, "<name>", is included too if present.
 // Matches are returned sorted alphabetically by base name, each
-// contributing up to 3 keys in spec order: "<name>url", "<name>count",
-// "<name>".
+// contributing up to 3 keys in spec order: "<name>", "<name>url",
+// "<name>count".
 func detectHeuristicCollections(om *OrderedMap, consumed map[string]bool) []string {
 	seenBase := map[string]bool{}
 	var bases []string
@@ -813,7 +815,7 @@ func detectHeuristicCollections(om *OrderedMap, consumed map[string]bool) []stri
 
 	var result []string
 	for _, base := range bases {
-		for _, suffix := range []string{"url", "count", ""} {
+		for _, suffix := range []string{"", "url", "count"} {
 			k := base + suffix
 			if consumed[k] {
 				continue

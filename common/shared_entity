@@ -575,18 +575,6 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:      "metaurl",
-		Type:      URL,
-		ReadOnly:  true,
-		Immutable: true,
-		Required:  true,
-
-		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_RESOURCE),
-			dontStore: true,
-		},
-	},
-	{
 		Name: "meta",
 		Type: OBJECT,
 		Attributes: Attributes{
@@ -597,6 +585,18 @@ var OrderedSpecProps = []*Attribute{
 		},
 		internals: &AttrInternals{
 			types: StrTypes(ENTITY_RESOURCE),
+		},
+	},
+	{
+		Name:      "metaurl",
+		Type:      URL,
+		ReadOnly:  true,
+		Immutable: true,
+		Required:  true,
+
+		internals: &AttrInternals{
+			types:     StrTypes(ENTITY_RESOURCE),
+			dontStore: true,
 		},
 	},
 	{

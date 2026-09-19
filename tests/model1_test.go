@@ -1566,13 +1566,6 @@ func TestModelResourceCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -1582,6 +1575,13 @@ func TestModelResourceCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -2045,13 +2045,6 @@ func TestModelResourceCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -2061,6 +2054,13 @@ func TestModelResourceCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -2689,13 +2689,6 @@ func TestModelResourceCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -2705,6 +2698,13 @@ func TestModelResourceCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -3453,13 +3453,6 @@ func TestModelResourceCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -3469,6 +3462,13 @@ func TestModelResourceCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -4192,13 +4192,6 @@ func TestModelResourceCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -4208,6 +4201,13 @@ func TestModelResourceCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -4809,13 +4809,6 @@ func TestModelResourceCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -4825,6 +4818,13 @@ func TestModelResourceCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -5442,13 +5442,6 @@ func TestModelResourceCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -5458,6 +5451,13 @@ func TestModelResourceCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -6078,13 +6078,6 @@ func TestModelResourceCreate(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
-              "metaurl": {
-                "name": "metaurl",
-                "type": "url",
-                "readonly": true,
-                "immutable": true,
-                "required": true
-              },
               "meta": {
                 "name": "meta",
                 "type": "object",
@@ -6094,6 +6087,13 @@ func TestModelResourceCreate(t *testing.T) {
                     "type": "any"
                   }
                 }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "versionsurl": {
                 "name": "versionsurl",
@@ -6246,7 +6246,6 @@ func TestModelResourceCreate(t *testing.T) {
     }
   },
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "dir1": {
       "dirid": "dir1",
@@ -6256,7 +6255,6 @@ func TestModelResourceCreate(t *testing.T) {
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/dir1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -6275,9 +6273,11 @@ func TestModelResourceCreate(t *testing.T) {
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs/dir1/files",
       "filescount": 1
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -6754,13 +6754,6 @@ func TestModelResourceCreate(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
-              "metaurl": {
-                "name": "metaurl",
-                "type": "url",
-                "readonly": true,
-                "immutable": true,
-                "required": true
-              },
               "meta": {
                 "name": "meta",
                 "type": "object",
@@ -6770,6 +6763,13 @@ func TestModelResourceCreate(t *testing.T) {
                     "type": "any"
                   }
                 }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "versionsurl": {
                 "name": "versionsurl",
@@ -6922,7 +6922,6 @@ func TestModelResourceCreate(t *testing.T) {
     }
   },
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "dir1": {
       "dirid": "dir1",
@@ -6936,6 +6935,7 @@ func TestModelResourceCreate(t *testing.T) {
       "files2count": 0
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -7219,7 +7219,6 @@ func TestModelResourceCreate(t *testing.T) {
     }
   },
 
-  "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "dir1": {
       "dirid": "dir1",
@@ -7230,6 +7229,7 @@ func TestModelResourceCreate(t *testing.T) {
       "modifiedat": "2024-01-01T12:00:04Z"
     }
   },
+  "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
 `)
@@ -7520,8 +7520,8 @@ func TestModelResourceCreate(t *testing.T) {
     }
   },
 
-  "dirs2url": "http://localhost:8181/dirs2",
   "dirs2": {},
+  "dirs2url": "http://localhost:8181/dirs2",
   "dirs2count": 0
 }
 `)
@@ -8050,13 +8050,6 @@ func TestModelMultCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -8066,6 +8059,13 @@ func TestModelMultCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -8380,13 +8380,6 @@ func TestModelMultCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -8396,6 +8389,13 @@ func TestModelMultCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -8889,13 +8889,6 @@ func TestModelMultCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -8905,6 +8898,13 @@ func TestModelMultCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -9219,13 +9219,6 @@ func TestModelMultCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
             "meta": {
               "name": "meta",
               "type": "object",
@@ -9235,6 +9228,13 @@ func TestModelMultCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "versionsurl": {
               "name": "versionsurl",
@@ -10047,13 +10047,6 @@ func TestModelMult2Create(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
-              "metaurl": {
-                "name": "metaurl",
-                "type": "url",
-                "readonly": true,
-                "immutable": true,
-                "required": true
-              },
               "meta": {
                 "name": "meta",
                 "type": "object",
@@ -10063,6 +10056,13 @@ func TestModelMult2Create(t *testing.T) {
                     "type": "any"
                   }
                 }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "versionsurl": {
                 "name": "versionsurl",
@@ -10530,13 +10530,6 @@ func TestModelMult2Create(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
-              "metaurl": {
-                "name": "metaurl",
-                "type": "url",
-                "readonly": true,
-                "immutable": true,
-                "required": true
-              },
               "meta": {
                 "name": "meta",
                 "type": "object",
@@ -10546,6 +10539,13 @@ func TestModelMult2Create(t *testing.T) {
                     "type": "any"
                   }
                 }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "versionsurl": {
                 "name": "versionsurl",
@@ -10698,7 +10698,6 @@ func TestModelMult2Create(t *testing.T) {
     }
   },
 
-  "dirs1url": "http://localhost:8181/dirs1",
   "dirs1": {
     "d1": {
       "dir1id": "d1",
@@ -10708,7 +10707,6 @@ func TestModelMult2Create(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:04Z",
 
-      "filesurl": "http://localhost:8181/dirs1/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
@@ -10736,7 +10734,6 @@ func TestModelMult2Create(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs1/d1/files/f1/versions",
           "versions": {
             "v1": {
               "fileid": "f1",
@@ -10761,9 +10758,11 @@ func TestModelMult2Create(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs1/d1/files/f1/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs1/d1/files",
       "filescount": 1
     },
     "d2": {
@@ -10774,7 +10773,6 @@ func TestModelMult2Create(t *testing.T) {
       "createdat": "2024-01-01T12:00:06Z",
       "modifiedat": "2024-01-01T12:00:07Z",
 
-      "filesurl": "http://localhost:8181/dirs1/d2/files",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -10802,7 +10800,6 @@ func TestModelMult2Create(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs1/d2/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -10827,14 +10824,16 @@ func TestModelMult2Create(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs1/d2/files/f2/versions",
           "versionscount": 2
         }
       },
+      "filesurl": "http://localhost:8181/dirs1/d2/files",
       "filescount": 1
     }
   },
+  "dirs1url": "http://localhost:8181/dirs1",
   "dirs1count": 2,
-  "dirs2url": "http://localhost:8181/dirs2",
   "dirs2": {
     "d2": {
       "dir2id": "d2",
@@ -10844,7 +10843,6 @@ func TestModelMult2Create(t *testing.T) {
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:09Z",
 
-      "filesurl": "http://localhost:8181/dirs2/d2/files",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -10872,7 +10870,6 @@ func TestModelMult2Create(t *testing.T) {
             "defaultversionsticky": false
           },
 
-          "versionsurl": "http://localhost:8181/dirs2/d2/files/f2/versions",
           "versions": {
             "v1": {
               "fileid": "f2",
@@ -10886,12 +10883,15 @@ func TestModelMult2Create(t *testing.T) {
               "ancestorid": "v1"
             }
           },
+          "versionsurl": "http://localhost:8181/dirs2/d2/files/f2/versions",
           "versionscount": 1
         }
       },
+      "filesurl": "http://localhost:8181/dirs2/d2/files",
       "filescount": 1
     }
   },
+  "dirs2url": "http://localhost:8181/dirs2",
   "dirs2count": 1
 }
 `)

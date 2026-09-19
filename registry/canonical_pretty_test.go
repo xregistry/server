@@ -338,7 +338,8 @@ func TestCanonicalPrettyPrintJSON_ResourceVersionsCollectionHardcoded(t *testing
 		t.Fatalf("missing expected keys, got:\n%s", got)
 	}
 	// versionsurl/versionscount are recognized as the hardcoded
-	// "versions" collection (in url-before-count order) and placed at
+	// "versions" collection (in url-before-count order, since no
+	// "versions" body key is present here to go first) and placed at
 	// the "$COLLECTIONS" slot, which in Resource's canonical order comes
 	// after (a blank-line-separated) "$extensions" — so "myext" (a
 	// genuine, unrelated extension) comes first, followed by a blank
@@ -349,6 +350,45 @@ func TestCanonicalPrettyPrintJSON_ResourceVersionsCollectionHardcoded(t *testing
 	if !strings.Contains(got, "\n\n") {
 		t.Errorf("expected a blank line separating extensions from the collection, got:\n%s", got)
 	}
+}
+
+// TestCanonicalPrettyPrintJSON_ResourceVersionsCollectionBodyFirst
+// verifies that when the "versions" inlined body IS present, the
+// hardcoded Resource collection triple is ordered body -> url -> count
+// (matching the server's own WriteCollectionHeader ordering, see
+// registry/jsonWriter.go), not url -> count -> body.
+func TestCanonicalPrettyPrintJSON_ResourceVersionsCollectionBodyFirst(t *testing.T) {
+	input := `{
+		"xid": "/groups/g1/resources/r1",
+		"self": "http://example.com/r1",
+		"messageid": "r1",
+		"versionsurl": "http://example.com/r1/versions",
+		"versionscount": 1,
+		"versions": {
+			"1": { "messageid": "r1", "versionid": "1" }
+		}
+	}`
+	out, err := CanonicalPrettyPrintJSON([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := string(out)
+
+	want := `{
+  "messageid": "r1",
+  "self": "http://example.com/r1",
+  "xid": "/groups/g1/resources/r1",
+
+  "versions": {
+    "1": {
+      "messageid": "r1",
+      "versionid": "1"
+    }
+  },
+  "versionsurl": "http://example.com/r1/versions",
+  "versionscount": 1
+}`
+	XEqual(t, "", got, want)
 }
 
 // TestCanonicalPrettyPrintJSON_ResourceVersionMirroredAttrs verifies that
