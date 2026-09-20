@@ -223,7 +223,7 @@ func TestFailedDependenciesPropagateConsistently(t *testing.T) {
 └─ FAIL: dependencyCaller
    ├─ FAIL: dependencyFailure
    │  └─ FAIL: dependency failed
-   └─ Dependency "com/xregistry/server/cmds/xr.dependencyFailure" failed, leaving
+   └─ Dependency "dependencyFailure" failed, leaving
 Pass: 0   Fail: 4   Warn: 0   Skip: 0
 `)
 
@@ -231,8 +231,8 @@ Pass: 0   Fail: 4   Warn: 0   Skip: 0
 	XEqual(t, "Cached Dependent Status", cachedDependent.Status, FAIL)
 	XEqual(t, "Cached Dependency Output", cached, `FAIL: cached
 └─ FAIL: dependencyCaller
-   ├─ FAIL: com/xregistry/server/cmds/xr.dependencyFailure (cached)
-   └─ Dependency "com/xregistry/server/cmds/xr.dependencyFailure" failed, leaving
+   ├─ FAIL: dependencyFailure (cached)
+   └─ Dependency "dependencyFailure" failed, leaving
 Pass: 0   Fail: 3   Warn: 0   Skip: 0
 `)
 }
@@ -250,7 +250,7 @@ func TestConformanceStateErrorRendersCompleteResult(t *testing.T) {
 	got := renderTD(td)
 	XEqual(t, "State Error Output", got, `FAIL: http://example.com
 └─ FAIL: TestResources
-   ├─ PASS: com/xregistry/server/cmds/xr.TestGroups (cached)
+   ├─ PASS: TestGroups (cached)
    └─ FAIL: reg.stuff.gm != *GroupModel
 Pass: 1   Fail: 3   Warn: 0   Skip: 0
 `)
