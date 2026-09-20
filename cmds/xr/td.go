@@ -39,6 +39,7 @@ func init() {
 }
 
 type TDConfig struct {
+	Out          io.Writer
 	Server       string
 	Registry     *xrlib.Registry
 	Model        *xrlib.Model
@@ -105,8 +106,11 @@ func NewTD(parent *TD, args ...any) *TD {
 		Parent:   parent,
 		Logs:     []*LogEntry{},
 
-		Status:  PASS,
-		Config:  &TDConfig{},
+		Status: PASS,
+		Config: &TDConfig{
+			Out:      os.Stdout,
+			TestRuns: map[string]*TD{},
+		},
 		NumPass: 1,
 	}
 
@@ -163,7 +167,7 @@ func (td *TD) Print(out io.Writer, indent string, depth int) {
 		td.write(out, indent, depth)
 	}
 
-	fmt.Printf(indent+"Pass: %d   Fail: %d   Warn: %d   Skip: %d\n",
+	fmt.Fprintf(out, indent+"Pass: %d   Fail: %d   Warn: %d   Skip: %d\n",
 		td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
 }
 
@@ -352,6 +356,13 @@ func (td *TD) Expect(status int) {
 
 // PASS|FAIL|WARN|SKIP, testNameText, substitute args for testName
 func (td *TD) Report(status int, args ...any) {
+	status = td.recordStatus(status, args...)
+	if td.Config.FailFast && status == FAIL {
+		td.Stop()
+	}
+}
+
+func (td *TD) recordStatus(status int, args ...any) int {
 	// fmt.Printf("Report: %q %s : %v\n", td.TestName, StatusText[status], args)
 
 	line := ""
@@ -388,9 +399,7 @@ func (td *TD) Report(status int, args ...any) {
 		})
 	} */
 	td.AddStatus(status)
-	if td.Config.FailFast && status == FAIL {
-		td.Stop()
-	}
+	return status
 }
 
 func (td *TD) Pass(args ...any)    { td.Report(PASS, args...) }
@@ -407,13 +416,14 @@ func (td *TD) DependsOn(fn TestFn) {
 
 	if prevTD, ok := td.Config.TestRuns[fn.Name()]; ok {
 		depStatus = prevTD.Status
-		td.Report(prevTD.Status, "%s (cached)", fn.Name())
+		td.recordStatus(prevTD.Status, "%s (cached)", fn.Name())
 	} else {
 		newTD := td.Run(fn)
 		depStatus = newTD.Status
 	}
 
 	if depStatus == FAIL {
+		td.AddStatus(FAIL)
 		td.Msg("Dependency %q failed, leaving", fn.Name())
 		td.Stop()
 	}

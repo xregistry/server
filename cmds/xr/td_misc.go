@@ -103,7 +103,7 @@ func TestTDUtils(td *TD) {
 	td.ObjReqMustEq(res.JSON, "modifiedat", "ts")
 
 	_, xErr := reg.GetCapabilities()
-	Error(xErr)
+	td.NoErrorStop(xErr, "Retrieving capabilities MUST work")
 
 	if reg.Capabilities == nil {
 		td.Skip(`"shortself" capability not enabled`)
