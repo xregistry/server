@@ -23,6 +23,7 @@
 # 11adb65394fd 2m13s   2m43s  34s     New logging and TXs in errors
 # 7cad0bb35854 2m14s   2m49s  34s     New download stuff, --min
 # 7b81b497591e 2m12s   2m47s  34s     server alias, rawjson
+# 8fc8fd7c7e96 2m14s   2m48s  35s     TD testing
 
 set -e
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
@@ -107,14 +108,19 @@ func (m *Model) Save() *XRError {
 	buf, _ := json.Marshal(m)
 	modelStr := string(buf)
 
+	// A fresh opaque value every save - lets other requests/replicas
+	// (see loadModelFromDB's cache check) cheaply notice this Model row
+	// changed without having to compare/parse the full JSON blob.
+	changedID := NewUUID()
+
 	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.tx.uuid)
 	DoZeroTwo(m.Registry.tx, `
-        INSERT INTO Models(RegistrySID, Model)
-        VALUES(?,?)
-        ON DUPLICATE KEY UPDATE Model=?`,
+        INSERT INTO Models(RegistrySID, Model, Changed)
+        VALUES(?,?,?)
+        ON DUPLICATE KEY UPDATE Model=?, Changed=?`,
 
-		m.Registry.DbSID, modelStr,
-		modelStr)
+		m.Registry.DbSID, modelStr, changedID,
+		modelStr, changedID)
 
 	existingModelEntities := map[string]string{} // Abstract->SID
 	results := Query(m.Registry.tx,
@@ -254,7 +260,63 @@ func (m *Model) Save() *XRError {
 
 	m.SetChanged(false)
 
+	// Seed the cache with what we just wrote (only now that changed==false,
+	// so cache hits don't hand out a Model that looks dirty) - lets the
+	// very next request skip re-fetching+re-parsing what we already have.
+	setCachedModel(m.Registry.DbSID, changedID, m)
+
 	return nil
+}
+
+// modelCache is an in-process cache of the last-seen parsed *Model per
+// Registry (keyed by RegistrySID), so that loadModelFromDB() - called on
+// pretty much every HTTP request via FindRegistry()/FindRegistryBySID() -
+// doesn't have to re-parse the (potentially large) Model JSON blob when
+// nothing has changed since the last time we loaded it. Models.Changed
+// (see init.sql) is the cheap signal we compare against: it's a fresh
+// NewUUID() written by Model.Save() every time the Model row actually
+// changes, whether that happened via this process or another xrserver
+// replica sharing the same DB.
+//
+// The cached *Model is never handed out directly - see Model.Clone() -
+// since it's shared/read by concurrent requests and Model/GroupModel/
+// ResourceModel/Attribute all get mutated in place by callers (e.g.
+// ApplyNewModel(), Model.Save()'s own diffing).
+var modelCacheMutex = sync.Mutex{}
+var modelCache = map[string]*modelCacheEntry{} // RegistrySID -> entry
+
+type modelCacheEntry struct {
+	changed string // last known Models.Changed value for this RegistrySID
+	model   *Model // parsed as of that Changed value - Clone() before use
+}
+
+func getCachedModel(regSID string, changed string) *Model {
+	modelCacheMutex.Lock()
+	entry := modelCache[regSID]
+	modelCacheMutex.Unlock()
+
+	if entry == nil || entry.changed != changed {
+		return nil
+	}
+	return entry.model.Clone()
+}
+
+func setCachedModel(regSID string, changed string, model *Model) {
+	// Store our own private clone - never the caller's live *Model - so
+	// later in-place mutations by the caller (e.g. ApplyNewModel()) can't
+	// corrupt what we hand out to other requests later.
+	cached := model.Clone()
+	cached.Registry = nil
+
+	modelCacheMutex.Lock()
+	modelCache[regSID] = &modelCacheEntry{changed: changed, model: cached}
+	modelCacheMutex.Unlock()
+}
+
+func evictCachedModel(regSID string) {
+	modelCacheMutex.Lock()
+	delete(modelCache, regSID)
+	modelCacheMutex.Unlock()
 }
 
 func LoadModel(reg *Registry) *Model {
@@ -280,7 +342,7 @@ func loadModelFromDB(reg *Registry, loud bool) *Model {
 
 	// Load Registry model
 	results := Query(reg.tx,
-		`SELECT Model FROM Models WHERE RegistrySID=?`,
+		`SELECT Model,Changed FROM Models WHERE RegistrySID=?`,
 		reg.DbSID)
 	defer results.Close()
 
@@ -291,6 +353,12 @@ func loadModelFromDB(reg *Registry, loud bool) *Model {
 			log.Printf("tx: %s Can't find registry: %s", reg.tx.uuid, reg.UID)
 		}
 		return nil
+	}
+
+	changed := NotNilString(row[1])
+	if model := getCachedModel(reg.DbSID, changed); model != nil {
+		model.Registry = reg
+		return model
 	}
 
 	modelBuf := []byte(nil)
@@ -304,6 +372,8 @@ func loadModelFromDB(reg *Registry, loud bool) *Model {
 		return nil
 	}
 	model.Registry = reg
+
+	setCachedModel(reg.DbSID, changed, model)
 
 	return model
 }

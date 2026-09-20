@@ -190,6 +190,19 @@ type GroupModel struct {
 
 type Constraints map[string]*Constraint
 
+func (cs Constraints) Clone() Constraints {
+	if cs == nil {
+		return nil
+	}
+
+	newCS := Constraints{}
+	for key, c := range cs {
+		newCS[key] = c.Clone()
+	}
+
+	return newCS
+}
+
 type Constraint struct {
 	Default any    `json:"default,omitempty"`
 	Enum    []any  `json:"enum,omitempty"`
@@ -397,6 +410,38 @@ func (m *Model) SetPointers() {
 	for _, gm := range m.Groups {
 		gm.SetModel(m)
 	}
+}
+
+// Clone returns a deep copy of m - safe for a caller to hand out to
+// multiple concurrent requests/goroutines, each free to mutate its own
+// copy (e.g. assign its own Registry, or run ApplyNewModel() on it)
+// without affecting m or any other clone. Used by the in-process Model
+// cache (see loadModelFromDB in registry/model.go) so concurrent requests
+// never share/mutate the same cached *Model (see Attribute.Clone()'s
+// comment for the data-race this guards against).
+func (m *Model) Clone() *Model {
+	if m == nil {
+		return nil
+	}
+
+	newM := &Model{
+		Registry:      m.Registry,
+		Source:        m.Source,
+		Description:   m.Description,
+		Documentation: m.Documentation,
+		Labels:        maps.Clone(m.Labels),
+		Attributes:    m.Attributes.Clone(),
+		changed:       m.changed,
+	}
+
+	newM.Groups = map[string]*GroupModel{}
+	for plural, gm := range m.Groups {
+		newM.Groups[plural] = gm.Clone(newM)
+	}
+
+	newM.SetPointers()
+
+	return newM
 }
 
 func (m *Model) SetSpecPropsFields() {
@@ -1238,7 +1283,7 @@ func (rm *ResourceModel) GetOriginResourceModel() *ResourceModel {
 
 func (rm *ResourceModel) Clone(newGM *GroupModel) *ResourceModel {
 	newRM := &ResourceModel{
-		SID:        "", // leave blank
+		SID:        rm.SID,
 		GroupModel: newGM,
 
 		Plural:              rm.Plural,
@@ -1269,6 +1314,43 @@ func (rm *ResourceModel) Clone(newGM *GroupModel) *ResourceModel {
 	newRM.SetModel(newGM.Model)
 
 	return newRM
+}
+
+// Clone returns a deep copy of gm, linked to newModel. Every nested
+// Resource/Attribute/Item/IfValue is cloned too (see Attribute.Clone()'s
+// comment for why a shallow copy would be unsafe to share across
+// concurrent requests).
+func (gm *GroupModel) Clone(newModel *Model) *GroupModel {
+	if gm == nil {
+		return nil
+	}
+
+	newGM := &GroupModel{
+		SID:   gm.SID,
+		Model: newModel,
+
+		Plural:              gm.Plural,
+		Singular:            gm.Singular,
+		Description:         gm.Description,
+		Documentation:       gm.Documentation,
+		Icon:                gm.Icon,
+		Labels:              maps.Clone(gm.Labels),
+		ModelVersion:        gm.ModelVersion,
+		ModelCompatibleWith: gm.ModelCompatibleWith,
+		Attributes:          gm.Attributes.Clone(),
+
+		XImportResources: slices.Clone(gm.XImportResources),
+		Constraints:      gm.Constraints.Clone(),
+	}
+
+	newGM.Resources = map[string]*ResourceModel{}
+	for plural, rm := range gm.Resources {
+		newGM.Resources[plural] = rm.Clone(newGM)
+	}
+
+	newGM.SetModel(newModel)
+
+	return newGM
 }
 
 func (rm *ResourceModel) ClearPropsOrdered() {
@@ -2177,6 +2259,7 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 		}
 
 		rClone := r.Clone(gm)
+		rClone.SID = "" // this is a brand new ResourceModel, not a copy of r
 
 		// Save what our real type is
 		rClone.XImportOrigin = "/" + r.GroupModel.Plural + "/" + r.Plural
@@ -3248,8 +3331,9 @@ func (attrs Attributes) ConvertStrings(obj Object) {
 		}
 
 		// We'll only try to convert strings and one-level-scalar maps
-		valValue := reflect.ValueOf(val)
-		if valValue.Kind() != reflect.String && valValue.Kind() != reflect.Map {
+		valMap, isMap := val.(map[string]any)
+		_, isStr := val.(string)
+		if !isStr && !isMap {
 			continue
 		}
 		valStr := fmt.Sprintf("%v", val)
@@ -3262,8 +3346,7 @@ func (attrs Attributes) ConvertStrings(obj Object) {
 				obj[key] = newVal
 			}
 		case MAP:
-			if valValue.Kind() == reflect.Map {
-				valMap := val.(map[string]any)
+			if isMap {
 				for k, v := range valMap {
 					vStr := fmt.Sprintf("%v", v)
 					// Only saved the converted string if we did a conversion
@@ -3826,45 +3909,42 @@ var DefinedTypes = map[string]bool{
 // attr.Type must be a scalar
 // Used to check JSON type vs our types
 func IsOfType(val any, attrType string) bool {
-	switch reflect.ValueOf(val).Kind() {
-	case reflect.Bool:
+	switch v := val.(type) {
+	case bool:
 		return attrType == BOOLEAN
 
-	case reflect.String:
+	case string:
 		if attrType == TIMESTAMP {
-			str := val.(string)
-			_, err := time.Parse(time.RFC3339, str)
+			_, err := time.Parse(time.RFC3339, v)
 			return err == nil
 		}
 
 		return IsString(attrType)
 
-	case reflect.Float64: // JSON ints show up as floats
+	case float64: // JSON ints show up as floats
 		if attrType == DECIMAL {
 			return true
 		}
 		if attrType == INTEGER || attrType == UINTEGER {
-			valInt := int(val.(float64))
-			if float64(valInt) != val.(float64) {
+			valInt := int(v)
+			if float64(valInt) != v {
 				return false
 			}
 			return attrType == INTEGER || valInt >= 0
 		}
 		return false
 
-	case reflect.Int:
+	case int:
 		if attrType == DECIMAL {
 			return true
 		}
 		if attrType == INTEGER || attrType == UINTEGER {
-			valInt := val.(int)
-			return attrType == INTEGER || valInt >= 0
+			return attrType == INTEGER || v >= 0
 		}
 		return false
-
-	default:
-		return false
 	}
+
+	return false
 }
 
 /*
@@ -4004,25 +4084,59 @@ func IsValidEnum(val any, enum []any) bool {
 		return true
 	}
 
-	if reflect.ValueOf(val).Kind() == reflect.String {
-		val = strings.ToLower(val.(string))
+	if valStr, ok := val.(string); ok {
+		val = strings.ToLower(valStr)
 	}
 
 	// Don't touch original enum
 	tmpEnum := make([]any, len(enum))
 	for i, v := range enum {
-		if reflect.ValueOf(v).Kind() == reflect.String {
-			tmpEnum[i] = strings.ToLower(v.(string))
+		if vStr, ok := v.(string); ok {
+			tmpEnum[i] = strings.ToLower(vStr)
 		} else {
 			tmpEnum[i] = enum[i]
 		}
 	}
 	enum = tmpEnum
 
+	// deal with cases where json parses int as floats - annoying
+	altInt := 0
+	checkFloat := false
+	switch v := val.(type) {
+	case int:
+		altInt = v
+		checkFloat = true
+	case float64:
+		altInt = int(v)
+		checkFloat = (v == float64(altInt))
+		// Save float32 support for possible future checks
+		/*
+			case float32:
+				altInt = int(v)
+				checkFloat = (v == float32(altInt))
+		*/
+	}
+
 	for _, v := range enum {
-		b := (v == val)
-		if b {
+		if v == val {
 			return true
+		}
+
+		if vInt, ok := v.(int); ok && checkFloat {
+			if vInt == altInt {
+				return true
+			}
+		} else if vFloat, ok := v.(float64); ok && checkFloat {
+			if int(vFloat) == altInt {
+				return true
+			}
+			// Save float32 for possible future use
+			/*
+				} else if vFloat, ok := v.(float32); ok && checkFloat {
+				  if int(vFloat) == altInt {
+				  return true
+				}
+			*/
 		}
 	}
 

@@ -108,9 +108,6 @@ TODOs:
   check versions, but other updates won't. THey'll validate the constraints
   at the group/resource level, but there's nothing at the version level to check
 - test attribute definitions with enums with strict=true / false
-** support smart sub-filter generation
-   https://grok.com/share/bGVnYWN5LWNvcHk_54be15f5-d342-464b-836c-90f3cd7ef39a
-** add support for smart sub-set filters in COLLECTIONurls
 - clean-up design of model save/apply
 - make sure we support ?ignore  w/o value (or "*") to mean all possible
 ** in dlog, sync the write to the output (see misc test file for why)
@@ -123,3 +120,4 @@ TODOs:
    would expose lots of registries as a single one.
 ** make sure "format" ext attr + "format" resource generates an error,groups too
 - only check-in the generated files for xregistry.io, not hub.xreg.io
+- race condition around DefaultRegDbSID global var
