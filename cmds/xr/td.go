@@ -81,9 +81,9 @@ type LogEntry struct {
 
 func (fn TestFn) Name() string {
 	name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
-	before, name, _ := strings.Cut(name, ".")
-	if name == "" {
-		name = before
+	index := strings.LastIndex(name, ".")
+	if index >= 0 {
+		name = name[index+1:]
 	}
 	return name
 }
