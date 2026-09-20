@@ -70,6 +70,15 @@ CREATE TABLE Models (
     RegistrySID VARCHAR(64) NOT NULL,
     Model       JSON,                     # Full model, not just Registry
 
+    # Opaque value, changed (to a new NewUUID()) by Go every time this
+    # row's Model is written (see Model.Save()). Lets the in-process
+    # Model cache (registry/model.go's modelCache) cheaply tell - with
+    # just this one narrow column, not the full JSON blob - whether its
+    # cached *Model is still what's persisted, even across multiple
+    # xrserver replicas sharing this DB, without re-parsing Model on
+    # every request.
+    Changed     VARCHAR(64) NOT NULL DEFAULT '',
+
     PRIMARY KEY (RegistrySID)
 );
 

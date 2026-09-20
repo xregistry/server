@@ -334,6 +334,11 @@ func (reg *Registry) Delete() *XRError {
 	reg.Lock()
 	DoOne(reg.tx, `DELETE FROM Registries WHERE SID=?`, reg.DbSID)
 
+	// Avoid an unbounded leak of dead entries in the in-process Model
+	// cache (see registry/model.go) - the DbSID is never reused, but
+	// there's no reason to hang on to it once the Registry is gone.
+	evictCachedModel(reg.DbSID)
+
 	// Delete any pending changes so dirty check doesn't fail
 	reg.NewObject = nil
 	reg.tx.EraseCache()

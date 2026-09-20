@@ -310,7 +310,7 @@ prof: xrserver
 		$(GO_TEST) -cpuprofile cpu.prof -memprofile mem.prof -bench . \
 		github.com/$(GIT_ORG)/$(GIT_REPO)/tests
 	@# go tool pprof -http:0.0.0.0:9999 cpu.prof
-	@go tool pprof -top -cum cpu.prof | sed -n '0,/flat/p;/xreg/p' | more
+	@go tool pprof -top -flat cpu.prof | sed -n '0,/flat/p;/xreg/p' | more
 	@rm -f cpu.prof mem.prof tests.test
 
 devimage: .devimage

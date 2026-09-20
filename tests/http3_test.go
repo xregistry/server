@@ -4950,25 +4950,25 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	runRes.Wait()
 
 	// Now do it again when / = UI
-	runRes = Run("../xrserver", "-vv", "-p", "8383", "--rootapp=ui", "-r", "treg1")
+	runRes = Run("../xrserver", "-vv", "-p", "8484", "--rootapp=ui", "-r", "treg1")
 	XNoErr(t, runRes.Error)
 	defer runRes.Wait()
 	defer runRes.Kill()
 
-	XNoErr(t, WaitForURL("http://localhost:8383"))
+	XNoErr(t, WaitForURL("http://localhost:8484"))
 
 	// Even when /ui is the UI, .xregistry should still work
-	res, xErr = CommonHttpDo("GET", "http://localhost:8383/.xregistry", nil, nil)
+	res, xErr = CommonHttpDo("GET", "http://localhost:8484/.xregistry", nil, nil)
 	XNoErr(t, xErr)
-	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8484/xreg"(.|\n)*8484/xregs/treg1"`)
 
-	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xreg/.xregistry", nil, nil)
+	res, xErr = CommonHttpDo("GET", "http://localhost:8484/xreg/.xregistry", nil, nil)
 	XNoErr(t, xErr)
-	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8484/xreg"(.|\n)*8484/xregs/treg1"`)
 
-	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xregs/treg1/.xregistry", nil, nil)
+	res, xErr = CommonHttpDo("GET", "http://localhost:8484/xregs/treg1/.xregistry", nil, nil)
 	XNoErr(t, xErr)
-	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
+	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8484/xreg"(.|\n)*8484/xregs/treg1"`)
 
 	runRes.Kill()
 	runRes.Wait()

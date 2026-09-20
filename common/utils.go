@@ -151,15 +151,15 @@ func NotNilString(val *any) string {
 		return ""
 	}
 
-	if reflect.ValueOf(*val).Kind() == reflect.String {
-		return (*val).(string)
+	if s, ok := (*val).(string); ok {
+		return s
 	}
 
-	if reflect.ValueOf(*val).Kind() != reflect.Slice {
+	b, ok := (*val).([]byte)
+	if !ok {
 		panic(fmt.Sprintf("Not a slice: %T (%#v)", *val, *val))
 	}
 
-	b := (*val).([]byte)
 	return string(b)
 }
 
@@ -170,8 +170,7 @@ func NotNilIntDef(val *any, def int) int {
 
 	var b int
 
-	if reflect.ValueOf(*val).Kind() == reflect.Int64 {
-		tmp, _ := (*val).(int64)
+	if tmp, ok := (*val).(int64); ok {
 		b = int(tmp)
 	} else {
 		b, _ = (*val).(int)
@@ -1834,7 +1833,6 @@ func Run(args ...string) *RunResult {
 		return res
 	}
 
-	res.Start()
 	go func() { res.Out, _ = io.ReadAll(stdout) }()
 	go func() { res.Err, _ = io.ReadAll(stderr) }()
 

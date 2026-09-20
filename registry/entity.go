@@ -70,19 +70,36 @@ func (e *Entity) GetGroupModel() *GroupModel {
 }
 
 func GoToOurType(val any) string {
-	switch reflect.ValueOf(val).Kind() {
-	case reflect.Bool:
+	// Fast path: type switch avoids the reflect.ValueOf() overhead for
+	// the concrete types that make up the overwhelming majority of calls
+	// (JSON-decoded values, plus our own int/uint64/struct{}{} usages).
+	switch val.(type) {
+	case bool:
 		return BOOLEAN
-	case reflect.Int:
+	case int:
 		return INTEGER
+	case uint64:
+		return UINTEGER
+	case float64:
+		return DECIMAL
+	case string:
+		return STRING
+	case []any:
+		return ARRAY
+	case map[string]any:
+		return MAP
+	case struct{}:
+		return OBJECT
+	}
+
+	panic(fmt.Sprintf("Bad type: %s", reflect.ValueOf(val).Type()))
+
+	// Slow path: fall back to reflect.Kind for anything not covered above
+	// (e.g. some other named slice/map/struct type), so behavior stays
+	// identical to before for any case we didn't anticipate.
+	switch reflect.ValueOf(val).Kind() {
 	case reflect.Interface:
 		return ANY
-	case reflect.Float64:
-		return DECIMAL
-	case reflect.String:
-		return STRING
-	case reflect.Uint64:
-		return UINTEGER
 	case reflect.Slice:
 		return ARRAY
 	case reflect.Map:
@@ -217,7 +234,7 @@ func (e *Entity) GetAsString(path string) string {
 		return ""
 	}
 
-	if tmp := reflect.ValueOf(val).Kind(); tmp != reflect.String {
+	if _, ok := val.(string); !ok {
 		panic(fmt.Sprintf("Not a string - got %T(%v)", val, val))
 	}
 
@@ -231,7 +248,7 @@ func (e *Entity) GetOriginAsString(path string) string {
 		return ""
 	}
 
-	if tmp := reflect.ValueOf(val).Kind(); tmp != reflect.String {
+	if _, ok := val.(string); !ok {
 		panic(fmt.Sprintf("Not a string - got %T(%v)", val, val))
 	}
 
@@ -953,35 +970,35 @@ func (e *Entity) prepDBProperty(pp *PropPath, val any) (row dbPropRow,
 		}
 	}
 
-	switch reflect.ValueOf(val).Kind() {
-	case reflect.String:
-		if reflect.ValueOf(val).Len() > MAX_VARCHAR {
+	// row.Type already came from GoToOurType(val) above, which panics on
+	// any type outside its known set - so val's concrete type here is
+	// guaranteed and we can type-assert directly instead of using reflect.
+	switch row.Type {
+	case STRING:
+		if s := val.(string); len(s) > MAX_VARCHAR {
 			return dbPropRow{}, false, NewXRError("invalid_attribute",
 				e.XID, "name="+pp.UI(),
 				"error_detail="+
 					fmt.Sprintf("must be less than %d chars",
 						MAX_VARCHAR+1))
 		}
-	case reflect.Slice:
-		if reflect.ValueOf(val).Len() > 0 {
+	case ARRAY:
+		if a := val.([]any); len(a) > 0 {
 			return dbPropRow{}, false, NewXRError("invalid_attribute",
 				e.XID, "name="+pp.UI(),
 				"error_detail=can't set non-empty arrays")
 		}
 		dbVal = ""
-	case reflect.Map:
-		if reflect.ValueOf(val).Len() > 0 {
+	case MAP:
+		if m := val.(map[string]any); len(m) > 0 {
 			return dbPropRow{}, false, NewXRError("invalid_attribute",
 				e.XID, "name= "+pp.UI(),
 				"error_detail=can't set non-empty maps")
 		}
 		dbVal = ""
-	case reflect.Struct:
-		if reflect.ValueOf(val).NumField() > 0 {
-			return dbPropRow{}, false, NewXRError("invalid_attribute",
-				e.XID, "name="+pp.UI(),
-				"error_detail=can't set non-empty objects")
-		}
+	case OBJECT:
+		// GoToOurType() only ever maps OBJECT from the literal struct{}{}
+		// sentinel (never a populated struct), so this is always empty.
 		dbVal = ""
 	}
 
@@ -2896,15 +2913,12 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			ToJSON(SortedKeys(origAttrs)))
 	}
 
-	valValue := reflect.ValueOf(val)
-	if valValue.Kind() != reflect.Map ||
-		valValue.Type().Key().Kind() != reflect.String {
-
+	newObj, ok := val.(map[string]any)
+	if !ok {
 		return NewXRError("invalid_attribute", e.XID,
 			"name="+path.UI(),
 			"error_detail="+"must be a map[string] or object")
 	}
-	newObj := val.(map[string]any)
 
 	// Convert origAttrs to a slice of *Attribute where "*" is first, if there
 	attrs := make([]*Attribute, len(origAttrs))
@@ -3224,15 +3238,14 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 	}
 
 	for _, k := range valValue.MapKeys() {
-		if k.Kind() != reflect.String {
+		keyName, ok := k.Interface().(string)
+		if !ok {
 			return NewXRError("invalid_attribute",
 				"name="+path.RemoveLast().UI(),
 				"error_detail="+
 					fmt.Sprintf("map key (%s) needs to be a string, "+
 						"not %s", path.Last().Text, k.Kind().String()))
 		}
-
-		keyName := k.Interface().(string)
 
 		if path.Len() > 0 {
 			if xErr := IsValidMapKey(keyName, e.XID, path.UI()); xErr != nil {
@@ -3310,55 +3323,54 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 	replace := false
 	newValue := (any)(nil)
 
-	valKind := reflect.ValueOf(val).Kind()
+	// Precompute the type assertions used below - cheaper than repeated
+	// reflect.ValueOf(val).Kind() calls, and avoids re-asserting
+	// val.(string) in each string-typed case.
+	_, isBool := val.(bool)
+	valInt, isInt := val.(int)
+	valFloat, isFloat := val.(float64)
+	valStr, isStr := val.(string)
 
 	switch attr.Type {
 	case BOOLEAN:
-		if valKind != reflect.Bool {
+		if !isBool {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail=must be a boolean"), false, nil
 		}
 	case DECIMAL:
-		if valKind != reflect.Int && valKind != reflect.Float64 {
+		if !isInt && !isFloat {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be a decimal"), false, nil
 		}
 	case INTEGER:
-		if valKind == reflect.Float64 {
-			f := val.(float64)
-			if f != float64(int(f)) {
+		if isFloat {
+			if valFloat != float64(int(valFloat)) {
 				return NewXRError("invalid_attribute", e.XID,
 					"name="+path.UI(),
 					"error_detail="+"must be an integer"), false, nil
 			}
-		} else if valKind != reflect.Int {
+		} else if !isInt {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be an integer"), false, nil
 		}
 	case UINTEGER:
 		i := 0
-		if valKind == reflect.Float64 {
-			f := val.(float64)
-			i = int(f)
-			if f != float64(i) {
+		if isFloat {
+			i = int(valFloat)
+			if valFloat != float64(i) {
 				return NewXRError("invalid_attribute", e.XID,
 					"name="+path.UI(),
 					"error_detail="+"must be a uinteger"), false, nil
 			}
-		} else if valKind != reflect.Int {
+		} else if !isInt {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be a uinteger"), false, nil
 		} else {
-			i = val.(int)
-			if valKind != reflect.Int {
-				return NewXRError("invalid_attribute", e.XID,
-					"name="+path.UI(),
-					"error_detail="+"must be a uinteger"), false, nil
-			}
+			i = valInt
 		}
 		if i < 0 {
 			return NewXRError("invalid_attribute", e.XID,
@@ -3366,12 +3378,12 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 				"error_detail="+"must be a uinteger"), false, nil
 		}
 	case XID:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be an xid"), false, nil
 		}
-		str := val.(string)
+		str := valStr
 
 		if attr.Target != "" {
 			xErr := e.MatchXID(str, attr.Target, attr.Name)
@@ -3428,13 +3440,13 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 		}
 
 	case XIDTYPE:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+
 					fmt.Sprintf("value  must be an xidtype")), false, nil
 		}
-		str := val.(string)
+		str := valStr
 
 		xidType, err := ParseXidType(str)
 		if err != nil {
@@ -3468,60 +3480,60 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 			}
 		}
 	case STRING:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be a string"), false, nil
 		}
 	case URI:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be a uri"), false, nil
 		}
 	case URIABSOLUTE:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be a uriabsolute"), false, nil
 		}
 	case URIRELATIVE:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be a urirelative"), false, nil
 		}
 	case URITEMPLATE:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be a uritemplate"), false, nil
 		}
 	case URL:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name= "+path.UI(),
 				"error_detail="+"must be a url"), false, nil
 		}
 	case URLABSOLUTE:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name= "+path.UI(),
 				"error_detail="+"must be a urlabsolute"), false, nil
 		}
 	case URLRELATIVE:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name= "+path.UI(),
 				"error_detail="+"must be a urlrelative"), false, nil
 		}
 	case TIMESTAMP:
-		if valKind != reflect.String {
+		if !isStr {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
 				"error_detail="+"must be a timestamp"), false, nil
 		}
-		str := val.(string)
+		str := valStr
 
 		var err error
 		newValue, err = NormalizeStrTime(str)
@@ -4019,8 +4031,9 @@ func (e *Entity) SaveSystemProps() {
 			}
 		}
 
-		switch reflect.ValueOf(val).Kind() {
-		case reflect.Slice, reflect.Map, reflect.Struct:
+		// propType came from GoToOurType(val), so no need to re-derive
+		// the Go kind via reflect - just check our own type constant.
+		if propType == ARRAY || propType == MAP || propType == OBJECT {
 			dbVal = ""
 		}
 
