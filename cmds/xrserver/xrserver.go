@@ -288,7 +288,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	err := registry.OpenDB(XRSConfig, DBName)
+	_, err := registry.OpenDB(XRSConfig, DBName)
 	ErrStop(err, "Can't connect to db(%s): %s", DBName, err)
 
 	// Load samples before we look for the default reg because if the default

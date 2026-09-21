@@ -234,18 +234,14 @@ func NewTx(uuid string, xrsConfig *Config) (*Tx, *XRError) {
 func (tx *Tx) NewTx() *XRError {
 	defer log.Trace("tx: %s tx.NewTx", tx.uuid)()
 
-	DB, ok := tx.XRSConfig.Get("DB").(*sql.DB)
-	if !ok || DB == nil {
-		DBName := tx.XRSConfig.GetAsString("db.name")
-		if DBName == "" {
-			return NewXRError("server_error", "/").SetDetail("No DBName set.")
-		}
-		xErr := OpenDB(tx.XRSConfig, DBName)
-		if xErr != nil {
-			return xErr
-		}
+	DBName := tx.XRSConfig.GetAsString("db.name")
+	if DBName == "" {
+		return NewXRError("server_error", "/").SetDetail("No DBName set.")
+	}
 
-		DB, _ = tx.XRSConfig.Get("DB").(*sql.DB)
+	DB, xErr := OpenDB(tx.XRSConfig, DBName)
+	if xErr != nil {
+		return xErr
 	}
 
 	if tx.tx != nil {
@@ -263,7 +259,7 @@ func (tx *Tx) NewTx() *XRError {
 	t, err := DB.BeginTx(context.Background(),
 		&sql.TxOptions{sql.LevelRepeatableRead, false})
 	if err != nil {
-		tx.XRSConfig.Set("DB", nil)
+		CloseDB(tx.XRSConfig)
 		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 		// panic("Error talking to the DB: %s", err)
 	}
@@ -1034,8 +1030,40 @@ func DBExists(xrsConfig *Config, name string) bool {
 var initDB string
 var firstTime = true
 
-func OpenDB(xrsConfig *Config, name string) *XRError {
+// dbHolder owns the live *sql.DB handle for a server. It's stored as an
+// opaque value under the "dbHolder" key in a *Config (seeded once, at
+// startup, by NewXRServerConfig) rather than storing the *sql.DB itself
+// directly in Config.Data. That matters because Config.Data is one shared
+// map read (without any locking) from many places throughout request
+// handling for unrelated keys (e.g. "path.ui", "rootapp") - if the live DB
+// handle lived directly in that map, any Open/Close-triggered write to it
+// would race (in the Go data-race sense, whole-map, not per-key) against
+// those other concurrent, lock-free reads and could crash the process
+// ("fatal error: concurrent map writes"). Routing all DB
+// open/close/reconnect activity through dbHolder.mu instead means
+// Config.Data itself goes back to being write-once-at-startup, and the
+// live handle's own mutations never touch that map again.
+type dbHolder struct {
+	mu sync.Mutex
+	db *sql.DB
+}
+
+// OpenDB returns the already-open DB connection for xrsConfig, opening one
+// first if needed. It's always safe/cheap to call - if a connection is
+// already open it's returned as-is; only the first caller (or the first
+// caller after a CloseDB) actually pays for a new sql.Open().
+func OpenDB(xrsConfig *Config, name string) (*sql.DB, *XRError) {
 	defer log.Trace(name)()
+
+	holder, _ := xrsConfig.Get("dbHolder").(*dbHolder)
+	PanicIf(holder == nil, "xrsConfig is missing its dbHolder - was it created via NewXRServerConfig?")
+
+	holder.mu.Lock()
+	defer holder.mu.Unlock()
+
+	if holder.db != nil {
+		return holder.db, nil
+	}
 
 	if firstTime {
 		log.FuncPrintf("Open DB: %s:%s:%s",
@@ -1044,10 +1072,6 @@ func OpenDB(xrsConfig *Config, name string) *XRError {
 		firstTime = false
 	}
 
-	// DB, err := sql.Open("mysql",
-	// DBUser + ":"+DBPassword+"@tcp(localhost:3306)/")
-	var err error
-
 	DB, err := sql.Open("mysql",
 		xrsConfig.GetAsString("db.user")+":"+
 			xrsConfig.GetAsString("db.password")+"@tcp("+
@@ -1055,16 +1079,37 @@ func OpenDB(xrsConfig *Config, name string) *XRError {
 			xrsConfig.GetAsString("db.port")+")/"+name)
 
 	if err != nil {
-		return NewXRError("server_error", "/",
+		return nil, NewXRError("server_error", "/",
 			fmt.Sprintf("Error talking to SQL: %s", err))
 	}
-	xrsConfig.Set("DB", DB)
-	xrsConfig.Set("db.name", name)
 
 	DB.SetMaxOpenConns(5)
 	DB.SetMaxIdleConns(5)
 
-	return nil
+	holder.db = DB
+	if xrsConfig.GetAsString("db.name") != name {
+		xrsConfig.Set("db.name", name)
+	}
+
+	return DB, nil
+}
+
+// CloseDB closes (if open) and forgets xrsConfig's cached DB connection so
+// the next OpenDB() call re-opens a fresh one. Safe to call concurrently
+// with OpenDB()/CloseDB() - both serialize on the same dbHolder.mu.
+func CloseDB(xrsConfig *Config) {
+	defer log.Trace()()
+
+	holder, _ := xrsConfig.Get("dbHolder").(*dbHolder)
+	PanicIf(holder == nil, "xrsConfig is missing its dbHolder - was it created via NewXRServerConfig?")
+
+	holder.mu.Lock()
+	defer holder.mu.Unlock()
+
+	if holder.db != nil {
+		holder.db.Close()
+		holder.db = nil
+	}
 }
 
 func ListDBs(xrsConfig *Config) ([]string, *XRError) {

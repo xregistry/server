@@ -46,6 +46,12 @@ func NewXRServerConfig(fileName string) *Config {
 	xrsConfig.Set("path.defaultreg", "xreg")
 	xrsConfig.Set("path.regcollection", "xregs")
 
+	// Seed the (empty) DB connection holder once, up front, while we're
+	// still single-threaded (before Serve() starts). See dbHolder's doc
+	// comment in db.go for why the live *sql.DB handle itself must never
+	// be stored directly as a Config.Data value.
+	xrsConfig.Set("dbHolder", &dbHolder{})
+
 	return xrsConfig
 }
 
