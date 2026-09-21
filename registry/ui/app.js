@@ -426,6 +426,23 @@ function effectiveXregFocused() { return optXregFocused() !== !!_state.xregOverr
 function applyJsonColorMode() {
   document.body.setAttribute('data-json-color', optJsonColorMode());
 }
+
+// "Wrap" toggle for the JSON view's #json-output pane — off by default
+// (today's behavior: long lines run past the pane's edge and require
+// horizontal scrolling). When on, long lines wrap at the pane's own
+// width instead. Global/persisted (via _opts/saveOpts(), same mechanism
+// as optJsonColorMode() above) rather than per-entity or per-registry,
+// since it's a personal reading preference, not data — see
+// buildJsonWrapToggleHtml()/toggleJsonWrap().
+function optJsonWrap() { return !!_opts.jsonWrap; }
+
+// Reflects the current wrap option onto <body> (same convention as
+// applyJsonColorMode()) so style.css can toggle #json-output's
+// white-space/overflow-wrap without any render function needing to know
+// about it directly.
+function applyJsonWrapMode() {
+  document.body.setAttribute('data-json-wrap', optJsonWrap() ? '1' : '0');
+}
 function optHomeGroup()   {
   // migrate legacy homeView key
   if (_opts.homeView !== undefined) {
@@ -890,6 +907,7 @@ function doInit() {
   _state.homeGroup   = optHomeGroup();
   _state.homeLayouts = optHomeLayouts();
   applyJsonColorMode();
+  applyJsonWrapMode();
   loadStateFromURL();
 
   // view-toggle-btn / editing-indicator now use inline onclick handlers
@@ -4751,6 +4769,7 @@ function toggleServerCardMenu(e, btn, url) {
   var fav = isFavorite(url);
   var items = [
     {label: 'Refresh', onclick: esc('svCardMenuRefresh(' + JSON.stringify(url) + ')'), icon: refreshIconSvgHtml()},
+    {label: 'Copy Location', onclick: esc('svCardMenuCopyLocation(' + JSON.stringify(url) + ')'), icon: _copyIconSVG},
     {
       label: fav ? 'Remove as Favorite' : 'Add as Favorite',
       onclick: esc('svCardMenuToggleFavorite(' + JSON.stringify(url) + ')'),
@@ -4769,6 +4788,14 @@ function toggleServerCardMenu(e, btn, url) {
 function svCardMenuRefresh(url) {
   invalidateRegistryProbe(url);
   refresh();
+}
+
+// "Copy Location" card menu action — copies this registry's own URL
+// (same value already shown in the card/row's own URL tooltip/label — see
+// serverCard()/renderHomeTable()) to the clipboard, reusing the same
+// egCopy()/toast mechanism as the breadcrumb bar's copy-URL button.
+function svCardMenuCopyLocation(url) {
+  egCopy(url || DEFAULT_SERVER_ORIGIN, 'Registry URL');
 }
 
 // "Add/Remove as Favorite" card menu action — mirrors the Config page's
@@ -13394,6 +13421,30 @@ function buildJsonExpandAllBtnHtml(disabled) {
     + ' onclick="jsonToggleAll()" title="Expand all">&#9656; all</button>';
 }
 
+// "Wrap" toggle switch — sits just left of the "all" expand/collapse
+// button in the JSON view header (see renderJSONView()/
+// renderJSONViewDocumentMode()). Unlike "all" (per-render, resets on
+// navigation), this reflects the persisted, global optJsonWrap() setting
+// (same value/checked-state regardless of which entity's JSON is on
+// screen) — see toggleJsonWrap().
+function buildJsonWrapToggleHtml() {
+  return '<label class="json-wrap-toggle" title="Wrap long lines">'
+    + '<input type="checkbox" onchange="toggleJsonWrap(this.checked)"' + (optJsonWrap() ? ' checked' : '') + '>'
+    + '<span class="json-wrap-slider"></span>'
+    + '<span class="json-wrap-label">Wrap</span>'
+    + '</label>';
+}
+
+// Flips the persisted Wrap option and immediately re-applies it (via the
+// body[data-json-wrap] attribute — see applyJsonWrapMode()) to every
+// #json-output pane currently on screen, without needing a full
+// re-render.
+function toggleJsonWrap(on) {
+  _opts.jsonWrap = !!on;
+  saveOpts();
+  applyJsonWrapMode();
+}
+
 function renderJSONView(data) {
   renderJSONLeftPanel();
   if (_state.editMode && computeEnableEdit()) {
@@ -13430,6 +13481,7 @@ function renderJSONView(data) {
         + esc(serverURL) + '</span>' +
       '<span class="json-exp-btn-group">' +
         (showDocToggle ? buildJsonDocToggleHtml('details') : '') +
+        buildJsonWrapToggleHtml() +
         buildJsonExpandAllBtnHtml(false) +
       '</span>' +
     '</div>' +
@@ -13455,6 +13507,7 @@ function renderJSONViewDocumentMode(entityData) {
         + esc(serverURL) + '</span>' +
       '<span class="json-exp-btn-group">' +
         buildJsonDocToggleHtml('doc') +
+        buildJsonWrapToggleHtml() +
         buildJsonExpandAllBtnHtml(true) +
       '</span>' +
     '</div>' +

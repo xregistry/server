@@ -120,4 +120,3 @@ TODOs:
    would expose lots of registries as a single one.
 ** make sure "format" ext attr + "format" resource generates an error,groups too
 - only check-in the generated files for xregistry.io, not hub.xreg.io
-- race condition around DefaultRegDbSID global var

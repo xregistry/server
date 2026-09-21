@@ -517,6 +517,14 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 
 #main-view {
   flex: 1;
+  /* Flex items default to min-width: auto, which lets #main-view grow to
+     fit wide content (e.g. long unwrapped JSON lines in #json-output)
+     instead of clipping to the row's available width and scrolling
+     internally — that stretched the whole #content row and hid the
+     horizontal scrollbar that should appear at the bottom of this pane.
+     min-width: 0 restores the normal "shrink to fit, scroll for overflow"
+     behavior. */
+  min-width: 0;
   overflow: auto;
   padding: 0;
 }
@@ -927,15 +935,88 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 /* .jb (json block span) has no default CSS; display toggled inline via JS */
 
 #json-output {
-  flex: 1;
+  /* NOT its own scroll container (no overflow:auto here) — #json-output's
+     height is auto (grows to fit however tall the JSON content is), so a
+     scrollbar of its own would sit at the bottom of that (often very
+     tall) box, off-screen until the user scrolled all the way down
+     inside #main-view first. #main-view (fixed to the pane's actual
+     visible height, see its own overflow:auto + min-width:0 above) is
+     the single real scroll container for both axes instead, keeping the
+     horizontal scrollbar correctly pinned to the bottom of the visible
+     pane regardless of how long the JSON content is.
+     "flex: 1" is inert (this isn't a flex item — #main-view's own
+     children aren't a flex container) but harmless; left as-is. */
   padding: 8px;
-  overflow: auto;
   background: ghostwhite;
   white-space: pre;
   font-family: monospace;
   font-size: 13px;
   line-height: 17px;
   tab-size: 2;
+}
+/* "Wrap" toggle (see buildJsonWrapToggleHtml()/optJsonWrap() in app.js) —
+   off by default (#json-output's own `white-space: pre` above), so long
+   lines require horizontal scrolling as before. Reflected onto <body>
+   (same convention as [data-json-color], see applyJsonColorMode()) so it
+   applies globally to every JSON view pane without any render function
+   needing to know about it. overflow-wrap: anywhere (not just
+   break-word) so long unbroken tokens (URLs, base64 blobs) wrap too,
+   instead of still forcing horizontal scroll on just those lines. */
+body[data-json-wrap="1"] #json-output {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Small pill-shaped toggle switch for the "Wrap" option, placed to the
+   left of the "all" expand/collapse button in the JSON view header (see
+   buildJsonWrapToggleHtml()). Same compact sizing/pointer-events as the
+   sibling .json-exp-btn/.eg-doc-tab buttons in that header. */
+.json-wrap-toggle {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  color: #444;
+}
+.json-wrap-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.json-wrap-slider {
+  position: relative;
+  display: inline-block;
+  width: 26px;
+  height: 14px;
+  background: #c8d0dc;
+  border-radius: 8px;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.json-wrap-slider::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.15s;
+}
+.json-wrap-toggle input:checked + .json-wrap-slider {
+  background: #2060a0;
+}
+.json-wrap-toggle input:checked + .json-wrap-slider::before {
+  transform: translateX(12px);
+}
+.json-wrap-toggle input:focus-visible + .json-wrap-slider {
+  outline: 2px solid #2060a0;
+  outline-offset: 1px;
 }
 
 .json-key { color: #900; }
