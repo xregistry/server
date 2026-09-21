@@ -130,7 +130,7 @@ func Verbose(args ...any) {
 }
 
 func GetServer() string {
-	return XRConfig.Get("server.url")
+	return XRConfig.GetAsString("server.url")
 }
 
 // GetRawJSON reports whether the "rawjson" .xr config property is set
@@ -350,7 +350,8 @@ func main() {
 			// Look to see if 'server' is an alias
 			ok, _ := regexp.MatchString("^[a-zA-Z0-9]+$", server)
 			if ok {
-				if data, ok := XRConfig.Data["server.alias."+server]; ok {
+				data := XRConfig.GetAsString("server.alias." + server)
+				if data != "" {
 					prefix := "server.alias." + server + ".header."
 					data := strings.TrimSpace(data)
 					if len(data) == 0 {
@@ -359,7 +360,12 @@ func main() {
 					}
 					server = data
 
-					for key, data := range XRConfig.Data {
+					for key, dataAny := range XRConfig.Data {
+						data, ok := dataAny.(string)
+						if !ok {
+							continue
+						}
+
 						// Doesn't start with prefix
 						if !strings.HasPrefix(key, prefix) {
 							continue

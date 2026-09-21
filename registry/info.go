@@ -14,6 +14,7 @@ import (
 
 type RequestInfo struct {
 	tx               *Tx
+	XRSConfig        *Config
 	uuid             string
 	Registry         *Registry
 	BaseURL          string              // host+path to root of registry
@@ -356,9 +357,12 @@ func (info *RequestInfo) FiltersRelativeToAbstractMasked(abs string, mask uint64
 	return filterString
 }
 
-func NewRequestInfo(uuid string, w http.ResponseWriter, r *http.Request) *RequestInfo {
+func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
+	r *http.Request) *RequestInfo {
+
 	info := &RequestInfo{
 		uuid:             uuid,
+		XRSConfig:        xrsConfig,
 		OriginalPath:     strings.Trim(r.URL.Path, " /"),
 		OriginalRequest:  r,
 		OriginalResponse: w,
@@ -385,7 +389,7 @@ func NewRequestInfo(uuid string, w http.ResponseWriter, r *http.Request) *Reques
 
 func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo, *XRError) {
 
-	info := NewRequestInfo(tx.uuid, w, r)
+	info := NewRequestInfo(tx.uuid, tx.XRSConfig, w, r)
 	info.tx = tx
 	tx.RequestInfo = info
 
@@ -650,10 +654,13 @@ func SplitProp(reg *Registry, pp *PropPath) (*PropPath, *PropPath) {
 func (info *RequestInfo) ParseRegistryURL() *XRError {
 	path := strings.Trim(info.OriginalPath, "/")
 
+	defRegSegment := info.XRSConfig.GetAsString("path.defaultreg")
+	regCollectionSegment := info.XRSConfig.GetAsString("path.regcollection")
+
 	// e.g. localhost:8080/xreg/...
 	// e.g. localhost:8080/xregs/XXX/...
 	parts := strings.Split(path, "/")
-	if parts[0] == RegCollectionSegment {
+	if parts[0] == regCollectionSegment {
 		// have /xregs
 		if len(parts) == 1 {
 			return NewXRError("bad_request", info.BaseURL).
@@ -663,7 +670,7 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		info.BaseURL += "/" + parts[0] + "/" + parts[1]
 		info.OriginalPath = strings.Join(parts[2:], "/")
 
-		reg, xErr := FindRegistry(info.tx, parts[1], FOR_READ)
+		reg, xErr := FindRegistry(info.tx, info.XRSConfig, parts[1], FOR_READ)
 		if xErr != nil {
 			return NewXRError("server_error",
 				info.OriginalRequest.URL.RequestURI()).
@@ -674,7 +681,7 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 				SetDetailf("Can't find registry %q.", info.BaseURL)
 		}
 		info.Registry = reg
-	} else if parts[0] == DefaultRegSegment {
+	} else if parts[0] == defRegSegment {
 		// have /xreg
 		info.BaseURL += "/" + parts[0]
 		info.OriginalPath = strings.Join(parts[1:], "/")

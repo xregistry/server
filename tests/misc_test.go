@@ -12,7 +12,6 @@ import (
 	log "github.com/duglin/dlog"
 
 	. "github.com/xregistry/server/common"
-	"github.com/xregistry/server/registry"
 )
 
 func TestMiscDBRows(t *testing.T) {
@@ -235,10 +234,12 @@ func TestMiscCORS(t *testing.T) {
 		code   int
 	}
 
+	regCollectionSegment := reg.GetXRServerConfig().GetAsString("path.regcollection")
+
 	for _, test := range []Test{
 		{"GET", "/", "", 200},
 		{"GET", "/ui", "", 301},
-		{"GET", "/" + registry.RegCollectionSegment + "/TestMiscCORS", "", 200},
+		{"GET", "/" + regCollectionSegment + "/TestMiscCORS", "", 200},
 		{"DELETE", "/", "", 405},
 		{"PUT", "/dirs/d1", "{}", 201},
 		{"PUT", "/dirs/d1", "", 400},
@@ -261,7 +262,7 @@ func TestMiscCORS(t *testing.T) {
 		testLinkHeader := true
 
 		if test.url == "/" ||
-			test.url == "/"+registry.RegCollectionSegment+"/TestMiscCORS" {
+			test.url == "/"+regCollectionSegment+"/TestMiscCORS" {
 
 			// Root doesn't support DELETE
 			expectedMethods = "GET, OPTIONS, PATCH, POST, PUT"
@@ -284,8 +285,8 @@ func TestMiscCORS(t *testing.T) {
 				test.method, test.url)
 
 			expectedURL := "http://localhost:8181"
-			if test.url == "/"+registry.RegCollectionSegment+"/TestMiscCORS" {
-				expectedURL = "http://localhost:8181/" + registry.RegCollectionSegment + "/TestMiscCORS"
+			if test.url == "/"+regCollectionSegment+"/TestMiscCORS" {
+				expectedURL = "http://localhost:8181/" + regCollectionSegment + "/TestMiscCORS"
 			}
 			XEqual(t, "link header",
 				linkHeader, fmt.Sprintf("<%s>;rel=xregistry-root", expectedURL))
@@ -293,7 +294,7 @@ func TestMiscCORS(t *testing.T) {
 	}
 
 	name := "TestMiscCORS"
-	short := registry.DefaultRegSegment
+	short := reg.GetXRServerConfig().GetAsString("path.defaultreg")
 
 	XHTTP(t, reg, "GET", "/", "", 200, `{
   "specversion": "1.0-rc4",
@@ -308,16 +309,16 @@ func TestMiscCORS(t *testing.T) {
   "dirscount": 1
 }
 `)
-	XHTTP(t, reg, "GET", "/"+registry.RegCollectionSegment+"/"+name, "", 200, `{
+	XHTTP(t, reg, "GET", "/"+regCollectionSegment+"/"+name, "", 200, `{
   "specversion": "1.0-rc4",
   "registryid": "TestMiscCORS",
-  "self": "http://localhost:8181/`+registry.RegCollectionSegment+`/TestMiscCORS/",
+  "self": "http://localhost:8181/`+regCollectionSegment+`/TestMiscCORS/",
   "xid": "/",
   "epoch": 5,
   "createdat": "2026-08-24T19:31:15.798937895Z",
   "modifiedat": "2026-08-24T19:31:15.948393114Z",
 
-  "dirsurl": "http://localhost:8181/`+registry.RegCollectionSegment+`/TestMiscCORS/dirs",
+  "dirsurl": "http://localhost:8181/`+regCollectionSegment+`/TestMiscCORS/dirs",
   "dirscount": 1
 }
 `)
@@ -346,10 +347,10 @@ func TestMiscCORS(t *testing.T) {
   }
 }
 `)
-	XHTTP(t, reg, "GET", "/"+registry.RegCollectionSegment+"/"+name+"/dirs", "", 200, `{
+	XHTTP(t, reg, "GET", "/"+regCollectionSegment+"/"+name+"/dirs", "", 200, `{
   "d1": {
     "dirid": "d1",
-    "self": "http://localhost:8181/`+registry.RegCollectionSegment+`/TestMiscCORS/dirs/d1",
+    "self": "http://localhost:8181/`+regCollectionSegment+`/TestMiscCORS/dirs/d1",
     "xid": "/dirs/d1",
     "epoch": 1,
     "createdat": "2026-08-24T19:32:42.163862006Z",

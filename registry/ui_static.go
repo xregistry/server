@@ -11,15 +11,17 @@ import (
 	"strings"
 
 	log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 )
 
 //go:embed ui
 var uiEmbedded embed.FS
 
 // uiFileSystem returns an fs.FS rooted at the ui/ subtree.
-func uiFileSystem() http.FileSystem {
-	if UIDir != "" {
-		return http.Dir(UIDir)
+func uiFileSystem(xrsConfig *Config) http.FileSystem {
+	uiDir := xrsConfig.GetAsString("ui.dir")
+	if uiDir != "" {
+		return http.Dir(uiDir)
 	}
 	sub, err := fs.Sub(uiEmbedded, "ui")
 	if err != nil {
@@ -40,16 +42,18 @@ func uiFileSystem() http.FileSystem {
 // the SPA shell but marks it (via HTTP status + an injected JS flag) as an
 // unrecognized path so app.js can render a 404 instead of the normal home
 // page.
-func ServeUIStatic(uuid string, w http.ResponseWriter, r *http.Request) {
+func ServeUIStatic(server *Server, uuid string, w http.ResponseWriter, r *http.Request) {
 	defer log.Trace("tx: %s", uuid)()
 
-	reqPath := strings.TrimPrefix(r.URL.Path, "/")
-	isRecognizedPath := (reqPath == "" || reqPath == UISegment || reqPath == UISegment+"/")
+	uiSegment := server.XRSConfig.GetAsString("path.ui")
 
-	path := strings.TrimPrefix(r.URL.Path, "/"+UISegment)
+	reqPath := strings.TrimPrefix(r.URL.Path, "/")
+	isRecognizedPath := (reqPath == "" || reqPath == uiSegment || reqPath == uiSegment+"/")
+
+	path := strings.TrimPrefix(r.URL.Path, "/"+uiSegment)
 	if path == "" {
 		// Redirect /ui → /ui/ so relative paths in index.html resolve correctly
-		http.Redirect(w, r, "/"+UISegment+"/", http.StatusMovedPermanently)
+		http.Redirect(w, r, "/"+uiSegment+"/", http.StatusMovedPermanently)
 		return
 	}
 
@@ -61,9 +65,9 @@ func ServeUIStatic(uuid string, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Expires", "0")
 
 	// xrui.json is special-cased so it can be overridden, at runtime, by an
-	// external file (registry.XRUIJSON) without needing a rebuild/restart.
+	// external file (config:ui.xrui.json) without needing a rebuild/restart.
 	if path == "/xrui.json" {
-		serveXRUIJSON(uuid, w, r)
+		serveXRUIJSON(uuid, server.XRSConfig, w, r)
 		return
 	}
 
@@ -84,15 +88,15 @@ func ServeUIStatic(uuid string, w http.ResponseWriter, r *http.Request) {
 	// serveIndexHTML() rather than the plain http.FileServer path below -
 	// it needs the same injected window.__XR_API_BASE__ flag (see
 	// serveIndexHTML()) that tells app.js where the xRegistry API actually
-	// lives when RootApp=="ui" (at "/<DefaultRegSegment>", not "/") so
+	// lives when rootApp=="ui" (at "/<DefaultRegSegment>", not "/") so
 	// "this server"/DEFAULT_SERVER_ORIGIN resolves correctly instead of
 	// treating the UI's own root as the API root.
-	if path == "/" || !uiFileExists(path) {
-		serveIndexHTML(uuid, w, r, isRecognizedPath)
+	if path == "/" || !uiFileExists(server.XRSConfig, path) {
+		serveIndexHTML(uuid, server, w, r, isRecognizedPath)
 		return
 	}
 
-	fileServer := http.FileServer(uiFileSystem())
+	fileServer := http.FileServer(uiFileSystem(server.XRSConfig))
 	r2 := r.Clone(r.Context())
 	r2.URL.Path = path
 	// Strip conditional-request headers so http.FileServer always returns 200,
@@ -110,9 +114,10 @@ func ServeUIStatic(uuid string, w http.ResponseWriter, r *http.Request) {
 // log the error (only when XRUIJSON was actually set - i.e. an explicit
 // override was attempted and failed) and fall back to serving the default
 // xrui.json from UIDir/the embedded fs, exactly as if no override existed.
-func serveXRUIJSON(uuid string, w http.ResponseWriter, r *http.Request) {
-	if XRUIJSON != "" {
-		content, err := os.ReadFile(XRUIJSON)
+func serveXRUIJSON(uuid string, xrsConfig *Config, w http.ResponseWriter, r *http.Request) {
+	xrUIJSON := xrsConfig.GetAsString("ui.xrui.json")
+	if xrUIJSON != "" {
+		content, err := os.ReadFile(xrUIJSON)
 		if err == nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -120,14 +125,15 @@ func serveXRUIJSON(uuid string, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("tx: %s Error reading xrui.json file %q: %s",
-			uuid, XRUIJSON, err)
+			uuid, xrUIJSON, err)
 		// fall through to default handling below
 	}
 
 	var content []byte
 	var err error
-	if UIDir != "" {
-		content, err = os.ReadFile(UIDir + "/xrui.json")
+	uiDir := xrsConfig.GetAsString("ui.dir")
+	if uiDir != "" {
+		content, err = os.ReadFile(uiDir + "/xrui.json")
 	} else {
 		var f fs.File
 		sub, subErr := fs.Sub(uiEmbedded, "ui")
@@ -162,11 +168,16 @@ func serveXRUIJSON(uuid string, w http.ResponseWriter, r *http.Request) {
 // what page they were requested from), but respond with an actual HTTP 404
 // status and inject a small flag (window.__XR_NOT_FOUND__) that app.js
 // checks at startup to render a "Not Found" view instead of the normal UI.
-func serveIndexHTML(uuid string, w http.ResponseWriter, r *http.Request, found bool) {
+func serveIndexHTML(uuid string, server *Server, w http.ResponseWriter, r *http.Request, found bool) {
 	var content []byte
 	var err error
-	if UIDir != "" {
-		content, err = os.ReadFile(UIDir + "/index.html")
+
+	uiDir := server.XRSConfig.GetAsString("ui.dir")
+	uiSegment := server.XRSConfig.GetAsString("path.ui")
+	rootApp := server.XRSConfig.GetAsString("rootapp")
+
+	if uiDir != "" {
+		content, err = os.ReadFile(uiDir + "/index.html")
 	} else {
 		var f fs.File
 		sub, subErr := fs.Sub(uiEmbedded, "ui")
@@ -190,43 +201,43 @@ func serveIndexHTML(uuid string, w http.ResponseWriter, r *http.Request, found b
 	// (UISegment is only known/configurable at runtime). That's fine when
 	// the browser's current URL is exactly "/" or "/<UISegment>/" (one path
 	// segment deep), but for any deeper/multi-segment fallback path (e.g.
-	// "/ui/rrrr/qweqwe", or "/foo/bar/baz" when RootApp=="ui"), the browser
+	// "/ui/rrrr/qweqwe", or "/foo/bar/baz" when rootApp=="ui"), the browser
 	// would resolve "app.js" against the wrong directory and 404, breaking
 	// the page (and silently preventing app.js from ever running its
 	// __XR_NOT_FOUND__ check). Inject an explicit <base> tag anchored at
 	// "/<UISegment>/" so relative asset paths always resolve correctly
 	// regardless of how deep/bad the requested URL was.
-	base := []byte(`<base href="/` + UISegment + `/">`)
+	base := []byte(`<base href="/` + uiSegment + `/">`)
 	content = bytes.Replace(content, []byte("<head>"), append([]byte("<head>"), base...), 1)
 
 	// Tell app.js where the xRegistry API for "this server" (the UI's own
 	// hosting origin, DEFAULT_SERVER_ORIGIN) actually lives. When
-	// RootApp=="ui", the UI occupies the site root, so the API is offset
+	// rootApp=="ui", the UI occupies the site root, so the API is offset
 	// under "/<DefaultRegSegment>" instead (e.g. "/xreg") - without this,
 	// the client assumed "this server"'s API root was "/" itself, which
-	// under RootApp=="ui" actually serves the UI shell, not JSON, making
+	// under rootApp=="ui" actually serves the UI shell, not JSON, making
 	// "this server" show up as a broken/invalid registry on Home. When
-	// RootApp=="xreg", the site root already IS the API root, so no offset
+	// rootApp=="xreg", the site root already IS the API root, so no offset
 	// is needed. Injected unconditionally (both found/not-found responses)
 	// right alongside the <base> tag above, so it's always in place before
 	// app.js's own <script src="app.js"> tag (later in <head>) runs.
 	apiBase := ""
-	if RootApp == "ui" {
-		apiBase = "/" + DefaultRegSegment
+	if rootApp == "ui" {
+		apiBase = "/" + server.XRSConfig.GetAsString("path.defaultreg")
 	}
 	apiBaseFlag := []byte(`<script>window.__XR_API_BASE__=` + strconv.Quote(apiBase) + `;</script>`)
 	content = bytes.Replace(content, []byte("<head>"), append([]byte("<head>"), apiBaseFlag...), 1)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if !found {
-		// "Home" for the UI is "/" when it's the site root (RootApp=="ui"),
+		// "Home" for the UI is "/" when it's the site root (rootApp=="ui"),
 		// but "/<UISegment>/" when the UI instead lives under its own
-		// segment (RootApp=="xreg") - inject the right one so app.js's
+		// segment (rootApp=="xreg") - inject the right one so app.js's
 		// "Go to Home" link on the 404 page doesn't send the user back into
 		// the registry API root.
 		homeHref := "/"
-		if RootApp != "ui" {
-			homeHref = "/" + UISegment + "/"
+		if rootApp != "ui" {
+			homeHref = "/" + uiSegment + "/"
 		}
 		flag := []byte(`<script>window.__XR_NOT_FOUND__=true;window.__XR_HOME__=` +
 			strconv.Quote(homeHref) + `;</script>`)
@@ -238,9 +249,11 @@ func serveIndexHTML(uuid string, w http.ResponseWriter, r *http.Request, found b
 	w.Write(content)
 }
 
-func isXregDir(path string) bool {
-	if UIDir != "" {
-		info, err := os.Stat(UIDir + path)
+func isXregDir(xrsConfig *Config, path string) bool {
+	uiDir := xrsConfig.GetAsString("ui.dir")
+
+	if uiDir != "" {
+		info, err := os.Stat(uiDir + path)
 		return err == nil && info.IsDir()
 	}
 	sub, err := fs.Sub(uiEmbedded, "ui")
@@ -256,9 +269,11 @@ func isXregDir(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-func uiFileExists(path string) bool {
-	if UIDir != "" {
-		_, err := os.Stat(UIDir + path)
+func uiFileExists(xrsConfig *Config, path string) bool {
+	uiDir := xrsConfig.GetAsString("ui.dir")
+
+	if uiDir != "" {
+		_, err := os.Stat(uiDir + path)
 		return err == nil
 	}
 	sub, err := fs.Sub(uiEmbedded, "ui")

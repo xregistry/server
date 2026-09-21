@@ -12,43 +12,75 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-// Server Config
-var DBName = "registry"
-var DBHost = "localhost"
-var DBPort = "3306"
-var DBUser = "root"
-var DBPassword = "password"
-var UISegment = "ui"
-var DefaultRegSegment = "xreg"
-var RegCollectionSegment = "xregs"
-var UIDir = ""    // when set, load UI files from this dir instead of embedded
-var XRUIJSON = "" // location of xrui.json file to return
+// Default values for some server config properties
+var DefAddr = ""
+var DefPort = 8080
+var DefDBHost = "127.0.0.1"
+var DefDBPort = 3306
+var DefDBName = "registry"
+var DefDBUser = "root"
+var DefDBPassword = "password"
+var DefRegistryName = "xRegistry"
 
-var DefaultRegDbSID string
-var RootApp string // ui, xreg
+func NewXRServerConfig(fileName string) *Config {
+	if fileName == "" {
+		fileName = ".xrserver"
+	}
 
-func init() {
-	DefaultRegDbSID = ""
-	RootApp = "ui"
+	xrsConfig := NewConfig(fileName) // Doesn't load, just defines the file
+
+	// First populate with Defaults values
+	xrsConfig.Set("defaultreg", DefRegistryName)
+	xrsConfig.Set("rootapp", "ui")
+	xrsConfig.Set("ui.dir", "")
+	xrsConfig.Set("ui.xrui.json", "")
+	xrsConfig.Set("verbose", "")
+	xrsConfig.Set("http.addr", DefAddr)
+	xrsConfig.Set("http.port", fmt.Sprintf("%d", DefPort))
+	xrsConfig.Set("db.name", DefDBName)
+	xrsConfig.Set("db.host", DefDBHost)
+	xrsConfig.Set("db.port", fmt.Sprintf("%d", DefDBPort))
+	xrsConfig.Set("db.user", DefDBUser)
+	xrsConfig.Set("db.password", DefDBPassword)
+	xrsConfig.Set("path.ui", "ui")
+	xrsConfig.Set("path.defaultreg", "xreg")
+	xrsConfig.Set("path.regcollection", "xregs")
+
+	return xrsConfig
+}
+
+func SetXRServerConfigFromEnvVars(xrsConfig *Config) *Config {
+	xrsConfig.SetFromEnv("db.name", "DBNAME")
+	xrsConfig.SetFromEnv("db.host", "DBHOST")
+	xrsConfig.SetFromEnv("db.port", "DBPORT")
+	xrsConfig.SetFromEnv("db.user", "DBUSER")
+	xrsConfig.SetFromEnv("db.password", "DBPASSWORD")
+
+	xrsConfig.SetFromEnv("http.addr", "XR_ADDR")
+	xrsConfig.SetFromEnv("http.port", "XR_PORT")
+
+	return xrsConfig
 }
 
 func (r *Registry) GetTx() *Tx {
 	return r.tx
 }
 
+func (r *Registry) GetXRServerConfig() *Config {
+	PanicIf(r.tx == nil, "Shouldn't be nil")
+	return r.tx.XRSConfig
+}
+
 func GetDefaultReg(tx *Tx) *Registry {
-	if DefaultRegDbSID == "" {
+	PanicIf(tx == nil, "Check me")
+
+	regDbSID := tx.XRSConfig.GetAsString("DefaultRegDbSID")
+
+	if regDbSID == "" {
 		panic("No registry specified")
 	}
 
-	if tx == nil {
-		panic("why") // Don't think we'll ever get here
-		var xErr *XRError
-		tx, xErr = NewTx(NewUUID())
-		Must(xErr)
-	}
-
-	reg, err := FindRegistryBySID(tx, DefaultRegDbSID, FOR_READ)
+	reg, err := FindRegistryBySID(tx, regDbSID, FOR_READ)
 	Must(err)
 
 	if reg != nil {
@@ -172,7 +204,8 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 
 type RegOpt string
 
-func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
+func NewRegistry(tx *Tx, xrsConfig *Config, id string, regOpts ...RegOpt) (*Registry, *XRError) {
+
 	if tx == nil {
 		defer log.Trace("%s", id)()
 	} else {
@@ -190,7 +223,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 	}()
 
 	if tx == nil {
-		tx, xErr = NewTx(NewUUID())
+		tx, xErr = NewTx(NewUUID(), xrsConfig)
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -201,7 +234,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 		id = NewUUID()
 	}
 
-	r, xErr := FindRegistry(tx, id, FOR_READ)
+	r, xErr := FindRegistry(tx, xrsConfig, id, FOR_READ)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -279,8 +312,8 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 	return reg, nil
 }
 
-func GetRegistryNames() ([]string, *XRError) {
-	tx, xErr := NewTx(NewUUID())
+func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
+	tx, xErr := NewTx(NewUUID(), xrsConfig)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -393,7 +426,7 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 }
 
 // BY UID
-func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
+func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Registry, *XRError) {
 	if tx == nil {
 		defer log.Trace("%s", id)()
 	} else {
@@ -410,7 +443,7 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	newTx := false
 	if tx == nil {
 		var xErr *XRError
-		tx, xErr = NewTx(NewUUID())
+		tx, xErr = NewTx(NewUUID(), xrsConfig)
 		if xErr != nil {
 			return nil, xErr
 		}

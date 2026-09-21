@@ -53,13 +53,18 @@ func init() {
 }
 
 func LoadRegistry(regName string, data string) {
-	req, err := http.NewRequest("PUT", "/"+registry.RegCollectionSegment+"/"+regName,
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+
+	req, err := http.NewRequest("PUT", "/"+regCollectionSegment+"/"+regName,
 		strings.NewReader(data))
 	if err != nil {
 		ErrFatalf(err)
 	}
+
 	rr := httptest.NewRecorder()
-	((*registry.Server)(nil)).ServeHTTP(rr, req)
+
+	registry.NewServer(XRSConfig).ServeHTTP(rr, req)
+
 	if rr.Code != 200 {
 		body, _ := io.ReadAll(rr.Body)
 		ErrFatalf(fmt.Errorf("%d: %s", rr.Code, string(body)))
@@ -96,14 +101,15 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, "APIs-Guru", registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRSConfig, "APIs-Guru",
+			registry.FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, "APIs-Guru")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "APIs-Guru")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		// Verbose( "New registry:\n%#v", reg)
 		defer reg.Rollback()
@@ -118,7 +124,8 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		// TODO Support "model" being part of the Registry struct above
 	}
 
-	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 
 	newModel := &registry.Model{}
 	g, xErr := newModel.AddGroupModel("apiproviders", "apiprovider")
@@ -231,7 +238,7 @@ var testRegJson string
 func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, "TestRegistry",
+		reg, xErr = registry.FindRegistry(nil, XRSConfig, "TestRegistry",
 			registry.FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
@@ -239,11 +246,13 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, "TestRegistry")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "TestRegistry")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 	}
-	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
+
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 	LoadRegistry("TestRegistry", testRegJson)
 	return reg
 }
@@ -251,14 +260,15 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, "Endpoints", registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Endpoints",
+			registry.FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, "Endpoints")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Endpoints")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -268,7 +278,8 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 	}
 
-	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 	fn, err := common.FindModelFile("endpoint/model.json")
 	ErrFatalf(err)
 	xErr = reg.LoadModelFromFile(fn)
@@ -320,14 +331,15 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, "Messages", registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Messages",
+			registry.FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, "Messages")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Messages")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -337,7 +349,8 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 	fn, err := common.FindModelFile("message/model.json")
 	ErrFatalf(err)
 	xErr = reg.LoadModelFromFile(fn)
@@ -353,14 +366,15 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, "Schemas", registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Schemas",
+			registry.FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, "Schemas")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Schemas")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -370,7 +384,8 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 	fn, err := common.FindModelFile("schema/model.json")
 	ErrFatalf(err)
 	xErr = reg.LoadModelFromFile(fn)
@@ -387,14 +402,15 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	start := time.Now()
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, "Large", registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Large",
+			registry.FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, "Large")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Large")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -404,7 +420,8 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 
 	newModel := &registry.Model{}
 
@@ -449,14 +466,15 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, "DocStore", registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRSConfig, "DocStore",
+			registry.FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, "DocStore")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "DocStore")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -466,7 +484,9 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
+
 	// Use JSON for this model so that "modelsource" has something in it
 	ErrFatalf(reg.Model.ApplyNewModelFromJSON([]byte(`{
       "groups": {
@@ -539,14 +559,15 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, "CloudEvents", registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRSConfig, "CloudEvents",
+			registry.FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, "CloudEvents")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "CloudEvents")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -556,7 +577,8 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	Verbose("Loading:  " + registry.RegCollectionSegment + "/" + reg.UID)
+	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
+	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 	fn, err := common.FindModelFile("cloudevents/model.json")
 	ErrFatalf(err)
 	xErr = reg.LoadModelFromFile(fn)
