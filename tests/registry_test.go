@@ -61,20 +61,21 @@ func TestRegistryCreate(t *testing.T) {
 `)
 
 	// make sure dups generate an error
-	reg2, err := registry.NewRegistry(nil, "TestRegistryCreate")
+	reg2, err := registry.NewRegistry(nil, reg.GetXRServerConfig(),
+		"TestRegistryCreate")
 	defer reg2.Rollback()
 	if err == nil || reg2 != nil {
 		t.Errorf("Creating same named registry worked!")
 	}
 
 	// make sure it was really created
-	reg3, err := registry.FindRegistry(nil, "TestRegistryCreate",
-		registry.FOR_WRITE)
+	reg3, err := registry.FindRegistry(nil, reg.GetXRServerConfig(),
+		"TestRegistryCreate", registry.FOR_WRITE)
 	defer reg3.Rollback()
 	XCheck(t, err == nil && reg3 != nil,
 		"Finding TestRegistryCreate should have worked")
 
-	reg3, err = registry.NewRegistry(nil, "")
+	reg3, err = registry.NewRegistry(nil, reg.GetXRServerConfig(), "")
 	defer PassDeleteReg(t, reg3)
 	XNoErr(t, err)
 	XCheck(t, reg3 != nil, "reg3 shouldn't be nil")
@@ -93,7 +94,11 @@ func TestRegistryCreate(t *testing.T) {
 }
 
 func TestRegistryDelete(t *testing.T) {
-	reg, err := registry.NewRegistry(nil, "TestRegistryDelete")
+	dummyReg := NewRegistry("TestRegistryCreate")
+	defer PassDeleteReg(t, dummyReg)
+	xrsConfig := dummyReg.GetXRServerConfig()
+
+	reg, err := registry.NewRegistry(nil, xrsConfig, "TestRegistryDelete")
 	defer reg.Rollback()
 	XNoErr(t, err)
 
@@ -101,7 +106,7 @@ func TestRegistryDelete(t *testing.T) {
 	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
-	reg, err = registry.FindRegistry(nil, "TestRegistryDelete",
+	reg, err = registry.FindRegistry(nil, xrsConfig, "TestRegistryDelete",
 		registry.FOR_WRITE)
 	defer reg.Rollback()
 	XCheck(t, reg == nil && err == nil,
@@ -122,18 +127,23 @@ func TestRegistryRefresh(t *testing.T) {
 }
 
 func TestRegistryFind(t *testing.T) {
-	reg, err := registry.FindRegistry(nil, "TestRegistryFind",
+	dummyReg := NewRegistry("TestRegistryCreate")
+	defer PassDeleteReg(t, dummyReg)
+	xrsConfig := dummyReg.GetXRServerConfig()
+
+	reg, err := registry.FindRegistry(nil, xrsConfig, "TestRegistryFind",
 		registry.FOR_WRITE)
 	defer reg.Rollback()
 	XCheck(t, reg == nil && err == nil,
 		"Shouldn't have found TestFindRegistry")
 
-	reg, err = registry.NewRegistry(nil, "TestFindRegistry")
+	reg, err = registry.NewRegistry(nil, xrsConfig, "TestFindRegistry")
 	defer reg.SaveAllAndCommit()
 	defer reg.Delete() // PassDeleteReg(t, reg)
 	XNoErr(t, err)
 
-	reg2, err := registry.FindRegistry(nil, reg.UID, registry.FOR_WRITE)
+	reg2, err := registry.FindRegistry(nil, xrsConfig, reg.UID,
+		registry.FOR_WRITE)
 	defer reg2.Rollback()
 	XNoErr(t, err)
 	reg2.AccessMode = reg.AccessMode

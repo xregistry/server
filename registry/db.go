@@ -60,24 +60,6 @@ func isRetryableDBErr(v any) bool {
 		strings.Contains(msg, "Error 1205")
 }
 
-var DB *sql.DB
-
-// TODO load these from a config file
-func init() {
-	if tmp := os.Getenv("DBUSER"); tmp != "" {
-		DBUser = tmp
-	}
-	if tmp := os.Getenv("DBPASSWORD"); tmp != "" {
-		DBPassword = tmp
-	}
-	if tmp := os.Getenv("DBHOST"); tmp != "" {
-		DBHost = tmp
-	}
-	if tmp := os.Getenv("DBPORT"); tmp != "" {
-		DBPort = tmp
-	}
-}
-
 // Active transaction - mainly for debugging and testing
 var TXs = map[string]*Tx{}
 var TXsMutex = sync.RWMutex{}
@@ -168,6 +150,7 @@ type resourceValidation struct {
 // Tx is just as apsect of it.
 type Tx struct {
 	tx          *sql.Tx
+	XRSConfig   *Config
 	Registry    *Registry
 	CreateTime  string // use for entity timestamps too
 	User        string
@@ -232,12 +215,13 @@ func (tx *Tx) String() string {
 	return fmt.Sprintf("tx: sql.tx: %s, Registry: %s", txStr, regStr)
 }
 
-func NewTx(uuid string) (*Tx, *XRError) {
+func NewTx(uuid string, xrsConfig *Config) (*Tx, *XRError) {
 	defer log.Trace("tx: %s NewTx", uuid)()
 
 	tx := &Tx{}
 	PanicIf(uuid == "", "missing uuid")
 	tx.uuid = uuid
+	tx.XRSConfig = xrsConfig
 	xErr := tx.NewTx()
 	if xErr != nil {
 		return nil, xErr
@@ -250,14 +234,14 @@ func NewTx(uuid string) (*Tx, *XRError) {
 func (tx *Tx) NewTx() *XRError {
 	defer log.Trace("tx: %s tx.NewTx", tx.uuid)()
 
-	if DB == nil {
-		if DBName == "" {
-			return NewXRError("server_error", "/").SetDetail("No DBName set.")
-		}
-		xErr := OpenDB(DBName)
-		if xErr != nil {
-			return xErr
-		}
+	DBName := tx.XRSConfig.GetAsString("db.name")
+	if DBName == "" {
+		return NewXRError("server_error", "/").SetDetail("No DBName set.")
+	}
+
+	DB, xErr := OpenDB(tx.XRSConfig, DBName)
+	if xErr != nil {
+		return xErr
 	}
 
 	if tx.tx != nil {
@@ -275,7 +259,7 @@ func (tx *Tx) NewTx() *XRError {
 	t, err := DB.BeginTx(context.Background(),
 		&sql.TxOptions{sql.LevelRepeatableRead, false})
 	if err != nil {
-		DB = nil
+		CloseDB(tx.XRSConfig)
 		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 		// panic("Error talking to the DB: %s", err)
 	}
@@ -1019,11 +1003,14 @@ func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
 		tx.uuid, SubQuery(cmd, args), num, count)
 }
 
-func DBExists(name string) bool {
+func DBExists(xrsConfig *Config, name string) bool {
 	defer log.Trace(name)()
 
 	db, err := sql.Open("mysql",
-		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
+		xrsConfig.GetAsString("db.user")+":"+
+			xrsConfig.GetAsString("db.password")+"@tcp("+
+			xrsConfig.GetAsString("db.host")+":"+
+			xrsConfig.GetAsString("db.port")+")/")
 	PanicIf(err != nil, "Error opening DB: %s", err)
 	defer db.Close()
 
@@ -1043,39 +1030,96 @@ func DBExists(name string) bool {
 var initDB string
 var firstTime = true
 
-func OpenDB(name string) *XRError {
+// dbHolder owns the live *sql.DB handle for a server. It's stored as an
+// opaque value under the "dbHolder" key in a *Config (seeded once, at
+// startup, by NewXRServerConfig) rather than storing the *sql.DB itself
+// directly in Config.Data. That matters because Config.Data is one shared
+// map read (without any locking) from many places throughout request
+// handling for unrelated keys (e.g. "path.ui", "rootapp") - if the live DB
+// handle lived directly in that map, any Open/Close-triggered write to it
+// would race (in the Go data-race sense, whole-map, not per-key) against
+// those other concurrent, lock-free reads and could crash the process
+// ("fatal error: concurrent map writes"). Routing all DB
+// open/close/reconnect activity through dbHolder.mu instead means
+// Config.Data itself goes back to being write-once-at-startup, and the
+// live handle's own mutations never touch that map again.
+type dbHolder struct {
+	mu sync.Mutex
+	db *sql.DB
+}
+
+// OpenDB returns the already-open DB connection for xrsConfig, opening one
+// first if needed. It's always safe/cheap to call - if a connection is
+// already open it's returned as-is; only the first caller (or the first
+// caller after a CloseDB) actually pays for a new sql.Open().
+func OpenDB(xrsConfig *Config, name string) (*sql.DB, *XRError) {
 	defer log.Trace(name)()
 
+	holder, _ := xrsConfig.Get("dbHolder").(*dbHolder)
+	PanicIf(holder == nil, "xrsConfig is missing its dbHolder - was it created via NewXRServerConfig?")
+
+	holder.mu.Lock()
+	defer holder.mu.Unlock()
+
+	if holder.db != nil {
+		return holder.db, nil
+	}
+
 	if firstTime {
-		log.FuncPrintf("Open DB: %s:%s", DBHost, DBPort)
+		log.FuncPrintf("Open DB: %s:%s:%s",
+			xrsConfig.GetAsString("db.host"),
+			xrsConfig.GetAsString("db.port"), name)
 		firstTime = false
 	}
 
-	// DB, err := sql.Open("mysql",
-	// DBUser + ":"+DBPassword+"@tcp(localhost:3306)/")
-	var err error
-
-	DB, err = sql.Open("mysql",
-		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/"+name)
+	DB, err := sql.Open("mysql",
+		xrsConfig.GetAsString("db.user")+":"+
+			xrsConfig.GetAsString("db.password")+"@tcp("+
+			xrsConfig.GetAsString("db.host")+":"+
+			xrsConfig.GetAsString("db.port")+")/"+name)
 
 	if err != nil {
-		DB = nil
-		return NewXRError("server_error", "/",
+		return nil, NewXRError("server_error", "/",
 			fmt.Sprintf("Error talking to SQL: %s", err))
 	}
 
-	DBName = name
 	DB.SetMaxOpenConns(5)
 	DB.SetMaxIdleConns(5)
 
-	return nil
+	holder.db = DB
+	if xrsConfig.GetAsString("db.name") != name {
+		xrsConfig.Set("db.name", name)
+	}
+
+	return DB, nil
 }
 
-func ListDBs() ([]string, *XRError) {
+// CloseDB closes (if open) and forgets xrsConfig's cached DB connection so
+// the next OpenDB() call re-opens a fresh one. Safe to call concurrently
+// with OpenDB()/CloseDB() - both serialize on the same dbHolder.mu.
+func CloseDB(xrsConfig *Config) {
+	defer log.Trace()()
+
+	holder, _ := xrsConfig.Get("dbHolder").(*dbHolder)
+	PanicIf(holder == nil, "xrsConfig is missing its dbHolder - was it created via NewXRServerConfig?")
+
+	holder.mu.Lock()
+	defer holder.mu.Unlock()
+
+	if holder.db != nil {
+		holder.db.Close()
+		holder.db = nil
+	}
+}
+
+func ListDBs(xrsConfig *Config) ([]string, *XRError) {
 	defer log.Trace()()
 
 	db, err := sql.Open("mysql",
-		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
+		xrsConfig.GetAsString("db.user")+":"+
+			xrsConfig.GetAsString("db.password")+"@tcp("+
+			xrsConfig.GetAsString("db.host")+":"+
+			xrsConfig.GetAsString("db.port")+")/")
 	if err != nil {
 		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
@@ -1104,11 +1148,14 @@ func ListDBs() ([]string, *XRError) {
 	return names, nil
 }
 
-func CreateDB(name string) error {
+func CreateDB(xrsConfig *Config, name string) error {
 	defer log.Trace(name)()
 
 	db, err := sql.Open("mysql",
-		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
+		xrsConfig.GetAsString("db.user")+":"+
+			xrsConfig.GetAsString("db.password")+"@tcp("+
+			xrsConfig.GetAsString("db.host")+":"+
+			xrsConfig.GetAsString("db.port")+")/")
 	if err != nil {
 		panic(err)
 	}
@@ -1163,11 +1210,14 @@ func ReplaceVariables(str string) string {
 	return str
 }
 
-func DeleteDB(name string) error {
+func DeleteDB(xrsConfig *Config, name string) error {
 	defer log.Trace(name)()
 
 	db, err := sql.Open("mysql",
-		DBUser+":"+DBPassword+"@tcp("+DBHost+":"+DBPort+")/")
+		xrsConfig.GetAsString("db.user")+":"+
+			xrsConfig.GetAsString("db.password")+"@tcp("+
+			xrsConfig.GetAsString("db.host")+":"+
+			xrsConfig.GetAsString("db.port")+")/")
 	if err != nil {
 		panic(err)
 	}

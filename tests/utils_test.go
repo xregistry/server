@@ -24,6 +24,9 @@ import (
 const TestDBName = "registry"
 const TestRegName = "testreg"
 
+var XRServerConfig *Config
+var MainServer *registry.Server
+
 const MODEL_DIRS = `{
   "groups": {
     "dirs": {
@@ -58,24 +61,29 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	XRServerConfig = registry.NewXRServerConfig("")
+	registry.SetXRServerConfigFromEnvVars(XRServerConfig)
+
 	// call flag.Parse() here if TestMain uses flags
-	registry.DeleteDB(TestRegName)
-	registry.CreateDB(TestRegName)
-	registry.OpenDB(TestRegName)
+	registry.DeleteDB(XRServerConfig, TestRegName)
+	registry.CreateDB(XRServerConfig, TestRegName)
+	registry.OpenDB(XRServerConfig, TestRegName)
 
 	// DBName := "registry"
-	// if !registry.DBExists(DBName) {
-	// registry.CreateDB(DBName)
+	// if !registry.DBExists(XRServerConfig,DBName) {
+	// registry.CreateDB(XRServerConfig,DBName)
 	// }
-	// registry.OpenDB(DBName)
+	// registry.OpenDB(XRServerConfig,DBName)
 
 	if IsPortInUse(8181) {
 		panic("Port 8181 is already in use - kill it")
 	}
 
 	// Start xRegistry HTTP server
-	registry.RootApp = "xreg"
-	server := registry.NewServer("", 8181).Start()
+	XRServerConfig.Set("rootapp", "xreg")
+	XRServerConfig.Set("http.addr", "")
+	XRServerConfig.Set("http.port", 8181)
+	MainServer = registry.NewServer(XRServerConfig).Start()
 
 	// Start testing fileserver
 	if IsPortInUse(8282) {
@@ -92,7 +100,7 @@ func TestMain(m *testing.M) {
 	rc := m.Run()
 
 	// Shutdown HTTP servers
-	server.Close()
+	MainServer.Close()
 	fsServer.Close()
 
 	if rc == 0 {
@@ -113,26 +121,26 @@ func TestMain(m *testing.M) {
 // across the 2 dirs this way. Kind of weird I know, but I'll clean it later
 
 func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
-	reg, _ := registry.FindRegistry(nil, name, registry.FOR_WRITE)
+	reg, _ := registry.FindRegistry(nil, XRServerConfig, name, registry.FOR_WRITE)
 	if reg != nil {
 		reg.Delete()
 		reg.SaveAllAndCommit()
 	}
 
-	reg, xErr := registry.NewRegistry(nil, name, opts...)
+	reg, xErr := registry.NewRegistry(nil, XRServerConfig, name, opts...)
 	if xErr != nil {
 		fmt.Fprintf(os.Stderr, "Error creating registry %q: %s\n", name, xErr)
 		ShowStack()
 		os.Exit(1)
 	}
 
-	reg.SaveAllAndCommit()
+	MainServer.XRSConfig.Set("DefaultRegDbSID", reg.DbSID)
 
-	registry.DefaultRegDbSID = reg.DbSID
+	reg.SaveAllAndCommit()
 
 	/*
 		// Now find it again and start a new Tx
-		reg, xErr = registry.FindRegistry(nil, name, registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRServerConfig, name, registry.FOR_WRITE)
 		if xErr != nil {
 			panic(xErr.String())
 		}
@@ -200,7 +208,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 				panic(xErr.String())
 			}
 		}
-		registry.DefaultRegDbSID = ""
+		MainServer.XRSConfig.Set("DefaultRegDbSID", nil)
 	}
 
 	/*

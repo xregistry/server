@@ -38,6 +38,11 @@ Usage:
 	// Just look for the first 3 lines
 	XEqual(t, "", lines, "")
 
+	xrsConfig := registry.NewXRServerConfig("")
+	registry.SetXRServerConfigFromEnvVars(xrsConfig)
+	defaultRegSegment := xrsConfig.GetAsString("path.defaultreg")
+	regCollectionSegment := xrsConfig.GetAsString("path.regcollection")
+
 	cmd = exec.Command("../xrserver", "--rootapp=xreg", "-v", "--verify")
 	out, err = cmd.CombinedOutput()
 	t.Logf("out: %s", string(out))
@@ -46,8 +51,8 @@ Usage:
 	exp := `2025/05/21 19:01:39 GitCommit: 8061f34abf
 2025/05/21 19:01:39 DB: registry@localhost:3306
 2025/05/21 19:01:39 Path: /ui -> UI
-2025/05/21 19:01:39 Path: /` + registry.DefaultRegSegment + ` -> ` + registry.RegCollectionSegment + `/xRegistry
-2025/05/21 19:01:39 Path: / -> ` + registry.RegCollectionSegment + `/xRegistry
+2025/05/21 19:01:39 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
+2025/05/21 19:01:39 Path: / -> ` + regCollectionSegment + `/xRegistry
 2025/05/21 19:01:39 Done verifying, exiting
 `
 	re := regexp.MustCompile(`(^|\n)\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `)
@@ -77,15 +82,20 @@ func TestXRServerRecreates(t *testing.T) {
 	XNoErr(t, err)
 	out := string(buf)
 
+	xrsConfig := registry.NewXRServerConfig("")
+	registry.SetXRServerConfigFromEnvVars(xrsConfig)
+	defaultRegSegment := xrsConfig.GetAsString("path.defaultreg")
+	regCollectionSegment := xrsConfig.GetAsString("path.regcollection")
+
 	exp := `
 2025/10/14 12:20:01 GitCommit: f680917749
 2025/10/14 12:20:01 DB: registry@localhost:3306
 2025/10/14 12:20:01 Deleting DB: registry
 2025/10/14 12:20:01 Creating DB: registry
-2025/10/14 12:20:02 Creating: ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
-2025/10/14 12:20:02 Path: /` + registry.DefaultRegSegment + ` -> ` + registry.RegCollectionSegment + `/xRegistry
-2025/10/14 12:20:02 Path: / -> ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: / -> ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -115,10 +125,10 @@ func TestXRServerRecreates(t *testing.T) {
 2025/10/14 12:20:01 GitCommit: f680917749
 2025/10/14 12:20:01 DB: registry@localhost:3306
 2025/10/14 12:20:01 Deleting xReg: xRegistry
-2025/10/14 12:20:02 Creating: ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
-2025/10/14 12:20:02 Path: /` + registry.DefaultRegSegment + ` -> ` + registry.RegCollectionSegment + `/xRegistry
-2025/10/14 12:20:02 Path: / -> ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: / -> ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -150,10 +160,10 @@ func TestXRServerRecreates(t *testing.T) {
 2025/10/14 12:20:01 DB: registry@localhost:3306
 2025/10/14 12:20:01 Deleting DB: registry
 2025/10/14 12:20:01 Creating DB: registry
-2025/10/14 12:20:02 Creating: ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
-2025/10/14 12:20:02 Path: /` + registry.DefaultRegSegment + ` -> ` + registry.RegCollectionSegment + `/xRegistry
-2025/10/14 12:20:02 Path: / -> ` + registry.RegCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
+2025/10/14 12:20:02 Path: / -> ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Done verifying, exiting
 `
 
@@ -173,6 +183,12 @@ func TestXRServerRecreates(t *testing.T) {
 }
 
 func TestXRServerCmds(t *testing.T) {
+	xrsConfig := registry.NewXRServerConfig("")
+	registry.SetXRServerConfigFromEnvVars(xrsConfig)
+	defaultRegSegment := xrsConfig.GetAsString("path.defaultreg")
+	regCollectionSegment := xrsConfig.GetAsString("path.regcollection")
+	uiSegment := xrsConfig.GetAsString("path.ui")
+
 	tests := []struct {
 		Args   string
 		Stdin  string
@@ -280,8 +296,8 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 				"YYYY/MM/DD HH:MM:SS DB: registry@localhost:3306\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /ui -> UI\n" +
-				"YYYY/MM/DD HH:MM:SS Path: /" + registry.DefaultRegSegment + " -> " + registry.RegCollectionSegment + "/testreg\n" +
-				"YYYY/MM/DD HH:MM:SS Path: / -> " + registry.RegCollectionSegment + "/testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: /" + defaultRegSegment + " -> " + regCollectionSegment + "/testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: / -> " + regCollectionSegment + "/testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Done verifying, exiting\n",
 		},
 		{
@@ -291,8 +307,8 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 				"YYYY/MM/DD HH:MM:SS DB: registry@localhost:3306\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /ui -> UI\n" +
-				"YYYY/MM/DD HH:MM:SS Path: /" + registry.DefaultRegSegment + " -> " + registry.RegCollectionSegment + "/testreg\n" +
-				"YYYY/MM/DD HH:MM:SS Path: / -> " + registry.RegCollectionSegment + "/testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: /" + defaultRegSegment + " -> " + regCollectionSegment + "/testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: / -> " + regCollectionSegment + "/testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Done verifying, exiting\n",
 		},
 		{
@@ -302,8 +318,8 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 				"YYYY/MM/DD HH:MM:SS DB: registry@localhost:3306\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /ui -> UI\n" +
-				"YYYY/MM/DD HH:MM:SS Path: /" + registry.DefaultRegSegment + " -> " + registry.RegCollectionSegment + "/testreg\n" +
-				"YYYY/MM/DD HH:MM:SS Path: / -> " + registry.UISegment + "\n" +
+				"YYYY/MM/DD HH:MM:SS Path: /" + defaultRegSegment + " -> " + regCollectionSegment + "/testreg\n" +
+				"YYYY/MM/DD HH:MM:SS Path: / -> " + uiSegment + "\n" +
 				"YYYY/MM/DD HH:MM:SS Done verifying, exiting\n",
 		},
 	}

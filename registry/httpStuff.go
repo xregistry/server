@@ -18,20 +18,30 @@ import (
 )
 
 type Server struct {
-	Addr       string
-	Port       int
+	XRSConfig  *Config
+	Addr       string // dup of what's in XRSConfig
+	Port       int    // dup of what's in XRSConfig
 	HTTPServer *http.Server
 }
 
-func NewServer(addr string, port int) *Server {
+func NewServer(xrsConfig *Config) *Server {
+	// At some point we may need clone the config to avoid pollution but for
+	// now just keep this as a remind of something to think about
+	// xrsConfig = xrsConfig.Clone()
+
+	addr := xrsConfig.GetAsString("http.addr")
+	port := xrsConfig.GetAsInt("http.port")
+
 	server := &Server{
-		Addr: addr,
-		Port: port,
+		XRSConfig: xrsConfig,
+		Addr:      addr,
+		Port:      port,
 		HTTPServer: &http.Server{
 			Addr: fmt.Sprintf("%s:%d", addr, port),
 		},
 	}
 	server.HTTPServer.Handler = server
+	server.XRSConfig.Set("server", server)
 	return server
 }
 
@@ -80,7 +90,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			// If info isn't defined yet
 			if info == nil {
-				info = NewRequestInfo(uuid, w, r)
+				info = NewRequestInfo(uuid, s.XRSConfig, w, r)
 			}
 
 			xErr := NewXRError("server_error", "/"+info.OriginalPath).
@@ -132,39 +142,43 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if RootApp != "ui" && RootApp != "xreg" {
+	rootApp := s.XRSConfig.GetAsString("rootapp")
+	if rootApp != "ui" && rootApp != "xreg" {
 		// info isn't set up yet this early (ParseRequest() hasn't run),
 		// so build a minimal one here rather than dereferencing the nil
 		// "info" - otherwise this misconfiguration panics (masked by the
 		// generic panic recover() above into an unhelpful 500, instead of
 		// this specific error message).
-		info = NewRequestInfo(uuid, w, r)
+		info = NewRequestInfo(uuid, s.XRSConfig, w, r)
 		xErr := NewXRError("server_error", "/"+info.OriginalPath).
-			SetDetailf("Unknown rootapp: %s.", RootApp)
+			SetDetailf("Unknown rootapp: %s.", rootApp)
 		HTTPWriteError(info, xErr)
 		return
 	}
 
 	path := r.URL.Path[1:] // remove leading /
 
-	serveUI := (RootApp == "ui")
+	serveUI := (rootApp == "ui")
 
-	if path == UISegment || strings.HasPrefix(path, UISegment+"/") {
+	uiSegment := s.XRSConfig.GetAsString("path.ui")
+	if path == uiSegment || strings.HasPrefix(path, uiSegment+"/") {
 		serveUI = true
 	}
 
+	defRegSegment := s.XRSConfig.GetAsString("path.defaultreg")
+	regCollectionSegment := s.XRSConfig.GetAsString("path.regcollection")
 	if path == ".xregistry" ||
-		path == DefaultRegSegment ||
-		strings.HasPrefix(path, DefaultRegSegment+"/") ||
-		path == RegCollectionSegment ||
-		strings.HasPrefix(path, RegCollectionSegment+"/") {
+		path == defRegSegment ||
+		strings.HasPrefix(path, defRegSegment+"/") ||
+		path == regCollectionSegment ||
+		strings.HasPrefix(path, regCollectionSegment+"/") {
 
 		serveUI = false
 	}
 
 	// Serve the new SPA UI for /ui and /ui/...
 	if serveUI {
-		ServeUIStatic(uuid, w, r)
+		ServeUIStatic(s, uuid, w, r)
 		return
 	}
 
@@ -251,7 +265,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 			// Out of attempts - tell the client plainly instead of a
 			// generic 500, rather than letting this re-panic.
 			if info == nil {
-				info = NewRequestInfo(uuid, w, r)
+				info = NewRequestInfo(uuid, s.XRSConfig, w, r)
 				*infoPtr = info
 			}
 			xErr := NewXRError("server_busy", "/"+info.OriginalPath)
@@ -265,7 +279,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 		panic(rec)
 	}()
 
-	tx, xErr := NewTx(uuid)
+	tx, xErr := NewTx(uuid, s.XRSConfig)
 	*txPtr = tx
 	if xErr != nil {
 		log.Printf("tx: %s Error talking to the DB creating new Tx: %s",
@@ -278,7 +292,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 		// Special one off - info isn't defined yet
 		info := *infoPtr
 		if info == nil {
-			info = NewRequestInfo(uuid, w, r)
+			info = NewRequestInfo(uuid, s.XRSConfig, w, r)
 			*infoPtr = info
 		}
 
@@ -588,11 +602,14 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
-	names, xErr := GetRegistryNames()
+	names, xErr := GetRegistryNames(info.XRSConfig)
 	if xErr != nil {
 		return NewXRError("server_error", "/.xregistry").
 			SetDetail(xErr.GetTitle())
 	}
+
+	defRegSegment := info.XRSConfig.GetAsString("path.defaultreg")
+	regCollectionSegment := info.XRSConfig.GetAsString("path.regcollection")
 
 	// Recover the plain host base (scheme://host, no /xregs/<name> suffix)
 	// regardless of whether THIS request itself came in via a /xregs/<name>
@@ -602,13 +619,13 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 	hostBase := info.BaseURL
 	if info.Registry != nil {
 		if strings.HasSuffix(hostBase,
-			"/"+RegCollectionSegment+"/"+info.Registry.UID) {
+			"/"+regCollectionSegment+"/"+info.Registry.UID) {
 
 			hostBase = strings.TrimSuffix(hostBase,
-				"/"+RegCollectionSegment+"/"+info.Registry.UID)
-		} else if strings.HasSuffix(hostBase, "/"+DefaultRegSegment) {
+				"/"+regCollectionSegment+"/"+info.Registry.UID)
+		} else if strings.HasSuffix(hostBase, "/"+defRegSegment) {
 			hostBase = strings.TrimSuffix(hostBase,
-				"/"+DefaultRegSegment)
+				"/"+defRegSegment)
 		}
 	}
 
@@ -620,7 +637,8 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 	// log). Include it so clients relying solely on this discovery doc
 	// don't miss that registry.
 
-	if RootApp == "xreg" {
+	rootApp := info.XRSConfig.GetAsString("rootapp")
+	if rootApp == "xreg" {
 		registries = append(registries, hostBase)
 	}
 
@@ -629,7 +647,7 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 
 	for _, name := range names {
 		registries = append(registries,
-			hostBase+"/"+RegCollectionSegment+"/"+name)
+			hostBase+"/"+regCollectionSegment+"/"+name)
 	}
 
 	buf, err := json.MarshalIndent(map[string]any{
@@ -2771,11 +2789,13 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 	results := Query(tx, query, ss)
 	defer results.Close()
 
+	regCollectionSegment := tx.XRSConfig.GetAsString("path.regcollection")
+
 	row := results.NextRow()
 	if row != nil {
 		// found it!
 		regName := string((*(row[0])).([]byte))
-		newPath := "/" + RegCollectionSegment + "/" + regName +
+		newPath := "/" + regCollectionSegment + "/" + regName +
 			string((*(row[1])).([]byte)) + suffix
 
 		log.FuncPrintf("tx: %s Redirect: %q -> %q", tx.uuid, path, newPath)
