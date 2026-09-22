@@ -4182,3 +4182,242 @@ func TestModelHasDocumentStaleExtensionBecomesReserved(t *testing.T) {
 		XHTTP(t, reg, "PUT", "/modelsource", newModelSrc, 200, newModelSrc)
 	}
 }
+
+func TestModelAttrSerialization(t *testing.T) {
+	reg := NewRegistry("TestModelAttrSerialization")
+	defer PassDeleteReg(t, reg)
+
+	src := `{
+  "description": "My model",
+  "documentation": "docs.com",
+  "labels": {
+    "l1": "v1",
+    "l2": "v2"
+  },
+  "attributes": {
+    "scalar": {
+      "name": "scalar",
+      "description": "attr desc",
+      "type": "url",
+      "enum": [
+        "s1",
+        "s2"
+      ],
+      "strict": true,
+      "target": "/ignored",
+      "namecharset": null,
+      "matchversions": true,
+      "readonly": true,
+      "immutable": true,
+      "required": true,
+      "default": "s1",
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "subscalar": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "anarray": {
+      "name": "anarray",
+      "description": "attr desc",
+      "type": "array",
+      "namecharset": null,
+      "readonly": true,
+      "immutable": true,
+      "item": {
+        "type": "url",
+        "enum": [
+          "hi",
+          "bye"
+        ],
+        "strict": false,
+        "target": "/ignoremetoo"
+      },
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "subarray": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+
+	XHTTP(t, reg, "PUT", "/modelsource", src, 200, src)
+	XHTTP(t, reg, "GET", "/model", src, 200, `{
+  "description": "My model",
+  "documentation": "docs.com",
+  "labels": {
+    "l1": "v1",
+    "l2": "v2"
+  },
+  "attributes": {
+    "specversion": {
+      "name": "specversion",
+      "type": "string",
+      "readonly": true,
+      "required": true,
+      "default": "1.0-rc4"
+    },
+    "registryid": {
+      "name": "registryid",
+      "type": "string",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "anarray": {
+      "name": "anarray",
+      "description": "attr desc",
+      "type": "array",
+      "readonly": true,
+      "immutable": true,
+      "item": {
+        "type": "url",
+        "enum": [
+          "hi",
+          "bye"
+        ],
+        "strict": false,
+        "target": "/ignoremetoo"
+      },
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "subarray": {
+              "name": "subarray",
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "scalar": {
+      "name": "scalar",
+      "description": "attr desc",
+      "type": "url",
+      "enum": [
+        "s1",
+        "s2"
+      ],
+      "strict": true,
+      "target": "/ignored",
+      "matchversions": true,
+      "readonly": true,
+      "immutable": true,
+      "required": true,
+      "default": "s1",
+      "ifvalues": {
+        "hi": {
+          "siblingattributes": {
+            "subscalar": {
+              "name": "subscalar",
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    }
+  }
+}
+`)
+
+}

@@ -124,19 +124,21 @@ type AttrInternals struct {
 // from the golang default value, or for any attr that you don't want to
 // show-up in modelsource by default
 type Attribute struct {
-	Model         *Model `json:"-"`
-	Name          string `json:"name,omitempty"`
-	Type          string `json:"type,omitempty"`
-	Target        string `json:"target,omitempty"`
-	NameCharSet   string `json:"namecharset,omitempty"`
-	Description   string `json:"description,omitempty"`
-	Enum          []any  `json:"enum,omitempty"` // just scalars though
-	Strict        *bool  `json:"strict,omitempty"`
-	MatchVersions bool   `json:"matchversions,omitempty"`
-	ReadOnly      bool   `json:"readonly,omitempty"`
-	Immutable     bool   `json:"immutable,omitempty"`
-	Required      bool   `json:"required,omitempty"`
-	Default       any    `json:"default,omitempty"`
+	Model       *Model `json:"-"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Type        string `json:"type,omitempty"`
+
+	Enum        []any  `json:"enum,omitempty"` // just scalars though
+	Strict      *bool  `json:"strict,omitempty"`
+	Target      string `json:"target,omitempty"`
+	NameCharSet string `json:"namecharset,omitempty"`
+
+	MatchVersions bool `json:"matchversions,omitempty"`
+	ReadOnly      bool `json:"readonly,omitempty"`
+	Immutable     bool `json:"immutable,omitempty"`
+	Required      bool `json:"required,omitempty"`
+	Default       any  `json:"default,omitempty"`
 
 	Attributes Attributes `json:"attributes,omitempty"` // for Objs
 	Item       *Item      `json:"item,omitempty"`       // for maps & arrays
@@ -150,12 +152,16 @@ type Attribute struct {
 }
 
 type Item struct { // for maps and arrays
-	Model       *Model     `json:"-"`
-	Type        string     `json:"type,omitempty"`
-	Target      string     `json:"target,omitempty"`
-	NameCharSet string     `json:"namecharset,omitempty"` // when 'type'=obj
-	Attributes  Attributes `json:"attributes,omitempty"`  // when 'type'=obj
-	Item        *Item      `json:"item,omitempty"`        // when 'type'=map,array
+	Model *Model `json:"-"`
+	Type  string `json:"type,omitempty"`
+
+	Enum        []any  `json:"enum,omitempty"` // just scalars though
+	Strict      *bool  `json:"strict,omitempty"`
+	Target      string `json:"target,omitempty"`
+	NameCharSet string `json:"namecharset,omitempty"` // when 'type'=obj
+
+	Attributes Attributes `json:"attributes,omitempty"` // when 'type'=obj
+	Item       *Item      `json:"item,omitempty"`       // when 'type'=map,array
 }
 
 type IfValues map[string]*IfValue
@@ -3551,35 +3557,20 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 		}
 
 		// check enum values
-		/* Not true
-		if attr.Enum != nil && len(attr.Enum) == 0 {
-			return NewXRError("model_error", "/model",
-				"error_detail="+
-					fmt.Sprintf("%q specifies an \"enum\" but it is empty",
-						tmpLD.UI()))
-		}
-		*/
-
 		if len(attr.Enum) > 0 {
-			daType := attr.Type
-
-			if attr.Type == ARRAY || attr.Type == MAP {
-				daType = attr.Item.Type
-			}
-
-			if IsScalar(daType) != true {
+			if IsScalar(attr.Type) != true {
 				return NewXRError("model_error", "/model",
 					"error_detail="+
-						fmt.Sprintf("%q is not a scalar, or an array of "+
-							"scalars, so \"enum\" is not allowed", tmpLD.UI()))
+						fmt.Sprintf("%q is not a scalar so \"enum\" is "+
+							"not allowed", tmpLD.UI()))
 			}
 
 			for _, val := range attr.Enum {
-				if !IsOfType(val, daType) {
+				if !IsOfType(val, attr.Type) {
 					return NewXRError("model_error", "/model",
 						"error_detail="+
 							fmt.Sprintf("%q enum value \"%v\" must be of "+
-								"type %q", tmpLD.UI(), val, daType))
+								"type %q", tmpLD.UI(), val, attr.Type))
 				}
 			}
 
@@ -3848,10 +3839,39 @@ func (item *Item) Verify(ld *LevelData) *XRError {
 					item.Type))
 	}
 
+	// check enum values
+	if len(item.Enum) > 0 {
+		if IsScalar(item.Type) != true {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q is not a scalar so \"enum\" is not "+
+						"allowed", ld.UI()))
+		}
+
+		for _, val := range item.Enum {
+			if !IsOfType(val, item.Type) {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q enum value \"%v\" must be of "+
+							"type %q", ld.UI(), val, item.Type))
+			}
+		}
+
+		if item.Strict == nil {
+			item.Strict = PtrBool(true)
+		}
+	}
 	if item.Type != OBJECT && item.Attributes != nil {
 		return NewXRError("model_error", "/model",
 			"error_detail="+
 				fmt.Sprintf("%q must not have \"attributes\"", ld.UI()))
+	}
+
+	if IsScalar(item.Type) && item.Item != nil {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("%q must not have \"item\" set "+
+					"because it's a scalar", ld.UI()))
 	}
 
 	if item.Type == MAP || item.Type == ARRAY {
@@ -3860,6 +3880,54 @@ func (item *Item) Verify(ld *LevelData) *XRError {
 				"error_detail="+
 					fmt.Sprintf("%q must have an \"item\" section", ld.UI()))
 		}
+	}
+
+	if item.Type == XID {
+		skip := false
+		if item.Model.Stuff != nil {
+			_, skip = item.Model.Stuff["skipTargetCheck"]
+		}
+		if !skip && item.Target != "" {
+			target := strings.TrimSpace(item.Target)
+			parts := targetRE.FindStringSubmatch(target)
+			// 0=all  1=GROUPS  2=RESOURCES  3=versions|""  4=[/versions]|""
+			if len(parts) == 0 || parts[0] == "" {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q \"target\" must be of the form: "+
+							"/GROUPS[/RESOURCES[/versions | "+
+							"\\[/versions\\] ]]",
+							ld.UI()))
+			}
+
+			gm := ld.Model.FindGroupModel(parts[1])
+			if gm == nil {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q has an unknown Group type: %q",
+							ld.UI(), parts[1]))
+			}
+			if parts[2] != "" {
+				if rm := gm.Resources[parts[2]]; rm == nil {
+					return NewXRError("model_error", "/model",
+						"error_detail="+
+							fmt.Sprintf("%q has an unknown Resource "+
+								"type: %q", ld.UI(), parts[2]))
+				}
+			}
+		}
+	}
+
+	if item.Target != "" && item.Type != XID && item.Type != URI &&
+		item.Type != URIABSOLUTE && item.Type != URIRELATIVE &&
+		item.Type != URL && item.Type != URLABSOLUTE &&
+		item.Type != URLRELATIVE {
+
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("%q must not have a \"target\" value "+
+					"since \"type\" is not \"xid\", \"uri*\" or \"url*\"",
+					ld.UI()))
 	}
 
 	if item.Type == OBJECT {
@@ -4232,11 +4300,10 @@ func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XR
 
 		// Syntax-wise it should be ok. Now, let's check semantics (the data)
 
-		daType := attr.Type
 		if attr.Type == ARRAY || attr.Type == MAP {
 			// Should never happen since we don't allow arrays/maps,
 			// but just in case
-			daType = attr.Item.Type
+			panic(fmt.Sprintf("not allowed: %v", attr.Type))
 		}
 
 		// effectiveEnum is the enum we're going to valid "Default" against.
@@ -4258,10 +4325,10 @@ func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XR
 			// If constraints has an Enum then must be subset of effectiveEnum
 			for _, cVal := range constraint.Enum {
 				// Constraint Enum value MUST be of the same type as the attr
-				if !IsOfType(cVal, daType) {
+				if !IsOfType(cVal, attr.Type) {
 					return NewXRError(errType, subject, "error_detail="+
 						fmt.Sprintf(prefix+" has an enum value (%v) that must "+
-							"be of type %q", key, cVal, daType))
+							"be of type %q", key, cVal, attr.Type))
 				}
 
 				// Check for proper subset (note if effective=[] then it's ok)
@@ -4281,10 +4348,10 @@ func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XR
 		// Validate it's Default value if present
 		if !IsNil(constraint.Default) {
 			// Correct type?
-			if !IsOfType(constraint.Default, daType) {
+			if !IsOfType(constraint.Default, attr.Type) {
 				return NewXRError(errType, subject, "error_detail="+
 					fmt.Sprintf(prefix+" has a default value (%v) that must "+
-						"be of type %q", key, constraint.Default, daType))
+						"be of type %q", key, constraint.Default, attr.Type))
 			}
 
 			// Check it's in enum (note if effective=[] then it's ok)

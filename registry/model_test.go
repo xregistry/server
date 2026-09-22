@@ -686,32 +686,32 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: OBJECT, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
+  "title": "There was an error in the model definition provided: \"x\" is not a scalar so \"enum\" is not allowed.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+    "error_detail": "\"x\" is not a scalar so \"enum\" is not allowed"
   },
-  "source": ":registry:shared_model:2926"
+  "source": "6d9cf9acafe0:registry:shared_model:3562"
 }`},
 		{"enum - array", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: ARRAY, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
+  "title": "There was an error in the model definition provided: \"x\" is not a scalar so \"enum\" is not allowed.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+    "error_detail": "\"x\" is not a scalar so \"enum\" is not allowed"
   },
-  "source": ":registry:shared_model:2926"
+  "source": "6d9cf9acafe0:registry:shared_model:3562"
 }`},
 		{"enum - map", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: MAP, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
+  "title": "There was an error in the model definition provided: \"x\" is not a scalar so \"enum\" is not allowed.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+    "error_detail": "\"x\" is not a scalar so \"enum\" is not allowed"
   },
   "source": ":registry:shared_model:2926"
 }`},
@@ -902,6 +902,104 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: URLABSOLUTE, Enum: []any{"..."}}}}, ""},
 		{"empty enum - int", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: URLRELATIVE, Enum: []any{"..."}}}}, ""},
+	}
+
+	for _, test := range tests {
+		xErr := test.model.Verify()
+		if test.err == "" && xErr != nil {
+			t.Fatalf("ModelVerify: %s - should have worked, got: %s",
+				test.name, xErr)
+		}
+		if test.err != "" && xErr == nil {
+			t.Fatalf("ModelVerify: %s - should have failed with: %s",
+				test.name, test.err)
+		}
+		if xErr != nil {
+			XEqual(t, test.name, xErr.ToJSON(), test.err)
+		}
+	}
+}
+
+func TestModelVerifyItemTarget(t *testing.T) {
+	type Test struct {
+		name  string
+		model Model
+		err   string
+	}
+
+	groups := map[string]*GroupModel{
+		"dirs": &GroupModel{
+			Plural:   "dirs",
+			Singular: "dir",
+			Resources: map[string]*ResourceModel{
+				"files": &ResourceModel{
+					Plural:   "files",
+					Singular: "file",
+				},
+			},
+		},
+	}
+
+	tests := []Test{
+		{"item target - non xid/uri/url type", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: ARRAY,
+				Item: &Item{Type: STRING, Target: "/dirs"}}},
+			Groups: groups},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"x.item\" must not have a \"target\" value since \"type\" is not \"xid\", \"uri*\" or \"url*\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"x.item\" must not have a \"target\" value since \"type\" is not \"xid\", \"uri*\" or \"url*\""
+  },
+  "source": "xxx"
+}`},
+		{"item target - xid - bad group", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: ARRAY,
+				Item: &Item{Type: XID, Target: "/badg"}}},
+			Groups: groups},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"x.item\" has an unknown Group type: \"badg\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"x.item\" has an unknown Group type: \"badg\""
+  },
+  "source": "xxx"
+}`},
+		{"item target - xid - bad resource", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: MAP,
+				Item: &Item{Type: XID, Target: "/dirs/badr"}}},
+			Groups: groups},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"x.item\" has an unknown Resource type: \"badr\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"x.item\" has an unknown Resource type: \"badr\""
+  },
+  "source": "xxx"
+}`},
+		{"item target - xid - group ok", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: ARRAY,
+				Item: &Item{Type: XID, Target: "/dirs"}}},
+			Groups: groups}, ``},
+		{"item target - xid - resource ok", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: MAP,
+				Item: &Item{Type: XID, Target: "/dirs/files"}}},
+			Groups: groups}, ``},
+		{"item - scalar with nested item", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: ARRAY,
+				Item: &Item{Type: STRING, Item: &Item{Type: STRING}}}}},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"x.item\" must not have \"item\" set because it's a scalar.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"x.item\" must not have \"item\" set because it's a scalar"
+  },
+  "source": "xxx"
+}`},
 	}
 
 	for _, test := range tests {
