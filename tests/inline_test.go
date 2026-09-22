@@ -368,14 +368,15 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline one level - invalid",
 			URL:  "?inline=xxx",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (xxx) on: /?inline=xxx.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=xxx\", an error was found in \"inline\" value (xxx): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=xxx",
   "args": {
-    "name": "xxx"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "xxx"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "110c23b310234f30",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -383,14 +384,15 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline one level - invalid - bad case",
 			URL:  "?inline=Dirs",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (Dirs) on: /?inline=Dirs.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=Dirs\", an error was found in \"inline\" value (Dirs): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=Dirs",
   "args": {
-    "name": "Dirs"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "Dirs"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "59eea720d59d4c91",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -398,14 +400,15 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline two levels - invalid first",
 			URL:  "?inline=xxx.files",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (xxx.files) on: /?inline=xxx.files.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=xxx.files\", an error was found in \"inline\" value (xxx.files): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=xxx.files",
   "args": {
-    "name": "xxx.files"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "xxx.files"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "75ecc62388b64c7f",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -413,14 +416,15 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline two levels - invalid second",
 			URL:  "?inline=dirs.xxx",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.xxx) on: /?inline=dirs.xxx.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=dirs.xxx\", an error was found in \"inline\" value (dirs.xxx): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=dirs.xxx",
   "args": {
-    "name": "dirs.xxx"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.xxx"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "54a49b795b4c4dfc",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -438,14 +442,15 @@ func TestInlineBasic(t *testing.T) {
 			Name: "get one level, inline one level - invalid",
 			URL:  "dirs?inline=dirs",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs) on: /dirs?inline=dirs.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/dirs?inline=dirs\", an error was found in \"inline\" value (dirs): unknown or non-inlineable attribute specified.",
   "subject": "/dirs?inline=dirs",
   "args": {
-    "name": "dirs"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "7fb7bd1e6ef84522",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -463,14 +468,15 @@ func TestInlineBasic(t *testing.T) {
 			Name: "get one level, inline three levels",
 			URL:  "dirs?inline=files.versions.xxx",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (files.versions.xxx) on: /dirs?inline=files.versions.xxx.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/dirs?inline=files.versions.xxx\", an error was found in \"inline\" value (files.versions.xxx): unknown or non-inlineable attribute specified.",
   "subject": "/dirs?inline=files.versions.xxx",
   "args": {
-    "name": "files.versions.xxx"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "files.versions.xxx"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "84268f40298b4c99",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -504,14 +510,15 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline 2 top, 1 and 2 levels - one err",
 			URL:  "?inline=dirs,dirs2.files.xxx",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs2.files.xxx) on: /?inline=dirs,dirs2.files.xxx.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=dirs,dirs2.files.xxx\", an error was found in \"inline\" value (dirs2.files.xxx): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=dirs,dirs2.files.xxx",
   "args": {
-    "name": "dirs2.files.xxx"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs2.files.xxx"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "fbe2469f2c58484a",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -918,14 +925,15 @@ func TestInlineResource(t *testing.T) {
 			Name: "Bad inline xx",
 			URL:  "/dirs/d1/files/f1-proxy$details?inline=XXversions.file",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.XXversions.file) on: //dirs/d1/files/f1-proxy$details?inline=XXversions.file.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"//dirs/d1/files/f1-proxy$details?inline=XXversions.file\", an error was found in \"inline\" value (dirs.files.XXversions.file): unknown or non-inlineable attribute specified.",
   "subject": "//dirs/d1/files/f1-proxy$details?inline=XXversions.file",
   "args": {
-    "name": "dirs.files.XXversions.file"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.files.XXversions.file"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "b353c89439984667",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -933,14 +941,15 @@ func TestInlineResource(t *testing.T) {
 			Name: "Bad inline yy",
 			URL:  "/?inline=dirs.files.yy",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.yy) on: //?inline=dirs.files.yy.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"//?inline=dirs.files.yy\", an error was found in \"inline\" value (dirs.files.yy): unknown or non-inlineable attribute specified.",
   "subject": "//?inline=dirs.files.yy",
   "args": {
-    "name": "dirs.files.yy"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.files.yy"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "9a4fbcf376b141a1",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -948,14 +957,15 @@ func TestInlineResource(t *testing.T) {
 			Name: "Bad inline vers.yy",
 			URL:  "/?inline=dirs.files.version.yy",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.version.yy) on: //?inline=dirs.files.version.yy.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"//?inline=dirs.files.version.yy\", an error was found in \"inline\" value (dirs.files.version.yy): unknown or non-inlineable attribute specified.",
   "subject": "//?inline=dirs.files.version.yy",
   "args": {
-    "name": "dirs.files.version.yy"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.files.version.yy"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "7fefe186850e4864",
+  "source": "244463f5fd17:registry:info:161"
 }
 `,
 		},
@@ -1582,14 +1592,15 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=foo.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (foo.*) on: /?inline=foo.*.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=foo.*\", an error was found in \"inline\" value (foo.*): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=foo.*",
   "args": {
-    "name": "foo.*"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "foo.*"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "4f5a7cd3fd344b4e",
+  "source": "244463f5fd17:registry:info:161"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=foo*", ``, 400, `{
@@ -1618,14 +1629,15 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.bad.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.bad.*) on: /?inline=dirs.bad.*.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=dirs.bad.*\", an error was found in \"inline\" value (dirs.bad.*): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=dirs.bad.*",
   "args": {
-    "name": "dirs.bad.*"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.bad.*"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "6d41b9897cbb42fa",
+  "source": "244463f5fd17:registry:info:161"
 }
 `)
 
@@ -1642,14 +1654,15 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.bad.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad.*) on: /?inline=dirs.files.bad.*.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=dirs.files.bad.*\", an error was found in \"inline\" value (dirs.files.bad.*): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=dirs.files.bad.*",
   "args": {
-    "name": "dirs.files.bad.*"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.files.bad.*"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "28d0b44fd45d4812",
+  "source": "244463f5fd17:registry:info:161"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.file*", ``, 400, `{
@@ -1665,14 +1678,15 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.file.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file.*) on: /?inline=dirs.files.file.*.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=dirs.files.file.*\", an error was found in \"inline\" value (dirs.files.file.*): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=dirs.files.file.*",
   "args": {
-    "name": "dirs.files.file.*"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.files.file.*"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "8b8628398365454e",
+  "source": "244463f5fd17:registry:info:161"
 }
 `)
 
@@ -1689,14 +1703,15 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.meta.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta.*) on: /?inline=dirs.files.meta.*.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=dirs.files.meta.*\", an error was found in \"inline\" value (dirs.files.meta.*): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=dirs.files.meta.*",
   "args": {
-    "name": "dirs.files.meta.*"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.files.meta.*"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "64c5106237ec49ab",
+  "source": "244463f5fd17:registry:info:161"
 }
 `)
 
@@ -1725,14 +1740,15 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.*) on: /?inline=dirs.files.versions.file.*.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=dirs.files.versions.file.*\", an error was found in \"inline\" value (dirs.files.versions.file.*): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=dirs.files.versions.file.*",
   "args": {
-    "name": "dirs.files.versions.file.*"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "dirs.files.versions.file.*"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "0d675d639f9c406a",
+  "source": "244463f5fd17:registry:info:161"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.bad*", ``, 400, `{
@@ -1749,14 +1765,15 @@ func TestInlineWildcards(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "?inline=model.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (model.*) on: /?inline=model.*.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=model.*\", an error was found in \"inline\" value (model.*): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=model.*",
   "args": {
-    "name": "model.*"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "model.*"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "95963c602ea04f7b",
+  "source": "244463f5fd17:registry:info:161"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=model.bad*", ``, 400, `{
@@ -1772,14 +1789,15 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=capabilities.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (capabilities.*) on: /?inline=capabilities.*.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "For \"/?inline=capabilities.*\", an error was found in \"inline\" value (capabilities.*): unknown or non-inlineable attribute specified.",
   "subject": "/?inline=capabilities.*",
   "args": {
-    "name": "capabilities.*"
+    "error_detail": "unknown or non-inlineable attribute specified",
+    "value": "capabilities.*"
   },
-  "instance": "xxx",
-  "source": "4a51b174cf4e:registry:info:162"
+  "instance": "18fc11cf26784374",
+  "source": "244463f5fd17:registry:info:161"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=capabilities.bad*", ``, 400, `{

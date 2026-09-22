@@ -158,8 +158,9 @@ func (info *RequestInfo) AddInline(path string) *XRError {
 		path = path[len(info.Abstract)+1:]
 	}
 
-	return NewXRError("inline_noninlineable",
-		info.OriginalRequest.URL.RequestURI(), "name="+path)
+	return NewXRError("bad_inline", info.OriginalRequest.URL.RequestURI(),
+		"value="+path,
+		"error_detail=unknown or non-inlineable attribute specified")
 }
 
 func (info *RequestInfo) IsInlineSet(entityPath string) bool {

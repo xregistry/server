@@ -197,10 +197,6 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The request would cause Version "<subject>" to be non-compliant. The model definition of "<plural>" has "hasdocument" set to "false" but this Version has document content.`,
 	},
-	"inline_noninlineable": &XRError{
-		Code:  400,
-		Title: `Attempting to inline a non-inlineable attribute (<name>) on: <subject>.`,
-	},
 	"invalid_attribute": &XRError{
 		Code:  400,
 		Title: `The attribute "<name>" for "<subject>" is not valid: <error_detail>.`,
