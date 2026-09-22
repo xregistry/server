@@ -559,7 +559,8 @@ type CLIResult struct {
 	Stderr string
 }
 
-func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool, flags ...string) *CLIResult {
+// use code of -1 for any non-zero exit code
+func XCLI(t *testing.T, line string, in, Eout, Eerr string, code int, flags ...string) *CLIResult {
 	t.Helper()
 
 	args := SplitCommandLine(line)
@@ -588,12 +589,26 @@ func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool, flags ...
 		}
 	}
 
-	if !IsNil(err) && work {
-		t.Fatalf("Should have worked: %s\nStdout: %s\nStderr: %s",
-			err, stdout.String(), stderr.String())
-	} else if IsNil(err) && !work {
-		t.Fatalf("Should have failed:\nStdout: %s\nStderr: %s",
-			stdout.String(), stderr.String())
+	if code == -1 {
+		if cliRes.Code == 0 {
+			t.Fatalf("Should have failed, but worked:\nStdout: %s\nStderr: %s",
+				stdout.String(), stderr.String())
+		}
+	} else if code == 0 {
+		if cliRes.Code != 0 {
+			t.Fatalf("Should have worked, but failed(%d): %s\n"+
+				"Stdout: %s\nStderr: %s",
+				cliRes.Code, err, stdout.String(), stderr.String())
+		}
+	} else {
+		if cliRes.Code == 0 {
+			t.Fatalf("Should have failed, but worked:\nStdout: %s\nStderr: %s",
+				stdout.String(), stderr.String())
+		} else if cliRes.Code != code {
+			t.Fatalf("Should have failed with code %d, but got %d: %s\n"+
+				"Stdout: %s\nStderr: %s",
+				code, cliRes.Code, err, stdout.String(), stderr.String())
+		}
 	}
 
 	XEqual(t, "Stdout:", cliRes.Stdout, Eout, flags...)

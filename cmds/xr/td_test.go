@@ -205,7 +205,7 @@ func TestFailedDependenciesPropagateConsistently(t *testing.T) {
 	freshRoot := newTestTD("fresh")
 	freshRoot.Config.FailFast = true
 	freshDependent := freshRoot.Run(dependencyCaller)
-	fresh := renderTD(freshRoot)
+	fresh := printTD(freshRoot)
 
 	cachedRoot := newTestTD("cached")
 	// Seed the cached failure before enabling FailFast for the dependent.
@@ -215,7 +215,7 @@ func TestFailedDependenciesPropagateConsistently(t *testing.T) {
 	cachedRoot.Config.TestRuns[TestFn(dependencyFailure).Name()] =
 		cachedDependency
 	cachedDependent := cachedRoot.Run(dependencyCaller)
-	cached := renderTD(cachedRoot)
+	cached := printTD(cachedRoot)
 
 	XEqual(t, "Fresh Root Status", freshRoot.Status, FAIL)
 	XEqual(t, "Fresh Dependent Status", freshDependent.Status, FAIL)
@@ -237,7 +237,7 @@ Pass: 0   Fail: 3   Warn: 0   Skip: 0
 `)
 }
 
-func TestConformanceStateErrorRendersCompleteResult(t *testing.T) {
+func TestConformanceStateErrorPrintCompleteResult(t *testing.T) {
 	const target = "http://example.com"
 
 	td := newTestTD(target)
@@ -247,7 +247,7 @@ func TestConformanceStateErrorRendersCompleteResult(t *testing.T) {
 	td.SetRegistry(reg)
 	td.Run(TestResources)
 
-	got := renderTD(td)
+	got := printTD(td)
 	XEqual(t, "State Error Output", got, `FAIL: http://example.com
 └─ FAIL: TestResources
    ├─ PASS: TestGroups (cached)
@@ -274,7 +274,7 @@ func newTestTD(name string) *TD {
 	return td
 }
 
-func renderTD(td *TD) string {
+func printTD(td *TD) string {
 	out := bytes.Buffer{}
 	td.Print(&out, "", 99)
 	return out.String()

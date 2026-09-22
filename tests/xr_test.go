@@ -18,10 +18,10 @@ func TestXRBasic(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	os.Setenv("XR_SERVER", "")
-	XCLI(t, "get", "", "", "*", false)
+	XCLI(t, "get", "", "", "*", 1)
 
 	os.Setenv("XR_SERVER", "http://example.com")
-	XCLI(t, "get", "", "", "*", false)
+	XCLI(t, "get", "", "", "*", 1)
 
 	cmd := exec.Command("../xr")
 	out, err := cmd.CombinedOutput()
@@ -51,7 +51,7 @@ func TestXRBasic(t *testing.T) {
 			t.FailNow()
 		}
 
-		XCLI(t, "model verify "+fn, "", "", "", true)
+		XCLI(t, "model verify "+fn, "", "", "", 0)
 	}
 
 	// Test for no server specified
@@ -66,13 +66,13 @@ func TestXRBasic(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
 }
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "model group create -v dirs:dir", "",
-		"", "Created Group type: dirs:dir\n", true)
+		"", "Created Group type: dirs:dir\n", 0)
 
 	XCLI(t, "model resource create -v -g dirs files:file", "",
-		"", "Created Resource type: files\n", true)
+		"", "Created Resource type: files\n", 0)
 
 	XCLI(t, "model get", "",
 		`xRegistry Model:
@@ -100,7 +100,7 @@ GROUP: dirs / dir
     Validate format     : false
     Validate compat     : false
     Strict valiation    : false
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "model get -a", "",
 		`xRegistry Model:
@@ -231,13 +231,13 @@ GROUP: dirs / dir
     ├ shortself              url          -     y    -
     ├ xid                    xid          y     y    -
     └ xref                   url          -     -    y
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "create /dirs/d1/files/f1/versions/v1 -vd hello_world", "",
-		"", "Created: /dirs/d1/files/f1/versions/v1\n", true)
+		"", "Created: /dirs/d1/files/f1/versions/v1\n", 0)
 
 	XCLI(t, "get /dirs/d1/files/f1", "",
-		"hello_world", "", true)
+		"hello_world", "", 0)
 
 	XCLI(t, "get /dirs/d1/files/f1$details", "",
 		`{
@@ -256,7 +256,7 @@ GROUP: dirs / dir
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 }
 
 func TestXRModel(t *testing.T) {
@@ -266,16 +266,16 @@ func TestXRModel(t *testing.T) {
 	os.Setenv("XR_SERVER", "localhost:8181")
 
 	XCLI(t, "model update -vd @files/dir/model-dirs-inc-docs.json", "",
-		"", "Model updated\n", true)
+		"", "Model updated\n", 0)
 
 	XCLI(t, "model group create -v gts:gt", "",
-		"", "Created Group type: gts:gt\n", true)
+		"", "Created Group type: gts:gt\n", 0)
 
 	XCLI(t, "model resource create -vg gts rts:rt", "",
-		"", "Created Resource type: rts\n", true)
+		"", "Created Resource type: rts\n", 0)
 
 	XCLI(t, "model resource create -vg gt2s:gt2 rt2s:rt2", "",
-		"", "Created Group type: gt2s:gt2\nCreated Resource type: rt2s\n", true)
+		"", "Created Group type: gt2s:gt2\nCreated Resource type: rt2s\n", 0)
 
 	XCLI(t, "model get", "",
 
@@ -370,7 +370,7 @@ GROUP: gts / gt
     Validate format     : false
     Validate compat     : false
     Strict valiation    : false
-`, "", true)
+`, "", 0)
 
 	// Test some ifvalues
 	XCLI(t, "model update -vd @-", `{
@@ -450,7 +450,7 @@ GROUP: gts / gt
       }
     }
   }
-}`, "", "Model updated\n", true)
+}`, "", "Model updated\n", 0)
 
 	XCLI(t, "model get", "",
 		`xRegistry Model:
@@ -481,7 +481,7 @@ ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
     << endif
     >> if astr="foo2"
     << endif
-`, "", true)
+`, "", 0)
 
 }
 
@@ -543,15 +543,15 @@ func TestXRUpdateRegistry(t *testing.T) {
 
 	XCLI(t, "create", "",
 		"", "Must specify the XID of an entity.\n",
-		false)
+		1)
 
 	XCLI(t, "create /", "",
 		"", "To create a registry use the 'xrserver registry create' command.\n",
-		false)
+		1)
 
-	XCLI(t, "update", "", "", "Must specify the XID of an entity.\n", false)
-	XCLI(t, "update /", "", "", "", true)
-	XCLI(t, "update -v /", "", "", "Updated: /\n", true)
+	XCLI(t, "update", "", "", "Must specify the XID of an entity.\n", 1)
+	XCLI(t, "update /", "", "", "", 0)
+	XCLI(t, "update -v /", "", "", "Updated: /\n", 0)
 
 	XCLI(t, "update -vo json /", "",
 		`{
@@ -563,7 +563,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "createdat": "2026-09-10T21:03:21.551707687Z",
   "modifiedat": "2026-09-10T21:03:21.699933632Z"
 }
-`, "Updated: /\n", true)
+`, "Updated: /\n", 0)
 
 	// Del on non-existing attrs
 	XCLI(t, "update -o=json / --del name --del arrstr "+
@@ -577,7 +577,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "createdat": "2026-09-10T21:04:37.194238574Z",
   "modifiedat": "2026-09-10T21:04:37.400412906Z"
 }
-`, "", true)
+`, "", 0)
 
 	// Simple set
 	XCLI(t, "update -o=json / --set name=myreg --set arrstr[0]=hi "+
@@ -599,7 +599,7 @@ func TestXRUpdateRegistry(t *testing.T) {
     "env": 2
   }
 }
-`, "", true)
+`, "", 0)
 
 	// Append more data
 	XCLI(t, "update -o=json / --set name=xxx --set arrstr[2]=foo "+
@@ -623,7 +623,7 @@ func TestXRUpdateRegistry(t *testing.T) {
     "env": 2
   }
 }
-`, "", true)
+`, "", 0)
 
 	// Now do some deletes
 	XCLI(t, "update -o=json / --del name --del arrstr[1] --del map.env", "",
@@ -643,7 +643,7 @@ func TestXRUpdateRegistry(t *testing.T) {
     "dev": 1
   }
 }
-`, "", true)
+`, "", 0)
 
 	// Load 'em up..
 	XCLI(t, "update -o=json / --set=name=nam --set description=desc "+
@@ -669,7 +669,7 @@ func TestXRUpdateRegistry(t *testing.T) {
     "dev": 1
   }
 }
-`, "", true)
+`, "", 0)
 
 	// Now set some odd values delete name, desc="" , load labels
 	XCLI(t, "update -o=json / --set=name --set description= "+
@@ -693,7 +693,7 @@ func TestXRUpdateRegistry(t *testing.T) {
     "dev": 1
   }
 }
-`, "", true)
+`, "", 0)
 
 	// More odd...
 	XCLI(t, `update -o=json / --set name="a b" --set bool=true `+
@@ -721,7 +721,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   },
   "obj": {}
 }
-`, "", true)
+`, "", 0)
 
 	// Empty obj and array
 	XCLI(t, "update -o=json / --set obj={} --set arrstr=[]", "",
@@ -747,7 +747,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   },
   "obj": {}
 }
-`, ``, true)
+`, ``, 0)
 
 	// Make sure order is taken into account
 	XCLI(t, `update / -o=json --set name=foo --del name `+
@@ -773,7 +773,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   },
   "obj": {}
 }
-`, ``, true)
+`, ``, 0)
 
 	// just for fun, delete everything
 	// Note timestamps should be the same
@@ -790,7 +790,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "createdat": "2026-09-10T21:08:23.105835894Z",
   "modifiedat": "2026-09-10T21:08:23.105835894Z"
 }
-`, ``, true)
+`, ``, 0)
 
 	// set using json string + --del + --set
 	XCLI(t, `update / -o=json --data '{"obj":{},"description":"foo"}' `+
@@ -806,7 +806,7 @@ func TestXRUpdateRegistry(t *testing.T) {
   "modifiedat": "2026-09-10T21:08:49.388273793Z",
   "obj": {}
 }
-`, ``, true)
+`, ``, 0)
 
 	// set using json stdin + --del + --set
 	XCLI(t, `update / -o=json --data @- --set description=cool --del name`, `{
@@ -826,11 +826,11 @@ func TestXRUpdateRegistry(t *testing.T) {
     "age": 12
   }
 }
-`, ``, true)
+`, ``, 0)
 
 	// delete unknown attr
 	XCLI(t, `update / -o=json --del bad`, ``, ``,
-		"An unknown attribute (bad) was specified for \"/\".\n", false)
+		"An unknown attribute (bad) was specified for \"/\".\n", 1)
 
 }
 
@@ -841,22 +841,22 @@ func TestXRGroupType(t *testing.T) {
 	XCLIServer("localhost:8181")
 
 	XCLI(t, "model group create", "",
-		"", "At least one Group type name must be specified.\n", false)
+		"", "At least one Group type name must be specified.\n", 1)
 
 	XCLI(t, "model group create dirs", "",
-		"", "Group type name must be of the form: PLURAL:SINGULAR.\n", false)
+		"", "Group type name must be of the form: PLURAL:SINGULAR.\n", 1)
 
 	XCLI(t, "model group create dirs dir", "",
-		"", "Group type name must be of the form: PLURAL:SINGULAR.\n", false)
+		"", "Group type name must be of the form: PLURAL:SINGULAR.\n", 1)
 
-	XCLI(t, "model group create dirs:dir", "", "", "", true)
+	XCLI(t, "model group create dirs:dir", "", "", "", 0)
 
 	XCLI(t, "model group create dirs:dir", "", "",
 		"PLURAL value (dirs) conflicts with an existing Group PLURAL name.\n",
-		false)
+		1)
 
 	XCLI(t, "model group create -o table -v dirs2:dir2", "",
-		"GROUP: dirs2 / dir2\n", "Created Group type: dirs2:dir2\n", true)
+		"GROUP: dirs2 / dir2\n", "Created Group type: dirs2:dir2\n", 0)
 
 	XCLI(t, "model group create dirs3:dir3 -v -o json", "",
 		`{
@@ -980,7 +980,7 @@ func TestXRGroupType(t *testing.T) {
     }
   }
 }
-`, "Created Group type: dirs3:dir3\n", true)
+`, "Created Group type: dirs3:dir3\n", 0)
 
 	XCLI(t, "model group create -ao table -v dirs4:dir4", "",
 		`GROUP: dirs4 / dir4
@@ -1008,7 +1008,7 @@ func TestXRGroupType(t *testing.T) {
   ├ self              url          y     y    -
   ├ shortself         url          -     y    -
   └ xid               xid          y     y    -
-`, "Created Group type: dirs4:dir4\n", true)
+`, "Created Group type: dirs4:dir4\n", 0)
 
 	XCLI(t, "model group create -aro table dirs5:dir5", "",
 		`GROUP: dirs5 / dir5
@@ -1036,12 +1036,12 @@ func TestXRGroupType(t *testing.T) {
   ├ self              url          y     y    -
   ├ shortself         url          -     y    -
   └ xid               xid          y     y    -
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "model group create -aro xxx dirs6:dir6", "",
-		"", "--output must be one of 'json', 'none', 'table'.\n", false)
+		"", "--output must be one of 'json', 'none', 'table'.\n", 1)
 
-	XCLI(t, "model group get dirs2", "", "GROUP: dirs2 / dir2\n", "", true)
+	XCLI(t, "model group get dirs2", "", "GROUP: dirs2 / dir2\n", "", 0)
 
 	XCLI(t, "model group get -o json dirs2", "",
 		`{
@@ -1165,7 +1165,7 @@ func TestXRGroupType(t *testing.T) {
     }
   }
 }
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "model group get -a -o json dirs2 dirs", "",
 		`[
@@ -1412,16 +1412,16 @@ func TestXRGroupType(t *testing.T) {
     }
   }
 ]
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "model group get -o table dirs2 dirs", "",
 		`GROUP: dirs2 / dir2
 
 GROUP: dirs / dir
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "model resource create -v -g dirs2 files:file", "",
-		``, "Created Resource type: files\n", true)
+		``, "Created Resource type: files\n", 0)
 
 	XCLI(t, "model resource create -v -g dirs2 files2:file2 -o table", "",
 		`RESOURCE: files2 / file2
@@ -1433,10 +1433,10 @@ GROUP: dirs / dir
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-`, "Created Resource type: files2\n", true)
+`, "Created Resource type: files2\n", 0)
 
 	XCLI(t, "model resource create -v -g dirs7 files2:file2 -o table", "",
-		``, "Group type \"dirs7\" does not exist.\n", false)
+		``, "Group type \"dirs7\" does not exist.\n", 1)
 
 	XCLI(t, "model resource create -v -g dirs7:dir7 files2:file2 -o table", "",
 		`RESOURCE: files2 / file2
@@ -1450,7 +1450,7 @@ GROUP: dirs / dir
   Strict valiation    : false
 `, `Created Group type: dirs7:dir7
 Created Resource type: files2
-`, true)
+`, 0)
 
 	XCLI(t, "model group list", "", `GROUP          RESOURCES   DESCRIPTION
 dirs / dir     0
@@ -1459,20 +1459,20 @@ dirs3 / dir3   0
 dirs4 / dir4   0
 dirs5 / dir5   0
 dirs7 / dir7   1
-`, ``, true)
+`, ``, 0)
 
-	XCLI(t, "model group list -o json", "", `*`, ``, true) // cheat
+	XCLI(t, "model group list -o json", "", `*`, ``, 0) // cheat
 
 	XCLI(t, "model resource list", "", "",
-		"A Group type name must be provided via the --group flag.\n", false)
+		"A Group type name must be provided via the --group flag.\n", 1)
 
 	XCLI(t, "model resource list files -g dirs", "", "",
-		"No arguments allowed.\n", false)
+		"No arguments allowed.\n", 1)
 
 	XCLI(t, "model resource list -g dirs7", "", `RESOURCE         HAS DOC   EXT ATTRS   DESCRIPTION
 files2 / file2   true      0
 `,
-		"", true)
+		"", 0)
 
 	XCLI(t, "model resource list -g dirs7 -o json", "", `{
   "files2": {
@@ -1807,7 +1807,7 @@ files2 / file2   true      0
   }
 }
 `,
-		"", true)
+		"", 0)
 
 }
 
@@ -1820,19 +1820,19 @@ func TestXRIgnore(t *testing.T) {
 	// cmd, stdin, stdout, stderr, pass?
 
 	XCLI(t, "model resource create files:file -g dirs:dir --has-doc=false", "",
-		"", "", true)
+		"", "", 0)
 
 	XCLI(t, "create /dirs/d1/files/f1 --set fileid=f2", ``,
-		"", `The specified "fileid" value (f2) for "/dirs/d1/files/f1" needs to be "f1".`+"\n", false)
+		"", `The specified "fileid" value (f2) for "/dirs/d1/files/f1" needs to be "f1".`+"\n", 1)
 
 	XCLI(t, "create -v /dirs/d1/files/f1 -d @- --ignore=id", `{ "fileid": "f2" }`,
-		"", `Created: /dirs/d1/files/f1`+"\n", true)
+		"", `Created: /dirs/d1/files/f1`+"\n", 0)
 
 	XCLI(t, "update -v /dirs/d1/files/f1 --set epoch=5", ``,
-		"", `The specified epoch value (5) for "/dirs/d1/files/f1/versions/1" does not match its current value (1).`+"\n", false)
+		"", `The specified epoch value (5) for "/dirs/d1/files/f1/versions/1" does not match its current value (1).`+"\n", 1)
 
 	XCLI(t, "update -v /dirs/d1/files/f1 --set epoch=5 --set fileid=foo --ignore=id --ignore=epoch", ``,
-		"", `Updated: /dirs/d1/files/f1`+"\n", true)
+		"", `Updated: /dirs/d1/files/f1`+"\n", 0)
 }
 
 func TestXRResourceType(t *testing.T) {
@@ -1841,19 +1841,19 @@ func TestXRResourceType(t *testing.T) {
 
 	XCLIServer("localhost:8181")
 
-	// XCLI(t, "cmd", "stdin", "stdout", "stderr", true/false)
+	// XCLI(t, "cmd", "stdin", "stdout", "stderr", true/1)
 	XCLI(t, "model resource create files", "", "",
-		"A Group type name must be provided via the --group flag.\n", false)
+		"A Group type name must be provided via the --group flag.\n", 1)
 	XCLI(t, "model resource create files -g dirs", "", "",
-		`Group type "dirs" does not exist.`+"\n", false)
+		`Group type "dirs" does not exist.`+"\n", 1)
 	XCLI(t, "model resource create files -g dirs:dir", "", "",
-		"Resource type name must be of the form: PLURAL:SINGULAR.\n", false)
+		"Resource type name must be of the form: PLURAL:SINGULAR.\n", 1)
 
-	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", true)
-	XCLI(t, "model resource delete files -g dirs", "", "", "", true)
+	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", 0)
+	XCLI(t, "model resource delete files -g dirs", "", "", "", 0)
 
 	XCLI(t, "model resource create -v files:file -g dirs", "",
-		"", "Created Resource type: files\n", true)
+		"", "Created Resource type: files\n", 0)
 
 	XCLI(t, "model resource create f2s:f2 -g dirs -o table", "",
 		`RESOURCE: f2s / f2
@@ -1865,7 +1865,7 @@ func TestXRResourceType(t *testing.T) {
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "model resource create f3s:f3 -g dirs -o table "+
 		"--description desc --docs docURL --has-doc "+
@@ -1892,7 +1892,7 @@ func TestXRResourceType(t *testing.T) {
                         foo=bar
   Type map            : tm1=json
                         tm2=string
-`, ``, true)
+`, ``, 0)
 
 	XCLI(t, "model resource create f4s:f4 -g dirs -o table "+
 		"--has-doc=true "+
@@ -1908,7 +1908,7 @@ func TestXRResourceType(t *testing.T) {
   Validate format     : true
   Validate compat     : true
   Strict valiation    : true
-`, ``, true)
+`, ``, 0)
 
 	XCLI(t, "model resource create f5s:f5 -g dirs -o table "+
 		"--has-doc=false "+
@@ -1924,7 +1924,7 @@ func TestXRResourceType(t *testing.T) {
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-`, ``, true)
+`, ``, 0)
 
 	XCLI(t, "model resource create f6s:f6 -g dirs -o table "+
 		"--no-has-doc "+
@@ -1940,7 +1940,7 @@ func TestXRResourceType(t *testing.T) {
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-`, ``, true)
+`, ``, 0)
 
 	XCLI(t, "model resource create f7s:f7 -g dirs -o table "+
 		"--no-has-doc=true "+
@@ -1956,7 +1956,7 @@ func TestXRResourceType(t *testing.T) {
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-`, ``, true)
+`, ``, 0)
 
 	XCLI(t, "model resource create f8s:f8 -g dirs -o table "+
 		"--no-has-doc=false "+
@@ -1972,42 +1972,42 @@ func TestXRResourceType(t *testing.T) {
   Validate format     : true
   Validate compat     : true
   Strict valiation    : true
-`, ``, true)
+`, ``, 0)
 
 	// Some errors and test create vs update vs upsert
 	XCLI(t, "model resource create fsc:fc -g dirs -f -v", "",
-		"", "Created Resource type: fsc\n", true)
+		"", "Created Resource type: fsc\n", 0)
 
 	// ---
 
 	XCLI(t, "model resource update fs:f -g dirs -v", "",
-		"", `Resource type "fs" doesn't exists.`+"\n", false)
+		"", `Resource type "fs" doesn't exists.`+"\n", 1)
 
 	XCLI(t, "model resource update fs:f -g dirs -f -v", "",
-		"", "Created Resource type: fs\n", true)
+		"", "Created Resource type: fs\n", 0)
 
 	XCLI(t, "model resource update fs:f -g dirs -v", "",
-		"", "Updated Resource type: fs\n", true)
+		"", "Updated Resource type: fs\n", 0)
 
 	XCLI(t, "model resource update fs -g dirs -v", "",
-		"", "Updated Resource type: fs\n", true)
+		"", "Updated Resource type: fs\n", 0)
 
 	// ---
 
 	XCLI(t, "model resource upsert fs:f -g dirs -f -v", "",
-		"", "Error: unknown shorthand flag: 'f' in -f\n", false)
+		"", "Error: unknown shorthand flag: 'f' in -f\n", 1)
 
 	XCLI(t, "model resource upsert fs -g dirs -v", "",
-		"", "Updated Resource type: fs\n", true)
+		"", "Updated Resource type: fs\n", 0)
 
 	XCLI(t, "model resource upsert fs:f -g dirs -v", "",
-		"", "Updated Resource type: fs\n", true)
+		"", "Updated Resource type: fs\n", 0)
 
 	XCLI(t, "model resource upsert fs2 -g dirs -v", "",
-		"", "Resource type name must be of the form: PLURAL:SINGULAR.\n", false)
+		"", "Resource type name must be of the form: PLURAL:SINGULAR.\n", 1)
 
 	XCLI(t, "model resource upsert fs22:f22 -g dirs -v", "",
-		"", "Created Resource type: fs22\n", true)
+		"", "Created Resource type: fs22\n", 0)
 }
 
 func TestXRResourceFlags(t *testing.T) {
@@ -2016,11 +2016,11 @@ func TestXRResourceFlags(t *testing.T) {
 
 	XCLIServer("localhost:8181")
 
-	XCLI(t, "model resource create files:file -g dirs:dir --has-doc", "", "", "", true)
-	XCLI(t, "model resource create datas:data -g dirs --no-has-doc", "", "", "", true)
+	XCLI(t, "model resource create files:file -g dirs:dir --has-doc", "", "", "", 0)
+	XCLI(t, "model resource create datas:data -g dirs --no-has-doc", "", "", "", 0)
 
 	// Test --set during create
-	XCLI(t, "create /dirs/d1/files/f1 --set name=file1", "", "", "", true)
+	XCLI(t, "create /dirs/d1/files/f1 --set name=file1", "", "", "", 0)
 	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
   "fileid": "f1",
   "versionid": "1",
@@ -2038,9 +2038,9 @@ func TestXRResourceFlags(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 
-	XCLI(t, "create /dirs/d1/datas/d1 --set name=data1", "", "", "", true)
+	XCLI(t, "create /dirs/d1/datas/d1 --set name=data1", "", "", "", 0)
 	XCLI(t, "get /dirs/d1/datas/d1", "", `{
   "dataid": "d1",
   "versionid": "1",
@@ -2058,10 +2058,10 @@ func TestXRResourceFlags(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 
 	// Test --set during update
-	XCLI(t, "update /dirs/d1/files/f1 --set name=file2", "", "", "", true)
+	XCLI(t, "update /dirs/d1/files/f1 --set name=file2", "", "", "", 0)
 	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
   "fileid": "f1",
   "versionid": "1",
@@ -2079,9 +2079,9 @@ func TestXRResourceFlags(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 
-	XCLI(t, "update /dirs/d1/datas/d1 --set name=data2", "", "", "", true)
+	XCLI(t, "update /dirs/d1/datas/d1 --set name=data2", "", "", "", 0)
 	XCLI(t, "get /dirs/d1/datas/d1", "", `{
   "dataid": "d1",
   "versionid": "1",
@@ -2099,11 +2099,11 @@ func TestXRResourceFlags(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 
 	// Test --set with -d on resource with document
-	XCLI(t, "update /dirs/d1/files/f1 -d 'hello world' --set name=file4", "", "", "", true)
-	XCLI(t, "get /dirs/d1/files/f1", "", "hello world", "", true)
+	XCLI(t, "update /dirs/d1/files/f1 -d 'hello world' --set name=file4", "", "", "", 0)
+	XCLI(t, "get /dirs/d1/files/f1", "", "hello world", "", 0)
 	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
   "fileid": "f1",
   "versionid": "1",
@@ -2121,10 +2121,10 @@ func TestXRResourceFlags(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 
 	// Test --set with -d on resource without document
-	XCLI(t, `update /dirs/d1/datas/d1 -d '{"name":"data3","description":"data3"}' --set name=data4`, "", "", "", true)
+	XCLI(t, `update /dirs/d1/datas/d1 -d '{"name":"data3","description":"data3"}' --set name=data4`, "", "", "", 0)
 	XCLI(t, "get /dirs/d1/datas/d1", "", `{
   "dataid": "d1",
   "versionid": "1",
@@ -2143,11 +2143,11 @@ func TestXRResourceFlags(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 
 	// Test --set with -d and --min on resource with document
-	XCLI(t, `update /dirs/d1/files/f1 -m --set name=file5 -d '{"name":"file6","description":"file5"}'`, "", "", "", true)
-	XCLI(t, "get /dirs/d1/files/f1", "", "hello world", "", true)
+	XCLI(t, `update /dirs/d1/files/f1 -m --set name=file5 -d '{"name":"file6","description":"file5"}'`, "", "", "", 0)
+	XCLI(t, "get /dirs/d1/files/f1", "", "hello world", "", 0)
 	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
   "fileid": "f1",
   "versionid": "1",
@@ -2166,10 +2166,10 @@ func TestXRResourceFlags(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 
 	// Test -d is processed before --set on resource without document
-	XCLI(t, `update /dirs/d1/datas/d1 --set name=data5 -d '{"name":"data6","description":"data7"}'`, "", "", "", true)
+	XCLI(t, `update /dirs/d1/datas/d1 --set name=data5 -d '{"name":"data6","description":"data7"}'`, "", "", "", 0)
 	XCLI(t, "get /dirs/d1/datas/d1", "", `{
   "dataid": "d1",
   "versionid": "1",
@@ -2188,11 +2188,11 @@ func TestXRResourceFlags(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
   "versionscount": 1
 }
-`, "", true)
+`, "", 0)
 
 	// Test -d is processed before --set on resource with document
-	XCLI(t, "update /dirs/d1/files/f1 -d 'hello world2' --set filebase64=aGVsbG8gd29ybGQz", "", "", "", true)
-	XCLI(t, "get /dirs/d1/files/f1", "", "hello world3", "", true)
+	XCLI(t, "update /dirs/d1/files/f1 -d 'hello world2' --set filebase64=aGVsbG8gd29ybGQz", "", "", "", 0)
+	XCLI(t, "get /dirs/d1/files/f1", "", "hello world3", "", 0)
 }
 
 func TestXRConfig(t *testing.T) {
@@ -2216,30 +2216,30 @@ header.bar2: foo2`
 	XNoErr(t, os.Setenv("HOME", tmphome))
 
 	// 0 - Just print help text
-	XCLI(t, "", "", "*", "", true)
+	XCLI(t, "", "", "*", "", 0)
 
 	// 1 - make sure we use default w/o config, cmd-line or env
 	// Should fail trying to GET localhost:8080
-	XCLI(t, "get", "", "", "*localhost:8080*", false)
+	XCLI(t, "get", "", "", "*localhost:8080*", 1)
 
 	// 2 - now add config file to HOME dir, make sure we try example.com
 	XNoErr(t, os.WriteFile(tmphome+"/.xr", []byte(configStr), 0600))
 	// Should fail trying to GET localhost:666
-	XCLI(t, "get", "", "", "*localhost:666*", false)
+	XCLI(t, "get", "", "", "*localhost:666*", 1)
 
 	// 3 - now add env var
 	os.Setenv("XR_SERVER", "localhost:9999")
 	// Should fail trying to GET localhost:9999
-	XCLI(t, "get", "", "", "*localhost:9999*", false)
+	XCLI(t, "get", "", "", "*localhost:9999*", 1)
 
 	// 4 - now add cmd line and make sure we use that
 	os.Setenv("XR_SERVER", "localhost:9999")
 	// Should fail trying to GET localhost:1234
-	XCLI(t, "get -s localhost:1234", "", "", "*localhost:1234*", false)
+	XCLI(t, "get -s localhost:1234", "", "", "*localhost:1234*", 1)
 
 	// 5 - Pointer to missing config file
 	XCLI(t, "--config bogusfile", "", "",
-		"Error loading config file (bogusfile): open bogusfile: no such file or directory.\n", false)
+		"Error loading config file (bogusfile): open bogusfile: no such file or directory.\n", 1)
 
 	// Remove server.url from config and make sure we don't use it
 	// Clear env var too
@@ -2251,7 +2251,7 @@ header.bar2: foo2`
 	os.Unsetenv("XR_SERVER")
 
 	XNoErr(t, os.WriteFile(tmphome+"/.xr", []byte(configStr), 0600))
-	XCLI(t, "get", "", "", "*localhost:8080*", false)
+	XCLI(t, "get", "", "", "*localhost:8080*", 1)
 
 	// Make config file point to our test server
 	configStr = `# a config file
@@ -2271,7 +2271,7 @@ header.bar2: foo2`
   "createdat": "2026-05-19T17:11:24.85742361Z",
   "modifiedat": "2026-05-19T17:11:24.85742361Z"
 }
-`, "", true)
+`, "", 0)
 
 	// Now make sure the headers are in the outbound msg
 	XCLI(t, "get -vv", "", `{
@@ -2302,7 +2302,7 @@ header.bar2: foo2`
   "modifiedat": "2026-05-19T18:01:50.860438234Z"
 }
 2026/05/19 18:01:50 --------------------
-`, true, MASK_LOGS)
+`, 0, MASK_LOGS)
 
 	// Test that --cset works too by adding another header
 	XCLI(t, "get -vv --cset header.bar3=33 --cset header.bar2=22", "", `{
@@ -2334,7 +2334,7 @@ header.bar2: foo2`
   "modifiedat": "2026-05-19T18:01:50.860438234Z"
 }
 2026/05/19 18:01:50 --------------------
-`, true, MASK_LOGS)
+`, 0, MASK_LOGS)
 }
 
 func TestXRConformRunGroups(t *testing.T) {
@@ -2353,10 +2353,7 @@ func TestXRConformRunGroups(t *testing.T) {
    ├─ PASS: TestGroups (skip:1)
    └─ PASS: TestResources (skip:1)
 Pass: 58   Fail: 0   Warn: 0   Skip: 3
-`,
-		"",
-		true,
-	)
+`, "", 0)
 }
 
 func TestXRConformRunAllBeforeSmoke(t *testing.T) {
@@ -2378,10 +2375,7 @@ func TestXRConformRunAllBeforeSmoke(t *testing.T) {
    ├─ PASS: TestCapabilities (cached)
    └─ PASS: TestRegistryRoot (cached)
 Pass: 61   Fail: 0   Warn: 0   Skip: 3
-`,
-		"",
-		true,
-	)
+`, "", 0)
 }
 
 func TestXRConformRunAllAfterSmoke(t *testing.T) {
@@ -2403,40 +2397,25 @@ func TestXRConformRunAllAfterSmoke(t *testing.T) {
    ├─ PASS: TestGroups (skip:1)
    └─ PASS: TestResources (skip:1)
 Pass: 61   Fail: 0   Warn: 0   Skip: 3
-`,
-		"",
-		true,
-	)
+`, "", 0)
 }
 
 func TestXRConformUnknownRun(t *testing.T) {
-	result := XCLI(t,
-		"conform --run bogus http://127.0.0.1:1",
-		"",
-		"",
-		"Unknown --run value: \"bogus\". Valid values: "+
-			"all, smoke, entities.\n",
-		false,
-	)
-	XEqual(t, "Exit Code", result.Code, 1)
+	XCLI(t, "conform --run bogus http://127.0.0.1:1", "", "",
+		"Unknown --run value: \"bogus\". Valid values: all, smoke, entities.\n",
+		1)
 }
 
 func TestXRConformRunFailfast(t *testing.T) {
-	result := XCLI(t,
-		"conform --failfast --run TestTDDepFail --run smoke "+
-			"http://one.example",
-		"",
-		`FAIL: http://one.example
+	XCLI(t,
+		"conform --failfast --run TestTDDepFail --run smoke http://one.example",
+		"", `FAIL: http://one.example
 └─ FAIL: TestTDDepFail
    ├─ FAIL: TestTDInitFail
    │  └─ FAIL: Init
    └─ Dependency "TestTDInitFail" failed, leaving
 Pass: 0   Fail: 4   Warn: 0   Skip: 0
-`,
-		"",
-		false,
-	)
-	XEqual(t, "Exit Code", result.Code, 1)
+`, "", 1)
 }
 
 func TestXRConformRunHelp(t *testing.T) {
@@ -2462,7 +2441,7 @@ Global Flags:
   -s, --server string      xRegistry server URL
   -v, --verbose            Be chatty
       --version            Print command version string
-`, "", true)
+`, "", 0)
 }
 
 func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
@@ -2516,7 +2495,7 @@ PASS: http://localhost:8282/conform (skip:3)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Group Types defined  - leaving
 Pass: 56   Fail: 0   Warn: 0   Skip: 3
-`, `*`, true)
+`, `*`, 0)
 
 	for _, check := range []struct {
 		request string
@@ -2535,7 +2514,8 @@ Pass: 56   Fail: 0   Warn: 0   Skip: 3
 
 func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
 	const target = "http://localhost:8282/conform-error"
-	XCLI(t, "conform --run TestTDUtils -d0 "+target, "", `FAIL: http://localhost:8282/conform-error
+	XCLI(t, "conform --run TestTDUtils -d0 "+target, "",
+		`FAIL: http://localhost:8282/conform-error
 └─ FAIL: TestTDUtils
    ├─ ==== PASSing tests ====
    ├─ PASS: 'GET /' MUST return 200
@@ -2552,14 +2532,12 @@ func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
    │  end of JSON input.
    └─ FAIL: Retrieving capabilities MUST work
 Pass: 10   Fail: 3   Warn: 0   Skip: 0
-`, ``, false)
+`, ``, 1)
 }
 
 func TestXRConformFailureExitCode(t *testing.T) {
-	result := XCLI(t,
-		"conform --run TestTDDepFail -d0 "+
-			"http://one.example http://two.example",
-		"",
+	XCLI(t, "conform --run TestTDDepFail -d0 "+
+		"http://one.example http://two.example", "",
 		`FAIL: http://one.example
 └─ FAIL: TestTDDepFail
    ├─ FAIL: TestTDInitFail
@@ -2573,27 +2551,17 @@ FAIL: http://two.example
    │  └─ FAIL: Init
    └─ Dependency "TestTDInitFail" failed, leaving
 Pass: 0   Fail: 4   Warn: 0   Skip: 0
-`,
-		"",
-		false,
-	)
-	XEqual(t, "Exit Code", result.Code, 1)
+`, "", 1)
 
-	result = XCLI(t,
-		"conform --run TestTDDepFail -d0 --failfast "+
-			"http://one.example http://two.example",
-		"",
+	XCLI(t, "conform --run TestTDDepFail -d0 --failfast "+
+		"http://one.example http://two.example", "",
 		`FAIL: http://one.example
 └─ FAIL: TestTDDepFail
    ├─ FAIL: TestTDInitFail
    │  └─ FAIL: Init
    └─ Dependency "TestTDInitFail" failed, leaving
 Pass: 0   Fail: 4   Warn: 0   Skip: 0
-`,
-		"",
-		false,
-	)
-	XEqual(t, "Failfast Exit Code", result.Code, 1)
+`, "", 1)
 }
 
 func TestXRConformBasic(t *testing.T) {
@@ -2632,7 +2600,7 @@ func TestXRConformBasic(t *testing.T) {
 	XCLI(t, "conform", "", `PASS: http://localhost:8181
 └─ PASS: TestRegistry
 Pass: 103   Fail: 0   Warn: 0   Skip: 0
-`, ``, true, MASK_CONFORM_PASS)
+`, ``, 0)
 
 	XCLI(t, "conform --run TestTDAllPass -d0", "", `PASS: http://localhost:8181
 └─ PASS: TestTDAllPass
@@ -2653,17 +2621,19 @@ Pass: 103   Fail: 0   Warn: 0   Skip: 0
    └─ PASS: TestTDLevel2a
       └─ PASS: Level2a
 Pass: 18   Fail: 0   Warn: 0   Skip: 0
-`, ``, true)
+`, ``, 0)
 
-	XCLI(t, "conform --run TestTDDepFail -d0", "", `FAIL: http://localhost:8181
+	XCLI(t, "conform --run TestTDDepFail -d0", "",
+		`FAIL: http://localhost:8181
 └─ FAIL: TestTDDepFail
    ├─ FAIL: TestTDInitFail
    │  └─ FAIL: Init
    └─ Dependency "TestTDInitFail" failed, leaving
 Pass: 0   Fail: 4   Warn: 0   Skip: 0
-`, ``, false)
+`, ``, 1)
 
-	XCLI(t, "conform --run TestTDMixture -d0", "", `FAIL: http://localhost:8181 (skip:3,warn:1)
+	XCLI(t, "conform --run TestTDMixture -d0", "",
+		`FAIL: http://localhost:8181 (skip:3,warn:1)
 └─ FAIL: TestTDMixture (skip:3,warn:1)
    ├─ PASS: TestTDInit
    │  └─ PASS: Init
@@ -2705,7 +2675,7 @@ Pass: 0   Fail: 4   Warn: 0   Skip: 0
       │  └─ FAIL: Level3Fail
       └─ PASS: Level2Pass
 Pass: 16   Fail: 17   Warn: 1   Skip: 3
-`, ``, false)
+`, ``, 1)
 
 	XCLI(t, "conform --run TestTDMixture -d0 --failfast", "",
 		`FAIL: http://localhost:8181
@@ -2716,14 +2686,14 @@ Pass: 16   Fail: 17   Warn: 1   Skip: 3
    │  └─ PASS: Simple1
    └─ FAIL: Local fail test
 Pass: 4   Fail: 3   Warn: 0   Skip: 0
-`, ``, false)
+`, ``, 1)
 
 	XCLI(t, "conform --run TestTDMixture --failfast", "",
 		`FAIL: http://localhost:8181
 └─ FAIL: TestTDMixture
    └─ FAIL: Local fail test
 Pass: 4   Fail: 3   Warn: 0   Skip: 0
-`, ``, false)
+`, ``, 1)
 
 	XCLI(t, "conform --run TestTDMixture", "",
 		`FAIL: http://localhost:8181 (skip:3,warn:1)
@@ -2750,7 +2720,7 @@ Pass: 4   Fail: 3   Warn: 0   Skip: 0
       │  └─ FAIL: Level3Fail
       └─ PASS: Level2Pass
 Pass: 16   Fail: 17   Warn: 1   Skip: 3
-`, ``, false)
+`, ``, 1)
 
 	XCLI(t, "conform --run TestTDUtils  -d0 --nowrap", "",
 		`PASS: http://localhost:8181
@@ -3120,7 +3090,7 @@ Pass: 16   Fail: 17   Warn: 1   Skip: 3
          ├─ PASS: "name" MAY NOT be present, and isn't
          └─ PASS: "name" MAY NOT be present, and isn't
 Pass: 366   Fail: 0   Warn: 0   Skip: 0
-`, ``, true)
+`, ``, 0)
 }
 
 func TestXRDownloadGet(t *testing.T) {
@@ -3133,28 +3103,28 @@ func TestXRDownloadGet(t *testing.T) {
 
 	XCLIServer("localhost:8181")
 
-	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", true)
+	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", 0)
 	XCLI(t, "model resource create datas:data -g dirs --no-has-doc", "", "",
-		"", true)
+		"", 0)
 	XCLI(t, "model resource create ones:one -g dirs --no-has-doc "+
-		"--max-versions=1", "", "", "", true)
+		"--max-versions=1", "", "", "", 0)
 
-	XCLI(t, "create /dirs/d1/datas/d1/versions/v1", "", "", "", true)
-	XCLI(t, "create /dirs/d1/datas/d2/versions/v1", "", "", "", true)
-	XCLI(t, "create /dirs/d1/datas/d2/versions/v2", "", "", "", true)
-	XCLI(t, "create /dirs/d1/files/f1/versions/v1 -d hi", "", "", "", true)
-	XCLI(t, "create /dirs/d1/files/f2/versions/v1 -d hi", "", "", "", true)
-	XCLI(t, "create /dirs/d1/files/f2/versions/v2 -d hi", "", "", "", true)
+	XCLI(t, "create /dirs/d1/datas/d1/versions/v1", "", "", "", 0)
+	XCLI(t, "create /dirs/d1/datas/d2/versions/v1", "", "", "", 0)
+	XCLI(t, "create /dirs/d1/datas/d2/versions/v2", "", "", "", 0)
+	XCLI(t, "create /dirs/d1/files/f1/versions/v1 -d hi", "", "", "", 0)
+	XCLI(t, "create /dirs/d1/files/f2/versions/v1 -d hi", "", "", "", 0)
+	XCLI(t, "create /dirs/d1/files/f2/versions/v2 -d hi", "", "", "", 0)
 	XCLI(t, "create /dirs/d1/files/f3.md/versions/v1 -d @-", `
 # A header
 
 and some text
-`, "", "", true)
-	XCLI(t, "create /dirs/d1/ones/o1/versions/v1", "", "", "", true)
-	XCLI(t, "create /dirs/d2 --set name=med2", "", "", "", true)
-	XCLI(t, "update / --set name=mereg", "", "", "", true)
+`, "", "", 0)
+	XCLI(t, "create /dirs/d1/ones/o1/versions/v1", "", "", "", 0)
+	XCLI(t, "create /dirs/d2 --set name=med2", "", "", "", 0)
+	XCLI(t, "update / --set name=mereg", "", "", "", 0)
 
-	XCLI(t, "download --md2html "+tmpDir+"/", "", "", "", true)
+	XCLI(t, "download --md2html "+tmpDir+"/", "", "", "", 0)
 
 	fileOutputs := strings.Builder{}
 	fn := func(path string, de os.DirEntry) bool {
@@ -4151,7 +4121,7 @@ content-type: application/json
 	tmpDir, err = os.MkdirTemp("", "xrtest-home")
 	XNoErr(t, err)
 
-	XCLI(t, "download --md2html --min "+tmpDir+"/", "", "", "", true)
+	XCLI(t, "download --md2html --min "+tmpDir+"/", "", "", "", 0)
 
 	fileOutputs.Reset()
 	XNoErr(t, DirIterator(tmpDir, fn, true))
@@ -4261,7 +4231,7 @@ and some text
   "createdat": "2026-09-10T19:28:34.901392141Z",
   "modifiedat": "2026-09-10T19:28:35.909591941Z"
 }
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "get /dirs --min", "", `{
   "d1": {
@@ -4276,7 +4246,7 @@ and some text
     "modifiedat": "2026-09-10T19:36:48.064776009Z"
   }
 }
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "get / --inline= --min", "", `{
   "epoch": 7,
@@ -4428,7 +4398,7 @@ and some text
     }
   }
 }
-`, "", true)
+`, "", 0)
 }
 
 func TestXRRawJSON(t *testing.T) {
@@ -4443,7 +4413,7 @@ func TestXRRawJSON(t *testing.T) {
   "xid": "/",
   "epoch": 666
 }
-`, "", true)
+`, "", 0)
 
 	// Still pretty-printed
 	XCLI(t, "get --cset rawjson:false /", "", `{
@@ -4451,10 +4421,10 @@ func TestXRRawJSON(t *testing.T) {
   "xid": "/",
   "epoch": 666
 }
-`, "", true)
+`, "", 0)
 
 	XCLI(t, "get --cset rawjson:true /", "",
-		`{ "xid": "/", "epoch": 666, "registryid": "testXReg" }`+"\n", "", true)
+		`{ "xid": "/", "epoch": 666, "registryid": "testXReg" }`+"\n", "", 0)
 }
 
 func TestXRConfigAlias(t *testing.T) {
@@ -4463,7 +4433,8 @@ func TestXRConfigAlias(t *testing.T) {
 
 	XCLIServer("localhost:8181")
 
-	XCLI(t, "get -s mine /", "", "", `^There was an error`, false)
+	XCLI(t, "get -s mine /", "", "", `^There was an error`, 1)
+
 	XCLI(t, "get -s mine --cset server.alias.mine:localhost:8181", "", `{
   "specversion": "1.0-rc4",
   "registryid": "TestXRConfigAlias",
@@ -4473,7 +4444,8 @@ func TestXRConfigAlias(t *testing.T) {
   "createdat": "2026-09-11T18:08:58.404899465Z",
   "modifiedat": "2026-09-11T18:08:58.404899465Z"
 }
-`, "", true)
+`, "", 0)
+
 	XCLI(t, "get -s mine --cset server.alias.mine:localhost:8181 -vv", "", `{
   "specversion": "1.0-rc4",
   "registryid": "TestXRConfigAlias",
@@ -4501,11 +4473,11 @@ func TestXRConfigAlias(t *testing.T) {
   "modifiedat": "2026-09-11T18:10:25.090709121Z"
 }
 2026/09/11 18:10:25 --------------------
-`, true, MASK_LOGS)
+`, 0, MASK_LOGS)
 
 	XCLI(t, "get -s mine --cset server.alias.mine:localhost:8181 "+
 		"--cset server.alias.mine.header.:foo -vv", "", "",
-		`^server.alias.mine.header. is missing a NAME in config file`, false)
+		`^server.alias.mine.header. is missing a NAME in config file`, 1)
 
 	XCLI(t, "get -s mine --cset server.alias.mine:localhost:8181 "+
 		"--cset server.alias.mine.header.foo:bar -vv", "", `{
@@ -4535,6 +4507,6 @@ func TestXRConfigAlias(t *testing.T) {
   "modifiedat": "2026-09-11T19:23:27.353370803Z"
 }
 2026/09/11 19:23:27 --------------------
-`, true, MASK_LOGS)
+`, 0, MASK_LOGS)
 
 }
