@@ -1,0 +1,16 @@
+{
+  "groups": {
+    "schemagroups": {
+      "plural": "schemagroups",
+      "singular": "schemagroup"
+    },
+    "endpoints": {
+      "plural": "endpoints",
+      "singular": "endpoint"
+    },
+    "messagegroups": {
+      "plural": "messagegroups",
+      "singular": "messagegroup"
+    }
+  }
+}

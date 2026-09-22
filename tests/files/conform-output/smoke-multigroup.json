@@ -1,0 +1,644 @@
+[
+  {
+    "name": "http://localhost:8282/conform-multigroup",
+    "status": "PASS",
+    "pass": 57,
+    "fail": 0,
+    "warn": 0,
+    "skip": 1,
+    "entries": [
+      {
+        "subtest": {
+          "name": "TestTDSmoke",
+          "status": "PASS",
+          "pass": 56,
+          "fail": 0,
+          "warn": 0,
+          "skip": 1,
+          "entries": [
+            {
+              "subtest": {
+                "name": "TestSniff",
+                "status": "PASS",
+                "pass": 4,
+                "fail": 0,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a JSON body"
+                  }
+                ]
+              }
+            },
+            {
+              "subtest": {
+                "name": "TestModel",
+                "status": "PASS",
+                "pass": 7,
+                "fail": 0,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "TestSniff (cached)"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /model' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /model' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /model' MUST return a JSON body"
+                  },
+                  {
+                    "subtest": {
+                      "name": "Parsing model MUST work",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  },
+                  {
+                    "subtest": {
+                      "name": "Verifying model MUST work",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "subtest": {
+                "name": "TestCapabilities",
+                "status": "PASS",
+                "pass": 16,
+                "fail": 0,
+                "warn": 0,
+                "skip": 1,
+                "entries": [
+                  {
+                    "subtest": {
+                      "name": "Retrieving capabilities",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "capabilities.available MUST include \"capabilities\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "capabilities.available MUST include \"entities\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "capabilities.available MUST include \"model\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "capabilities.available.entities MUST NOT be \"mutable\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /capabilities' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /capabilities' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /capabilities' MUST return a JSON body"
+                  },
+                  {
+                    "subtest": {
+                      "name": "Parsing capabilities MUST work",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a JSON body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST NOT include 'capabilities' attribute"
+                  },
+                  {
+                    "subtest": {
+                      "name": "Testing ?inline=capabilities",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 1,
+                      "entries": [
+                        {
+                          "status": "SKIP",
+                          "text": "?inline not supported"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "subtest": {
+                      "name": "Parsing Capabilities MUST work",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "subtest": {
+                "name": "TestRegistryRoot",
+                "status": "PASS",
+                "pass": 28,
+                "fail": 0,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "TestModel (cached)"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "TestCapabilities (cached)"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a JSON body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"specversion\" (1.0-rc4) MUST \u003e \"1.0\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"registryid\" (conform-multigroup) MUST != \"\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"self\" (http://localhost:8282/conform-multigroup/) MUST != \"\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"shortself\" MUST NOT be present, and isn't"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"xid\" (/) MUST = \"/\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"name\" MAY be present, but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"description\" MAY be present, but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"documentation\" MAY be present, but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"icon\" MUST != \"\" (if present), but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"labels\" MAY be present, but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"createdat\" (2026-01-01T00:00:00Z) MUST = \"\u003ctimestamp\u003e\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"modifiedat\" (2026-01-01T00:00:00Z) MUST = \"\u003ctimestamp\u003e\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"capabilities\" MUST NOT be present, and isn't"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"model\" MUST NOT be present, and isn't"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"modelsource\" MUST NOT be present, and isn't"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"endpointscount\" MUST be present"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"endpointsurl\" (http://localhost:8282/conform-multigroup/endpoints) MUST = \"http://localhost:8282/conform-multigroup/endpoints\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"messagegroupscount\" MUST be present"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"messagegroupsurl\" (http://localhost:8282/conform-multigroup/messagegroups) MUST = \"http://localhost:8282/conform-multigroup/messagegroups\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"schemagroupscount\" MUST be present"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"schemagroupsurl\" (http://localhost:8282/conform-multigroup/schemagroups) MUST = \"http://localhost:8282/conform-multigroup/schemagroups\""
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "http://localhost:8282/conform-multigroup",
+    "status": "PASS",
+    "pass": 57,
+    "fail": 0,
+    "warn": 0,
+    "skip": 1,
+    "entries": [
+      {
+        "subtest": {
+          "name": "TestTDSmoke",
+          "status": "PASS",
+          "pass": 56,
+          "fail": 0,
+          "warn": 0,
+          "skip": 1,
+          "entries": [
+            {
+              "subtest": {
+                "name": "TestSniff",
+                "status": "PASS",
+                "pass": 4,
+                "fail": 0,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a JSON body"
+                  }
+                ]
+              }
+            },
+            {
+              "subtest": {
+                "name": "TestModel",
+                "status": "PASS",
+                "pass": 7,
+                "fail": 0,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "TestSniff (cached)"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /model' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /model' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /model' MUST return a JSON body"
+                  },
+                  {
+                    "subtest": {
+                      "name": "Parsing model MUST work",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  },
+                  {
+                    "subtest": {
+                      "name": "Verifying model MUST work",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "subtest": {
+                "name": "TestCapabilities",
+                "status": "PASS",
+                "pass": 16,
+                "fail": 0,
+                "warn": 0,
+                "skip": 1,
+                "entries": [
+                  {
+                    "subtest": {
+                      "name": "Retrieving capabilities",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "capabilities.available MUST include \"capabilities\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "capabilities.available MUST include \"entities\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "capabilities.available MUST include \"model\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "capabilities.available.entities MUST NOT be \"mutable\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /capabilities' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /capabilities' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /capabilities' MUST return a JSON body"
+                  },
+                  {
+                    "subtest": {
+                      "name": "Parsing capabilities MUST work",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a JSON body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST NOT include 'capabilities' attribute"
+                  },
+                  {
+                    "subtest": {
+                      "name": "Testing ?inline=capabilities",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 1,
+                      "entries": [
+                        {
+                          "status": "SKIP",
+                          "text": "?inline not supported"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "subtest": {
+                      "name": "Parsing Capabilities MUST work",
+                      "status": "PASS",
+                      "pass": 1,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": []
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "subtest": {
+                "name": "TestRegistryRoot",
+                "status": "PASS",
+                "pass": 28,
+                "fail": 0,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "TestModel (cached)"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "TestCapabilities (cached)"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a JSON body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"specversion\" (1.0-rc4) MUST \u003e \"1.0\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"registryid\" (conform-multigroup) MUST != \"\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"self\" (http://localhost:8282/conform-multigroup/) MUST != \"\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"shortself\" MUST NOT be present, and isn't"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"xid\" (/) MUST = \"/\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"name\" MAY be present, but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"description\" MAY be present, but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"documentation\" MAY be present, but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"icon\" MUST != \"\" (if present), but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"labels\" MAY be present, but is missing"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"createdat\" (2026-01-01T00:00:00Z) MUST = \"\u003ctimestamp\u003e\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"modifiedat\" (2026-01-01T00:00:00Z) MUST = \"\u003ctimestamp\u003e\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"capabilities\" MUST NOT be present, and isn't"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"model\" MUST NOT be present, and isn't"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"modelsource\" MUST NOT be present, and isn't"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"endpointscount\" MUST be present"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"endpointsurl\" (http://localhost:8282/conform-multigroup/endpoints) MUST = \"http://localhost:8282/conform-multigroup/endpoints\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"messagegroupscount\" MUST be present"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"messagegroupsurl\" (http://localhost:8282/conform-multigroup/messagegroups) MUST = \"http://localhost:8282/conform-multigroup/messagegroups\""
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"schemagroupscount\" MUST be present"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"schemagroupsurl\" (http://localhost:8282/conform-multigroup/schemagroups) MUST = \"http://localhost:8282/conform-multigroup/schemagroups\""
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
