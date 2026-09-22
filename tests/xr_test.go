@@ -2425,12 +2425,13 @@ Usage:
   xr conform [URL...] [flags]
 
 Flags:
-  -d, --depth int         Console depth (default 2)
+  -d, --depth int         Console depth (0=all) (default 2)
       --failfast          Stop on first failure
   -l, --logs              Show logs even on success
       --nowrap            Don't wrap output
   -r, --run stringArray   Run test (all, smoke, entities)
       --skips             Show SKIPs in console
+      --stats             Show full stats on all groups
       --warns             Show WARNs in console
 
 Global Flags:
@@ -2633,8 +2634,8 @@ Pass: 0   Fail: 4   Warn: 0   Skip: 0
 `, ``, 1)
 
 	XCLI(t, "conform --run TestTDMixture -d0", "",
-		`FAIL: http://localhost:8181 (skip:3,warn:1)
-└─ FAIL: TestTDMixture (skip:3,warn:1)
+		`FAIL: http://localhost:8181 (warn:1,skip:3)
+└─ FAIL: TestTDMixture (warn:1,skip:3)
    ├─ PASS: TestTDInit
    │  └─ PASS: Init
    ├─ PASS: TestTDSimple1
@@ -2696,8 +2697,8 @@ Pass: 4   Fail: 3   Warn: 0   Skip: 0
 `, ``, 1)
 
 	XCLI(t, "conform --run TestTDMixture", "",
-		`FAIL: http://localhost:8181 (skip:3,warn:1)
-└─ FAIL: TestTDMixture (skip:3,warn:1)
+		`FAIL: http://localhost:8181 (warn:1,skip:3)
+└─ FAIL: TestTDMixture (warn:1,skip:3)
    ├─ FAIL: Local fail test
    ├─ FAIL: TestTDSimpleFail
    │  └─ FAIL: SimpleFail
@@ -2717,6 +2718,33 @@ Pass: 4   Fail: 3   Warn: 0   Skip: 0
    │  └─ Dependency "TestTDSimpleFail" failed, leaving
    └─ FAIL: TestTDLevel23Fail
       ├─ FAIL: TestTDLevel3Fail
+      │  └─ FAIL: Level3Fail
+      └─ PASS: Level2Pass
+Pass: 16   Fail: 17   Warn: 1   Skip: 3
+`, ``, 1)
+
+	XCLI(t, "conform --run TestTDMixture --stats", "",
+		`FAIL: http://localhost:8181 (pass:16,fail:17,warn:1,skip:3)
+└─ FAIL: TestTDMixture (pass:16,fail:16,warn:1,skip:3)
+   ├─ FAIL: Local fail test
+   ├─ FAIL: TestTDSimpleFail (pass:0,fail:2,warn:0,skip:0)
+   │  └─ FAIL: SimpleFail
+   ├─ SKIP: Top-level-skip
+   ├─ FAIL: TestTDDepDepFail (pass:0,fail:4,warn:0,skip:0)
+   │  ├─ FAIL: TestTDLevel3DepF (pass:0,fail:3,warn:0,skip:0)
+   │  │  ├─ FAIL: TestTDInitFail (pass:0,fail:2,warn:0,skip:0)
+   │  │  │  └─ FAIL: Init
+   │  │  └─ Dependency "TestTDInitFail" failed, leaving
+   │  └─ Dependency "TestTDLevel3DepF" failed, leaving
+   ├─ FAIL: TestTDLevel2DepF (pass:0,fail:3,warn:0,skip:0)
+   │  └─ FAIL: TestTDLevel3DepF (pass:0,fail:2,warn:0,skip:0)
+   │     ├─ FAIL: TestTDInitFail (cached - pass:1,fail:0,warn:0,skip:0)
+   │     └─ Dependency "TestTDInitFail" failed, leaving
+   ├─ FAIL: TestTDDepCacheFail (pass:0,fail:2,warn:0,skip:0)
+   │  ├─ FAIL: TestTDSimpleFail (cached - pass:1,fail:0,warn:0,skip:0)
+   │  └─ Dependency "TestTDSimpleFail" failed, leaving
+   └─ FAIL: TestTDLevel23Fail (pass:1,fail:3,warn:0,skip:0)
+      ├─ FAIL: TestTDLevel3Fail (pass:0,fail:2,warn:0,skip:0)
       │  └─ FAIL: Level3Fail
       └─ PASS: Level2Pass
 Pass: 16   Fail: 17   Warn: 1   Skip: 3

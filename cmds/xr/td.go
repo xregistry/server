@@ -51,6 +51,7 @@ type TDConfig struct {
 	ShowSkips    bool
 	ShowWarns    bool
 	ShowLogs     bool // EnvBool("XR_SHOWLOGS", false)
+	ShowStats    bool
 	ConsoleDepth int
 
 	TestRuns map[string]*TD
@@ -195,23 +196,28 @@ func (td *TD) writeHeader(out io.Writer, indent string, depth int) {
 	goDeep := depth >= 0 || td.Status == FAIL ||
 		(td.Config.ShowWarns && td.NumWarn > 0) ||
 		(td.Config.ShowSkips && td.NumSkip > 0)
+
 	if goDeep {
-		str := indent + StatusText[td.Status] + ": "
+		// PASS: NAME
+		// PASS: NAME (warn:X,skip:X)
+		// PASS: NAME (pass:X,fail:X,warn:X,skip:X)   --stats
+		str := indent + StatusText[td.Status] + ": " + td.TestName
 
-		str += td.TestName
+		if td.Config.ShowStats || td.NumSkip > 0 || td.NumWarn > 0 {
+			strs := []string{}
 
-		if td.NumSkip > 0 || td.NumWarn > 0 {
-			str += " ("
-			if td.NumSkip > 0 {
-				str += fmt.Sprintf("skip:%d", td.NumSkip)
+			if td.Config.ShowStats {
+				strs = append(strs, fmt.Sprintf("pass:%d", td.NumPass))
+				strs = append(strs, fmt.Sprintf("fail:%d", td.NumFail))
 			}
-			if td.NumWarn > 0 {
-				if td.NumSkip > 0 {
-					str += ","
-				}
-				str += fmt.Sprintf("warn:%d", td.NumWarn)
+			if td.Config.ShowStats || td.NumWarn > 0 {
+				strs = append(strs, fmt.Sprintf("warn:%d", td.NumWarn))
 			}
-			str += ")"
+			if td.Config.ShowStats || td.NumSkip > 0 {
+				strs = append(strs, fmt.Sprintf("skip:%d", td.NumSkip))
+			}
+
+			str += " (" + strings.Join(strs, ",") + ")"
 		}
 
 		if tdDebug {
@@ -416,7 +422,12 @@ func (td *TD) DependsOn(fn TestFn) {
 
 	if prevTD, ok := td.Config.TestRuns[fn.Name()]; ok {
 		depStatus = prevTD.Status
-		td.recordStatus(prevTD.Status, "%s (cached)", fn.Name())
+		stats := ""
+		if td.Config.ShowStats {
+			stats = fmt.Sprintf(" - pass:%d,fail:%d,warn:%d,skip:%d",
+				td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
+		}
+		td.recordStatus(prevTD.Status, "%s (cached%s)", fn.Name(), stats)
 	} else {
 		newTD := td.Run(fn)
 		depStatus = newTD.Status
