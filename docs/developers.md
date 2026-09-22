@@ -41,7 +41,7 @@ welcome from anyone.
 
 Simple guidelines for PRs:
 - All PRs MUST be DCO signed to be accepted.
-- All PRs MUST successfully pass the `make clean all` process.
+- All PRs MUST successfully pass the `make clean pr` process.
 - PRs do not need an associated issue, stand-alone PRs are fine.
 - However, larger PRs would benefit from a discussion prior to doing the work.
 
@@ -74,7 +74,7 @@ the packages listed on the `RUN apk add` command.
 
 | Target              | Description |
 | ------------------- | ----------- |
-| `make`              | Alias for `make all` |
+| `make`              | Defaults to `make all` |
 | `make clean`        | Erase all build outputs, clean docker |
 | `make all`          | Build all, run test and start server (reset DB) |
 | `make run`          | Build and start server (no tests, reset DB) |

@@ -31,7 +31,7 @@ xr conform [URL...]
   # xRegistry Conformance Tester
       --config string      Config file ($HOME/.xr)
       --cset stringArray   Override configFile property: --cset NAME[:VALUE]
-  -d, --depth int          Console depth (default 2)
+  -d, --depth int          Console depth (0=all) (default 2)
       --errjson            Print errors as json
       --failfast           Stop on first failure
   -?, --help               Help for xr
@@ -40,6 +40,7 @@ xr conform [URL...]
   -r, --run stringArray    Run test (all, smoke, entities)
   -s, --server string      xRegistry server URL
       --skips              Show SKIPs in console
+      --stats              Show full stats on all groups
   -v, --verbose            Be chatty
       --version            Print command version string
       --warns              Show WARNs in console

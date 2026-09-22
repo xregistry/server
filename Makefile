@@ -1,7 +1,12 @@
-all: mysql cmds docs test images run
+all: dev run
+
+# Normal dev items
+dev: mysql cmds docs test images
 
 # Run for each PR
-pr: mysql cmds docs test images benchmark
+pr: dev benchmark
+	@msg=`git diff --name-only --exit-code HEAD` || \
+		(echo -e "\n**** Uncommitted changes:\n$$msg\n" ; exit 1)
 
 # Run on 'master' change
 master: pr push cmds-all
@@ -61,7 +66,7 @@ errors: .errors
 	@touch .errors
 
 xrlint: .xrlint
-.xrlint: cmds/xrlint cmds/xr cmds/xrserver/*  registry/* common/* tests/*
+.xrlint: cmds/xrlint/* cmds/xr/* cmds/xrserver/*  registry/* common/* tests/*
 	@echo
 	@echo "# Running xrlint looking for source issues"
 	@misc/errOutput @go run ./cmds/xrlint --unused=false ./registry/... \
@@ -108,7 +113,9 @@ ftest: .ftest
 	@$(TIMEIT) NO_DELETE_REGISTRY=1 $(GO_TEST) $(TESTDIRS) $(SED)
 	@touch .ftest
 
-test: .qtest .ftest .errors .xrlint .testimages
+test: xrlint errors qtest ftest testimages
+	@msg=`gofmt -l .` && [ -z "$$msg" ] || \
+		( echo -e "\n**** Run gofmt:\n$$msg\n" ; exit 1 )
 
 benchmark:
 	@rm -f .ftest
@@ -157,6 +164,7 @@ docs: docs/xr_help.md docs/xrserver_help.md
 docs/xr_help.md docs/xrserver_help.md: xr xrserver
 	@echo
 	@echo "# Regenerating the help text for the docs"
+	@# Just insert the --help-all text in-between the START/END placeholders
 	@(echo '```yaml' && ./xr --help-all && echo '```') | \
 	awk '/<!-- XR HELP START -->/{p=1; print; next} \
 	  /<!-- XR HELP END -->/{p=0; \
