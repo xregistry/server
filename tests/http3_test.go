@@ -2735,10 +2735,10 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"groups.dirs.strs\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
+  "title": "There was an error in the model definition provided: \"groups.dirs.strs\" is not a scalar so \"enum\" is not allowed.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"groups.dirs.strs\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+    "error_detail": "\"groups.dirs.strs\" is not a scalar so \"enum\" is not allowed"
   },
   "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:2936"
@@ -2777,6 +2777,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `)
 
+	// enum on wrong (old) spot
 	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
@@ -2797,10 +2798,40 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"groups.dirs.strs\" enum value \"1\" must be of type \"integer\".",
+  "title": "There was an error in the model definition provided: \"groups.dirs.strs\" is not a scalar so \"enum\" is not allowed.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"groups.dirs.strs\" enum value \"1\" must be of type \"integer\""
+    "error_detail": "\"groups.dirs.strs\" is not a scalar so \"enum\" is not allowed"
+  },
+  "instance": "70b4553379be45fc",
+  "source": "6d9cf9acafe0:registry:shared_model:3562"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "integer",
+              "enum": [ "1" ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"groups.dirs.strs.item\" enum value \"1\" must be of type \"integer\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"groups.dirs.strs.item\" enum value \"1\" must be of type \"integer\""
   },
   "instance": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:2944"
@@ -2816,9 +2847,9 @@ func TestHTTPModelEnum(t *testing.T) {
           "strs": {
             "type": "array",
             "item": {
-              "type": "integer"
-            },
-            "enum": [ 1 ]
+              "type": "integer",
+              "enum": [ 1 ]
+            }
           }
         }
       }
@@ -2850,9 +2881,9 @@ func TestHTTPModelEnum(t *testing.T) {
           "strs": {
             "type": "array",
             "item": {
-              "type": "integer"
-            },
-            "enum": [ 1 ]
+              "type": "integer",
+              "enum": [ 1 ]
+            }
           }
         }
       }
@@ -2884,10 +2915,10 @@ func TestHTTPModelEnum(t *testing.T) {
           "strs": {
             "type": "array",
             "item": {
-              "type": "integer"
-            },
-            "enum": [ 1 ],
-            "strict": false
+              "type": "integer",
+              "enum": [ 1 ],
+              "strict": false
+            }
           }
         }
       }
@@ -2908,9 +2939,9 @@ func TestHTTPModelEnum(t *testing.T) {
           "strs": {
             "type": "array",
             "item": {
-              "type": "integer"
-            },
-            "enum": [ 1 ]
+              "type": "integer",
+              "enum": [ 1 ]
+            }
           }
         }
       }
@@ -2942,9 +2973,9 @@ func TestHTTPModelEnum(t *testing.T) {
           "strs": {
             "type": "array",
             "item": {
-              "type": "integer"
-            },
-            "enum": [ 2, 3 ]
+              "type": "integer",
+              "enum": [ 2, 3 ]
+            }
           }
         }
       }
@@ -2965,9 +2996,9 @@ func TestHTTPModelEnum(t *testing.T) {
           "strs": {
             "type": "array",
             "item": {
-              "type": "string"
-            },
-            "enum": { "1" : "2" }
+              "type": "string",
+              "enum": { "1" : "2" }
+            }
           }
         }
       }
@@ -2980,10 +3011,10 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#parsing_data",
-  "title": "There was an error parsing \"model\": path '.groups[\"dirs\"].attributes[\"strs\"].enum': expected \"slice\", got \"object\".",
+  "title": "There was an error parsing \"model\": path '.groups[\"dirs\"].attributes[\"strs\"].item.enum': expected \"slice\", got \"object\".",
   "subject": "model",
   "args": {
-    "error_detail": "path '.groups[\"dirs\"].attributes[\"strs\"].enum': expected \"slice\", got \"object\""
+    "error_detail": "path '.groups[\"dirs\"].attributes[\"strs\"].item.enum': expected \"slice\", got \"object\""
   },
   "instance": "xxx",
   "source": "ea3e12b9fede:registry:shared_model:277"
@@ -3444,9 +3475,9 @@ func TestHTTPModelEnum(t *testing.T) {
         "attributes": {
           "strs": {
             "type": "array",
-            "enum": [ 1 ],
             "item": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [ 1 ]
             }
           }
         }
@@ -3480,9 +3511,9 @@ func TestHTTPModelEnum(t *testing.T) {
         "attributes": {
           "strs": {
             "type": "map",
-            "enum": [ 1 ],
             "item": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [ 1 ]
             }
           }
         }

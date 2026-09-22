@@ -17136,28 +17136,45 @@ function saveAttrFrom(attrsObj, origKey) {
   var attr = { name: newName } ;
   var t = fv('ef_type') ; if (t) attr.type = t ;
   var d = fv('ef_description') ; if (d) attr.description = d ;
-  var def = fv('ef_default') ; if (def !== '') attr.default = def ;
+  // "default" (like "enum"/"strict" below) is only valid on scalar attrs —
+  // the backend rejects it on object/map/array (see common/shared_model
+  // Attributes.Verify's IsScalar(attr.Type) check).
+  var def = fv('ef_default') ; if (def !== '' && isScalarType(t)) attr.default = def ;
   var tgt = fv('ef_target') ;
   var targetEl = document.getElementById('ef_target') ;
   if (tgt && targetEl && !targetEl.disabled) attr.target = tgt ;
   var ncs = fv('ef_namecharset') ;
   var ncsEl = document.getElementById('ef_namecharset') ;
   if (ncs && ncsEl && !ncsEl.disabled) attr.namecharset = ncs ;
-  var enm = collectEnum('ef_enum') ;
-  if (enm.length) attr.enum = enm ;
-  ['required','readonly','immutable','matchversions','strict'].forEach(function(f) {
+  // "enum"/"strict" are only valid on scalar attrs — for map/array they now
+  // live under "item" instead (edited via the "Edit map/array details"
+  // drill-down; see renderItemForm()/saveItemForm()), so don't write them
+  // here when the type is non-scalar (object/map/array/any).
+  if (isScalarType(t)) {
+    var enm = collectEnum('ef_enum') ;
+    if (enm.length) attr.enum = enm ;
+  }
+  ['required','readonly','immutable','matchversions'].forEach(function(f) {
     var v = fvBool('ef_'+f) ;
     if (v === true) attr[f] = true ;
     else if (v === false) attr[f] = false ;
     else delete attr[f] ;
   }) ;
+  if (isScalarType(t)) {
+    var stv = fvBool('ef_strict') ;
+    if (stv === true) attr.strict = true ;
+    else if (stv === false) attr.strict = false ;
+  }
   // Preserve nested structures edited via drill-down (not part of this
   // form) — but only when still relevant to the (possibly just-changed)
   // type, so switching e.g. map -> string doesn't leave a stale "item"
   // (or object -> string leaving a stale "attributes") in the saved JSON.
   if (existing.attributes && t === 'object') attr.attributes = existing.attributes ;
   if (existing.item && (t === 'map' || t === 'array')) attr.item = existing.item ;
-  if (existing.ifvalues) attr.ifvalues = existing.ifvalues ;
+  // "ifvalues" (per the spec) only applies "if type is scalar" — same as
+  // enum/strict/default above — so drop it when the type isn't scalar,
+  // rather than silently keeping a now-inapplicable value around.
+  if (existing.ifvalues && isScalarType(t)) attr.ifvalues = existing.ifvalues ;
   if (newName !== origKey && attrsObj[origKey] !== undefined) delete attrsObj[origKey] ;
   attrsObj[newName] = attr ;
   if (_navSelected === origKey) _navSelected = newName ;
@@ -17386,15 +17403,32 @@ function renderAttrForm(div, attr) {
   function syncTypeFields() {
     var t = typeSel.value ;
     var targetTypes = {url:1,urlabsolute:1,urlrelative:1,uri:1,uriabsolute:1,urirelative:1,uritemplate:1,xid:1,xidtype:1} ;
-    targetInp.disabled = !targetTypes[t] ;
-    targetInp.style.opacity = targetInp.disabled ? '0.4' : '1' ;
-    ncsSel.disabled = (t !== 'object') ;
-    ncsSel.style.opacity = ncsSel.disabled ? '0.4' : '1' ;
+    var showTarget = !!targetTypes[t] ;
+    targetInp.disabled = !showTarget ;
+    targetRow.style.display = showTarget ? '' : 'none' ;
+    var showNcs = (t === 'object') ;
+    ncsSel.disabled = !showNcs ;
+    ncsRow.style.display = showNcs ? '' : 'none' ;
+    // "enum"/"strict" only apply to scalar attrs — for map/array/object the
+    // backend now requires them under "item" instead (see
+    // common/shared_model Attributes.Verify/Item.Verify), so hide them here
+    // and point the user at the item editor via the drill-down button.
+    // Target/NameCharSet above are hidden the same way, for the same
+    // reason (backend-invalid on this type) — same treatment for all 4
+    // "only meaningful for certain types" fields, rather than mixing
+    // hidden vs. shown-but-disabled.
+    var scalar = isScalarType(t) ;
+    enumWrap.style.display = scalar ? '' : 'none' ;
+    strictCell.style.display = scalar ? '' : 'none' ;
+    // "ifvalues" is likewise scalar-only per the spec (see comment above
+    // the "ifvalues" block in the model schema) — hide the whole section
+    // (label + drill-down button) the same way for map/array/object types.
+    ifvSec.style.display = scalar ? '' : 'none' ;
   }
-  syncTypeFields() ;
-  typeSel.addEventListener('change', syncTypeFields) ;
 
-  div.appendChild(makeEnumEditor('ef_enum', Array.isArray(attr.enum) ? attr.enum : [])) ;
+  var enumWrap = document.createElement('div') ;
+  enumWrap.appendChild(makeEnumEditor('ef_enum', Array.isArray(attr.enum) ? attr.enum : [])) ;
+  div.appendChild(enumWrap) ;
   var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
   div.appendChild(optSec) ;
   var optList = [
@@ -17407,18 +17441,27 @@ function renderAttrForm(div, attr) {
   // Sort alphabetically by label
   optList.sort(function(a,b){ return a[1].localeCompare(b[1]) ; }) ;
   var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
-  optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
+  var strictCell ;
+  optList.forEach(function(t) {
+    var cell = efBool('ef_'+t[0], t[1], t[2]) ;
+    if (t[0] === 'strict') strictCell = cell ;
+    boolGrid.appendChild(cell) ;
+  }) ;
   div.appendChild(boolGrid) ;
 
   // If-Values drill-down button — next to the section header, matching the
-  // Labels/Enum/Constraints "+ Add" placement pattern.
-  var ifvSec = document.createElement('div') ; ifvSec.className = 'editorSectionLabel' ; ifvSec.textContent = 'If-Values' ;
+  // Labels/Enum/Constraints "+ Add" placement pattern. Wrapped in a single
+  // container so the whole thing (label + button/none-text) can be hidden
+  // together for non-scalar types (see syncTypeFields()).
+  var ifvSec = document.createElement('div') ;
+  var ifvLbl = document.createElement('div') ; ifvLbl.className = 'editorSectionLabel' ; ifvLbl.textContent = 'If-Values' ;
+  ifvSec.appendChild(ifvLbl) ;
   div.appendChild(ifvSec) ;
   var ifvCount = Object.keys(attr.ifvalues || {}).length ;
   if (_modelReadOnly && !ifvCount) {
     var ifvNone = document.createElement('span') ; ifvNone.textContent = '\u2014 none \u2014' ;
     ifvNone.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
-    div.appendChild(ifvNone) ;
+    ifvSec.appendChild(ifvNone) ;
   } else {
     var ifvBtn = document.createElement('button') ; ifvBtn.className = 'editorBtn editorBtnSmall navDrillBtn' ;
     ifvBtn.textContent = '\u25b6 If-Values' + (ifvCount ? ' ('+ifvCount+')' : '') ;
@@ -17430,6 +17473,9 @@ function renderAttrForm(div, attr) {
     } ;
     ifvSec.appendChild(ifvBtn) ;
   }
+
+  syncTypeFields() ;
+  typeSel.addEventListener('change', syncTypeFields) ;
 }
 
 function renderItemForm(div, item) {
@@ -17512,16 +17558,20 @@ function renderItemForm(div, item) {
   }) ;
   ncsWrap.appendChild(ncsSel) ; ncsRow.appendChild(ncsLbl) ; ncsRow.appendChild(ncsWrap) ; div.appendChild(ncsRow) ;
 
-  // These fields are only meaningful for complex (object/map/array) item types
+  // "enum"/"strict" are the only extra fields the backend's Item schema
+  // actually supports (see common/shared_model's Item struct — it has no
+  // "description"/"default"/"readonly"; sending those causes a hard
+  // "unknown field" parsing_data error from the server on save), and even
+  // those two are only valid when the item's own type is scalar — for a
+  // nested object/map/array item they'd need to move one level deeper
+  // still (into that nested item, or per-property for an object), so hide
+  // them here to match Item.Verify()'s IsScalar(item.Type) gate.
   var complexSec = document.createElement('div') ;
-  complexSec.appendChild(ef('ef_item_description', 'Description', item.description||'')) ;
-  complexSec.appendChild(ef('ef_item_default', 'Default', item.default !== undefined ? String(item.default) : '')) ;
   complexSec.appendChild(makeEnumEditor('ef_item_enum', Array.isArray(item.enum) ? item.enum : [])) ;
   var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
   complexSec.appendChild(optSec) ;
   var optList = [
-    ['item_readonly', 'Read Only', item.readonly],
-    ['item_strict',   'Strict',    item.strict]
+    ['item_strict', 'Strict', item.strict]
   ] ;
   var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
   optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
@@ -17531,13 +17581,17 @@ function renderItemForm(div, item) {
   function syncItemTypeFields() {
     var t = typeSel.value ;
     var targetTypes = {url:1,urlabsolute:1,urlrelative:1,uri:1,uriabsolute:1,urirelative:1,uritemplate:1,xid:1,xidtype:1} ;
-    targetInp.disabled = !targetTypes[t] ;
-    targetInp.style.opacity = targetInp.disabled ? '0.4' : '1' ;
-    ncsSel.disabled = (t !== 'object') ;
-    ncsSel.style.opacity = ncsSel.disabled ? '0.4' : '1' ;
+    var showTarget = !!targetTypes[t] ;
+    targetInp.disabled = !showTarget ;
+    targetRow.style.display = showTarget ? '' : 'none' ;
+    var showNcs = (t === 'object') ;
+    ncsSel.disabled = !showNcs ;
+    ncsRow.style.display = showNcs ? '' : 'none' ;
     updateItemNestBtn() ;
-    // description/default/enum/options are only relevant for complex types
-    complexSec.style.display = {object:1,map:1,array:1}[t] ? '' : 'none' ;
+    // enum/strict are only relevant for scalar item types — hidden the
+    // same way as target/namecharset above, for consistency (all 4 are
+    // "only meaningful for certain item types" fields).
+    complexSec.style.display = isScalarType(t) ? '' : 'none' ;
   }
   updateItemNestBtn() ;
   syncItemTypeFields() ;
@@ -17549,16 +17603,21 @@ function saveItemForm(parentAttr) {
   if (!parentAttr.item) parentAttr.item = {} ;
   var itm = parentAttr.item ;
   var t = fv('ef_item_type') ; if (t) itm.type = t ; else delete itm.type ;
-  var d = fv('ef_item_description') ; if (d) itm.description = d ; else delete itm.description ;
-  var def = fv('ef_item_default') ; if (def !== '') itm.default = def ; else delete itm.default ;
   var targetEl = document.getElementById('ef_item_target') ;
   if (targetEl && !targetEl.disabled) { var tgt = targetEl.value.trim() ; if (tgt) itm.target = tgt ; else delete itm.target ; }
   var ncsEl = document.getElementById('ef_item_namecharset') ;
   if (ncsEl && !ncsEl.disabled) { var ncs = ncsEl.value ; if (ncs) itm.namecharset = ncs ; else delete itm.namecharset ; }
-  var enm = collectEnum('ef_item_enum') ;
-  if (enm.length) itm.enum = enm ; else delete itm.enum ;
-  var rov = fvBool('ef_item_readonly') ; if (rov === true) itm.readonly = true ; else if (rov === false) itm.readonly = false ; else delete itm.readonly ;
-  var stv = fvBool('ef_item_strict') ; if (stv === true) itm.strict = true ; else if (stv === false) itm.strict = false ; else delete itm.strict ;
+  // "enum"/"strict" are only valid when the item's own type is scalar (see
+  // common/shared_model Item.Verify's IsScalar(item.Type) check) — don't
+  // write them at all otherwise, same as renderItemForm() hides the
+  // controls for non-scalar item types.
+  if (isScalarType(t)) {
+    var enm = collectEnum('ef_item_enum') ;
+    if (enm.length) itm.enum = enm ; else delete itm.enum ;
+    var stv = fvBool('ef_item_strict') ; if (stv === true) itm.strict = true ; else if (stv === false) itm.strict = false ; else delete itm.strict ;
+  } else {
+    delete itm.enum ; delete itm.strict ;
+  }
 }
 
 function uniqueKey(obj, base) {
@@ -17844,14 +17903,22 @@ function collectEnum(containerId) {
   return vals ;
 }
 
+// Scalar model types — mirrors the backend's IsScalar() (see
+// common/shared_model): the only types allowed to carry "enum"/"strict"
+// (and, at the attribute level, "default"). Everything else (object/map/
+// array/any) is "complex" and the backend model validator rejects those
+// fields on it — for map/array attrs, "enum"/"strict" must instead live
+// under "item" (see renderAttrForm()/renderItemForm() below).
+var SCALAR_ATTR_TYPES = ['boolean','decimal','integer','string','timestamp','uinteger',
+  'uri','uriabsolute','urirelative','uritemplate','url','urlabsolute','urlrelative','xid','xidtype'] ;
+function isScalarType(t) { return SCALAR_ATTR_TYPES.indexOf(t||'string') !== -1 ; }
+
 function getScalarAttrNames(attrsObj) {
-  var scalars = ['boolean','decimal','integer','string','timestamp','uinteger',
-    'uri','uriabsolute','urirelative','uritemplate','url','urlabsolute','urlrelative','xid','xidtype'] ;
   var names = [] ;
   Object.keys(attrsObj||{}).forEach(function(k) {
     if (k === '*') return ;
     var a = attrsObj[k] ; if (!a) return ;
-    if (scalars.indexOf(a.type||'string') !== -1) names.push(k) ;
+    if (isScalarType(a.type)) names.push(k) ;
   }) ;
   return names.sort() ;
 }

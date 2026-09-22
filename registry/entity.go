@@ -3227,14 +3227,15 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 
 	// All values in the map must be of the same type
 	attr := &Attribute{
-		Type:        mapAttr.Item.Type,
+		Type: mapAttr.Item.Type,
+
+		Enum:        mapAttr.Item.Enum,
+		Strict:      mapAttr.Item.Strict,
 		Target:      mapAttr.Item.Target,
 		NameCharSet: mapAttr.Item.NameCharSet,
-		Attributes:  mapAttr.Item.Attributes,
-		Item:        mapAttr.Item.Item,
 
-		Enum:   mapAttr.Enum,
-		Strict: mapAttr.Strict,
+		Attributes: mapAttr.Item.Attributes,
+		Item:       mapAttr.Item.Item,
 	}
 
 	for _, k := range valValue.MapKeys() {
@@ -3289,14 +3290,15 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 
 	// All values in the array must be of the same type
 	attr := &Attribute{
-		Type:        arrayAttr.Item.Type,
-		Target:      arrayAttr.Item.Target,
+		Type: arrayAttr.Item.Type,
+
+		Enum:   arrayAttr.Item.Enum,
+		Strict: arrayAttr.Item.Strict,
+		Target: arrayAttr.Item.Target,
+
 		NameCharSet: arrayAttr.Item.NameCharSet,
 		Attributes:  arrayAttr.Item.Attributes,
 		Item:        arrayAttr.Item.Item,
-
-		Enum:   arrayAttr.Enum,
-		Strict: arrayAttr.Strict,
 	}
 
 	for i := 0; i < valValue.Len(); i++ {

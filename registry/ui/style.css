@@ -2765,6 +2765,9 @@ tr.cfg-row-drop-after { box-shadow: inset 0 -2px 0 0 #4a90d9; }
     padding: 4px 6px ;
     border-radius: 4px ;
   }
+  .boolCell:nth-child(odd) {
+    background: #dde6f0 ;
+  }
   .boolCell:nth-child(even) {
     background: #e9e9e9 ;
   }
