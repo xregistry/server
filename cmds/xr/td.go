@@ -52,9 +52,9 @@ type TDConfig struct {
 	ShowWarns    bool
 	ShowLogs     bool // EnvBool("XR_SHOWLOGS", false)
 	ConsoleDepth int
-	RunFunc      string
 
 	TestRuns map[string]*TD
+	RunFuncs []TestFn
 }
 
 // TestData
@@ -435,33 +435,6 @@ func (td *TD) Run(fn TestFn) *TD {
 		name = before
 	}
 	newTD := NewTD(td, name)
-
-	// Save in the cache
-	td.Config.TestRuns[fn.Name()] = newTD
-
-	// Run it and catch any panic()
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// Do nothing
-				// Just allow the panic() caller to exit immediately
-				if r != "stop" {
-					panic(r)
-				}
-			}
-		}()
-		fn(newTD)
-	}()
-
-	return newTD
-}
-
-func (td *TD) Include(fn TestFn) *TD {
-	before, name, _ := strings.Cut(fn.Name(), ".")
-	if name == "" {
-		name = before
-	}
-	newTD := td // NewTD(td, name)
 
 	// Save in the cache
 	td.Config.TestRuns[fn.Name()] = newTD
