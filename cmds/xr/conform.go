@@ -46,12 +46,14 @@ func conformFunc(cmd *cobra.Command, args []string) {
 		// ShowSkips:  false,
 		// ShowWarns:  false,
 		// ShowLogs:   false, // EnvBool("XR_SHOWLOGS", false)
+		// ShowStats:  false,
 	}
 
 	config.FailFast, _ = cmd.Flags().GetBool("failfast")
 	config.ShowWarns, _ = cmd.Flags().GetBool("warns")
 	config.ShowSkips, _ = cmd.Flags().GetBool("skips")
 	config.ShowLogs, _ = cmd.Flags().GetBool("logs")
+	config.ShowStats, _ = cmd.Flags().GetBool("stats")
 	config.ConsoleDepth, _ = cmd.Flags().GetInt("depth")
 	config.RunFuncs = resolveConformRunFuncs(runNames)
 
@@ -175,11 +177,12 @@ func addConformCmd(parent *cobra.Command) {
 		GroupID: "Admin",
 	}
 	conformCmd.Flags().BoolP("logs", "l", false, "Show logs even on success")
-	conformCmd.Flags().IntP("depth", "d", 2, "Console depth")
+	conformCmd.Flags().IntP("depth", "d", 2, "Console depth (0=all)")
 	conformCmd.Flags().BoolVarP(&tdDebug, "tdDebug", "t", tdDebug, "td debug")
 	conformCmd.Flags().Bool("warns", false, "Show WARNs in console")
 	conformCmd.Flags().Bool("skips", false, "Show SKIPs in console")
 	conformCmd.Flags().Bool("failfast", false, "Stop on first failure")
+	conformCmd.Flags().Bool("stats", false, "Show full stats on all groups")
 	conformCmd.Flags().StringArrayP("run", "r", nil,
 		"Run test (all, smoke, entities)")
 	conformCmd.Flags().BoolP("nowrap", "", false, "Don't wrap output")
