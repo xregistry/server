@@ -4421,3 +4421,51 @@ func TestModelAttrSerialization(t *testing.T) {
 `)
 
 }
+
+func TestModelResourceConflict(t *testing.T) {
+	reg := NewRegistry("TestModelResourceConflict")
+	defer PassDeleteReg(t, reg)
+
+	src := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "formats": {
+          "singular": "format",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}
+`
+
+	XHTTP(t, reg, "PUT", "/modelsource", src, 200, src)
+
+	// Now force an error
+	src = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "formats": {
+          "singular": "format"
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", src, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: Resource \"formats\" has a singular name of \"format\" which conflicts with a specification defined attribute.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "Resource \"formats\" has a singular name of \"format\" which conflicts with a specification defined attribute"
+  },
+  "instance": "9e09a838cf6c4b06",
+  "source": "fca2e1d8bc73:registry:shared_model:2576"
+}
+`)
+}
