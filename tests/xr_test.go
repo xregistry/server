@@ -3119,6 +3119,23 @@ Pass: 16   Fail: 17   Warn: 1   Skip: 3
          └─ PASS: "name" MAY NOT be present, and isn't
 Pass: 366   Fail: 0   Warn: 0   Skip: 0
 `, ``, 0)
+
+	// Test how int checks look
+	XCLI(t, "conform -s localhost:8888", "",
+		`FAIL: http://localhost:8888
+└─ FAIL: TestRegistry
+   ├─ FAIL: TestSniff
+   │  ├─ Server URL: http://localhost:8888
+   │  ├─ FAIL: 'GET /' MUST return 200
+   │  │  ├─ Exp(int): 200
+   │  │  └─ Got(int): 0
+   │  ├─ 'GET /' Body:
+   │  │  
+   │  ├─ FAIL: 'GET /' MUST return a non-empty body
+   │  └─ FAIL: 'GET /' MUST return a JSON body
+   └─ Dependency "TestSniff" failed, leaving
+Pass: 0   Fail: 6   Warn: 0   Skip: 0
+`, ``, 1)
 }
 
 func TestXRDownloadGet(t *testing.T) {

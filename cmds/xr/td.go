@@ -476,6 +476,17 @@ func (td *TD) Must(expr bool, args ...any) {
 }
 
 func (td *TD) MustEqual(exp any, got any, args ...any) {
+	// Special-case int so it looks nicer
+	expInt, ok1 := exp.(int)
+	gotInt, ok2 := got.(int)
+	if ok1 && ok2 && (expInt != gotInt) {
+		nTD := NewTD(td, args...)
+		nTD.Log("Exp(%T): %d", exp, exp)
+		nTD.Log("Got(%T): %d", got, got)
+		nTD.Fail()
+		return
+	}
+
 	expJSON := ToJSON(exp)
 	gotJSON := ToJSON(got)
 
@@ -1265,11 +1276,21 @@ func (td *TD) ObjCheck(obj map[string]any, attr string, args ...any) {
 	if !passed && daType == "any" {
 		// Created nested TD to indent diff
 		nestedTD = NewTD(td)
-		expJSON := ToJSON(expAny)
-		attrJSON := ToJSON(attrAny)
-		nestedTD.Log("Exp(%T): %s", expAny, expJSON)
-		nestedTD.Log("Got(%T): %s", attrAny, attrJSON)
-		nestedTD.Log("Diff(exp/got): %s", Diff("Exp", expJSON, "Got", attrJSON))
+
+		// Special-case int so it looks nicer
+		expInt, ok1 := expAny.(int)
+		attrInt, ok2 := attrAny.(int)
+		if ok1 && ok2 {
+			nestedTD.Log("Exp(%T): %d", expAny, expInt)
+			nestedTD.Log("Got(%T): %d", attrAny, attrInt)
+		} else {
+			expJSON := ToJSON(expAny)
+			attrJSON := ToJSON(attrAny)
+			nestedTD.Log("Exp(%T): %s", expAny, expJSON)
+			nestedTD.Log("Got(%T): %s", attrAny, attrJSON)
+			nestedTD.Log("Diff(exp/got): %s", Diff("Exp", expJSON, "Got", attrJSON))
+		}
+
 		nestedTD.Fail()
 	}
 
