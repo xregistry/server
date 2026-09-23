@@ -2199,9 +2199,7 @@ func TestXRConfig(t *testing.T) {
 	reg := NewRegistry("TestXRConfig")
 	defer PassDeleteReg(t, reg)
 
-	tmphome, err := os.MkdirTemp("", "xrtest-home")
-	XNoErr(t, err)
-	defer os.RemoveAll(tmphome)
+	tmphome := t.TempDir()
 
 	// Clear it so local env doesn't impact the test
 	os.Unsetenv("XR_SERVER")
@@ -3142,9 +3140,7 @@ func TestXRDownloadGet(t *testing.T) {
 	reg := NewRegistry("TestXRDownloadGet")
 	defer PassDeleteReg(t, reg)
 
-	tmpDir, err := os.MkdirTemp("", "xrtest-home")
-	XNoErr(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	XCLIServer("localhost:8181")
 
@@ -4161,10 +4157,7 @@ content-type: application/json
 content-type: application/json
 `)
 
-	err = os.RemoveAll(tmpDir)
-	XNoErr(t, err)
-	tmpDir, err = os.MkdirTemp("", "xrtest-home")
-	XNoErr(t, err)
+	tmpDir = t.TempDir()
 
 	XCLI(t, "download --md2html --min "+tmpDir+"/", "", "", "", 0)
 
