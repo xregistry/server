@@ -2583,6 +2583,17 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 		return xErr
 	}
 
+	// Look for overlap with RESOURCE attribute if hasDoc=true
+	if rm.GetHasDocument() {
+		if _, ok := SpecProps[rm.Singular]; ok {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`Resource %q has a singular name of %q which `+
+						`conflicts with a specification defined attribute`,
+						rmName, rm.Singular))
+		}
+	}
+
 	rm.ApplyDefaults(rm.GroupModel.Model.Registry)
 
 	if rm.MaxVersions != nil {
