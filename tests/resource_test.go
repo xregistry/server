@@ -2043,6 +2043,7 @@ func TestResourceSamples(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
   "versionid": "v0",
   "name": "foo",
+  "createdat": "2021-01-01T12:00:00",
   "meta": {
     "defaultversionid": "v1",
     "defaultversionsticky": true
@@ -2089,7 +2090,7 @@ func TestResourceSamples(t *testing.T) {
       "epoch": 1,
       "name": "foo",
       "isdefault": false,
-      "createdat": "2026-02-11T12:15:38.555135964Z",
+      "createdat": "2021-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
       "ancestorid": "v1"
     },
