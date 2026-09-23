@@ -1,0 +1,2 @@
+tests/files/conform-output/* text eol=lf
+tests/files/conform-invalid-model/* text eol=lf

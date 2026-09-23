@@ -37,6 +37,7 @@ xr conform [URL...]
   -?, --help               Help for xr
   -l, --logs               Show logs even on success
       --nowrap             Don't wrap output
+  -o, --output string      Output format (text*, json)
   -r, --run stringArray    Run test (all, smoke, entities)
   -s, --server string      xRegistry server URL
       --skips              Show SKIPs in console
@@ -487,4 +488,3 @@ NAME: VALUE
   - `server.url` - location of the xRegistry server
   - `header.KEY` - an HTTP header (KEY) to add to all xRegistry client
                    requests. For example, for authentication headers
-

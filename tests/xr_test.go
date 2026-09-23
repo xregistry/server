@@ -2429,6 +2429,7 @@ Flags:
       --failfast          Stop on first failure
   -l, --logs              Show logs even on success
       --nowrap            Don't wrap output
+  -o, --output string     Output format (text*, json)
   -r, --run stringArray   Run test (all, smoke, entities)
       --skips             Show SKIPs in console
       --stats             Show full stats on all groups
@@ -2443,6 +2444,39 @@ Global Flags:
   -v, --verbose            Be chatty
       --version            Print command version string
 `, "", 0)
+}
+
+func TestXRConformOutput(t *testing.T) {
+	XCLI(t, "conform --run smoke http://localhost:8282/conform", "",
+		`PASS: http://localhost:8282/conform (skip:1)
+└─ PASS: TestTDSmoke (skip:1)
+Pass: 51   Fail: 0   Warn: 0   Skip: 1
+`, "", 0)
+
+	XCLI(t, "conform --output text --run smoke "+
+		"http://localhost:8282/conform", "",
+		`PASS: http://localhost:8282/conform (skip:1)
+└─ PASS: TestTDSmoke (skip:1)
+Pass: 51   Fail: 0   Warn: 0   Skip: 1
+`, "", 0)
+
+	const target = "http://localhost:8282/conform-multigroup"
+	XCLI(t, "conform --output json --run smoke "+target+" "+target, "",
+		expectedOutput(t, "files/conform-output/smoke-multigroup.json"),
+		"", 0)
+
+	XCLI(t, "conform --output json --run TestTDDepFail "+
+		"http://one.example http://two.example", "",
+		expectedOutput(t, "files/conform-output/dependency-failure.json"),
+		"", 1)
+
+	const invalidModel = "http://localhost:8282/conform-invalid-model"
+	XCLI(t, "conform --output json --run smoke "+invalidModel, "",
+		expectedOutput(t, "files/conform-output/invalid-model.json"),
+		"", 1)
+
+	XCLI(t, "conform --output yaml http://127.0.0.1:1", "", "",
+		"--output must be one of: text, json.\n", 1)
 }
 
 func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {

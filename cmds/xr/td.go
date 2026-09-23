@@ -40,6 +40,7 @@ func init() {
 
 type TDConfig struct {
 	Out          io.Writer
+	Output       string
 	Server       string
 	Registry     *xrlib.Registry
 	Model        *xrlib.Model

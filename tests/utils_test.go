@@ -553,6 +553,15 @@ func XCLIServer(serverURL string) {
 	os.Setenv("XR_SERVER", serverURL)
 }
 
+func expectedOutput(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
 type CLIResult struct {
 	Code   int
 	Stdout string

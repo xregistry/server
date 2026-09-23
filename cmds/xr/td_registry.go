@@ -37,7 +37,7 @@ func TestModel(td *TD) {
 
 	nTD := NewTD(td, "Parsing model MUST work")
 	model, xErr := xrlib.ParseModel(res.Body, reg)
-	nTD.NoError(xErr)
+	nTD.NoErrorStop(xErr)
 	// if xErr == nil {
 	// td.Config.Model = model
 	// }
@@ -170,7 +170,8 @@ func TestRegistryRoot(td *TD) {
 	_, xErr = reg.GetModel()
 	td.NoErrorStop(xErr, "Retrieving the model MUST work")
 
-	for _, gm := range reg.Model.Groups {
+	for _, name := range SortedKeys(reg.Model.Groups) {
+		gm := reg.Model.Groups[name]
 		td.ObjMustExist(res.JSON, gm.Plural+"count", 0)
 		td.ObjReqMustEq(res.JSON, gm.Plural+"url", MakeURL(self, gm.Plural))
 	}

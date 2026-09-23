@@ -1,0 +1,86 @@
+[
+  {
+    "name": "http://one.example",
+    "status": "FAIL",
+    "pass": 0,
+    "fail": 4,
+    "warn": 0,
+    "skip": 0,
+    "entries": [
+      {
+        "subtest": {
+          "name": "TestTDDepFail",
+          "status": "FAIL",
+          "pass": 0,
+          "fail": 3,
+          "warn": 0,
+          "skip": 0,
+          "entries": [
+            {
+              "subtest": {
+                "name": "TestTDInitFail",
+                "status": "FAIL",
+                "pass": 0,
+                "fail": 2,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "FAIL",
+                    "text": "Init"
+                  }
+                ]
+              }
+            },
+            {
+              "status": "MSG",
+              "text": "Dependency \"TestTDInitFail\" failed, leaving"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "http://two.example",
+    "status": "FAIL",
+    "pass": 0,
+    "fail": 4,
+    "warn": 0,
+    "skip": 0,
+    "entries": [
+      {
+        "subtest": {
+          "name": "TestTDDepFail",
+          "status": "FAIL",
+          "pass": 0,
+          "fail": 3,
+          "warn": 0,
+          "skip": 0,
+          "entries": [
+            {
+              "subtest": {
+                "name": "TestTDInitFail",
+                "status": "FAIL",
+                "pass": 0,
+                "fail": 2,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "FAIL",
+                    "text": "Init"
+                  }
+                ]
+              }
+            },
+            {
+              "status": "MSG",
+              "text": "Dependency \"TestTDInitFail\" failed, leaving"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

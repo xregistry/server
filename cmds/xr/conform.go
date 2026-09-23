@@ -55,7 +55,11 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	config.ShowLogs, _ = cmd.Flags().GetBool("logs")
 	config.ShowStats, _ = cmd.Flags().GetBool("stats")
 	config.ConsoleDepth, _ = cmd.Flags().GetInt("depth")
+	config.Output, _ = cmd.Flags().GetString("output")
 	config.RunFuncs = resolveConformRunFuncs(runNames)
+	if config.Output != "text" && config.Output != "json" {
+		Error("--output must be one of: text, json")
+	}
 
 	rc := runConform(servers, config)
 	if rc != 0 {
@@ -68,8 +72,13 @@ func runConform(servers []string, config *TDConfig) int {
 	if out == nil {
 		out = os.Stdout
 	}
+	output := config.Output
+	if output == "" {
+		output = "text"
+	}
 
 	rc := 0
+	results := []*TD{}
 	for i, server := range servers {
 		// Create new config for each server tested
 		nextConfig := *config
@@ -79,13 +88,27 @@ func runConform(servers []string, config *TDConfig) int {
 		nextConfig.Capabilities = nil
 		nextConfig.NextStatus = 0
 		nextConfig.Out = out
+		nextConfig.Output = output
 		nextConfig.TestRuns = map[string]*TD{}
 
-		if i != 0 {
+		if output == "text" && i != 0 {
 			fmt.Fprintln(out)
 		}
 
-		if testServer(&nextConfig) != 0 {
+		td := NewTD(nil, server)
+		td.Config = &nextConfig
+		testServer(td)
+		results = append(results, td)
+
+		if output == "text" {
+			printDepth := nextConfig.ConsoleDepth
+			if printDepth <= 0 {
+				printDepth = 9999999
+			}
+			td.Print(out, "", printDepth-1)
+		}
+
+		if td.ExitCode() != 0 {
 			rc = 1
 			if nextConfig.FailFast {
 				break
@@ -93,24 +116,15 @@ func runConform(servers []string, config *TDConfig) int {
 		}
 	}
 
+	if output == "json" {
+		Error(printTDJSON(out, results))
+	}
+
 	return rc
 }
 
-func testServer(config *TDConfig) int {
-	td := NewTD(nil, config.Server)
-	td.Config = config
-
-	defer func() {
-		// Print the results
-		// td.Dump("")
-		printDepth := config.ConsoleDepth
-		if printDepth <= 0 {
-			// Can't actually do zero, so zero = -1 (all)
-			printDepth = 9999999
-		}
-		td.Print(config.Out, "", printDepth-1)
-	}()
-
+func testServer(td *TD) {
+	config := td.Config
 	td.SetRegistry(xrlib.DefineRegistry(config.Server))
 
 	runFuncs := config.RunFuncs
@@ -124,9 +138,6 @@ func testServer(config *TDConfig) int {
 			break
 		}
 	}
-
-	// Print results via defer
-	return td.ExitCode()
 }
 
 func resolveConformRunFuncs(names []string) []TestFn {
@@ -185,6 +196,9 @@ func addConformCmd(parent *cobra.Command) {
 	conformCmd.Flags().Bool("stats", false, "Show full stats on all groups")
 	conformCmd.Flags().StringArrayP("run", "r", nil,
 		"Run test (all, smoke, entities)")
+	conformCmd.Flags().StringP("output", "o", "text",
+		"Output format (text*, json)")
+	conformCmd.Flag("output").DefValue = "" // hide default text
 	conformCmd.Flags().BoolP("nowrap", "", false, "Don't wrap output")
 
 	conformCmd.Flags().MarkHidden("tdDebug")

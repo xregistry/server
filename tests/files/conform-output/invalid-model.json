@@ -1,0 +1,100 @@
+[
+  {
+    "name": "http://localhost:8282/conform-invalid-model",
+    "status": "FAIL",
+    "pass": 7,
+    "fail": 5,
+    "warn": 0,
+    "skip": 0,
+    "entries": [
+      {
+        "subtest": {
+          "name": "TestTDSmoke",
+          "status": "FAIL",
+          "pass": 7,
+          "fail": 4,
+          "warn": 0,
+          "skip": 0,
+          "entries": [
+            {
+              "subtest": {
+                "name": "TestSniff",
+                "status": "PASS",
+                "pass": 4,
+                "fail": 0,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return 200"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /' MUST return a JSON body"
+                  }
+                ]
+              }
+            },
+            {
+              "subtest": {
+                "name": "TestModel",
+                "status": "FAIL",
+                "pass": 3,
+                "fail": 3,
+                "warn": 0,
+                "skip": 0,
+                "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "TestSniff (cached)"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /model' MUST return 200"
+                  },
+                  {
+                    "status": "LOG",
+                    "text": "'GET /model' Body:\n{\n"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "'GET /model' MUST return a non-empty body"
+                  },
+                  {
+                    "status": "FAIL",
+                    "text": "'GET /model' MUST return a JSON body"
+                  },
+                  {
+                    "subtest": {
+                      "name": "Parsing model MUST work",
+                      "status": "FAIL",
+                      "pass": 0,
+                      "fail": 1,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": [
+                        {
+                          "status": "LOG",
+                          "text": "Unexpected error: There was an error parsing \"model\": EOF."
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "status": "MSG",
+              "text": "Dependency \"TestModel\" failed, leaving"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
