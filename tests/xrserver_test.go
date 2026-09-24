@@ -332,9 +332,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 }
 
 func TestXRServerConfig(t *testing.T) {
-	tmphome, err := os.MkdirTemp("", "xrtest-home")
-	XNoErr(t, err)
-	defer os.RemoveAll(tmphome)
+	tmphome := t.TempDir()
 
 	configStr := `# a config file
 rootapp: xreg
@@ -463,7 +461,7 @@ path.regcollection: more
 		}
 		if !IsNil(xErr) &&
 			!strings.Contains(xErr.String(), "connection refused") {
-			XNoErr(t, err)
+			XNoErr(t, xErr)
 		}
 
 		time.Sleep(5 * time.Millisecond)

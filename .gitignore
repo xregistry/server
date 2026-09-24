@@ -8,6 +8,7 @@
 /registry/shared_*.go
 /registry/ui/specattrs.js
 /cmds/xr/xrlib/shared_*.go
+/.mysql-data
 
 # Makefile semi-targets
 /.cmds

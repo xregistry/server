@@ -273,6 +273,7 @@ mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
 	(echo && echo "# Starting mysql" && \
 	docker run -q -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
+		-v $(PWD)/.mysql-data:/var/lib/mysql \
 		-p $(DBPORT):$(DBPORT) --name mysql $(MYSQL_IMAGE) \
 		--port $(DBPORT) > /dev/null )
 		@ # -e MYSQL_USER=$(DBUSER) \
@@ -369,3 +370,4 @@ clean:
 	@# do "sleep" so that "docker system prune" won't delete the mysql image
 	@-docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
 	@-docker system prune -f -a --volumes > /dev/null
+	@rm -rf ./mysql-data
