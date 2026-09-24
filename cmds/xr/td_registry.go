@@ -189,8 +189,10 @@ func TestGroups(td *TD) {
 		return
 	}
 
-	for _, k := range SortedKeys(reg.Model.Groups) {
-		gm := reg.Model.Groups[k]
+	groupPaths := map[string]string{}
+
+	for _, groupType := range SortedKeys(reg.Model.Groups) {
+		gm := reg.Model.Groups[groupType]
 		gmPath := "/" + gm.Plural
 		gmRes, _ := reg.HttpDo(VerboseCount > 2, "GET", gmPath, nil)
 		td.HTTPStatusMustEqual(gmRes, 200, "GET "+gmPath)
@@ -199,23 +201,23 @@ func TestGroups(td *TD) {
 		td.Log(gmPath + ":" + ToJSON(gmRes.JSON))
 
 		if len(gmRes.JSON) == 0 {
-			td.Skip("No groups defined for group type %q", k)
+			td.Skip("No groups defined for group type %q", groupType)
 		}
 
-		for _, k := range SortedKeys(gmRes.JSON) {
-			v := gmRes.JSON[k]
-			td.Must(reSingularID.MatchString(k), "%q MUST match %q", k,
+		for _, id := range SortedKeys(gmRes.JSON) {
+			v := gmRes.JSON[id]
+			td.Must(reSingularID.MatchString(id), "%q MUST match %q", id,
 				reSingularID)
-			td.Must(!IsNil(v), "Value of %q MUST NOT be nil", k)
+			td.Must(!IsNil(v), "Value of %q MUST NOT be nil", id)
 
-			gTD := NewTD(td, "Group: %s", k)
-			gPath := gmPath + "/" + k
+			gTD := NewTD(td, "Group: %s", id)
+			gPath := gmPath + "/" + id
 
 			gRes, _ := reg.HttpDo(VerboseCount > 2, "GET", gPath, nil)
 			gTD.HTTPStatusMustEqual(gRes, 200, "GET "+gPath)
 			gTD.HTTPBodyMustJSON(gRes, "GET "+gPath)
 
-			gTD.ObjReqMustEq(gRes.JSON, gm.Singular+"id", k)
+			gTD.ObjReqMustEq(gRes.JSON, gm.Singular+"id", id)
 			gTD.ObjReqMustEq(gRes.JSON, "self",
 				MakeURL(reg.GetStuffAsString("self"),
 					gm.Plural, MustString(gRes.JSON[gm.Singular+"id"])))
@@ -230,86 +232,98 @@ func TestGroups(td *TD) {
 			gTD.ObjReqMustEq(gRes.JSON, "createdat", "ts")
 			gTD.ObjReqMustEq(gRes.JSON, "modifiedat", "ts")
 
-			reg.SetStuff("gm", gm)
-			reg.SetStuff("groupPath", gPath)
-			reg.SetStuff("gxid", MustString(gRes.JSON["xid"]))
+			groupPaths[groupType] = gPath
 			break
 		}
 	}
+
+	reg.SetStuff("groupPaths", groupPaths)
 }
 
 func TestResources(td *TD) {
 	td.DependsOn(TestGroups)
 	reg := td.GetRegistry()
 
-	gmAny, ok := reg.GetStuff("gm")
+	groupPathsAny, ok := reg.GetStuff("groupPaths")
 	if !ok {
-		// No gm must mean there are no groups
 		td.Skip("No Group Types defined  - leaving")
 		return
 	}
-	gm, ok := gmAny.(*xrlib.GroupModel)
+	groupPaths, ok := groupPathsAny.(map[string]string)
 	if !ok {
-		td.FailNow("reg.stuff.gm != *GroupModel")
+		td.FailNow("reg.stuff.groupPaths != map[string]string")
 	}
-	gxid := reg.GetStuffAsString("gxid")
 
-	groupPath := reg.GetStuffAsString("groupPath")
-
-	if len(gm.Resources) == 0 {
-		td.Skip("No Resource Types defined for %q Group Type - leaving",
-			gm.Plural)
+	if len(groupPaths) == 0 {
+		td.Skip("No Group Types defined  - leaving")
 		return
 	}
 
-	for _, k := range SortedKeys(gm.Resources) {
-		rm := gm.Resources[k]
+	for _, groupType := range SortedKeys(groupPaths) {
+		groupPath := groupPaths[groupType]
+		gm := reg.Model.Groups[groupType]
 
-		rPath := groupPath + "/" + rm.Plural
-		rmRes, _ := reg.HttpDo(VerboseCount > 2, "GET", rPath, nil)
-		td.HTTPStatusMustEqual(rmRes, 200, "GET "+rPath)
-		td.HTTPBodyMustJSON(rmRes, "GET "+rPath)
-
-		td.Log(rPath + ":" + ToJSON(rmRes.JSON))
-
-		if len(rmRes.JSON) == 0 {
-			td.Skip("No resources defined for resource type  %q - leaving",
-				rm.Plural)
+		if len(gm.Resources) == 0 {
+			td.Skip("No Resource Types defined for %q Group Type - leaving",
+				gm.Plural)
+			continue
 		}
 
-		for _, k := range SortedKeys(rmRes.JSON) {
-			v := rmRes.JSON[k]
-			td.Must(reSingularID.MatchString(k), "%q MUST match %q", k,
-				reSingularID)
-			td.Must(!IsNil(v), "Value of %q MUST NOT be nil", k)
+		for _, k := range SortedKeys(gm.Resources) {
+			rm := gm.Resources[k]
 
-			rTD := NewTD(td, "Resource: %s", k)
-			// TODO conditional $details - check xReg http headers
-			rPath := rPath + "/" + k + "$details"
+			rPath := groupPath + "/" + rm.Plural
+			rmRes, _ := reg.HttpDo(VerboseCount > 2, "GET", rPath, nil)
+			td.HTTPStatusMustEqual(rmRes, 200, "GET "+rPath)
+			td.HTTPBodyMustJSON(rmRes, "GET "+rPath)
 
-			rRes, _ := reg.HttpDo(VerboseCount > 2, "GET", rPath, nil)
-			rTD.HTTPStatusMustEqual(rRes, 200, "GET "+rPath)
-			rTD.HTTPBodyMustJSON(rRes, "GET "+rPath)
+			td.Log(rPath + ":" + ToJSON(rmRes.JSON))
 
-			rTD.ObjReqMustEq(rRes.JSON, rm.Singular+"id", k)
-			// Conditional $details
-			rTD.ObjReqMustGe(rRes.JSON, "self",
-				MakeURL(reg.GetStuffAsString("self"),
-					gxid, rm.Plural, MustString(rRes.JSON[rm.Singular+"id"])))
-			rTD.ObjReqMustEq(rRes.JSON, "xid",
-				MakeURL(gxid, rm.Plural, MustString(rRes.JSON[rm.Singular+"id"])))
-			rTD.ObjReqMustGe(rRes.JSON, "epoch", 0)
-			rTD.ObjMayExist(rRes.JSON, "name", "")
-			rTD.ObjMayExist(rRes.JSON, "description", "")
-			rTD.ObjMayExist(rRes.JSON, "documentation", "")
-			rTD.ObjOptMustNe(rRes.JSON, "icon", "")
-			rTD.ObjMayExist(rRes.JSON, "labels")
-			rTD.ObjReqMustEq(rRes.JSON, "createdat", "ts")
-			rTD.ObjReqMustEq(rRes.JSON, "modifiedat", "ts")
+			if len(rmRes.JSON) == 0 {
+				td.Skip("No resources defined for resource type  %q - leaving",
+					rm.Plural)
+			}
 
-			reg.SetStuff("rm", rm)
-			reg.SetStuff("resourcePath", rPath)
-			break
+			for _, k := range SortedKeys(rmRes.JSON) {
+				v := rmRes.JSON[k]
+				td.Must(reSingularID.MatchString(k), "%q MUST match %q", k,
+					reSingularID)
+				td.Must(!IsNil(v), "Value of %q MUST NOT be nil", k)
+
+				rTD := NewTD(td, "Resource: %s", k)
+				// TODO conditional $details - check xReg http headers
+				rPath := rPath + "/" + k + "$details"
+
+				rRes, _ := reg.HttpDo(VerboseCount > 2, "GET", rPath, nil)
+				rTD.HTTPStatusMustEqual(rRes, 200, "GET "+rPath)
+				if rRes == nil {
+					break
+				}
+				rTD.HTTPBodyMustJSON(rRes, "GET "+rPath)
+				if rRes.JSON == nil {
+					break
+				}
+
+				rTD.ObjReqMustEq(rRes.JSON, rm.Singular+"id", k)
+				// Conditional $details
+				rTD.ObjReqMustGe(rRes.JSON, "self",
+					MakeURL(reg.GetStuffAsString("self"),
+						groupPath, rm.Plural,
+						MustString(rRes.JSON[rm.Singular+"id"])))
+				rTD.ObjReqMustEq(rRes.JSON, "xid",
+					MakeURL(groupPath, rm.Plural,
+						MustString(rRes.JSON[rm.Singular+"id"])))
+				rTD.ObjReqMustGe(rRes.JSON, "epoch", 0)
+				rTD.ObjMayExist(rRes.JSON, "name", "")
+				rTD.ObjMayExist(rRes.JSON, "description", "")
+				rTD.ObjMayExist(rRes.JSON, "documentation", "")
+				rTD.ObjOptMustNe(rRes.JSON, "icon", "")
+				rTD.ObjMayExist(rRes.JSON, "labels")
+				rTD.ObjReqMustEq(rRes.JSON, "createdat", "ts")
+				rTD.ObjReqMustEq(rRes.JSON, "modifiedat", "ts")
+
+				break
+			}
 		}
 	}
 }
