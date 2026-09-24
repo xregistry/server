@@ -226,7 +226,7 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "\"specversion\" (1.0-rc4) MUST \u003e \"1.0\""
+                    "text": "\"specversion\" ($SPECVERSION) MUST \u003e \"1.0\""
                   },
                   {
                     "status": "PASS",
@@ -547,7 +547,7 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "\"specversion\" (1.0-rc4) MUST \u003e \"1.0\""
+                    "text": "\"specversion\" ($SPECVERSION) MUST \u003e \"1.0\""
                   },
                   {
                     "status": "PASS",

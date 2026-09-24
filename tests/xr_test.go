@@ -2554,7 +2554,7 @@ func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
    ├─ PASS: 'GET /' MUST return 200
    ├─ PASS: 'GET /' MUST return a non-empty body
    ├─ PASS: 'GET /' MUST return a JSON body
-   ├─ PASS: "specversion" (1.0-rc4) MUST = "1.0-rc4"
+   ├─ PASS: "specversion" (`+SPECVERSION+`) MUST = "`+SPECVERSION+`"
    ├─ PASS: "registryid" (conform-error) MUST != ""
    ├─ PASS: "self" (http://localhost:8282/conform-error/) MUST != ""
    ├─ PASS: "xid" (/) MUST = "/"

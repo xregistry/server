@@ -17,7 +17,7 @@
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc4"
+    "$SPECVERSION"
   ],
   "versionmodes": []
 }
