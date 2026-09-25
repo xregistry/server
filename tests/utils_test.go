@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	gourl "net/url"
 	"os"
 	"os/exec"
@@ -23,6 +24,7 @@ import (
 
 const TestDBName = "registry"
 const TestRegName = "testreg"
+const specVersionPlaceholder = "$SPECVERSION"
 
 var XRServerConfig *Config
 var MainServer *registry.Server
@@ -92,7 +94,7 @@ func TestMain(m *testing.M) {
 
 	fsServer := &http.Server{
 		Addr:    ":8282",
-		Handler: http.FileServer(http.Dir("files")),
+		Handler: testFileServer(),
 	}
 	go fsServer.ListenAndServe()
 
@@ -113,6 +115,41 @@ func TestMain(m *testing.M) {
 			[]byte(registry.DumpTimings()), 0666)
 	}
 	os.Exit(rc)
+}
+
+func testFileServer() http.Handler {
+	fileServer := http.FileServer(http.Dir("files"))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		req := r
+		if r.Method == http.MethodHead {
+			req = r.Clone(r.Context())
+			req.Method = http.MethodGet
+		}
+
+		recorder := httptest.NewRecorder()
+		fileServer.ServeHTTP(recorder, req)
+
+		res := recorder.Result()
+		defer res.Body.Close()
+		for name, values := range res.Header {
+			w.Header()[name] = values
+		}
+
+		data, err := io.ReadAll(res.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		content := strings.ReplaceAll(string(data), specVersionPlaceholder,
+			SPECVERSION)
+		w.Header().Set("Content-Length", strconv.Itoa(len(content)))
+		w.WriteHeader(res.StatusCode)
+		if r.Method != http.MethodHead {
+			_, _ = io.WriteString(w, content)
+		}
+	})
 }
 
 // The funcs that use registry.* types can't be in "common/test.go" because
@@ -559,7 +596,57 @@ func expectedOutput(t *testing.T, path string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return string(data)
+	return strings.ReplaceAll(string(data), specVersionPlaceholder, SPECVERSION)
+}
+
+func TestFileServerSpecVersion(t *testing.T) {
+	raw, err := os.ReadFile("files/conform/index.html")
+	XNoErr(t, err)
+	XEqual(t, "", strings.Count(string(raw), specVersionPlaceholder), 1)
+
+	req := httptest.NewRequest(http.MethodGet,
+		"http://localhost:8282/conform/", nil)
+	res := httptest.NewRecorder()
+	testFileServer().ServeHTTP(res, req)
+	XEqual(t, "", res.Code, http.StatusOK)
+
+	data := res.Body.Bytes()
+	XEqual(t, "", strings.Count(string(data), specVersionPlaceholder), 0)
+	XEqual(t, "", res.Header().Get("Content-Length"),
+		strconv.Itoa(len(data)))
+
+	root := map[string]any{}
+	XNoErr(t, json.Unmarshal(data, &root))
+	XEqual(t, "", root["specversion"], SPECVERSION)
+
+	const literalPath = "files/EMPTY-URL"
+	literal, err := os.ReadFile(literalPath)
+	XNoErr(t, err)
+
+	req = httptest.NewRequest(http.MethodGet,
+		"http://localhost:8282/EMPTY-URL", nil)
+	res = httptest.NewRecorder()
+	testFileServer().ServeHTTP(res, req)
+	XEqual(t, "", res.Code, http.StatusOK)
+	XEqual(t, "", res.Body.String(), string(literal))
+}
+
+func TestExpectedOutputSpecVersion(t *testing.T) {
+	const path = "files/conform-output/smoke-multigroup.json"
+
+	raw, err := os.ReadFile(path)
+	XNoErr(t, err)
+	XEqual(t, "", strings.Count(string(raw), specVersionPlaceholder), 2)
+
+	output := expectedOutput(t, path)
+	XEqual(t, "", strings.Count(output, specVersionPlaceholder), 0)
+	XEqual(t, "",
+		strings.Count(output, `\"specversion\" (`+SPECVERSION+`)`), 2)
+
+	const literalPath = "files/conform-output/dependency-failure.json"
+	literal, err := os.ReadFile(literalPath)
+	XNoErr(t, err)
+	XEqual(t, "", expectedOutput(t, literalPath), string(literal))
 }
 
 type CLIResult struct {
