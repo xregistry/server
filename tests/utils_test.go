@@ -118,39 +118,25 @@ func TestMain(m *testing.M) {
 }
 
 func testFileServer() http.Handler {
-	files := http.Dir("files")
-	fileServer := http.FileServer(files)
+	fileServer := http.FileServer(http.Dir("files"))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/conform") ||
-			strings.HasSuffix(r.URL.Path, "/index.html") {
-			fileServer.ServeHTTP(w, r)
-			return
+		req := r
+		if r.Method == http.MethodHead {
+			req = r.Clone(r.Context())
+			req.Method = http.MethodGet
 		}
 
-		name := r.URL.Path
-		if strings.HasSuffix(name, "/") {
-			name += "index.html"
+		recorder := httptest.NewRecorder()
+		fileServer.ServeHTTP(recorder, req)
+
+		res := recorder.Result()
+		defer res.Body.Close()
+		for name, values := range res.Header {
+			w.Header()[name] = values
 		}
 
-		file, err := files.Open(name)
-		if err != nil {
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-		defer file.Close()
-
-		info, err := file.Stat()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if info.IsDir() {
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-
-		data, err := io.ReadAll(file)
+		data, err := io.ReadAll(res.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -158,8 +144,11 @@ func testFileServer() http.Handler {
 
 		content := strings.ReplaceAll(string(data), specVersionPlaceholder,
 			SPECVERSION)
-		http.ServeContent(w, r, info.Name(), info.ModTime(),
-			strings.NewReader(content))
+		w.Header().Set("Content-Length", strconv.Itoa(len(content)))
+		w.WriteHeader(res.StatusCode)
+		if r.Method != http.MethodHead {
+			_, _ = io.WriteString(w, content)
+		}
 	})
 }
 
@@ -623,10 +612,23 @@ func TestFileServerSpecVersion(t *testing.T) {
 
 	data := res.Body.Bytes()
 	XEqual(t, "", strings.Count(string(data), specVersionPlaceholder), 0)
+	XEqual(t, "", res.Header().Get("Content-Length"),
+		strconv.Itoa(len(data)))
 
 	root := map[string]any{}
 	XNoErr(t, json.Unmarshal(data, &root))
 	XEqual(t, "", root["specversion"], SPECVERSION)
+
+	const literalPath = "files/EMPTY-URL"
+	literal, err := os.ReadFile(literalPath)
+	XNoErr(t, err)
+
+	req = httptest.NewRequest(http.MethodGet,
+		"http://localhost:8282/EMPTY-URL", nil)
+	res = httptest.NewRecorder()
+	testFileServer().ServeHTTP(res, req)
+	XEqual(t, "", res.Code, http.StatusOK)
+	XEqual(t, "", res.Body.String(), string(literal))
 }
 
 func TestExpectedOutputSpecVersion(t *testing.T) {
