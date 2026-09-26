@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -50,6 +51,8 @@ type RequestInfo struct {
 	Filters       [][]*FilterExpr // [OR][AND] filter=e,e(and) &(or) filter=e
 	ShowDetails   bool            //	is $details present
 	SortKey       string          // [-]AttrName  - => descending
+	Limit         uint64          // ?limit= (0 == not specified)
+	Offset        uint64          // ?offset= (only meaningful if Limit != 0)
 
 	StatusCode int
 	SentStatus bool
@@ -844,6 +847,49 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 		info.SortKey = pp.DB()
 		if ascDesc == "desc" {
 			info.SortKey = "-" + info.SortKey
+		}
+	}
+
+	// Pagination ("limit"/"offset") is only meaningful when the
+	// "pagination" capability is turned on. When it's off, silently
+	// ignore these query params rather than erroring - they're just
+	// treated as if they weren't specified at all.
+	if info.Registry.Capabilities.PaginationEnabled() &&
+		(info.HasFlag("limit") || info.HasFlag("offset")) {
+
+		if info.What != "Coll" {
+			return NewXRError("bad_request",
+				info.OriginalRequest.URL.RequestURI(),
+				"error_detail=Can't paginate a non-collection result set")
+		}
+
+		if info.HasFlag("limit") {
+			limitStr := info.GetFlag("limit")
+			limit, err := strconv.ParseUint(limitStr, 10, 64)
+			if err != nil || limit == 0 {
+				return NewXRError("bad_request",
+					info.OriginalRequest.URL.RequestURI(),
+					"error_detail=\"limit\" value ("+limitStr+
+						") must be an unsigned integer > 0")
+			}
+			info.Limit = limit
+		}
+
+		if info.HasFlag("offset") {
+			offsetStr := info.GetFlag("offset")
+			offset, err := strconv.ParseUint(offsetStr, 10, 64)
+			if err != nil {
+				return NewXRError("bad_request",
+					info.OriginalRequest.URL.RequestURI(),
+					"error_detail=\"offset\" value ("+offsetStr+
+						") must be an unsigned integer")
+			}
+			if info.Limit == 0 {
+				return NewXRError("bad_request",
+					info.OriginalRequest.URL.RequestURI(),
+					"error_detail=\"offset\" can't be used without \"limit\"")
+			}
+			info.Offset = offset
 		}
 	}
 

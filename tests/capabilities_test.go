@@ -104,6 +104,8 @@ func TestCapabilitySimple(t *testing.T) {
     "filter",
     "ignore",
     "inline",
+    "limit",
+    "offset",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -125,7 +127,7 @@ func TestCapabilitySimple(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -230,6 +232,8 @@ func TestCapabilitySimple(t *testing.T) {
       "filter",
       "ignore",
       "inline",
+      "limit",
+      "offset",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -251,7 +255,7 @@ func TestCapabilitySimple(t *testing.T) {
       "modelsource",
       "readonly"
     ],
-    "pagination": false,
+    "pagination": true,
     "shortself": false,
     "specversions": [
       "`+SPECVERSION+`"
@@ -494,6 +498,8 @@ func TestCapabilityPath(t *testing.T) {
     "filter",
     "ignore",
     "inline",
+    "limit",
+    "offset",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -515,7 +521,7 @@ func TestCapabilityPath(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -777,7 +783,7 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "ignores": [ "capabilities", "defaultversionid", "defaultversionsticky",
     "epoch", "id", "modelsource", "readonly" ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
   "versionmodes": [ "createdat", "manual", "modifiedat", "semver" ]
@@ -861,6 +867,8 @@ func TestCapabilityPath(t *testing.T) {
     "filter",
     "ignore",
     "inline",
+    "limit",
+    "offset",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -882,7 +890,7 @@ func TestCapabilityPath(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -975,6 +983,8 @@ func TestCapabilityPath(t *testing.T) {
     "filter",
     "ignore",
     "inline",
+    "limit",
+    "offset",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -996,7 +1006,7 @@ func TestCapabilityPath(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -1089,18 +1099,34 @@ func TestCapabilityPath(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/capabilities", `{"pagination":true}`, 400,
+	// We support it now!
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+        "available":{"capabilities":{"mutable":true}},
+        "pagination":true}`, 200,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (true) specified for capability \"pagination\". Allowable values include: false.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "pagination",
-    "list": "false",
-    "value": "true"
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
   },
-  "instance": "xxx",
-  "source": ":common:capabilities:216"
+  "compatibilities": {},
+  "flags": [
+    "limit",
+    "offset"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": true,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc4"
+  ],
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -1336,7 +1362,7 @@ func TestCapabilityAttr(t *testing.T) {
   },
   "flags": [
     "binary", "collections", "doc", "epoch", "filter", "inline", "ignore",
-    "setdefaultversionid", "sort", "specversion"
+    "setdefaultversionid", "sort", "specversion", "limit", "offset"
   ],
   "formats": [
     "avro*",
@@ -1350,7 +1376,7 @@ func TestCapabilityAttr(t *testing.T) {
     "capabilities", "defaultversionid", "defaultversionsticky", "epoch",
     "id", "modelsource", "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
   "versionmodes": [ "createdat", "manual", "modifiedat", "semver" ]
@@ -1443,6 +1469,8 @@ func TestCapabilityAttr(t *testing.T) {
       "filter",
       "ignore",
       "inline",
+      "limit",
+      "offset",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -1464,7 +1492,7 @@ func TestCapabilityAttr(t *testing.T) {
       "modelsource",
       "readonly"
     ],
-    "pagination": false,
+    "pagination": true,
     "shortself": false,
     "specversions": [
       "`+SPECVERSION+`"
@@ -1558,6 +1586,8 @@ func TestCapabilityAttr(t *testing.T) {
     "filter",
     "ignore",
     "inline",
+    "limit",
+    "offset",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -1579,7 +1609,7 @@ func TestCapabilityAttr(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -1981,6 +2011,8 @@ func TestCapabilityOffered(t *testing.T) {
       "filter",
       "ignore",
       "inline",
+      "limit",
+      "offset",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -2019,10 +2051,7 @@ func TestCapabilityOffered(t *testing.T) {
     }
   },
   "pagination": {
-    "type": "boolean",
-    "enum": [
-      false
-    ]
+    "type": "boolean"
   },
   "shortself": {
     "type": "boolean"
@@ -2667,7 +2696,9 @@ func TestCapabilityPatch(t *testing.T) {
     ]
   },
   "flags": [
-    "inline"
+    "inline",
+    "limit",
+    "offset"
   ],
   "formats": [
     "avro*",
@@ -2686,7 +2717,7 @@ func TestCapabilityPatch(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -2804,7 +2835,9 @@ func TestCapabilityPatch(t *testing.T) {
     },
     "flags": [
       "filter",
-      "inline"
+      "inline",
+      "limit",
+      "offset"
     ],
     "formats": [
       "avro*",
@@ -2823,7 +2856,7 @@ func TestCapabilityPatch(t *testing.T) {
       "modelsource",
       "readonly"
     ],
-    "pagination": false,
+    "pagination": true,
     "shortself": false,
     "specversions": [
       "`+SPECVERSION+`"
@@ -2962,6 +2995,8 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
     "filter",
     "ignore",
     "inline",
+    "limit",
+    "offset",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -2983,7 +3018,7 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -3086,7 +3121,9 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
       ]
     },
     "flags": [
-      "inline"
+      "inline",
+      "limit",
+      "offset"
     ],
     "formats": [
       "avro*",
@@ -3105,7 +3142,7 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
       "modelsource",
       "readonly"
     ],
-    "pagination": false,
+    "pagination": true,
     "shortself": false,
     "specversions": [
       "`+SPECVERSION+`"
@@ -3212,7 +3249,9 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
     ]
   },
   "flags": [
-    "inline"
+    "inline",
+    "limit",
+    "offset"
   ],
   "formats": [
     "avro*",
@@ -3231,7 +3270,7 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -3411,7 +3450,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
     ]
   },
   "flags": [
-    "inline"
+    "inline",
+    "limit",
+    "offset"
   ],
   "formats": [
     "avro*",
@@ -3430,7 +3471,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -3521,7 +3562,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
     ]
   },
   "flags": [
-    "inline"
+    "inline",
+    "limit",
+    "offset"
   ],
   "formats": [
     "avro*",
@@ -3540,7 +3583,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -3650,7 +3693,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
     ]
   },
   "flags": [
-    "inline"
+    "inline",
+    "limit",
+    "offset"
   ],
   "formats": [
     "avro*",
@@ -3669,7 +3714,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -3846,6 +3891,8 @@ func TestCapabilityNullHandling(t *testing.T) {
       "filter",
       "ignore",
       "inline",
+      "limit",
+      "offset",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -3867,7 +3914,7 @@ func TestCapabilityNullHandling(t *testing.T) {
       "modelsource",
       "readonly"
     ],
-    "pagination": false,
+    "pagination": true,
     "shortself": false,
     "specversions": [
       "`+SPECVERSION+`"
@@ -3965,6 +4012,8 @@ func TestCapabilityNullHandling(t *testing.T) {
     "filter",
     "ignore",
     "inline",
+    "limit",
+    "offset",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -3986,7 +4035,7 @@ func TestCapabilityNullHandling(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -4163,6 +4212,8 @@ func TestCapabilityNullHandling(t *testing.T) {
     "filter",
     "ignore",
     "inline",
+    "limit",
+    "offset",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -4184,7 +4235,7 @@ func TestCapabilityNullHandling(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "pagination": false,
+  "pagination": true,
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
