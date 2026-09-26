@@ -373,7 +373,6 @@ type HTTPWriter interface {
 }
 
 var _ HTTPWriter = &DefaultWriter{}
-var _ HTTPWriter = &DiscardWriter{}
 
 func DefaultHTTPWriter(info *RequestInfo) HTTPWriter {
 	return &DefaultWriter{
@@ -439,7 +438,8 @@ func (dw *DefaultWriter) SetHeader(name, value string) {
 	// we're doing something weong.
 	// At some point we may need to add a new func (AddHeader) to append a
 	// value to the end of the current one (if there)
-	PanicIf(dw.Info.OriginalResponse.Header().Get(name) != "", "%s\nPrev:\n%s\n---", name, stacks[name])
+	PanicIf(dw.Info.OriginalResponse.Header().Get(name) != "",
+		"%s\nPrev:\n%s\n---", name, stacks[name])
 	// Uncomment when we need to debug the PanicIf
 	// stacks[name] = GetStackAsString()
 
@@ -461,17 +461,6 @@ func (dw *DefaultWriter) GetHeaderValues(name string) []string {
 func (dw *DefaultWriter) Done() {
 	dw.Write(nil)
 }
-
-type DiscardWriter struct{}
-
-func (dw *DiscardWriter) Write(b []byte) (int, error)          { return len(b), nil }
-func (dw *DiscardWriter) SetHeader(name, value string)         {}
-func (dw *DiscardWriter) AddHeader(name, value string)         {}
-func (dw *DiscardWriter) GetHeader(name string) string         { return "" }
-func (dw *DiscardWriter) GetHeaderValues(name string) []string { return nil }
-func (dw *DiscardWriter) Done()                                {}
-
-var DefaultDiscardWriter = &DiscardWriter{}
 
 func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
