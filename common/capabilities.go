@@ -83,7 +83,7 @@ var SupportedCompatibilities = map[string][]string{}
 
 var SupportedFlags = ArrayToLower([]string{
 	"binary", "collections", "doc", "epoch", "filter", "ignore", "inline",
-	"setdefaultversionid", "sort", "specversion"})
+	"limit", "offset", "setdefaultversionid", "sort", "specversion"})
 
 var SupportedFormats = []string{}
 
@@ -102,7 +102,7 @@ var DefaultCapabilities = &Capabilities{
 	Flags:           SupportedFlags,
 	Formats:         SupportedFormats,
 	Ignores:         SupportedIgnores,
-	Pagination:      false,
+	Pagination:      true,
 	ShortSelf:       false,
 	SpecVersions:    SupportedSpecVersions,
 	VersionModes:    SupportedVersionModes,
@@ -213,7 +213,6 @@ func GetOffered() *Offered {
 		},
 		Pagination: OfferedCapability{
 			Type: "boolean",
-			Enum: []any{false},
 		},
 		ShortSelf: OfferedCapability{
 			Type: "boolean",
@@ -256,6 +255,7 @@ func ArrayToLower(arr []string) []string {
 	for i, s := range arr {
 		arr[i] = strings.ToLower(s)
 	}
+	sort.Strings(arr)
 	arr = slices.Compact(arr) // remove dups
 	return arr
 }
@@ -274,7 +274,7 @@ func CleanArray(arr []string, full []string, text string) ([]string, *XRError) {
 				return nil, NewXRError("capability_wildcard", "/capabilities",
 					"field="+text)
 			}
-			return full, nil
+			return slices.Clone(full), nil
 		}
 
 	}
@@ -361,6 +361,20 @@ func (c *Capabilities) Validate() *XRError {
 		return xErr
 	}
 
+	// Add/remove pagination flags as appropriate
+	if c.PaginationEnabled() {
+		c.Flags = append(c.Flags, "limit", "offset")
+		sort.Strings(c.Flags)
+		c.Flags = slices.Compact(c.Flags)
+	} else {
+		for i := 0; i < len(c.Flags); i++ {
+			if c.Flags[i] == "limit" || c.Flags[i] == "offset" {
+				c.Flags = append(c.Flags[:i], c.Flags[i+1:]...)
+				i = i - 1
+			}
+		}
+	}
+
 	c.Formats, xErr = CleanArray(c.Formats, SupportedFormats, "formats")
 	if xErr != nil {
 		return xErr
@@ -377,13 +391,6 @@ func (c *Capabilities) Validate() *XRError {
 	c.Ignores, xErr = CleanArray(c.Ignores, SupportedIgnores, "ignores")
 	if xErr != nil {
 		return xErr
-	}
-
-	if c.Pagination != false {
-		return NewXRError("capability_value", "/capabilities",
-			"value=true",
-			"field=pagination",
-			"list=false")
 	}
 
 	if c.SpecVersions == nil {

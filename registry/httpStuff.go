@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	// "os"
 	"reflect"
 	"strconv"
@@ -978,7 +979,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 	// POST / +   { "schemagroups": { "sg1"...}, "messagegroups": { "mg1"...}}
 	// In this case the "XIDs" within each group are all processed as a
 	// single query but the normal jwWriter stuff won't show the parent
-	// group (schemagroups) because to do so would mean to also so the
+	// group (schemagroups) because to do so would mean to also show the
 	// attributes at that level (meaning the Registry attrs in this case).
 	// To avoid this we pass in resXIDs which is a map of groupings for
 	// each "XIDs" (IDs) we want to serialize.
@@ -1028,7 +1029,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		// "!" is special - it means skip the query and just produce: {}
 		if len(XIDs) != 1 || XIDs[0] != "!" {
 			query, args, err := GenerateQuery(info.Registry, what, XIDs,
-				filters, info.DoDocView(), info.SortKey)
+				filters, info.DoDocView(), info.SortKey, info.Limit, info.Offset)
 			if err != nil {
 				return err
 			}
@@ -1043,6 +1044,12 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			}
 		}
 
+		// Pagination Link headers MUST be added before any part of the
+		// body is written
+		if what == "Coll" && info.Limit != 0 {
+			AddPaginationLinkHeaders(info, results)
+		}
+
 		jw = NewJsonWriter(info, results)
 
 		jw.NextEntity()
@@ -1054,7 +1061,8 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 				// check to see if Resource has xref set, if so then the error
 				// is 400, not 404
 				if info.VersionUID != "" && info.DoDocView() {
-					xid := "/" + strings.Join(info.Parts[:len(info.Parts)-2], "/")
+					xid := "/" +
+						strings.Join(info.Parts[:len(info.Parts)-2], "/")
 					xid += "/meta"
 					entity, err := RawEntityFromXID(info.tx,
 						info.Registry.DbSID, xid, false, FOR_READ)
@@ -1066,7 +1074,8 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 					// then the Resource doesn't exist, so a 404 really is the
 					// best response in those cases, so skip the 400
 					if entity != nil && !IsNil(entity.Object["xref"]) {
-						return NewXRError("cannot_doc_xref", "/"+info.OriginalPath)
+						return NewXRError("cannot_doc_xref",
+							"/"+info.OriginalPath)
 					}
 				}
 
@@ -1142,6 +1151,120 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 	}
 
 	return nil
+}
+
+// AddPaginationLinkHeaders adds the pagination spec's "Link" HTTP headers
+// (rel=first|prev|next|last, each with a "count" parameter giving the
+// total number of top-level entities across the *entire* filtered
+// collection - not just the current page) for a paginated "Coll"
+// response. Must be called before anything is written to the response
+// body, since HTTP headers can't be sent after the body has started.
+func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
+	limit := info.Limit
+	offset := info.Offset
+
+	total := uint64(0)
+	gotTotal := false
+
+	// TotalCount (see GenerateQuery) rides along on every row of the
+	// (already fully in-memory - see Query()) paginated result, computed
+	// as a whole-partition aggregate *before* the page-range filter was
+	// applied - so it already reflects the entire result set, and we
+	// don't need a second query just to get it.
+	if results != nil && len(results.AllRows) > 0 {
+		row := results.AllRows[0]
+		if len(row) > 14 {
+			totalStr := NotNilString(row[14])
+			if totalStr != "" {
+				if v, err := strconv.ParseUint(totalStr, 10, 64); err == nil {
+					total = v
+					gotTotal = true
+				}
+			}
+		}
+	}
+
+	basePath := "/" + info.OriginalPath
+	origQuery := info.OriginalRequest.URL.Query()
+
+	// This will keep the original URL (and query params) and just replace
+	// the pagination ones as needed. The key thing here is that we're
+	// keeping others, like sort and filter
+	buildLink := func(off uint64) string {
+		q := url.Values{}
+		for k, v := range origQuery {
+			if k == "offset" || k == "limit" {
+				continue
+			}
+			q[k] = v
+		}
+		q.Set("limit", strconv.FormatUint(limit, 10))
+		q.Set("offset", strconv.FormatUint(off, 10))
+		return fmt.Sprintf("<%s%s?%s>", info.BaseURL, basePath, q.Encode())
+	}
+
+	addLink := func(rel string, off uint64, withCount bool) {
+		if withCount {
+			info.AddHeader("Link", fmt.Sprintf("%s;rel=%s;count=%d",
+				buildLink(off), rel, total))
+		} else {
+			info.AddHeader("Link", fmt.Sprintf("%s;rel=%s",
+				buildLink(off), rel))
+		}
+	}
+
+	if !gotTotal && offset == 0 {
+		// We asked for the very first page (offset=0) and got zero rows
+		// back - nothing was filtered out by the page-range WHERE clause
+		// at offset 0, so the entire (filtered) collection is genuinely
+		// empty. The total is just 0
+		total = 0
+		gotTotal = true
+	}
+
+	if !gotTotal {
+		// offset > 0 and the page came back empty: the requested offset
+		// is past the end of a result set whose true current size we
+		// don't know (and it's not worth an extra DB round-trip to find
+		// out - especially since any client can trigger this simply by
+		// passing a huge "offset="). This can happen either from a
+		// bad/stale client offset, or because the collection shrank
+		// between the client's paginated requests - a consistency gap
+		// the spec doesn't otherwise guarantee to solve.
+		//
+		// Don't guess: "prev" via naive "offset-limit" arithmetic could
+		// land on another out-of-range offset and mislead the client
+		// further, and "next"/"last" both require a known total. Only
+		// "first" is unambiguously correct regardless of the (unknown)
+		// true total, so emit just that - without a "count" - so the
+		// client has a safe way to restart iteration.
+		addLink("first", 0, false)
+		return
+	}
+
+	// per spec: "first" MAY be included in any response.
+	addLink("first", 0, true)
+
+	// per spec: "prev" MUST NOT be present if this is the start of the set.
+	if offset > 0 {
+		prevOffset := uint64(0)
+		if offset > limit {
+			prevOffset = offset - limit
+		}
+		addLink("prev", prevOffset, true)
+	}
+
+	// per spec: "next" MUST NOT be present if this is the end of the set.
+	if offset+limit < total {
+		addLink("next", offset+limit, true)
+	}
+
+	// per spec: "last" MAY be included in any response.
+	lastOffset := uint64(0)
+	if total > 0 {
+		lastOffset = ((total - 1) / limit) * limit
+	}
+	addLink("last", lastOffset, true)
 }
 
 var specialAttrHeaders = map[string]*Attribute{}

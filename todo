@@ -118,3 +118,4 @@ TODOs:
 ** see what it would take to support a registry proxy (at the group level) that
    would expose lots of registries as a single one.
 - only check-in the generated files for xregistry.io, not hub.xreg.io
+- see if we can get rid of DiscardWriter and just skip rows instead

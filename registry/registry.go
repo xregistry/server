@@ -1345,8 +1345,30 @@ func GenerateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interf
 	return query, args
 }
 
+// topLevelSlashCount returns, as a string, the SUBSTRING_INDEX() count
+// needed to truncate any row's XID (top-level entity's own, or one of
+// its descendants') down to just its top-level parent's XID, given the
+// XIDs[0] prefix used for a "Coll" query. E.g. XIDs[0]=="/dirs" means
+// direct children look like "/dirs/d1" (3 "/"-delimited pieces), so
+// SUBSTRING_INDEX(anyDescendantXID, '/', 3) always yields "/dirs/d1" no
+// matter how deeply nested the descendant is.
+//
+// Shared by both the "?sort=" substring_index join and the pagination
+// DENSE_RANK() window function below - both need to identify, for any
+// row, its top-level parent's own XID.
+func topLevelSlashCount(xid string) string {
+	count := strings.Count(xid, "/")
+	if count == 1 { // e.g /dirs
+		return "3" // want substring below as: /dirs/d1
+	} else if count == 3 { // e.g. /dirs/d1/files
+		return "5" // want substring below as: /dirs/d1/files/f1
+	} else { // e.g. /dirs/d1/files/f1/versions
+		return "7" // want substring below as: /dirs/d1/files/f1/versions/v1
+	}
+}
+
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
-func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*FilterExpr, docView bool, sortKey string) (string, []interface{}, *XRError) {
+func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*FilterExpr, docView bool, sortKey string, limit uint64, offset uint64) (string, []interface{}, *XRError) {
 	query := ""
 	args := []any{}
 
@@ -1368,6 +1390,10 @@ func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*Filte
 			"error_detail=can't sort on a non-collection results")
 	}
 
+	if limit != 0 && what != "Coll" {
+		return "", nil, NewXRError("pagination_noncollection", "")
+	}
+
 	ascDesc := "ASC"
 	sortJoin := ""
 	sortOrder := ""
@@ -1378,15 +1404,9 @@ func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*Filte
 			sortKey = sortKey[1:]
 		}
 
-		count := strings.Count(XIDs[0], "/")
-		if count == 1 { // e.g /dirs
-			count = 3 // want substring below as: /dirs/d1
-		} else if count == 3 { // e.g. /dirs/d1/files
-			count = 5 // want substring below as: /dirs/d1/files/f1
-		} else { // e.g. /dirs/d1/files/f1/versions
-			count = 7 // want substring below as: /dirs/d1/files/f1/versions/v1
-		}
-		slashCount := fmt.Sprintf("%d", count)
+		// We only need to look at the first XID because if there's more
+		// than one then they should all be for the same level
+		slashCount := topLevelSlashCount(XIDs[0])
 
 		/*
 					sortOrder = `
@@ -1455,6 +1475,54 @@ func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*Filte
 		filterJoin = " LEFT JOIN FilterMatches AS fm ON fm.eSID=ft.eSID"
 	}
 
+	// When pagination is active (limit != 0, only ever true when
+	// what=="Coll") we need two extra columns computed directly
+	// alongside the rest of this SELECT's other per-row columns (same
+	// level as the "ft"/"sj" aliases, so they can reference them):
+	//   - LowerXID: re-exposed so the wrapping queries below (which no
+	//     longer have access to the "ft" alias) can re-apply the same
+	//     tiebreak ordering used today.
+	//   - TopIdx: a DENSE_RANK() window function that assigns every row
+	//     (top-level entity or descendant) its top-level ancestor's
+	//     page index, all in one pass with no extra join needed to
+	//     "propagate" the index down to child rows. This works because
+	//     rows are ordered (both here and via the existing non-paginated
+	//     ORDER BY below) such that every entity's descendant rows are
+	//     always physically contiguous with it - true even when ?sort=
+	//     is in play, since every row in a subtree resolves to the same
+	//     sort value (that of its top-level ancestor, via "sj" above).
+	//     DENSE_RANK() ties rows sharing the same (sort value, ancestor
+	//     XID) tuple to the same rank, and gives the next *distinct*
+	//     tuple (i.e. entity) the next rank - exactly the page index we
+	//     want, computed using the exact same ORDER BY terms (sortOrder)
+	//     as the plain, non-paginated query below, just replacing the
+	//     final "ft.LowerXID ASC" per-row tiebreak with the coarser
+	//     "top-level ancestor's XID" tiebreak so ties are ancestor-wide.
+	paginate := limit != 0
+	rankCol := "" // used for ordering results
+	totalCountCol := ""
+	if paginate {
+		slashCount := topLevelSlashCount(XIDs[0])
+		rankOrder := sortOrder +
+			`    SUBSTRING_INDEX(ft.XID, '/', ` + slashCount + `) ASC`
+		rankCol = `,ft.LowerXID AS LowerXID,
+  DENSE_RANK() OVER (ORDER BY ` + rankOrder + `) AS TopIdx`
+	} else {
+		// Not paginating - "TotalCount" is computed for real (via the
+		// win1/win2 wrapping below) only when paginate==true. Project a
+		// cheap literal here instead of just omitting the column, so
+		// GenerateQuery() always returns the same column shape either
+		// way - this avoids the column count ever silently drifting out
+		// of sync between the "paginate" and "!paginate" code paths as
+		// more columns get added over time. This is a constant literal,
+		// not a computed aggregate, so it costs nothing extra to compute
+		// (no extra join/derived table/window function). Use '-' rather
+		// than '0' so any accidental future attempt to read/parse this
+		// column as an int when !paginate fails loudly instead of
+		// silently looking like a valid (zero) count.
+		totalCountCol = `,'-' AS TotalCount`
+	}
+
 	args = []interface{}{}
 	if len(filters) != 0 {
 		query = "WITH RECURSIVE " + filterCTE + "\n"
@@ -1463,7 +1531,7 @@ func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*Filte
 	args = append(args, reg.DbSID)
 	query += `
 SELECT
-  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.XID,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp,` + maskCol + `
+  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.XID,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp,` + maskCol + rankCol + totalCountCol + `
   FROM Props AS ft` + filterJoin + sortJoin + `
   WHERE ft.RegSID=?
 `
@@ -1499,8 +1567,36 @@ SELECT
 `
 	}
 
-	query += `  ORDER BY ` + sortOrder +
-		`    ft.LowerXID ASC;`
+	if !paginate {
+		query += `  ORDER BY ` + sortOrder +
+			`    ft.LowerXID ASC;`
+	} else {
+		// Wrap the query above (which already computed TopIdx for
+		// every row) twice more:
+		//   - win1 (inner wrap): adds TotalCount, a whole-partition
+		//     (no ORDER BY, no WHERE yet applied) aggregate of the
+		//     highest TopIdx seen - i.e. the total number of top-level
+		//     entities in the *entire* (filtered, but not paginated)
+		//     result set. This MUST happen in its own layer, before the
+		//     page-range WHERE below is applied, otherwise it would
+		//     only reflect the count within the current page.
+		//   - outermost: restricts to the requested page
+		//     (TopIdx BETWEEN offset+1 AND offset+limit) and re-applies
+		//     the original per-row tiebreak order (now via the plain
+		//     TopIdx/LowerXID columns, since the "ft"/"sj" aliases are
+		//     no longer in scope this far out).
+		innerQuery := query
+		query = `SELECT RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,PropName,PropValue,PropType,IsSystemProp,FilterMask,TotalCount
+  FROM (
+    SELECT win1.*, CAST(MAX(win1.TopIdx) OVER () AS CHAR) AS TotalCount
+    FROM (
+` + innerQuery + `
+    ) AS win1
+  ) AS win2
+  WHERE win2.TopIdx BETWEEN ? AND ?
+  ORDER BY win2.TopIdx ASC, win2.LowerXID ASC;`
+		args = append(args, offset+1, offset+limit)
+	}
 
 	if log.GetLevel() > 3 || log.HasVerbose("genq") {
 		log.Printf("tx: %s Query:\n%s\n\n", reg.tx.uuid, SubQuery(query, args))

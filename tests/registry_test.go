@@ -652,6 +652,8 @@ func TestRegistryRoot(t *testing.T) {
       "filter",
       "ignore",
       "inline",
+      "limit",
+      "offset",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -673,7 +675,7 @@ func TestRegistryRoot(t *testing.T) {
       "modelsource",
       "readonly"
     ],
-    "pagination": false,
+    "pagination": true,
     "shortself": false,
     "specversions": [
       "`+SPECVERSION+`"
