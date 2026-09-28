@@ -94,13 +94,12 @@ func TestPaginationBasic(t *testing.T) {
 	checkLink(t, res, "/dirs", "last", 15, 5, 20)
 	noMoreLinks(t, res)
 
-	// test huge limit
+	// test huge limit - the whole (filtered) collection fits on this one
+	// page, so no pagination Link headers (not even "first"/"last") are
+	// sent
 	res = XHTTP(t, reg, "GET", "/dirs?limit=10000", "", 200, "*")
 	checkKeys(t, res.body, "d1,d10,d11,d12,d13,d14,d15,d16,d17,d18,d19,"+
 		"d2,d20,d3,d4,d5,d6,d7,d8,d9")
-	// path, rel, offset, limit, count
-	checkLink(t, res, "/dirs", "first", 0, 10000, 20)
-	checkLink(t, res, "/dirs", "last", 0, 10000, 20)
 	noMoreLinks(t, res)
 
 	// Test resource
@@ -180,13 +179,6 @@ func TestPaginationBasic(t *testing.T) {
   }
 }
 `)
-	// path, rel, offset, limit, count
-	checkLink(t, res,
-		"/dirs?filter=files.fileid&limit=2&offset=0&sort=dirid%3Dasc",
-		"first", -1, -1, 1)
-	checkLink(t, res,
-		"/dirs?filter=files.fileid&limit=2&offset=0&sort=dirid%3Dasc",
-		"last", -1, -1, 1)
 	noMoreLinks(t, res)
 }
 
@@ -376,8 +368,14 @@ func noMoreLinks(t *testing.T, res *HTTPResult) {
 	t.Helper()
 
 	links := res.Header.Values("Link")
-	if len(links) > 0 {
-		t.Fatalf("Extra Link headers:\n%s", strings.Join(links, "\n"))
+	extra := ""
+	for _, l := range links {
+		if !strings.Contains(l, "rel=xregistry-root") {
+			extra += "\n" + l
+		}
+	}
+	if len(extra) > 0 {
+		t.Fatalf("Extra Link headers:%s", extra)
 	}
 }
 

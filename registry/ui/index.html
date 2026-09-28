@@ -66,7 +66,10 @@
 
     <div id="content">
       <div id="left-panel" style="display:none">
-        <!-- JSON view options/inlines/filters nav panel -->
+        <!-- JSON view options/inlines/filters nav panel — the Grid/List
+             "filters-only" close (X) button is generated dynamically by
+             renderJSONLeftPanel() itself (merged into the top-of-panel
+             Apply row), not a static element here. -->
         <div id="left-panel-inner"></div>
       </div>
       <div id="left-panel-resizer" style="display:none"></div>
