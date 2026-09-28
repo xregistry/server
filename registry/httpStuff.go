@@ -364,7 +364,9 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 }
 
 type HTTPWriter interface {
+	GetInfo() *RequestInfo
 	Write([]byte) (int, error)
+	DelHeader(string)
 	SetHeader(string, string)
 	AddHeader(string, string)
 	GetHeader(string) string
@@ -384,6 +386,10 @@ type DefaultWriter struct {
 	Info *RequestInfo
 }
 
+func (dw *DefaultWriter) GetInfo() *RequestInfo {
+	return dw.Info
+}
+
 func (dw *DefaultWriter) Write(b []byte) (int, error) {
 	if !dw.Info.SentStatus {
 		// Set all response headers before writing status
@@ -393,6 +399,13 @@ func (dw *DefaultWriter) Write(b []byte) (int, error) {
 		methods := dw.Info.GetAllowedMethods()
 		methodsStr := strings.Join(methods, ", ")
 		dw.AddHeader("Access-Control-Allow-Methods", methodsStr)
+
+		// Expose the pagination "Link" header to cross-origin JS callers -
+		// by default a browser only exposes a handful of "safe" response
+		// headers to fetch()/XHR for cross-origin requests, and Link isn't
+		// one of them, so without this a UI running on a different origin
+		// couldn't read Link at all (same-origin requests are unaffected).
+		dw.AddHeader("Access-Control-Expose-Headers", "Link")
 
 		// Reflect whatever headers the browser's preflight asked for
 		// (e.g. Content-Type) so cross-origin PUT/PATCH/POST/DELETE
@@ -410,11 +423,7 @@ func (dw *DefaultWriter) Write(b []byte) (int, error) {
 			dw.AddHeader("Allow", methodsStr)
 		}
 
-		// Link header for xRegistry root - add only if not already present
-		if len(dw.GetHeaderValues("Link")) == 0 {
-			dw.AddHeader("Link",
-				fmt.Sprintf("<%s>;rel=xregistry-root", dw.Info.BaseURL))
-		}
+		AddRegistryRootHeader(dw)
 
 		dw.Info.SentStatus = true
 		if dw.Info.StatusCode == 0 {
@@ -432,6 +441,10 @@ func (dw *DefaultWriter) Write(b []byte) (int, error) {
 }
 
 var stacks = map[string]string{}
+
+func (dw *DefaultWriter) DelHeader(name string) {
+	dw.Info.OriginalResponse.Header().Del(name)
+}
 
 func (dw *DefaultWriter) SetHeader(name, value string) {
 	// Make sure we don't add the same header more than once, that's a sign
@@ -1228,6 +1241,16 @@ func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 		// true total, so emit just that - without a "count" - so the
 		// client has a safe way to restart iteration.
 		addLink("first", 0, false)
+		return
+	}
+
+	// If the very first page already contains the entire (filtered) result
+	// set, there's nothing to actually paginate through - "first"/"last"
+	// would just be redundant links back to this same request, and "prev"/
+	// "next" are already ruled out below regardless. Skip emitting any
+	// Link headers (and their query params) at all in that case, since
+	// none of them would be needed by the client.
+	if offset == 0 && total <= limit {
 		return
 	}
 
@@ -2847,38 +2870,33 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 		info.SetHeader("Content-Type", "application/json; charset=utf-8")
 	}
 
+	AddRegistryRootHeader(info)
+
+	info.Write([]byte(xErr.ToJSON() + "\n"))
+}
+
+func AddRegistryRootHeader(hw HTTPWriter) {
 	// Add or replace Link header with xregistry-root rel
 	// Check if there's already a Link header with rel=xregistry-root
-	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
-	existingLinks := info.GetHeaderValues("Link")
-	hasXRegistryLink := false
-	for i, v := range existingLinks {
+
+	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", hw.GetInfo().BaseURL)
+
+	existingLinks := hw.GetHeaderValues("Link")
+	for _, v := range existingLinks {
 		// Check if this Link header has rel=xregistry-root
 		if strings.Contains(v, "rel=xregistry-root") ||
 			strings.Contains(v, "rel=\"xregistry-root\"") {
-
-			// Replace it with the current value
-			existingLinks[i] = linkValue
-			hasXRegistryLink = true
-			break
+			return
 		}
 	}
-	if hasXRegistryLink {
-		// Clear all Link headers and re-add them with the updated value
-		info.OriginalResponse.Header().Del("Link")
-		for _, v := range existingLinks {
-			info.AddHeader("Link", v)
-		}
-	} else {
-		// No existing xregistry-root link, just add it
-		info.AddHeader("Link", linkValue)
-	}
 
-	for k, v := range xErr.Headers {
-		info.AddHeader(k, v)
-	}
+	existingLinks = append(existingLinks, linkValue)
 
-	info.Write([]byte(xErr.ToJSON() + "\n"))
+	// Clear all Link headers and re-add them with the updated value
+	hw.DelHeader("Link")
+	for _, v := range existingLinks {
+		hw.AddHeader("Link", v)
+	}
 }
 
 func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {

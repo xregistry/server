@@ -271,6 +271,17 @@ var _state = {
   collections: false,
   useExport:   false,   // use /export endpoint instead of registry root (depth 0 only)
 
+  // Pagination — 'limit' is the ONLY pagination-related value the client
+  // ever tracks/edits/sends. '' (unset) means "All" (no limit= sent, same
+  // as pre-pagination-support behavior). It is set on the collection's
+  // initial/restart query (fresh page load, or List view's page-size
+  // dropdown) from optDefaultLimit()/the dropdown's own selection. It is
+  // NEVER derived by parsing an "offset" (or any other) param out of a
+  // real apiURL/Link-header URL — those are followed 100% verbatim; see
+  // "Link-driven navigation" notes near buildAPIURL() and
+  // paginationSupported()/navigateToPage().
+  limit:       '',
+
   // Link-driven navigation (data section only) — see "Link-driven navigation"
   // notes near buildAPIURL()/pushStateReal(). apiURL is the real, server-provided
   // absolute URL (self / <plural>url / versionsurl / metaurl / etc.) used to fetch
@@ -340,6 +351,13 @@ function saveLabelCache() {
 }
 var _modelCache    = {};  // normalizedURL → model JSON
 var _capCache      = {};  // normalizedURL → capabilities JSON
+// normalizedURL → array of callbacks waiting on an in-flight
+// ensureCapCached() fetch for that URL — see ensureCapCached()'s own
+// comment for why this exists (a naive "already in _capCache, so just
+// invoke cb" dedup check can't tell "in flight" apart from "resolved",
+// and would otherwise fire a second caller's callback immediately with
+// the undefined in-flight placeholder instead of the real result).
+var _capPending    = {};
 var _offeredCache  = {};  // normalizedURL → capabilitiesoffered JSON
 // Data-loading warning tracking — see plan.md "Data-loading warning
 // indicators". Populated (and cleared on success) by both
@@ -405,6 +423,33 @@ function optOptimizedBrowsing() { return _opts.optimizedBrowsing !== false; }
 // works in both List and JSON view, since it lives in the breadcrumb bar
 // itself rather than a List-view-only side panel.
 function optBreadcrumbDropdowns() { return _opts.breadcrumbDropdowns !== false; }
+
+// "Default page size" — the `limit=` value the client requests when it
+// first starts/restarts browsing a collection (fresh load, or the List
+// view's page-size dropdown reset to first page) on a server that
+// supports pagination (see paginationSupported()). Stored as a string:
+// one of PAGE_SIZE_CHOICES below, or 'all' (no limit= sent at all — the
+// same behavior as before pagination support existed). Purely a client
+// preference: it never forces a server to paginate, and is silently
+// ignored on servers whose capabilities don't advertise the "limit" flag.
+var PAGE_SIZE_CHOICES = ['10', '25', '50', '100', '250', '500'];
+function optDefaultLimit() { return _opts.defaultLimit || '100'; }
+function cfgSetDefaultLimit(v) {
+  _opts.defaultLimit = v;
+  saveOpts();
+}
+
+// Builds the <option> list shared by the Config page's "Default page
+// size" select and the per-collection page-size dropdown (F) —
+// PAGE_SIZE_CHOICES plus a trailing "All" (no limit= sent at all).
+// `selected` is the value ('10'..'500', or 'all') to mark selected.
+function cfgPageSizeOptionsHTML(selected) {
+  var html = PAGE_SIZE_CHOICES.map(function(n) {
+    return '<option value="' + n + '"' + (selected === n ? ' selected' : '') + '>' + n + '</option>';
+  }).join('');
+  html += '<option value="all"' + (selected === 'all' ? ' selected' : '') + '>All</option>';
+  return html;
+}
 
 
 // Per-session override of optXregFocused(), toggled via the kebab menu's
@@ -1373,6 +1418,12 @@ function loadStateFromURL() {
   _state.binary      = jsonOpts.binary;
   _state.collections = jsonOpts.collections;
   _state.useExport   = p.get('export')      === '1';
+  // Pagination — 'limit' only (see _state.limit's own comment). Use the
+  // permalink's own limit= if present (a user's or a previous session's
+  // explicit choice), else fall back to the Config-page default. Never
+  // derived from apiurl= — that URL's own query string (if any) is
+  // reused 100% verbatim by buildAPIURL(), not decomposed here.
+  _state.limit       = p.has('limit') ? p.get('limit') : optDefaultLimit();
   // apiurl= is the real, server-provided absolute URL that produced the current
   // page (see "Link-driven navigation" notes) — reused verbatim on refresh/
   // bookmark instead of reconstructing. crumbURLs (per-depth cache of real
@@ -1476,6 +1527,14 @@ function buildURL(st) {
     p.set('filter', st.filters.join('\n'));
   }
   if (st.sort)                         p.set('sort',   st.sort);
+  // Pagination page-size — only meaningful/shown on collection-shaped
+  // paths, and only when it differs from the configured default (keeps
+  // URLs clean otherwise, same convention as dview=/sort=). This is the
+  // ONLY pagination-related param the app ever writes to its own address
+  // bar — there is no client-tracked "offset" to persist.
+  if (st.limit && isCollection(st.path) && st.limit !== optDefaultLimit()) {
+    p.set('limit', st.limit);
+  }
   // Persist List view's Filters/Sort panel open/closed state too (same
   // reasoning as filter/sort above — otherwise the panel a user left open
   // silently closes on refresh, even though navigating the hierarchy
@@ -2072,8 +2131,43 @@ function buildAPIURL() {
   if (_state.binary)      q.push('binary');
   if (_state.collections && collectionsEligible(_state.path)) q.push('collections');
 
+  // Pagination: 'limit' is the ONLY pagination-related value the client
+  // ever adds/edits — never 'offset' or any other pagination-position
+  // param (see _state.limit's own comment). It's applied on every
+  // "initial/restart" query for a collection page (fresh navigation,
+  // refresh, bookmark, breadcrumb click, the page-size dropdown, etc.) —
+  // EXCEPT when `url` is exactly the URL the user just followed from a
+  // pagination Link header (First/Prev/Next/Last — see navigateToPage()),
+  // which is always used 100% verbatim/opaquely, without even inspecting
+  // whether it already contains a limit= of its own.
+  if (isCollection(_state.path) && paginationSupported()
+      && url !== _lastPaginationLinkURL) {
+    url = stripLimitParam(url);
+    if (_state.limit && _state.limit !== 'all') {
+      q.push('limit=' + encodeURIComponent(_state.limit));
+    }
+  }
+
   if (!q.length) return url;
   return url + (url.indexOf('?') >= 0 ? '&' : '?') + q.join('&');
+}
+
+// Strips only limit=... tokens from a URL's query string — the pagination
+// analog of stripFilterParams() below, and just as deliberately narrow:
+// only the `limit=` token is ever touched here. No `offset=` (or any
+// other pagination-position param) handling is included on purpose — the
+// client never assumes such a param exists, let alone what it's called,
+// so it's never something this app strips or reconstructs. See
+// buildAPIURL()'s pagination block and setPageLimit().
+function stripLimitParam(url) {
+  var qIdx = url.indexOf('?');
+  if (qIdx < 0) return url;
+  var base = url.slice(0, qIdx);
+  var qs   = url.slice(qIdx + 1);
+  var kept = qs.split('&').filter(function(pair) {
+    return pair.split('=')[0] !== 'limit';
+  });
+  return kept.length ? base + '?' + kept.join('&') : base;
 }
 
 // Strips only filter=... tokens from a URL's query string, via a plain
@@ -2362,18 +2456,19 @@ function renderHeader() {
   var moreMenuBtn = el('more-menu-btn');
   if (moreMenuBtn) moreMenuBtn.style.display = isConfig ? 'none' : '';
 
-  // Filters/Sort toggle button — now follows the same pattern as the
-  // pinned editing-indicator: the entry point ("Filter") lives in the
-  // kebab menu (see buildMoreMenuItems()), and this pinned toolbar icon
-  // is shown only while the panel is actually open, as the one-click way
-  // to close it. Only relevant for the plain 'data' section (grid/list/
-  // json all already have their own filter+sort UI otherwise; model/
-  // capabilities/etc support neither filter= nor sort=) and outside JSON
-  // view (which always shows the full left panel already). Available
-  // whenever either filter or sort is supported — Sort's picker lives in
-  // this same panel too (see renderJSONLeftPanel()), so a server that
-  // offers sort but not filter still needs a way to reach it from List
-  // view.
+  // Filters/Sort panel — the entry point ("Filter") lives in the kebab
+  // menu (see buildMoreMenuItems()); closing it is now done via the
+  // #left-panel-close-btn "X" button rendered directly on the panel
+  // itself (more discoverable/natural than a pinned breadcrumb icon —
+  // see below), so the old pinned toolbar icon (`filtersBtn`) is kept
+  // hidden at all times. Only relevant for the plain 'data' section
+  // (grid/list/json all already have their own filter+sort UI otherwise;
+  // model/capabilities/etc support neither filter= nor sort=) and
+  // outside JSON view (which always shows the full left panel already).
+  // Available whenever either filter or sort is supported — Sort's
+  // picker lives in this same panel too (see renderJSONLeftPanel()), so
+  // a server that offers sort but not filter still needs a way to reach
+  // it from List view.
   var filtersBtn = el('filters-toggle-btn');
   if (filtersBtn) {
     var svURL2 = normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN);
@@ -2389,13 +2484,22 @@ function renderHeader() {
     var showFiltersBtn = isData && section === 'data' && effectiveView !== 'json'
       && panelSupported2;
     _filtersMenuAvailable = showFiltersBtn;
-    filtersBtn.style.display = (showFiltersBtn && _filtersPanelOpen) ? '' : 'none';
+    // The pinned breadcrumb icon itself is no longer shown as a way to
+    // close the panel — closing is now done via the "X" button rendered
+    // directly inside the panel by renderJSONLeftPanel() (more
+    // discoverable/natural since it lives right on the panel being
+    // closed, and merges into the same row as the "Apply" button/divider
+    // line, avoiding extra vertical space) — kept hidden here; the kebab
+    // menu's "Filter" entry (see buildMoreMenuItems()) remains the sole
+    // way to *open* it.
+    filtersBtn.style.display = 'none';
     // If we've confirmed (capabilities loaded) that this registry/section
     // genuinely doesn't support filter= or sort=, but the Grid/List
     // filters-only panel was left open from elsewhere (e.g. switching from
     // a registry that does support one of them), force it closed —
     // otherwise it's stuck open with "No options" and no button left to
-    // close it (the button itself is hidden in this case). Only fires on
+    // close it (the close button itself is hidden in this case, same as
+    // the old pinned breadcrumb icon used to be). Only fires on
     // confirmed non-support, not merely because we're currently in JSON
     // view or another section, so the open/closed state still persists
     // normally across those.
@@ -3726,6 +3830,20 @@ function crumb(label, clickExpr) {
 // ---- Refresh (main render loop) ------------------------------------------
 
 var _lastData = null;
+// Pagination — parsed Link-header entries {first,prev,next,last} for the
+// CURRENT collection page (see fetchJSONWithLinks()/parseLinkHeader()),
+// or null when pagination isn't active for this response (no Link header,
+// or not a collection page). Paired with _lastData via the usual
+// `if (_lastData === data)` staleness guard used elsewhere in this file.
+var _lastPageLinks = null;
+// One-shot marker: sourceset to the exact Link-header URL just navigated to via
+// navigateToPage() (First/Prev/Next/Last) — lets buildAPIURL() recognize
+// "this apiURL IS a just-followed pagination link" and use it 100%
+// verbatim, without even checking whether it happens to carry its own
+// limit= (see buildAPIURL()'s pagination block). Any other navigation
+// naturally stops matching (_state.apiURL changes to something else),
+// so this never needs explicit resetting.
+var _lastPaginationLinkURL = null;
 var _metaData = null;          // cached meta response for resource page meta box
 // Which resource's `self` the above _metaData/_metaEditSrc/_metaEditData
 // currently belong to — lets renderSingleEntity()'s redundant re-render
@@ -3962,8 +4080,37 @@ function refresh() {
     return;
   }
 
+  var coll = isCollection(_state.path);
+
+  if (coll) {
+    // buildAPIURL()'s pagination block (paginationSupported()) depends on
+    // this server's /capabilities already being cached — without waiting
+    // for it here, the very first collection visit to a not-yet-probed
+    // server would always skip adding limit= (capability unknown yet
+    // reads as "unsupported"), same class of race renderEntityFromData()
+    // already guards against for _state.mutable. Once cached (immediate
+    // on every later call), fetch with the Link-header-capturing variant
+    // so pagination controls (page-size dropdown, First/Prev/Next/Last)
+    // have something to render — see fetchJSONWithLinks()/
+    // parseLinkHeader().
+    var svBaseD = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
+    ensureCapCached(svBaseD, function() {
+      var collURL = buildAPIURL();
+      fetchJSONWithLinks(collURL)
+        .then(function(result) {
+          _lastPageLinks = result.pageLinks;
+          renderEntityFromData(result.data, coll);
+        })
+        .catch(function(err) {
+          _lastPageLinks = null;
+          main.innerHTML = '<div class="error-banner">Error loading:\n'
+            + esc(collURL) + '\n\n' + esc(String(err)) + '</div>';
+        });
+    });
+    return;
+  }
+
   var apiURL = buildAPIURL();
-  var coll   = isCollection(_state.path);
 
   // For resource/version entities we try $details first so that document-backed
   // resources return their JSON metadata rather than their document body.
@@ -5355,6 +5502,24 @@ function renderConfig() {
     +   '<span class="cfg-option-desc">Adds a \u25be caret to each'
     +   ' breadcrumb segment for jumping directly to a sibling at that'
     +   ' level</span>'
+    + '</div>'
+
+    + '<div class="cfg-option-row cfg-option-group"'
+    +   ' title="Sets the page size (\u2018limit\u2019) requested when a'
+    +   ' collection List view page is first opened, on servers whose'
+    +   ' capabilities advertise pagination support. Can be overridden for'
+    +   ' any individual collection page via its own page-size dropdown;'
+    +   ' silently ignored on servers that don\u2019t support pagination.">'
+    +   '<span class="cfg-option-label">Default page size</span>'
+    +   '<label class="cfg-radio-row">'
+    +     '<select id="cfg-default-limit" onchange="cfgSetDefaultLimit(this.value)">'
+    +       cfgPageSizeOptionsHTML(optDefaultLimit())
+    +     + '</select>'
+    +   '</label>'
+    +   '<span class="cfg-option-desc">Starting page size for collection'
+    +   ' List views on servers that support pagination \u2014 \u201cAll\u201d'
+    +   ' fetches the whole collection at once, same as before pagination'
+    +   ' support existed</span>'
     + '</div>'
 
     + '</div>'
@@ -6791,10 +6956,12 @@ function renderTableView(data) {
   if (_collSelectedKey !== collKeyNow) { _collSelectedIds = {}; _collSelectedKey = collKeyNow; }
 
   if (items.length === 0) {
-    main.innerHTML = '<div id="table-container">'
+    main.innerHTML = '<div id="table-container" class="eg-coll-list-view">'
+      + '<div class="eg-page-title">' + pageSizeDropdownHtml() + '</div>'
       + (canAddDelete ? buildAddEntityToolbarHtml(model) : '')
       + (canAddDelete && _addNewOpen ? buildAddEntityFormHtml(model, _state.path) : '')
-      + '<div class="state-msg">No items found</div></div>';
+      + '<div class="state-msg">No items found</div>'
+      + '</div>';
     return;
   }
 
@@ -6826,7 +6993,7 @@ function renderTableView(data) {
 
   var idColLabel = capitalize(getSingularName(model, _state.path.concat(['__x__'])));
   var showVersionId = (depth === 3); // resource collection: show its default version id
-  var html = '<div id="table-container">';
+  var html = '<div id="table-container" class="eg-coll-list-view">';
 
   // Page title — collection pages have no single-entity name to show (Grid
   // view's tile layout doesn't show one either), but for visual consistency
@@ -6860,8 +7027,8 @@ function renderTableView(data) {
   var titleIconUrl = '';
   if (depth === 1) titleIconUrl = modelGroupIcon(model, _state.path[0]);
   else if (depth === 3 || depth === 5) titleIconUrl = modelResourceIcon(model, _state.path[0], _state.path[2]);
-  html += '<div class="eg-page-title">' + iconThumbHtml(titleIconUrl, 'eg-page-title-icon') + titleIdPrefix + '<span class="eg-page-title-type">' + esc(pluralLabel) + '</span></div>';
-  html += serverURLLineHtml();
+  html += '<div class="eg-page-title">' + iconThumbHtml(titleIconUrl, 'eg-page-title-icon') + titleIdPrefix + '<span class="eg-page-title-type">' + esc(pluralLabel) + '</span>' + pageSizeDropdownHtml() + '</div>';
+  html += serverURLLineWithPaginationHtml(items.length);
 
   if (canAddDelete) html += buildAddEntityToolbarHtml(model);
   if (canAddDelete && _addNewOpen) html += buildAddEntityFormHtml(model, _state.path);
@@ -6970,6 +7137,188 @@ function renderTableView(data) {
   html += '</div>';
   main.innerHTML = html;
   if (canAddDelete && !hidingTableForAdd) collUpdateSelection();
+}
+
+// Note: earlier rounds also had a syncPaginationRowWidth() JS helper here
+// that measured .xr-table's rendered width and copied it (as an inline
+// px style) onto .eg-page-title/.eg-server-url-line-pag, to keep the
+// page-size dropdown and "Server: ... Total: N « ‹ › »" row's right
+// edges aligned with the table's. That's no longer needed now that
+// .xr-table itself is CSS `width: 100%` in the collection List view (see
+// "#table-container.eg-coll-list-view .xr-table" in style.css) — all
+// three are plain full-width block-level children of the same
+// #table-container parent, so they always match live via normal CSS
+// layout. The JS version was actually a bug: it snapshotted a fixed
+// pixel width at render time, which went stale (too wide) whenever the
+// available width changed afterward without a full table re-render —
+// e.g. toggling the left filter nav bar open/closed — making the
+// pagination controls stick out past the visible area until the next
+// full refresh. Removed in favor of the simpler, always-correct CSS-only
+// approach (see plan.md "UI Pagination Support" round 12).
+
+// ---- Pagination (List view only — see plan.md) ---------------------------
+//
+// 'limit' is the ONLY pagination-related value the client ever edits or
+// sends, and only on an "initial/restart" query (fresh page load, or the
+// page-size dropdown below) — see buildAPIURL()'s pagination block and
+// _state.limit's own comment. First/Prev/Next/Last simply navigate to
+// whatever URL the server's own Link header handed us, used completely
+// verbatim/opaquely — no client-side parsing/construction of "offset" or
+// any other pagination-position param, since that's a server
+// implementation detail, not a spec guarantee.
+
+// Page-size <select>, rendered inline at the right end of the collection
+// page's title row (.eg-page-title is already a flex row — see
+// .eg-page-size-title-slot's margin-left:auto — right below the
+// breadcrumb toolbar, on the same line as the title, per user request).
+// Returns '' entirely when the active server's capabilities don't
+// advertise pagination support (see paginationSupported()).
+function pageSizeDropdownHtml() {
+  if (!paginationSupported()) return '';
+  var current = _state.limit || 'all';
+  return '<label class="eg-page-size-label eg-page-size-title-slot">Page size: '
+    +   '<select class="eg-page-size-select" onchange="setPageLimit(this.value)">'
+    +     cfgPageSizeOptionsHTML(current)
+    +   '</select>'
+    + '</label>';
+}
+
+// Combined "Server: <url>" line + pagination count/buttons, on a single
+// row (collection List view only — see plan.md "UI Pagination Support",
+// round 4: pagination controls now share the Server: line rather than
+// occupying their own row). The server URL sits on the left (same text/
+// title-tooltip as the plain serverURLLineHtml() used on other pages);
+// the pagination bar (see paginationBarHtml()), when active, is pushed to
+// the far right via flexbox. Falls back to the plain server-URL line with
+// no pagination bar at all when pagination wasn't active for the
+// just-fetched response.
+function serverURLLineWithPaginationHtml(itemCount) {
+  var url = _state.serverURL || DEFAULT_SERVER_ORIGIN;
+  var bar = paginationBarHtml(itemCount);
+  return '<div class="eg-server-url-line eg-server-url-line-pag">'
+    + '<span title="' + esc(url) + '">Server: ' + esc(url) + '</span>'
+    + (bar ? bar : '')
+    + '</div>';
+}
+
+// First/Prev/Next/Last icon buttons + a "Total: N" indicator — just the
+// total item count across the entire (filtered) collection. This is
+// deliberately NOT a "X shown of Y total" figure: since every page except
+// possibly the last one always shows exactly the requested limit, "X
+// shown" is almost always just restating the page-size dropdown's own
+// value back, and the total is the only number that actually varies/
+// matters here. Falls back to the current page's own item count only on
+// the rare response that carries no "count" at all (see
+// AddPaginationLinkHeaders()'s "gotTotal" special case).
+// Returns '' when pagination wasn't active for the just-fetched response
+// (_lastPageLinks null — e.g. the server didn't get sent limit= at all,
+// so it returned everything and there's nothing to paginate through).
+// Each button pair — (first, last) and (prev, next) — is shown/hidden as
+// a unit: if either rel in a pair is present in the Link header, BOTH
+// buttons in that pair are rendered, with whichever rel is actually
+// absent shown disabled (grayed out) rather than omitted. E.g. page 1
+// (only "first"/"next" returned) now shows all four buttons, with
+// Prev disabled; the last page (only "first"/"prev" returned) shows
+// Next disabled. This is purely a display/consistency choice (so the
+// button layout never visually shifts between pages) — Prev/Next only
+// ever navigates when the server actually returned that rel; a missing
+// rel keeps the disabled attribute. A response with pagination inactive
+// entirely (both rels of a pair absent) still omits the whole pair, same
+// as before. Buttons use inline SVG chevron icons (rather than text/
+// ASCII glyphs) purely for visual polish — same "currentColor" pattern
+// used elsewhere in this app (see _copyIconSVG).
+var _pageFirstIconSVG = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" stroke="currentColor" stroke-width="0.6" aria-hidden="true">'
+  + '<path d="M8.354 1.646a.5.5 0 0 1 0 .708L2.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>'
+  + '<path d="M15.354 1.646a.5.5 0 0 1 0 .708L9.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>'
+  + '</svg>';
+var _pagePrevIconSVG = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" stroke="currentColor" stroke-width="0.6" aria-hidden="true">'
+  + '<path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>'
+  + '</svg>';
+var _pageNextIconSVG = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" stroke="currentColor" stroke-width="0.6" aria-hidden="true">'
+  + '<path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>'
+  + '</svg>';
+var _pageLastIconSVG = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" stroke="currentColor" stroke-width="0.6" aria-hidden="true">'
+  + '<path d="M.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L6.293 8 .646 2.354a.5.5 0 0 1 0-.708z"/>'
+  + '<path d="M7.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L13.293 8 7.646 2.354a.5.5 0 0 1 0-.708z"/>'
+  + '</svg>';
+
+function paginationBarHtml(itemCount) {
+  if (!_lastPageLinks) return '';
+  var total = null;
+  ['first', 'last', 'next', 'prev'].some(function(rel) {
+    if (_lastPageLinks[rel] && _lastPageLinks[rel].count !== undefined) {
+      total = _lastPageLinks[rel].count;
+      return true;
+    }
+    return false;
+  });
+  var countText = 'Total: ' + (total !== null ? total : itemCount);
+
+  function btn(rel, pairShown, icon, title) {
+    if (!pairShown) return '';
+    var has = !!_lastPageLinks[rel];
+    return '<button class="cfg-btn eg-page-nav-btn" title="' + esc(title) + '"'
+      + (has ? ' onclick="navigateToPage(\'' + rel + '\')"' : ' disabled')
+      + '>' + icon + '</button>';
+  }
+
+  var showFirstLast = !!(_lastPageLinks.first || _lastPageLinks.last);
+  var showPrevNext  = !!(_lastPageLinks.prev  || _lastPageLinks.next);
+
+  return '<span class="eg-pagination-bar">'
+    + '<span class="eg-pagination-count">' + esc(countText) + '</span>'
+    + '<span class="eg-pagination-buttons">'
+    +   btn('first', showFirstLast, _pageFirstIconSVG, 'First')
+    +   btn('prev',  showPrevNext,  _pagePrevIconSVG,  'Prev')
+    +   btn('next',  showPrevNext,  _pageNextIconSVG,  'Next')
+    +   btn('last',  showFirstLast, _pageLastIconSVG,  'Last')
+    + '</span>'
+    + '</span>';
+}
+
+// Page-size dropdown's onchange handler. Per user direction: changing the
+// page size always restarts browsing this collection from the beginning —
+// never tries to preserve/recompute a client notion of "current position".
+//
+// Deliberately does NOT reuse any previous response's Link header URL (even
+// "first") as a starting point: those URLs may carry the server's own
+// pagination-position param(s) (e.g. "offset=0") alongside limit=, and
+// since that param's name/shape is a private server implementation detail
+// this app never parses or assumes, stripLimitParam() can only remove the
+// `limit=` token — any such leftover pagination-position param would stay
+// behind, and some servers reject it without a paired limit= (e.g.
+// "offset" can't be used without "limit"). So instead this always builds a
+// brand-new, known-clean URL straight from the collection's own base path
+// plus only the query params this app itself explicitly owns and tracks
+// (filter/sort) — guaranteeing no stray pagination-position leftovers ever
+// ride along, regardless of what the server's own link URLs happened to
+// contain.
+function setPageLimit(value) {
+  _state.limit = value;
+  var base = buildAPIURLForPath(_state.path);
+  var q = [];
+  _state.filters.forEach(function(f) { q.push('filter=' + encodeURIComponent(f)); });
+  if (_state.sort) q.push('sort=' + encodeURIComponent(_state.sort));
+  if (value && value !== 'all') q.push('limit=' + encodeURIComponent(value));
+  var newURL = q.length ? base + '?' + q.join('&') : base;
+  _state.apiURL = newURL;
+  history.replaceState(null, '', buildURL(_state));
+  refresh();
+}
+
+// First/Prev/Next/Last button click — pure Link-driven navigation: the
+// server-provided URL from the just-parsed Link header is used 100%
+// verbatim as the new apiURL, exactly like every other real-link
+// navigation call site in this app (navigateTo(), navigateToNestedColl(),
+// etc.). _lastPaginationLinkURL is set alongside it so buildAPIURL()
+// recognizes this exact URL as "just followed from a Link header" and
+// never touches it (see buildAPIURL()'s pagination block) — not even to
+// check whether it happens to carry its own limit=.
+function navigateToPage(rel) {
+  var entry = _lastPageLinks && _lastPageLinks[rel];
+  if (!entry) return;
+  _lastPaginationLinkURL = entry.url;
+  pushState({apiURL: entry.url});
 }
 
 function sortBy(col) {
@@ -7660,7 +8009,18 @@ function ensureModelCached(baseURL, cb) {
 function ensureCapCached(baseURL, cb) {
   var key = normalizeURL(baseURL);
   if (_capCache.hasOwnProperty(key)) { if (cb) cb(_capCache[key]); return; }
-  _capCache[key] = undefined; // mark in-flight
+  // A fetch for this URL is already in flight (started by an earlier,
+  // still-unresolved ensureCapCached() call — e.g. renderHeader()'s
+  // filters-button probe and refresh()'s own collection-fetch gate can
+  // both fire for the same server before either resolves) — queue this
+  // caller's callback instead of invoking it early with the in-flight
+  // placeholder; every queued callback gets the real result once the one
+  // fetch actually resolves.
+  if (_capPending.hasOwnProperty(key)) {
+    if (cb) _capPending[key].push(cb);
+    return;
+  }
+  _capPending[key] = cb ? [cb] : [];
   fetch(serverFetchBase(baseURL) + '/capabilities')
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -7670,13 +8030,32 @@ function ensureCapCached(baseURL, cb) {
       _capCache[key] = c;
       var shapeErr = validateCapDoc(c);
       if (shapeErr) { _capLoadError[key] = shapeErr; } else { delete _capLoadError[key]; }
-      if (cb) cb(c);
+      var cbs = _capPending[key]; delete _capPending[key];
+      cbs.forEach(function(fn) { fn(c); });
     })
     .catch(function(err) {
       _capCache[key] = null;
       _capLoadError[key] = (err && err.message) ? err.message : String(err);
-      if (cb) cb(null);
+      var cbs = _capPending[key]; delete _capPending[key];
+      cbs.forEach(function(fn) { fn(null); });
     });
+}
+
+// Whether the CURRENTLY ACTIVE server (svURL, defaults to _state.serverURL)
+// advertises pagination support — checked fresh per-server against its own
+// cached /capabilities response, exactly like filterSupported2/
+// sortSupported2 in renderHeader(). The server only ever adds "limit" (and
+// "offset") to Capabilities.Flags when its pagination capability is turned
+// on (see common/capabilities.go Clean()), so checking for "limit" alone is
+// sufficient — this never assumes/relies on "offset" or any other
+// pagination-position mechanism. Returns false (no pagination UI, no
+// limit= ever sent) until the capabilities doc has actually loaded — same
+// fail-safe default as the existing filter/sort gating.
+function paginationSupported(svURL) {
+  var key = normalizeURL(svURL || _state.serverURL || DEFAULT_SERVER_ORIGIN);
+  var cap = _capCache[key];
+  var flags = (cap && cap.flags) || [];
+  return flags.indexOf('limit') !== -1;
 }
 
 // Returns the list of human-readable data-loading warning strings for a
@@ -13981,6 +14360,24 @@ function renderJSONLeftPanel(filtersOnly) {
   if (!inner) return;
   var html = '';
 
+  // Grid/List's filtersOnly panel needs a way to close itself (there's no
+  // pinned breadcrumb icon for this anymore — see renderHeader()'s
+  // filters-toggle-btn handling). Merged into the top-of-panel row below
+  // (either the leading Filters divider-with-Apply combo, or its own
+  // line-less row when Filters isn't shown/supported) rather than a
+  // separate static element, so it always sits right at the top with no
+  // extra vertical gap. `usedTopCloseRow` tracks whether it's already
+  // been placed by the time we reach the very end of the function, so the
+  // fallback row below only appears when nothing else has claimed it.
+  var closeBtnHtml = filtersOnly
+    ? '<button id="left-panel-close-btn" class="icon-btn" onclick="toggleFiltersPanel()" title="Close Filters / Sort">'
+      + '<svg width="12" height="12" viewBox="0 0 16 16">'
+      + '<line x1="2" y1="2" x2="14" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      + '<line x1="14" y1="2" x2="2" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      + '</svg></button>'
+    : '';
+  var usedTopCloseRow = false;
+
   var svBase2  = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '');
   var normUrl2 = normalizeURL(svBase2);
   var model2   = _modelCache[normUrl2] || null;
@@ -14087,11 +14484,14 @@ function renderJSONLeftPanel(filtersOnly) {
     if (hasF('filter')) {
       hasOpts = true;
       ensureFbDraft();
+      if (filtersOnly) usedTopCloseRow = true;
       html += '<div class="lp-divider-apply">'
         + '<span class="lp-divider-line"></span>'
         + '<button class="lp-apply lp-apply-top" onclick="' + applyFn + '()">'
         + 'Apply</button>'
-        + '<span class="lp-divider-line"></span></div>'
+        + '<span class="lp-divider-line"></span>'
+        + (closeBtnHtml ? '<span class="lp-close-abs">' + closeBtnHtml + '</span>' : '')
+        + '</div>'
         + '<div class="lp-section" id="lp-filter-section">'
         + fbFiltersTitleHTML(fbFilterCount(_fbDraft.groups), filtersOnly)
         + ((_filtersCollapsed && !filtersOnly) ? '' : '<div class="lp-filter-indent">'
@@ -14186,6 +14586,15 @@ function renderJSONLeftPanel(filtersOnly) {
       + '<button class="lp-apply lp-apply-top" onclick="' + applyFn + '()">'
       + 'Apply</button>'
       + '<span class="lp-divider-line"></span></div>';
+  }
+  // Fallback top-of-panel close row: only needed when filtersOnly and the
+  // leading Filters divider-with-Apply combo above didn't already claim
+  // the close button (e.g. a server that supports 'sort' but not
+  // 'filter', or the "No options" empty state) — guarantees the panel is
+  // always closable from itself even when there's no Apply row to merge
+  // it into.
+  if (filtersOnly && !usedTopCloseRow) {
+    html = '<div class="lp-top-close-only">' + closeBtnHtml + '</div>' + html;
   }
   inner.innerHTML = html;
   updateApplyButtonState();
@@ -18912,6 +19321,66 @@ function fetchJSON(url) {
       }
       return resp.json();
     });
+}
+
+// Like fetchJSON(), but also captures the response's "Link" header,
+// parsed into pagination info via parseLinkHeader() — used only for
+// collection ("Coll") fetches, since that's the only place the
+// pagination Link headers are ever sent (see AddPaginationLinkHeaders()
+// in registry/httpStuff.go). Resolves to {data, pageLinks}; pageLinks is
+// null when the response carried no Link header at all (e.g. pagination
+// not supported/active for this request).
+function fetchJSONWithLinks(url) {
+  return fetch(url, {headers: {'Accept': 'application/json'}})
+    .then(function(resp) {
+      if (!resp.ok) {
+        return resp.text().then(function(t) {
+          throw new Error('HTTP ' + resp.status + ' — ' + t.slice(0, 300));
+        });
+      }
+      var pageLinks = parseLinkHeader(resp.headers.get('Link'));
+      return resp.json().then(function(data) {
+        return {data: data, pageLinks: pageLinks};
+      });
+    });
+}
+
+// Parses an RFC5988-style "Link" header value into
+// {first, prev, next, last} entries, each {url, count} (count omitted
+// when the server didn't include one — see AddPaginationLinkHeaders()'s
+// "gotTotal" special case). Only rel=first/prev/next/last entries are
+// kept (e.g. the unrelated rel=xregistry-root entry every response also
+// carries is ignored). `url` is kept and used only as a fully opaque
+// string — deliberately never decomposed into its own query params
+// (whether it carries limit=/offset=/anything else, or none at all, is
+// a server implementation choice, not something the client should
+// assume — see plan.md). Returns null if headerVal is falsy or has no
+// recognized pagination entries at all.
+function parseLinkHeader(headerVal) {
+  if (!headerVal) return null;
+  var result = null;
+  // A single Link header value can carry multiple comma-separated
+  // entries: "<url1>;rel=first;count=5, <url2>;rel=next;count=5"
+  headerVal.split(/,(?=\s*<)/).forEach(function(entry) {
+    var m = /^\s*<([^>]*)>((?:\s*;\s*[^;,]+)*)/.exec(entry);
+    if (!m) return;
+    var url = m[1];
+    var params = {};
+    (m[2].match(/;\s*[^;,]+/g) || []).forEach(function(p) {
+      var kv = p.replace(/^;\s*/, '').split('=');
+      params[kv[0]] = kv[1];
+    });
+    var rel = params.rel;
+    if (rel !== 'first' && rel !== 'prev' && rel !== 'next' && rel !== 'last') return;
+    if (!result) result = {};
+    var entryOut = {url: url};
+    if (params.count !== undefined) {
+      var n = parseInt(params.count, 10);
+      if (!isNaN(n)) entryOut.count = n;
+    }
+    result[rel] = entryOut;
+  });
+  return result;
 }
 
 // Fetch a resource/version entity.  Try with $details appended first (needed

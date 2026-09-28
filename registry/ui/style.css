@@ -74,6 +74,25 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Collection List view only: the "Server:" line also carries the
+   pagination count/buttons (see serverURLLineWithPaginationHtml()),
+   pushed to the far right on the same row. The URL text itself keeps its
+   own nowrap/ellipsis truncation (via the inner <span>) so a long URL
+   never pushes the pagination bar out of view. */
+.eg-server-url-line-pag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  white-space: normal;
+  overflow: visible;
+}
+.eg-server-url-line-pag > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 /* Editor pages (Model/ModelSource/Capabilities) have no page title — the
    line is placed just below the header's breadcrumb bar instead (as the
    first child of the editor container, before the sub-breadcrumb bar),
@@ -515,6 +534,17 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   font-size: 13px;
 }
 
+/* Close (X) button for the Grid/List "filters-only" panel — rendered by
+   renderJSONLeftPanel(), normally merged directly into the top
+   `.lp-divider-apply` row (line — Apply — line — X; the line shrinks to
+   make room since `.lp-divider-line` is `flex: 1`). `.lp-top-close-only`
+   is only used as a fallback (no Filters section to merge into, e.g. a
+   server offering 'sort' but not 'filter', or the empty "No options"
+   state) so the panel is always closable even then. */
+#left-panel-close-btn.icon-btn { padding: 2px 4px; color: #555; }
+#left-panel-close-btn.icon-btn:hover { background: #d0d0d0; color: #222; }
+.lp-top-close-only { display: flex; justify-content: flex-end; margin: 0 0 6px 0; }
+
 #main-view {
   flex: 1;
   /* Flex items default to min-width: auto, which lets #main-view grow to
@@ -652,8 +682,51 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .xr-table th:hover { background: #d4d4d4; }
 .xr-table th.cell-version-hdr { white-space: normal; width: 1%; }
 
+/* Pagination (List view only — see plan.md "UI Pagination Support") */
+.eg-page-size-label { font-size: 12px; font-weight: normal; color: #000; display: flex; align-items: center; gap: 6px; }
+.eg-page-size-title-slot { margin-left: auto; }
+.eg-page-size-select {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid #aaa;
+  background: #fff;
+  color: #333;
+}
+.eg-pagination-bar { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.eg-pagination-count { font-size: 12px; color: #000; }
+.eg-pagination-buttons { display: flex; gap: 6px; }
+.eg-page-nav-btn.eg-page-nav-btn { display: inline-flex; align-items: center; justify-content: center; height: 21px; width: auto; padding: 3px 3px; color: #000; }
+.eg-page-nav-btn svg { display: block; }
+
 .reg-endpoint-pills-title { font-size: 12px; font-weight: bold; color: #222; text-transform: uppercase; letter-spacing: 0.04em; }
 #table-container .eg-page-title { border-bottom: none; padding-bottom: 0; margin-bottom: 16px; }
+/* Collection List view only (#table-container.eg-coll-list-view — see
+   renderTableView()): stretch the table to the full page width instead
+   of shrinking to its own column content, so it lines up with the
+   title/pagination rows above it with no leftover gap on the right.
+   #table-container is also reused (without the eg-coll-list-view class)
+   by renderSingleEntity() for its "Group Types"/"Registry Details"/
+   property (.xr-table-props) summary tables — the eg-coll-list-view
+   scoping keeps this rule from touching those, so they keep their
+   original shrink-to-content sizing. */
+#table-container.eg-coll-list-view .xr-table { width: 100%; }
+/* #table-container.eg-coll-list-view itself must switch from plain
+   block (width = 100% of #main-view's visible clientWidth, full stop)
+   to shrink-to-fit ("inline-block") so that when the table's own
+   min-content forces it wider than the visible viewport (long
+   unwrapped cell text, a narrowed #main-view from the filter/sibling
+   side panel, etc.), the CONTAINER's own width grows to match — and the
+   title/pagination rows above it, both plain `width: 100%` children of
+   this same container, then correctly track that same (possibly
+   overflowing) width instead of clamping to the pre-overflow viewport
+   width while the table alone extends further right requiring a
+   horizontal scrollbar (see plan.md "UI Pagination Support" round 13 —
+   this was the actual root cause of the pagination bar looking "fixed
+   in place" while the table scrolled past it). min-width: 100% still
+   guarantees the round-11 "always at least full width" behavior when
+   the table is narrower than the viewport. */
+#table-container.eg-coll-list-view { display: inline-block; min-width: 100%; }
 .reg-endpoint-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
 .reg-endpoint-pill {
   display: inline-flex; align-items: center; gap: 5px;
@@ -1103,8 +1176,16 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .lp-apply:disabled:hover { background: #ccc; color: #888; border-color: #bbb; }
 .lp-divider-apply {
   display: flex; align-items: center; gap: 8px; margin: 6px 0;
+  position: relative;
 }
 .lp-divider-line { flex: 1; border-top: 1px solid #ddd; }
+/* Close (X) button overlaid on the leading divider-apply row (see
+   renderJSONLeftPanel()) — kept out of flex flow (position: absolute) so
+   the two `.lp-divider-line`s stay equal width and "Apply" stays
+   centered exactly like the plain (no-X) divider-apply row further down
+   the panel; its own opaque `.icon-btn` background simply covers/hides
+   the line segment underneath it at the row's right edge. */
+.lp-close-abs { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
 .lp-apply-top {
   width: auto; margin-top: 0; padding: 2px 10px; font-size: 11px;
   border-radius: 10px;

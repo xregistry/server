@@ -218,8 +218,16 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 	return false
 }
 
+func (ri *RequestInfo) GetInfo() *RequestInfo {
+	return ri
+}
+
 func (ri *RequestInfo) Write(b []byte) (int, error) {
 	return ri.HTTPWriter.Write(b)
+}
+
+func (ri *RequestInfo) DelHeader(name string) {
+	ri.HTTPWriter.DelHeader(name)
 }
 
 func (ri *RequestInfo) SetHeader(name, value string) {
@@ -236,6 +244,9 @@ func (ri *RequestInfo) GetHeader(name string) string {
 
 func (ri *RequestInfo) GetHeaderValues(name string) []string {
 	return ri.HTTPWriter.GetHeaderValues(name)
+}
+
+func (ri *RequestInfo) Done() {
 }
 
 type FilterExpr struct {
