@@ -80,7 +80,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// If we haven't written anything, this will force the HTTP status code
 		// to be written and not default to 200
 		if info != nil {
-			info.HTTPWriter.Done()
+			info.Done()
 		}
 	}()
 
@@ -223,7 +223,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // serveOneAttempt runs one full "new Tx -> parse -> dispatch by method ->
 // commit/rollback" pass for a single attempt of ServeHTTP's retry loop.
 // info/txPtr are pointers into ServeHTTP's own locals so its outer defers
-// (HTTPWriter.Done()/tx.Rollback()/the generic panic recover()) keep
+// (info.Done()/tx.Rollback()/the generic panic recover()) keep
 // working exactly as before, whichever attempt ends up being the last one.
 // Returns true only when this attempt hit a retryable DB conflict (see
 // isRetryableDBErr()) before any response bytes were sent AND lastAttempt
@@ -361,118 +361,6 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 	}
 
 	return false
-}
-
-type HTTPWriter interface {
-	GetInfo() *RequestInfo
-	Write([]byte) (int, error)
-	DelHeader(string)
-	SetHeader(string, string)
-	AddHeader(string, string)
-	GetHeader(string) string
-	GetHeaderValues(string) []string
-	Done()
-}
-
-var _ HTTPWriter = &DefaultWriter{}
-
-func DefaultHTTPWriter(info *RequestInfo) HTTPWriter {
-	return &DefaultWriter{
-		Info: info,
-	}
-}
-
-type DefaultWriter struct {
-	Info *RequestInfo
-}
-
-func (dw *DefaultWriter) GetInfo() *RequestInfo {
-	return dw.Info
-}
-
-func (dw *DefaultWriter) Write(b []byte) (int, error) {
-	if !dw.Info.SentStatus {
-		// Set all response headers before writing status
-
-		// CORS headers
-		dw.AddHeader("Access-Control-Allow-Origin", "*")
-		methods := dw.Info.GetAllowedMethods()
-		methodsStr := strings.Join(methods, ", ")
-		dw.AddHeader("Access-Control-Allow-Methods", methodsStr)
-
-		// Expose the pagination "Link" header to cross-origin JS callers -
-		// by default a browser only exposes a handful of "safe" response
-		// headers to fetch()/XHR for cross-origin requests, and Link isn't
-		// one of them, so without this a UI running on a different origin
-		// couldn't read Link at all (same-origin requests are unaffected).
-		dw.AddHeader("Access-Control-Expose-Headers", "Link")
-
-		// Reflect whatever headers the browser's preflight asked for
-		// (e.g. Content-Type) so cross-origin PUT/PATCH/POST/DELETE
-		// requests with a JSON body aren't blocked by CORS.
-		reqHeaders := dw.Info.OriginalRequest.Header.Get(
-			"Access-Control-Request-Headers")
-		if reqHeaders != "" {
-			dw.AddHeader("Access-Control-Allow-Headers", reqHeaders)
-		} else {
-			dw.AddHeader("Access-Control-Allow-Headers", "Content-Type")
-		}
-
-		// For OPTIONS requests, also set the Allow header
-		if dw.Info.OriginalRequest.Method == "OPTIONS" {
-			dw.AddHeader("Allow", methodsStr)
-		}
-
-		AddRegistryRootHeader(dw)
-
-		dw.Info.SentStatus = true
-		if dw.Info.StatusCode == 0 {
-			dw.Info.StatusCode = http.StatusOK
-		}
-
-		// If the user never set one, don't let golang add one
-		if dw.Info.GetHeader("Content-Type") == "" {
-			dw.Info.OriginalResponse.Header()["Content-Type"] = nil
-		}
-
-		dw.Info.OriginalResponse.WriteHeader(dw.Info.StatusCode)
-	}
-	return dw.Info.OriginalResponse.Write(b)
-}
-
-var stacks = map[string]string{}
-
-func (dw *DefaultWriter) DelHeader(name string) {
-	dw.Info.OriginalResponse.Header().Del(name)
-}
-
-func (dw *DefaultWriter) SetHeader(name, value string) {
-	// Make sure we don't add the same header more than once, that's a sign
-	// we're doing something weong.
-	// At some point we may need to add a new func (AddHeader) to append a
-	// value to the end of the current one (if there)
-	PanicIf(dw.Info.OriginalResponse.Header().Get(name) != "",
-		"%s\nPrev:\n%s\n---", name, stacks[name])
-	// Uncomment when we need to debug the PanicIf
-	// stacks[name] = GetStackAsString()
-
-	dw.Info.OriginalResponse.Header()[name] = []string{value}
-}
-
-func (dw *DefaultWriter) AddHeader(name string, value string) {
-	dw.Info.OriginalResponse.Header().Add(name, value)
-}
-
-func (dw *DefaultWriter) GetHeader(name string) string {
-	return dw.Info.OriginalResponse.Header().Get(name)
-}
-
-func (dw *DefaultWriter) GetHeaderValues(name string) []string {
-	return dw.Info.OriginalResponse.Header()[name]
-}
-
-func (dw *DefaultWriter) Done() {
-	dw.Write(nil)
 }
 
 func HTTPGETCapabilities(info *RequestInfo) *XRError {
@@ -890,7 +778,7 @@ FROM Props WHERE RegSID=? AND `
 func HTTPOptions(info *RequestInfo) *XRError {
 	defer log.Trace("tx: %s %s", info.tx.uuid, info.OriginalPath)()
 
-	// Headers will be set automatically by DefaultWriter.Write()
+	// Headers will be set automatically by info.Write()
 	info.StatusCode = 200
 
 	return nil
@@ -2875,13 +2763,13 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	info.Write([]byte(xErr.ToJSON() + "\n"))
 }
 
-func AddRegistryRootHeader(hw HTTPWriter) {
+func AddRegistryRootHeader(info *RequestInfo) {
 	// Add or replace Link header with xregistry-root rel
 	// Check if there's already a Link header with rel=xregistry-root
 
-	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", hw.GetInfo().BaseURL)
+	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
 
-	existingLinks := hw.GetHeaderValues("Link")
+	existingLinks := info.GetHeaderValues("Link")
 	for _, v := range existingLinks {
 		// Check if this Link header has rel=xregistry-root
 		if strings.Contains(v, "rel=xregistry-root") ||
@@ -2893,9 +2781,9 @@ func AddRegistryRootHeader(hw HTTPWriter) {
 	existingLinks = append(existingLinks, linkValue)
 
 	// Clear all Link headers and re-add them with the updated value
-	hw.DelHeader("Link")
+	info.DelHeader("Link")
 	for _, v := range existingLinks {
-		hw.AddHeader("Link", v)
+		info.AddHeader("Link", v)
 	}
 }
 
