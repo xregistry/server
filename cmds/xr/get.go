@@ -153,7 +153,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 			xid, err := ParseXid(xidStr)
 			Error(err)
 
-			obj.Delete("xid")
+			// obj.Delete("xid")
 			obj.Delete("self")
 			obj.Delete("epoch")
 			model, xErr := reg.GetModel()
@@ -162,7 +162,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 			switch xid.Type {
 			case ENTITY_REGISTRY:
 				obj.Delete("specversion")
-				obj.Delete("registryid")
+				// obj.Delete("registryid")
 
 				for _, gm := range model.Groups {
 					obj.Delete(gm.Plural + "url")
@@ -215,7 +215,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 				// collection at all in this response
 				if rm.GetMaxVersions() == 1 || IsNil(obj.Get("versions")) {
 					obj.Delete(rm.Singular + "id")
-					obj.Delete("versionid")
+					// obj.Delete("versionid")
 					obj.Delete("isdefault")
 					if rm.GetMaxVersions() == 1 {
 						obj.Delete("versionscount")

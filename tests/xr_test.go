@@ -4298,9 +4298,11 @@ and some text
 `)
 
 	XCLI(t, "get / --min", "", `{
+  "registryid": "TestXRDownloadGet",
+  "xid": "/",
   "name": "mereg",
-  "createdat": "2026-09-10T19:28:34.901392141Z",
-  "modifiedat": "2026-09-10T19:28:35.909591941Z",
+  "createdat": "2026-09-29T19:46:59.988346045Z",
+  "modifiedat": "2026-09-29T19:47:00.584252698Z",
 
   "dirscount": 2
 }
@@ -4308,17 +4310,19 @@ and some text
 
 	XCLI(t, "get /dirs --min", "", `{
   "d1": {
-    "createdat": "2026-09-29T16:32:30.805774863Z",
-    "modifiedat": "2026-09-29T16:32:31.159812773Z",
+    "xid": "/dirs/d1",
+    "createdat": "2026-09-29T19:47:49.998529431Z",
+    "modifiedat": "2026-09-29T19:47:50.358900036Z",
 
     "datascount": 2,
     "filescount": 3,
     "onescount": 1
   },
   "d2": {
+    "xid": "/dirs/d2",
     "name": "med2",
-    "createdat": "2026-09-29T16:32:31.216016567Z",
-    "modifiedat": "2026-09-29T16:32:31.216016567Z",
+    "createdat": "2026-09-29T19:47:50.418314392Z",
+    "modifiedat": "2026-09-29T19:47:50.418314392Z",
 
     "datascount": 0,
     "filescount": 0,
@@ -4328,49 +4332,57 @@ and some text
 `, "", 0)
 
 	XCLI(t, "get / --inline= --min", "", `{
+  "registryid": "TestXRDownloadGet",
+  "xid": "/",
   "name": "mereg",
-  "createdat": "2026-09-10T19:37:34.675572315Z",
-  "modifiedat": "2026-09-10T19:37:35.673948074Z",
+  "createdat": "2026-09-29T19:48:22.116704747Z",
+  "modifiedat": "2026-09-29T19:48:22.700134214Z",
 
   "dirs": {
     "d1": {
-      "createdat": "2026-09-10T19:37:34.886032671Z",
-      "modifiedat": "2026-09-10T19:37:35.504709321Z",
+      "xid": "/dirs/d1",
+      "createdat": "2026-09-29T19:48:22.248371057Z",
+      "modifiedat": "2026-09-29T19:48:22.604766622Z",
 
       "datas": {
         "d1": {
           "meta": {
-            "createdat": "2026-09-10T19:37:34.886032671Z",
-            "modifiedat": "2026-09-10T19:37:34.886032671Z",
+            "xid": "/dirs/d1/datas/d1/meta",
+            "createdat": "2026-09-29T19:48:22.248371057Z",
+            "modifiedat": "2026-09-29T19:48:22.248371057Z",
 
             "defaultversionid": "v1"
           },
           "versions": {
             "v1": {
+              "xid": "/dirs/d1/datas/d1/versions/v1",
               "isdefault": true,
-              "createdat": "2026-09-10T19:37:34.886032671Z",
-              "modifiedat": "2026-09-10T19:37:34.886032671Z",
+              "createdat": "2026-09-29T19:48:22.248371057Z",
+              "modifiedat": "2026-09-29T19:48:22.248371057Z",
               "ancestorid": "v1"
             }
           }
         },
         "d2": {
           "meta": {
-            "createdat": "2026-09-10T19:37:34.973888084Z",
-            "modifiedat": "2026-09-10T19:37:35.063207073Z",
+            "xid": "/dirs/d1/datas/d2/meta",
+            "createdat": "2026-09-29T19:48:22.303926502Z",
+            "modifiedat": "2026-09-29T19:48:22.353980008Z",
 
             "defaultversionid": "v2"
           },
           "versions": {
             "v1": {
-              "createdat": "2026-09-10T19:37:34.973888084Z",
-              "modifiedat": "2026-09-10T19:37:34.973888084Z",
+              "xid": "/dirs/d1/datas/d2/versions/v1",
+              "createdat": "2026-09-29T19:48:22.303926502Z",
+              "modifiedat": "2026-09-29T19:48:22.303926502Z",
               "ancestorid": "v1"
             },
             "v2": {
+              "xid": "/dirs/d1/datas/d2/versions/v2",
               "isdefault": true,
-              "createdat": "2026-09-10T19:37:35.063207073Z",
-              "modifiedat": "2026-09-10T19:37:35.063207073Z",
+              "createdat": "2026-09-29T19:48:22.353980008Z",
+              "modifiedat": "2026-09-29T19:48:22.353980008Z",
               "ancestorid": "v1"
             }
           }
@@ -4379,16 +4391,18 @@ and some text
       "files": {
         "f1": {
           "meta": {
-            "createdat": "2026-09-10T19:37:35.140886522Z",
-            "modifiedat": "2026-09-10T19:37:35.140886522Z",
+            "xid": "/dirs/d1/files/f1/meta",
+            "createdat": "2026-09-29T19:48:22.398575841Z",
+            "modifiedat": "2026-09-29T19:48:22.398575841Z",
 
             "defaultversionid": "v1"
           },
           "versions": {
             "v1": {
+              "xid": "/dirs/d1/files/f1/versions/v1",
               "isdefault": true,
-              "createdat": "2026-09-10T19:37:35.140886522Z",
-              "modifiedat": "2026-09-10T19:37:35.140886522Z",
+              "createdat": "2026-09-29T19:48:22.398575841Z",
+              "modifiedat": "2026-09-29T19:48:22.398575841Z",
               "ancestorid": "v1",
 
               "filebase64": "aGk="
@@ -4397,23 +4411,26 @@ and some text
         },
         "f2": {
           "meta": {
-            "createdat": "2026-09-10T19:37:35.228317615Z",
-            "modifiedat": "2026-09-10T19:37:35.322731872Z",
+            "xid": "/dirs/d1/files/f2/meta",
+            "createdat": "2026-09-29T19:48:22.450740332Z",
+            "modifiedat": "2026-09-29T19:48:22.502983824Z",
 
             "defaultversionid": "v2"
           },
           "versions": {
             "v1": {
-              "createdat": "2026-09-10T19:37:35.228317615Z",
-              "modifiedat": "2026-09-10T19:37:35.228317615Z",
+              "xid": "/dirs/d1/files/f2/versions/v1",
+              "createdat": "2026-09-29T19:48:22.450740332Z",
+              "modifiedat": "2026-09-29T19:48:22.450740332Z",
               "ancestorid": "v1",
 
               "filebase64": "aGk="
             },
             "v2": {
+              "xid": "/dirs/d1/files/f2/versions/v2",
               "isdefault": true,
-              "createdat": "2026-09-10T19:37:35.322731872Z",
-              "modifiedat": "2026-09-10T19:37:35.322731872Z",
+              "createdat": "2026-09-29T19:48:22.502983824Z",
+              "modifiedat": "2026-09-29T19:48:22.502983824Z",
               "ancestorid": "v1",
 
               "filebase64": "aGk="
@@ -4422,16 +4439,18 @@ and some text
         },
         "f3.md": {
           "meta": {
-            "createdat": "2026-09-10T19:37:35.405312749Z",
-            "modifiedat": "2026-09-10T19:37:35.405312749Z",
+            "xid": "/dirs/d1/files/f3.md/meta",
+            "createdat": "2026-09-29T19:48:22.550208222Z",
+            "modifiedat": "2026-09-29T19:48:22.550208222Z",
 
             "defaultversionid": "v1"
           },
           "versions": {
             "v1": {
+              "xid": "/dirs/d1/files/f3.md/versions/v1",
               "isdefault": true,
-              "createdat": "2026-09-10T19:37:35.405312749Z",
-              "modifiedat": "2026-09-10T19:37:35.405312749Z",
+              "createdat": "2026-09-29T19:48:22.550208222Z",
+              "modifiedat": "2026-09-29T19:48:22.550208222Z",
               "ancestorid": "v1",
 
               "filebase64": "CiMgQSBoZWFkZXIKCmFuZCBzb21lIHRleHQK"
@@ -4441,12 +4460,15 @@ and some text
       },
       "ones": {
         "o1": {
-          "createdat": "2026-09-10T19:37:35.504709321Z",
-          "modifiedat": "2026-09-10T19:37:35.504709321Z",
+          "versionid": "v1",
+          "xid": "/dirs/d1/ones/o1",
+          "createdat": "2026-09-29T19:48:22.604766622Z",
+          "modifiedat": "2026-09-29T19:48:22.604766622Z",
 
           "meta": {
-            "createdat": "2026-09-10T19:37:35.504709321Z",
-            "modifiedat": "2026-09-10T19:37:35.504709321Z",
+            "xid": "/dirs/d1/ones/o1/meta",
+            "createdat": "2026-09-29T19:48:22.604766622Z",
+            "modifiedat": "2026-09-29T19:48:22.604766622Z",
 
             "defaultversionid": "v1"
           }
@@ -4454,9 +4476,10 @@ and some text
       }
     },
     "d2": {
+      "xid": "/dirs/d2",
       "name": "med2",
-      "createdat": "2026-09-10T19:37:35.608012308Z",
-      "modifiedat": "2026-09-10T19:37:35.608012308Z"
+      "createdat": "2026-09-29T19:48:22.659749284Z",
+      "modifiedat": "2026-09-29T19:48:22.659749284Z"
     }
   }
 }
