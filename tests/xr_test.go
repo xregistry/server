@@ -4298,44 +4298,48 @@ and some text
 `)
 
 	XCLI(t, "get / --min", "", `{
-  "epoch": 7,
   "name": "mereg",
   "createdat": "2026-09-10T19:28:34.901392141Z",
-  "modifiedat": "2026-09-10T19:28:35.909591941Z"
+  "modifiedat": "2026-09-10T19:28:35.909591941Z",
+
+  "dirscount": 2
 }
 `, "", 0)
 
 	XCLI(t, "get /dirs --min", "", `{
   "d1": {
-    "epoch": 6,
-    "createdat": "2026-09-10T19:36:47.355304431Z",
-    "modifiedat": "2026-09-10T19:36:47.972329873Z"
+    "createdat": "2026-09-29T16:32:30.805774863Z",
+    "modifiedat": "2026-09-29T16:32:31.159812773Z",
+
+    "datascount": 2,
+    "filescount": 3,
+    "onescount": 1
   },
   "d2": {
-    "epoch": 1,
     "name": "med2",
-    "createdat": "2026-09-10T19:36:48.064776009Z",
-    "modifiedat": "2026-09-10T19:36:48.064776009Z"
+    "createdat": "2026-09-29T16:32:31.216016567Z",
+    "modifiedat": "2026-09-29T16:32:31.216016567Z",
+
+    "datascount": 0,
+    "filescount": 0,
+    "onescount": 0
   }
 }
 `, "", 0)
 
 	XCLI(t, "get / --inline= --min", "", `{
-  "epoch": 7,
   "name": "mereg",
   "createdat": "2026-09-10T19:37:34.675572315Z",
   "modifiedat": "2026-09-10T19:37:35.673948074Z",
 
   "dirs": {
     "d1": {
-      "epoch": 6,
       "createdat": "2026-09-10T19:37:34.886032671Z",
       "modifiedat": "2026-09-10T19:37:35.504709321Z",
 
       "datas": {
         "d1": {
           "meta": {
-            "epoch": 1,
             "createdat": "2026-09-10T19:37:34.886032671Z",
             "modifiedat": "2026-09-10T19:37:34.886032671Z",
 
@@ -4343,7 +4347,6 @@ and some text
           },
           "versions": {
             "v1": {
-              "epoch": 1,
               "isdefault": true,
               "createdat": "2026-09-10T19:37:34.886032671Z",
               "modifiedat": "2026-09-10T19:37:34.886032671Z",
@@ -4353,7 +4356,6 @@ and some text
         },
         "d2": {
           "meta": {
-            "epoch": 2,
             "createdat": "2026-09-10T19:37:34.973888084Z",
             "modifiedat": "2026-09-10T19:37:35.063207073Z",
 
@@ -4361,13 +4363,11 @@ and some text
           },
           "versions": {
             "v1": {
-              "epoch": 1,
               "createdat": "2026-09-10T19:37:34.973888084Z",
               "modifiedat": "2026-09-10T19:37:34.973888084Z",
               "ancestorid": "v1"
             },
             "v2": {
-              "epoch": 1,
               "isdefault": true,
               "createdat": "2026-09-10T19:37:35.063207073Z",
               "modifiedat": "2026-09-10T19:37:35.063207073Z",
@@ -4379,7 +4379,6 @@ and some text
       "files": {
         "f1": {
           "meta": {
-            "epoch": 1,
             "createdat": "2026-09-10T19:37:35.140886522Z",
             "modifiedat": "2026-09-10T19:37:35.140886522Z",
 
@@ -4387,7 +4386,6 @@ and some text
           },
           "versions": {
             "v1": {
-              "epoch": 1,
               "isdefault": true,
               "createdat": "2026-09-10T19:37:35.140886522Z",
               "modifiedat": "2026-09-10T19:37:35.140886522Z",
@@ -4399,7 +4397,6 @@ and some text
         },
         "f2": {
           "meta": {
-            "epoch": 2,
             "createdat": "2026-09-10T19:37:35.228317615Z",
             "modifiedat": "2026-09-10T19:37:35.322731872Z",
 
@@ -4407,7 +4404,6 @@ and some text
           },
           "versions": {
             "v1": {
-              "epoch": 1,
               "createdat": "2026-09-10T19:37:35.228317615Z",
               "modifiedat": "2026-09-10T19:37:35.228317615Z",
               "ancestorid": "v1",
@@ -4415,7 +4411,6 @@ and some text
               "filebase64": "aGk="
             },
             "v2": {
-              "epoch": 1,
               "isdefault": true,
               "createdat": "2026-09-10T19:37:35.322731872Z",
               "modifiedat": "2026-09-10T19:37:35.322731872Z",
@@ -4427,7 +4422,6 @@ and some text
         },
         "f3.md": {
           "meta": {
-            "epoch": 1,
             "createdat": "2026-09-10T19:37:35.405312749Z",
             "modifiedat": "2026-09-10T19:37:35.405312749Z",
 
@@ -4435,7 +4429,6 @@ and some text
           },
           "versions": {
             "v1": {
-              "epoch": 1,
               "isdefault": true,
               "createdat": "2026-09-10T19:37:35.405312749Z",
               "modifiedat": "2026-09-10T19:37:35.405312749Z",
@@ -4448,12 +4441,10 @@ and some text
       },
       "ones": {
         "o1": {
-          "epoch": 1,
           "createdat": "2026-09-10T19:37:35.504709321Z",
           "modifiedat": "2026-09-10T19:37:35.504709321Z",
 
           "meta": {
-            "epoch": 1,
             "createdat": "2026-09-10T19:37:35.504709321Z",
             "modifiedat": "2026-09-10T19:37:35.504709321Z",
 
@@ -4463,7 +4454,6 @@ and some text
       }
     },
     "d2": {
-      "epoch": 1,
       "name": "med2",
       "createdat": "2026-09-10T19:37:35.608012308Z",
       "modifiedat": "2026-09-10T19:37:35.608012308Z"

@@ -68,7 +68,7 @@ TODOs:
 - add docs for auth via proxy
 ** add support for setting capabilities.mutable to null and make sure things
   aren't editable - like capabilities, model, entities
-- test to make sure we either override or error when someone tries to define
+** test to make sure we either override or error when someone tries to define
   an extension that looks like COLLECTION/url/count or shortself, etc..
 - test to make sure we set ancestorid correctly when server assigns the version
   ID. `ancestorid=request`
