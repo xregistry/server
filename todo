@@ -26,7 +26,6 @@ TODOs:
   invalidate existing local variables. See if we can avoid redownloading the
   model from the DB
 
-** pagination
 ** have DB generate the COLLECTIONcount attributes so people can query over
   them and we don't need the code to calculate them (can we due to filters?)
 ** support overriding spec defined attributes - like "format"
@@ -81,15 +80,12 @@ TODOs:
 ** support min/max in capabilities
 ** support/test case insensitive capability keys/values
 - add tests for xr model group update/upsert/create & --flags
-** UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
-** UI: add support for wrapping the output text (style=text-wrap=wrap)
 - make tests so they don't use model.verifyandsave - should go thru modelsource
 ** make model changes via API show up in modelsource
 - look for more bad_request error that we can specialize
 - add tests for setting modelsource with $include stuff - and upload data at the same time
 ** support/test ignore=readonly
 - add more tests for our resource processing logic
-** fix 'xr' so that they can use --data to upload doc & --add for xreg metadata
 - test export & import - include readonly and xref resources
 ** make sure the export/import flow is as UX friendly as possible
 ** what should "xr create /" do? fail due to the reg already existing? import?

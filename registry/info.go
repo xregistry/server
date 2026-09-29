@@ -56,7 +56,6 @@ type RequestInfo struct {
 
 	StatusCode int
 	SentStatus bool
-	HTTPWriter HTTPWriter `json:"-"`
 
 	// extra stuff if we ever need to pass around data while processing
 	extras map[string]any
@@ -218,35 +217,89 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 	return false
 }
 
-func (ri *RequestInfo) GetInfo() *RequestInfo {
-	return ri
+func (info *RequestInfo) GetInfo() *RequestInfo {
+	return info
 }
 
-func (ri *RequestInfo) Write(b []byte) (int, error) {
-	return ri.HTTPWriter.Write(b)
+func (info *RequestInfo) Write(b []byte) (int, error) {
+	if !info.SentStatus {
+		// Set all response headers before writing status
+
+		// CORS headers
+		info.AddHeader("Access-Control-Allow-Origin", "*")
+		methods := info.GetAllowedMethods()
+		methodsStr := strings.Join(methods, ", ")
+		info.AddHeader("Access-Control-Allow-Methods", methodsStr)
+		info.AddHeader("Access-Control-Expose-Headers", "Link")
+
+		// Reflect whatever headers the browser's preflight asked for
+		// (e.g. Content-Type) so cross-origin PUT/PATCH/POST/DELETE
+		// requests with a JSON body aren't blocked by CORS.
+		reqHeaders := info.OriginalRequest.Header.Get(
+			"Access-Control-Request-Headers")
+		if reqHeaders != "" {
+			info.AddHeader("Access-Control-Allow-Headers", reqHeaders)
+		} else {
+			info.AddHeader("Access-Control-Allow-Headers", "Content-Type")
+		}
+
+		// For OPTIONS requests, also set the Allow header
+		if info.OriginalRequest.Method == "OPTIONS" {
+			info.AddHeader("Allow", methodsStr)
+		}
+
+		AddRegistryRootHeader(info)
+
+		info.SentStatus = true
+		if info.StatusCode == 0 {
+			info.StatusCode = http.StatusOK
+		}
+
+		// If the user never set one, don't let golang add one
+		if info.GetHeader("Content-Type") == "" {
+			info.OriginalResponse.Header()["Content-Type"] = nil
+		}
+
+		info.OriginalResponse.WriteHeader(info.StatusCode)
+	}
+	return info.OriginalResponse.Write(b)
 }
 
-func (ri *RequestInfo) DelHeader(name string) {
-	ri.HTTPWriter.DelHeader(name)
+func (info *RequestInfo) DelHeader(name string) {
+	info.OriginalResponse.Header().Del(name)
 }
 
-func (ri *RequestInfo) SetHeader(name, value string) {
-	ri.HTTPWriter.SetHeader(name, value)
+var stacks = map[string]string{}
+
+func (info *RequestInfo) SetHeader(name, value string) {
+	// Make sure we don't add the same header more than once, that's a sign
+	// we're doing something weong.
+	// At some point we may need to add a new func (AddHeader) to append a
+	// value to the end of the current one (if there)
+	PanicIf(info.OriginalResponse.Header().Get(name) != "",
+		"%s\nPrev:\n%s\n---", name, stacks[name])
+	// Uncomment when we need to debug the PanicIf
+	// stacks[name] = GetStackAsString()
+
+	info.OriginalResponse.Header()[name] = []string{value}
 }
 
-func (ri *RequestInfo) AddHeader(name, value string) {
-	ri.HTTPWriter.AddHeader(name, value)
+func (info *RequestInfo) AddHeader(name, value string) {
+	info.OriginalResponse.Header().Add(name, value)
 }
 
-func (ri *RequestInfo) GetHeader(name string) string {
-	return ri.HTTPWriter.GetHeader(name)
+func (info *RequestInfo) GetHeader(name string) string {
+	return info.OriginalResponse.Header().Get(name)
 }
 
-func (ri *RequestInfo) GetHeaderValues(name string) []string {
-	return ri.HTTPWriter.GetHeaderValues(name)
+func (info *RequestInfo) GetHeaderValues(name string) []string {
+	return info.OriginalResponse.Header()[name]
 }
 
-func (ri *RequestInfo) Done() {
+func (info *RequestInfo) Done() {
+	// If we haven't written anything, this will force the HTTP status code
+	// to be written and not default to 200
+	info.Write(nil)
 }
 
 type FilterExpr struct {
@@ -384,8 +437,6 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 		BaseURL:          "http://" + r.Host,
 		extras:           map[string]any{},
 	}
-
-	info.HTTPWriter = DefaultHTTPWriter(info)
 
 	if r.TLS != nil {
 		info.BaseURL = "https" + info.BaseURL[4:]
