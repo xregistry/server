@@ -74,7 +74,9 @@ func getFunc(cmd *cobra.Command, args []string) {
 	hasDetails, _ := cmd.Flags().GetBool("details")
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
-	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
+	if xid.ResourceID != "" && xid.Type != ENTITY_META && rm.HasDoc() &&
+		xid.IsEntity {
+
 		if hasDetails == false {
 			resIsJSON = false
 		} else {
@@ -153,6 +155,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 			obj.Delete("xid")
 			obj.Delete("self")
+			obj.Delete("epoch")
 			model, xErr := reg.GetModel()
 			Error(xErr)
 
@@ -163,9 +166,14 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 				for _, gm := range model.Groups {
 					obj.Delete(gm.Plural + "url")
-					obj.Delete(gm.Plural + "count")
+					if obj.Get(gm.Plural+"count") == "0" ||
+						!IsNil(obj.Get(gm.Plural)) {
+
+						obj.Delete(gm.Plural + "count")
+					}
 					Error(minimize(obj.Get(gm.Plural)))
 				}
+
 			case ENTITY_GROUP:
 				gm, _ := model.Groups[xid.Group]
 
@@ -173,7 +181,11 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 				for _, rm := range gm.Resources {
 					obj.Delete(rm.Plural + "url")
-					obj.Delete(rm.Plural + "count")
+					if obj.Get(rm.Plural+"count") == "0" ||
+						!IsNil(obj.Get(rm.Plural)) {
+
+						obj.Delete(rm.Plural + "count")
+					}
 					Error(minimize(obj.Get(rm.Plural)))
 
 					// If collection is empty, delete it
@@ -190,18 +202,30 @@ func getFunc(cmd *cobra.Command, args []string) {
 				gm, _ := model.Groups[xid.Group]
 				rm, _ := gm.Resources[xid.Resource]
 
-				if vc, ok := obj.Get("versionscount").(json.Number); ok && vc.String() == "1" {
+				vc, ok := obj.Get("versionscount").(json.Number)
+				if ok && vc.String() == "1" {
 					obj.Delete("ancestorid")
 				}
 
-				if rm.GetMaxVersions() == 1 {
+				obj.Delete("versionsurl")
+				// On all variants below, should we keep rID/vID at Resource?
+
+				// Focus on showing the Resource rather than the versions
+				// collection when maxVers=1 or there is no "versions"
+				// collection at all in this response
+				if rm.GetMaxVersions() == 1 || IsNil(obj.Get("versions")) {
 					obj.Delete(rm.Singular + "id")
 					obj.Delete("versionid")
 					obj.Delete("isdefault")
-					obj.Delete("versionscount")
-					obj.Delete("versionsurl")
-					obj.Delete("versions")
+					if rm.GetMaxVersions() == 1 {
+						obj.Delete("versionscount")
+						// obj.Delete("versionsurl")
+						obj.Delete("versions")
+					}
 				} else {
+					// But if we have "versions" then we can trim the Resource
+					// down to nothing and let them get the info from the
+					// Version itself.
 					for _, attr := range append([]string{}, obj.Keys...) {
 						if attr != "meta" && attr != "versions" {
 							obj.Delete(attr)
@@ -220,7 +244,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 				obj.Delete(rm.Singular + "id")
 				obj.Delete("defaultversionurl")
 				if obj.Get("defaultversionsticky") == false {
-					obj.Delete("defaultversion")
+					// obj.Delete("defaultversion")
 					obj.Delete("defaultversionsticky")
 				}
 				if obj.Get("readonly") == false {
@@ -249,13 +273,16 @@ func getFunc(cmd *cobra.Command, args []string) {
 		// server's own bytes verbatim - no reorder, no re-stringify.
 		if GetRawJSON() && !minimum {
 			fmt.Printf("%s", string(res.Body))
+
+			// If there's no trailing \n, add one to look pretty
 			if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
 				fmt.Print("\n")
 			}
 			return
 		}
 
-		tree, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(res.Body, GetRawJSON())
+		tree, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(res.Body,
+			GetRawJSON())
 		Error(xErr, NewXRError("parsing_response", path,
 			"error_detail="+Err2String(xErr)).
 			SetDetail("Response: "+string(res.Body)+"."))
