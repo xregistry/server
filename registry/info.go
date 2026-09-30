@@ -455,7 +455,7 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 
 func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo, *XRError) {
 
-	info := NewRequestInfo(tx.uuid, tx.XRSConfig, w, r)
+	info := NewRequestInfo(tx.uuid, tx.Config, w, r)
 	info.tx = tx
 	tx.RequestInfo = info
 

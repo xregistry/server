@@ -74,13 +74,13 @@ func (r *Registry) GetTx() *Tx {
 
 func (r *Registry) GetXRServerConfig() *Config {
 	PanicIf(r.tx == nil, "Shouldn't be nil")
-	return r.tx.XRSConfig
+	return r.tx.Config
 }
 
 func GetDefaultReg(tx *Tx) *Registry {
 	PanicIf(tx == nil, "Check me")
 
-	regDbSID := tx.XRSConfig.GetAsString("DefaultRegDbSID")
+	regDbSID := tx.Config.GetAsString("DefaultRegDbSID")
 
 	if regDbSID == "" {
 		panic("No registry specified")
@@ -165,7 +165,7 @@ func (r *Registry) Commit() *XRError {
 // are Tx-scoped bookkeeping (see those fields' doc comments in db.go).
 // Called from Tx.Validate() once the Tx's own bookkeeping/sanity-checks
 // are done.
-func (r *Registry) Validate(info *RequestInfo) *XRError {
+func (r *Registry) Validate() *XRError {
 	tx := r.tx
 
 	// Drain any Resources marked for (re-)validation - possibly marked
@@ -229,7 +229,7 @@ func NewRegistry(tx *Tx, xrsConfig *Config, id string, regOpts ...RegOpt) (*Regi
 	}()
 
 	if tx == nil {
-		tx, xErr = NewTx(NewUUID(), xrsConfig)
+		tx, xErr = NewTx(NewUUID(), xrsConfig, SQLBackend)
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -258,10 +258,10 @@ func NewRegistry(tx *Tx, xrsConfig *Config, id string, regOpts ...RegOpt) (*Regi
 	reg := &Registry{
 		Entity: Entity{
 			EntityExtensions: EntityExtensions{
-				tx:         tx,
 				AccessMode: FOR_WRITE,
 			},
 
+			tx:       tx,
 			DbSID:    dbSID,
 			Plural:   "registries",
 			Singular: "registry",
@@ -319,7 +319,7 @@ func NewRegistry(tx *Tx, xrsConfig *Config, id string, regOpts ...RegOpt) (*Regi
 }
 
 func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
-	tx, xErr := NewTx(NewUUID(), xrsConfig)
+	tx, xErr := NewTx(NewUUID(), xrsConfig, SQLBackend)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -449,7 +449,7 @@ func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Regist
 	newTx := false
 	if tx == nil {
 		var xErr *XRError
-		tx, xErr = NewTx(NewUUID(), xrsConfig)
+		tx, xErr = NewTx(NewUUID(), xrsConfig, SQLBackend)
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -633,11 +633,13 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	// Ignore any incoming "model" attribute
 	delete(reg.NewObject, "model")
 
-	if reg.tx.RequestInfo.HasIgnore("capabilities") && !IsNil(reg.NewObject) {
+	info := reg.GetRequestInfo()
+
+	if info.HasIgnore("capabilities") && !IsNil(reg.NewObject) {
 		delete(reg.NewObject, "capabilities")
 	}
 
-	if reg.tx.RequestInfo.HasIgnore("modelsource") && !IsNil(reg.NewObject) {
+	if info.HasIgnore("modelsource") && !IsNil(reg.NewObject) {
 		delete(reg.NewObject, "modelsource")
 	}
 
@@ -881,10 +883,10 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		g = &Group{
 			Entity: Entity{
 				EntityExtensions: EntityExtensions{
-					tx:         reg.tx,
 					AccessMode: FOR_WRITE,
 				},
 
+				tx:        reg.tx,
 				Registry:  reg,
 				DbSID:     NewUUID(),
 				ParentSID: reg.DbSID,
@@ -1368,15 +1370,22 @@ func topLevelSlashCount(xid string) string {
 }
 
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
-func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*FilterExpr, docView bool, sortKey string, limit uint64, offset uint64) (string, []interface{}, *XRError) {
+func GenerateQuery(reg *Registry, what string, XIDs []string) (string, []interface{}, *XRError) {
 	query := ""
 	args := []any{}
+
+	info := reg.GetRequestInfo()
+	filters := info.Filters
+	docView := info.DoDocView()
+	sortKey := info.SortKey
+	limit := info.Limit
+	offset := info.Offset
 
 	// ?filter=excludeall returns nothing
 	if len(filters) == 1 && filters[0][0].Path == "excludeall"+string(DB_IN) {
 		if what != "Coll" {
 			return "", nil, NewXRError("bad_filter",
-				reg.tx.RequestInfo.OriginalRequest.URL.RequestURI(),
+				info.OriginalRequest.URL.RequestURI(),
 				"value=excludeall",
 				"error_detail=\"excludeall\" must only be used "+
 					"on collections")
@@ -1445,7 +1454,7 @@ func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*Filte
 	// nested <COLLECTION>url filter for each entity in the result.
 	if len(filters) > 64 {
 		return "", nil, NewXRError("bad_filter",
-			reg.tx.RequestInfo.OriginalRequest.URL.RequestURI(),
+			info.OriginalRequest.URL.RequestURI(),
 			"value=filter",
 			"error_detail=too many OR'd filter expressions "+
 				fmt.Sprintf("(%d), the max supported is 64", len(filters)))
@@ -1961,7 +1970,7 @@ func (r *Registry) VerifyData() *XRError {
 	// all per-Version attribute validation above, so a more specific
 	// per-attribute error isn't masked by a more generic one for the
 	// same violation.
-	if xErr := r.Validate(nil); xErr != nil {
+	if xErr := r.Validate(); xErr != nil {
 		return xErr
 	}
 
