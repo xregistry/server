@@ -605,9 +605,10 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 
 	meta := r.MustFindMeta(false)
+	info := r.GetRequestInfo()
 
 	if meta.Get("readonly") == true {
-		if r.tx.RequestInfo.HasIgnore("readonly") {
+		if info.HasIgnore("readonly") {
 			return meta, false, nil
 		} else {
 			return nil, false, NewXRError("readonly", r.XID)
@@ -648,10 +649,10 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 	attrsToKeep[r.Singular+"id"] = true
 
-	if r.tx.RequestInfo.HasIgnore("defaultversionid") && !IsNil(mu.obj) {
+	if info.HasIgnore("defaultversionid") && !IsNil(mu.obj) {
 		delete(mu.obj, "defaultversionid")
 	}
-	if r.tx.RequestInfo.HasIgnore("defaultversionsticky") && !IsNil(mu.obj) {
+	if info.HasIgnore("defaultversionsticky") && !IsNil(mu.obj) {
 		delete(mu.obj, "defaultversionsticky")
 	}
 
@@ -783,10 +784,9 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	if meta == nil {
 		meta = &Meta{
 			Entity: Entity{
-				EntityExtensions: EntityExtensions{
-					tx: r.tx,
-				},
+				EntityExtensions: EntityExtensions{},
 
+				tx:        r.tx,
 				Registry:  r.Registry,
 				DbSID:     NewUUID(),
 				ParentSID: r.DbSID,
@@ -1022,7 +1022,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	meta := r.MustFindMeta(false)
 
 	if meta.Get("readonly") == true {
-		if r.tx.RequestInfo.HasIgnore("readonly") {
+		if r.GetRequestInfo().HasIgnore("readonly") {
 			return nil, false, nil
 		} else {
 			return nil, false, NewXRError("readonly", r.XID)
@@ -1117,10 +1117,10 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		v = &Version{
 			Entity: Entity{
 				EntityExtensions: EntityExtensions{
-					tx:         r.tx,
 					AccessMode: FOR_WRITE,
 				},
 
+				tx:        r.tx,
 				Registry:  r.Registry,
 				DbSID:     NewUUID(),
 				ParentSID: r.DbSID,

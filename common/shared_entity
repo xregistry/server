@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"strings"
 
+	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
 
 type Entity struct {
 	EntityExtensions
 
+	tx           *Tx
 	Registry     *Registry `json:"-"`
 	DbSID        string    // Entity's SID
 	ParentSID    string    // Parent entity's SID ("" for the Registry root)
@@ -1090,4 +1092,95 @@ func buildCanonicalLevelOrders() map[int][]string {
 		result[lvl] = collapsed
 	}
 	return result
+}
+
+// Backend stuff - was in db.go
+
+type BackendInf interface {
+	NewTx(tx *Tx) *XRError
+}
+
+// Holds info about the current transaction. In a lot of ways this is similar
+// to golang's Context in that it holds other info related to the current
+// changes that are going on. Maybe one day convert this to a Context where
+// Tx is just as apsect of it.
+type Tx struct {
+	// Common Fields
+	uuid string // a unique ID for the TXs map key
+
+	Config   *Config // Either XRSConfig and XRConfig
+	Registry *Registry
+
+	Backend BackendInf
+
+	// Cache of entities this Tx is dealing with. Things can get funky if
+	// we have more than one instance of the same entity in memory.
+	// Consider having Commit() just automatically call ValidateAndSave
+	// for all entities in the Tx - then people don't need to call save
+	// explicitly
+	Cache map[string]*Entity // e.XID
+
+	// Server Fields
+	tx          any    // *sql.Tx - actual DB Tx pointer
+	CreateTime  string // use for entity timestamps too
+	User        string
+	RequestInfo any  // *RequestInfo
+	Locked      bool // no more writes allowed!
+	Validated   bool // just to make sure it's not called more than once
+
+	// List of Group XIDs of all the Groups we need to run verfication on
+	// w.r.t. constraints. This isn't always the same as "groups that changed"
+	// since it's possible only a Resource change could break a constraint.
+	GroupsToValidate map[string]*Group
+
+	// Resources (keyed by DbSID) that need Resource.ValidateResource()
+	// (re-)run before this Tx's results are visible - including their
+	// default-version-copy cascade and xref fan-out.
+	ResourcesToValidate map[string]*resourceValidation
+
+	// Snapshot of the batch Registry.Validate()'s drain loop is
+	// CURRENTLY iterating over (keyed by DbSID), exposed so
+	// Resource.runCascade() can tell whether an xref TARGET it's about
+	// to fan out to is itself still pending in the very same batch
+	// (i.e. hasn't started its own ValidateResource() yet) - see
+	// runCascade()'s "skip our own insert if the target is still
+	// pending" optimization. Deliberately separate from
+	// ResourcesToValidate above: Registry.Validate() swaps that field
+	// to a fresh empty map before draining a batch (so any NEW marks
+	// added mid-batch, e.g. via EnsureLatest(), safely land in the next
+	// iteration instead of racing the in-progress range over the old
+	// map) - so ResourcesToValidate itself is never a reliable way to
+	// ask "is X still pending in the batch currently being drained".
+	// Set for the duration of one drain-loop batch only; nil otherwise.
+	ResourcesValidatingBatch map[string]bool
+
+	// For debugging
+	stack  []string // Stack at time NewTX
+	connID int64    // MySQL CONNECTION_ID() this Tx is bound to
+}
+
+// resourceValidation is one entry in Tx.ResourcesToValidate - it carries
+// the flags Resource.ValidateResource() needs, merged across however
+// many times AddResourceToValidate() got called for the same Resource
+// within one Tx (see AddResourceToValidate()'s doc comment for the
+// merge policy).
+type resourceValidation struct {
+	r               *Resource
+	onlyMetaChanged bool
+	force           bool
+}
+
+func NewTx(uuid string, config *Config, backend BackendInf) (*Tx, *XRError) {
+	defer log.Trace("tx: %s NewTx", uuid)()
+
+	PanicIf(uuid == "", "missing uuid")
+	tx := &Tx{
+		uuid:    uuid,
+		Config:  config,
+		Backend: backend,
+	}
+	if xErr := backend.NewTx(tx); xErr != nil {
+		return nil, xErr
+	}
+	return tx, nil
 }

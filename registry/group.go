@@ -167,11 +167,12 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 	// calc rXID so we can use it even if r == nil
 	rXID := g.XID + "/" + ru.RType + "/" + ru.Id
+	info := g.GetRequestInfo()
 
 	if r != nil {
 		meta := r.MustFindMeta(false)
 		if meta.Get("readonly") == true {
-			if r.tx.RequestInfo.HasIgnore("readonly") {
+			if info.HasIgnore("readonly") {
 				// Ignoring that it's read-only but also stopping
 				return r, false, nil
 			} else {
@@ -188,7 +189,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				rModel.Singular, ru.Id, r.UID))
 	}
 
-	if g.tx.RequestInfo.HasIgnore("id") && len(g.tx.RequestInfo.Parts) == 4 {
+	if info.HasIgnore("id") && len(info.Parts) == 4 {
 		delete(ru.Obj, rModel.Singular+"id")
 	}
 
@@ -290,10 +291,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		r = &Resource{
 			Entity: Entity{
 				EntityExtensions: EntityExtensions{
-					tx:         g.tx,
 					AccessMode: FOR_WRITE,
 				},
 
+				tx:        g.tx,
 				Registry:  g.Registry,
 				DbSID:     NewUUID(),
 				ParentSID: g.DbSID,
@@ -355,10 +356,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		meta = &Meta{
 			Entity: Entity{
 				EntityExtensions: EntityExtensions{
-					tx:         g.tx,
 					AccessMode: FOR_WRITE,
 				},
 
+				tx:        g.tx,
 				Registry:  g.Registry,
 				DbSID:     NewUUID(),
 				ParentSID: r.DbSID,

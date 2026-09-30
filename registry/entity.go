@@ -26,7 +26,6 @@ type dbPropRow struct {
 }
 
 type EntityExtensions struct {
-	tx         *Tx
 	AccessMode int // FOR_READ, FOR_WRITE
 
 	// dbPropBatch buffers own-property Props row info during
@@ -37,11 +36,15 @@ type EntityExtensions struct {
 }
 
 func (e *Entity) GetRequestInfo() *RequestInfo {
-	tx := e.tx
-	if tx == nil {
+	if e.tx == nil {
 		return nil
 	}
-	return tx.RequestInfo
+
+	if e.tx.RequestInfo == nil {
+		return nil
+	}
+
+	return e.tx.RequestInfo.(*RequestInfo)
 }
 
 type EntitySetter interface {
@@ -1333,10 +1336,10 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 		if entity == nil {
 			entity = &Entity{
 				EntityExtensions: EntityExtensions{
-					tx:         tx,
 					AccessMode: accessMode,
 				},
 
+				tx:        tx,
 				Registry:  tx.Registry,
 				DbSID:     NotNilString(row[5]),
 				ParentSID: NotNilString(row[4]),
@@ -1473,7 +1476,7 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if oldID != "" && !IsNil(oldID) && newID != oldID {
-					info := e.tx.RequestInfo
+					info := e.GetRequestInfo()
 					if info.HasIgnore("id") && "/"+info.Root == e.XID {
 						// Don't check and reset to old ID (if changed)
 						e.NewObject[singular] = oldID
@@ -1535,7 +1538,7 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if oldID != "" && !IsNil(oldID) && newID != oldID {
-					info := e.tx.RequestInfo
+					info := e.GetRequestInfo()
 					if info.HasIgnore("id") && "/"+info.Root == e.XID {
 						// Don't check and reset to old ID (if changed)
 						e.NewObject["versionid"] = oldID
@@ -1669,7 +1672,7 @@ var PropsFuncs = []*Attribute{
 						"error_detail=must be a uinteger")
 				}
 
-				if !e.tx.RequestInfo.HasIgnore("epoch") && oldEpoch != 0 && newEpoch != oldEpoch {
+				if !e.GetRequestInfo().HasIgnore("epoch") && oldEpoch != 0 && newEpoch != oldEpoch {
 					return NewXRError("mismatched_epoch", e.XID,
 						"bad_epoch="+fmt.Sprintf("%v", val),
 						"epoch="+fmt.Sprintf("%d", oldEpoch))
@@ -2316,11 +2319,12 @@ func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 //   - Use AddCalcProps() to fill in any missing props (eg Entity's getFn())
 //   - Call that passed-in 'fn' to serialize each prop but in the right order
 //     as defined by the entity's GetPropsOrdered()
-func (e *Entity) SerializeProps(info *RequestInfo,
-	fn func(*Entity, *RequestInfo, string, any, *Attribute) *XRError) *XRError {
+func (e *Entity) SerializeProps(
+	fn func(*Entity, string, any, *Attribute) *XRError) *XRError {
 	defer log.Trace("tx: %s %s", e.tx.uuid, e.XID)()
 
-	daObj := e.AddCalcProps(info)
+	info := e.GetRequestInfo()
+	daObj := e.AddCalcProps()
 	attrs := e.GetAttributes(e.Object)
 
 	if log.IsFuncVerbose() {
@@ -2382,7 +2386,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 					// log.Printf("tx: %s Ser*ext(%s): %q", e.tx.uuid, e.XID,
 					//  objKey)
 
-					if xErr := fn(e, info, objKey, val, attr); xErr != nil {
+					if xErr := fn(e, objKey, val, attr); xErr != nil {
 						return xErr
 					}
 				}
@@ -2392,7 +2396,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 
 		if name[0] == '$' || (prop.internals != nil && prop.internals.alwaysSerialize) {
 			log.FuncPrintf("tx: %s forced serialization of %q", e.tx.uuid, name)
-			if xErr := fn(e, info, name, nil, attr); xErr != nil {
+			if xErr := fn(e, name, nil, attr); xErr != nil {
 				return xErr
 			}
 			continue
@@ -2402,7 +2406,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 		if val, ok := daObj[name]; ok {
 			log.FuncPrintf("tx: %s val: %v", e.tx.uuid, val)
 			if !IsNil(val) {
-				xErr := fn(e, info, name, val, attr)
+				xErr := fn(e, name, val, attr)
 				if xErr != nil {
 					return xErr
 				}
@@ -2428,7 +2432,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 					"Can't find attr for %q", attrKey)
 			}
 
-			if xErr := fn(e, info, objKey, val, attr); xErr != nil {
+			if xErr := fn(e, objKey, val, attr); xErr != nil {
 				return xErr
 			}
 		}
@@ -2681,7 +2685,7 @@ func (e *Entity) Save() *XRError {
 // calculated ones.
 // Note that we make a copy and don't touch the entity itself. Serializing
 // an entity shouldn't have side-effects.
-func (e *Entity) AddCalcProps(info *RequestInfo) map[string]any {
+func (e *Entity) AddCalcProps() map[string]any {
 	mat := map[string]any{}
 	// System props (formatvalidated, compatibilityvalidated, ...) live in
 	// their own bucket (see Entity.System's doc comment) so their writes

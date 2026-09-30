@@ -133,71 +133,6 @@ func (fp *FilterPProf) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// resourceValidation is one entry in Tx.ResourcesToValidate - it carries
-// the flags Resource.ValidateResource() needs, merged across however
-// many times AddResourceToValidate() got called for the same Resource
-// within one Tx (see AddResourceToValidate()'s doc comment for the
-// merge policy).
-type resourceValidation struct {
-	r               *Resource
-	onlyMetaChanged bool
-	force           bool
-}
-
-// Holds info about the current transaction. In a lot of ways this is similar
-// to golang's Context in that it holds other info related to the current
-// changes that are going on. Maybe one day convert this to a Context where
-// Tx is just as apsect of it.
-type Tx struct {
-	tx          *sql.Tx
-	XRSConfig   *Config
-	Registry    *Registry
-	CreateTime  string // use for entity timestamps too
-	User        string
-	RequestInfo *RequestInfo
-	Locked      bool // no more writes allowed!
-	Validated   bool // just to make sure it's not called more than once
-
-	// Cache of entities this Tx is dealing with. Things can get funky if
-	// we have more than one instance of the same entity in memory.
-	// TODO DUG expand this to save all types, not just Versions.
-	// Also, consider having Commit() just automatically call ValidateAndSave
-	// for all entities in the Tx - then people don't need to call save
-	// explicitly
-	Cache map[string]*Entity // e.XID
-
-	// List of Group XIDs of all the Groups we need to run verfication on
-	// w.r.t. constraints. This isn't always the same as "groups that changed"
-	// since it's possible only a Resource change could break a constraint.
-	GroupsToValidate map[string]*Group
-
-	// Resources (keyed by DbSID) that need Resource.ValidateResource()
-	// (re-)run before this Tx's results are visible - including their
-	// default-version-copy cascade and xref fan-out.
-	ResourcesToValidate map[string]*resourceValidation
-
-	// Snapshot of the batch Registry.Validate()'s drain loop is
-	// CURRENTLY iterating over (keyed by DbSID), exposed so
-	// Resource.runCascade() can tell whether an xref TARGET it's about
-	// to fan out to is itself still pending in the very same batch
-	// (i.e. hasn't started its own ValidateResource() yet) - see
-	// runCascade()'s "skip our own insert if the target is still
-	// pending" optimization. Deliberately separate from
-	// ResourcesToValidate above: Registry.Validate() swaps that field
-	// to a fresh empty map before draining a batch (so any NEW marks
-	// added mid-batch, e.g. via EnsureLatest(), safely land in the next
-	// iteration instead of racing the in-progress range over the old
-	// map) - so ResourcesToValidate itself is never a reliable way to
-	// ask "is X still pending in the batch currently being drained".
-	// Set for the duration of one drain-loop batch only; nil otherwise.
-	ResourcesValidatingBatch map[string]bool
-
-	// For debugging
-	uuid   string   // a unique ID for the TXs map key
-	stack  []string // Stack at time NewTX
-	connID int64    // MySQL CONNECTION_ID() this Tx is bound to
-}
-
 func (tx *Tx) IsOpen() bool {
 	return tx.tx != nil
 }
@@ -215,18 +150,12 @@ func (tx *Tx) String() string {
 	return fmt.Sprintf("tx: sql.tx: %s, Registry: %s", txStr, regStr)
 }
 
-func NewTx(uuid string, xrsConfig *Config) (*Tx, *XRError) {
-	defer log.Trace("tx: %s NewTx", uuid)()
+type SQLBackendType struct{}
 
-	tx := &Tx{}
-	PanicIf(uuid == "", "missing uuid")
-	tx.uuid = uuid
-	tx.XRSConfig = xrsConfig
-	xErr := tx.NewTx()
-	if xErr != nil {
-		return nil, xErr
-	}
-	return tx, nil
+var SQLBackend SQLBackendType
+
+func (sqlBackend SQLBackendType) NewTx(tx *Tx) *XRError {
+	return tx.NewTx()
 }
 
 // It's ok for this to be called multiple times for the same Tx just to
@@ -234,12 +163,12 @@ func NewTx(uuid string, xrsConfig *Config) (*Tx, *XRError) {
 func (tx *Tx) NewTx() *XRError {
 	defer log.Trace("tx: %s tx.NewTx", tx.uuid)()
 
-	DBName := tx.XRSConfig.GetAsString("db.name")
+	DBName := tx.Config.GetAsString("db.name")
 	if DBName == "" {
 		return NewXRError("server_error", "/").SetDetail("No DBName set.")
 	}
 
-	DB, xErr := OpenDB(tx.XRSConfig, DBName)
+	DB, xErr := OpenDB(tx.Config, DBName)
 	if xErr != nil {
 		return xErr
 	}
@@ -259,7 +188,7 @@ func (tx *Tx) NewTx() *XRError {
 	t, err := DB.BeginTx(context.Background(),
 		&sql.TxOptions{sql.LevelRepeatableRead, false})
 	if err != nil {
-		CloseDB(tx.XRSConfig)
+		CloseDB(tx.Config)
 		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 		// panic("Error talking to the DB: %s", err)
 	}
@@ -343,7 +272,7 @@ func (tx *Tx) IsLocked() bool {
 // Registry.Validate() - that logic belongs at the Registry level, not
 // here, even though the pending-work lists it drains (ResourcesToValidate/
 // GroupsToValidate, above) are themselves Tx-scoped.
-func (tx *Tx) Validate(info *RequestInfo) *XRError {
+func (tx *Tx) Validate() *XRError {
 	// DUG see if we can add this back in
 	// PanicIf(tx.Validated, "Already validated. tx: %p", tx)
 
@@ -366,7 +295,7 @@ func (tx *Tx) Validate(info *RequestInfo) *XRError {
 		// for Resources that were only marked via
 		// AddResourceToValidate() rather than validated immediately),
 		// so it must run before the cache-dirty assertion below.
-		if xErr := tx.Registry.Validate(info); xErr != nil {
+		if xErr := tx.Registry.Validate(); xErr != nil {
 			return xErr
 		}
 	}
@@ -493,7 +422,7 @@ func (tx *Tx) SaveCommitRefresh() *XRError {
 	if xErr := tx.SaveAll(); xErr != nil {
 		return xErr
 	}
-	tx.Validate(nil)
+	tx.Validate()
 
 	if xErr := tx.Commit(); xErr != nil {
 		return xErr
@@ -521,7 +450,7 @@ func (tx *Tx) SaveAll() *XRError {
 	// SaveAllAndCommit()) re-runs this drain too, but it's a cheap
 	// no-op the second time since everything's already drained.
 	if tx.Registry != nil {
-		if xErr := tx.Registry.Validate(nil); xErr != nil {
+		if xErr := tx.Registry.Validate(); xErr != nil {
 			return xErr
 		}
 	}
@@ -537,7 +466,7 @@ func (tx *Tx) SaveAllAndCommit() *XRError {
 		return xErr
 	}
 
-	if xErr := tx.Validate(nil); xErr != nil {
+	if xErr := tx.Validate(); xErr != nil {
 		return xErr
 	}
 
@@ -563,7 +492,7 @@ func (tx *Tx) Commit() *XRError {
 		return xErr
 	}
 
-	Must(tx.tx.Commit())
+	Must(tx.tx.(*sql.Tx).Commit())
 	log.FuncPrintf("tx: %s Committed", tx.uuid)
 
 	tx.Clear()
@@ -575,7 +504,7 @@ func (tx *Tx) Rollback() *XRError {
 		return nil
 	}
 
-	err := tx.tx.Rollback()
+	err := tx.tx.(*sql.Tx).Rollback()
 	Must(err)
 	log.FuncPrintf("tx: %s Rolled Back", tx.uuid)
 
@@ -617,7 +546,7 @@ func (tx *Tx) Prepare(query string) (*sql.Stmt, *XRError) {
 			return nil, xErr
 		}
 	}
-	ps, err := tx.tx.Prepare(query)
+	ps, err := tx.tx.(*sql.Tx).Prepare(query)
 	if err != nil {
 		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}

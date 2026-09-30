@@ -201,7 +201,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 		// Resource/Meta legitimately pending (by design) at this
 		// point, which isn't actually a bug.
 		if tx != nil && tx.IsOpen() {
-			if xErr := reg.Validate(nil); xErr != nil {
+			if xErr := reg.Validate(); xErr != nil {
 				panic(xErr.String())
 			}
 		}
