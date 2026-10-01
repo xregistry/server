@@ -2456,6 +2456,7 @@ func TestXRConformAllGroupResources(t *testing.T) {
    │  ├─ PASS: 'GET /agroups' MUST return a JSON body
    │  ├─ PASS: "ag1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
    │  ├─ PASS: Value of "ag1" MUST NOT be nil
+   │  ├─ PASS: Group: ag1
    │  ├─ PASS: 'GET /mgroups' MUST return 200
    │  ├─ PASS: 'GET /mgroups' MUST return a non-empty body
    │  ├─ PASS: 'GET /mgroups' MUST return a JSON body
@@ -2465,11 +2466,13 @@ func TestXRConformAllGroupResources(t *testing.T) {
    │  ├─ PASS: 'GET /ngroups' MUST return a JSON body
    │  ├─ PASS: "ng1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
    │  ├─ PASS: Value of "ng1" MUST NOT be nil
+   │  ├─ PASS: Group: ng1
    │  ├─ PASS: 'GET /zgroups' MUST return 200
    │  ├─ PASS: 'GET /zgroups' MUST return a non-empty body
    │  ├─ PASS: 'GET /zgroups' MUST return a JSON body
    │  ├─ PASS: "zg1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
    │  ├─ PASS: Value of "zg1" MUST NOT be nil
+   │  └─ PASS: Group: zg1
    └─ PASS: TestResources (skip:2)
       ├─ PASS: TestGroups (cached)
       ├─ PASS: 'GET /agroups/ag1/bresources' MUST return 200
@@ -2477,6 +2480,7 @@ func TestXRConformAllGroupResources(t *testing.T) {
       ├─ PASS: 'GET /agroups/ag1/bresources' MUST return a JSON body
       ├─ PASS: "br1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
       ├─ PASS: Value of "br1" MUST NOT be nil
+      ├─ PASS: Resource: br1
       ├─ PASS: 'GET /agroups/ag1/mresources' MUST return 200
       ├─ PASS: 'GET /agroups/ag1/mresources' MUST return a non-empty body
       ├─ PASS: 'GET /agroups/ag1/mresources' MUST return a JSON body
@@ -2486,17 +2490,20 @@ func TestXRConformAllGroupResources(t *testing.T) {
       ├─ PASS: 'GET /agroups/ag1/yresources' MUST return a JSON body
       ├─ PASS: "yr1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
       ├─ PASS: Value of "yr1" MUST NOT be nil
+      ├─ PASS: Resource: yr1
       ├─ SKIP: No Resource Types defined for "ngroups" Group Type - leaving
       ├─ PASS: 'GET /zgroups/zg1/aresources' MUST return 200
       ├─ PASS: 'GET /zgroups/zg1/aresources' MUST return a non-empty body
       ├─ PASS: 'GET /zgroups/zg1/aresources' MUST return a JSON body
       ├─ PASS: "ar1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
       ├─ PASS: Value of "ar1" MUST NOT be nil
+      ├─ PASS: Resource: ar1
       ├─ PASS: 'GET /zgroups/zg1/zresources' MUST return 200
       ├─ PASS: 'GET /zgroups/zg1/zresources' MUST return a non-empty body
       ├─ PASS: 'GET /zgroups/zg1/zresources' MUST return a JSON body
       ├─ PASS: "zr1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
       ├─ PASS: Value of "zr1" MUST NOT be nil
+      └─ PASS: Resource: zr1
 Pass: 212   Fail: 0   Warn: 0   Skip: 3
 `, "", 0)
 
@@ -2606,9 +2613,13 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
 
 func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
 	const target = "http://localhost:8282/conform"
-	cliResult := XCLI(t, "conform --skips -vvv "+target+" "+target, "", `PASS: http://localhost:8282/conform (skip:3)
+	cliResult := XCLI(t, "conform --skips -vvv "+target+" "+target, "",
+		`PASS: http://localhost:8282/conform (skip:3)
 └─ PASS: TestRegistry (skip:3)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: Retrieving capabilities
    │  ├─ PASS: capabilities.available MUST include "capabilities"
    │  ├─ PASS: capabilities.available MUST include "entities"
    │  ├─ PASS: capabilities.available MUST include "model"
@@ -2616,12 +2627,15 @@ func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
    │  ├─ PASS: 'GET /capabilities' MUST return 200
    │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
    │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  ├─ PASS: Parsing capabilities MUST work
    │  ├─ PASS: 'GET /' MUST return 200
    │  ├─ PASS: 'GET /' MUST return a non-empty body
    │  ├─ PASS: 'GET /' MUST return a JSON body
    │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
    │  ├─ PASS: Testing ?inline=capabilities (skip:1)
    │  │  └─ SKIP: ?inline not supported
+   │  └─ PASS: Parsing Capabilities MUST work
+   ├─ PASS: TestRegistryRoot
    ├─ PASS: TestGroups (skip:1)
    │  ├─ PASS: TestModel (cached)
    │  ├─ PASS: TestCapabilities (cached)
@@ -2633,7 +2647,10 @@ Pass: 56   Fail: 0   Warn: 0   Skip: 3
 
 PASS: http://localhost:8282/conform (skip:3)
 └─ PASS: TestRegistry (skip:3)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: Retrieving capabilities
    │  ├─ PASS: capabilities.available MUST include "capabilities"
    │  ├─ PASS: capabilities.available MUST include "entities"
    │  ├─ PASS: capabilities.available MUST include "model"
@@ -2641,12 +2658,15 @@ PASS: http://localhost:8282/conform (skip:3)
    │  ├─ PASS: 'GET /capabilities' MUST return 200
    │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
    │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  ├─ PASS: Parsing capabilities MUST work
    │  ├─ PASS: 'GET /' MUST return 200
    │  ├─ PASS: 'GET /' MUST return a non-empty body
    │  ├─ PASS: 'GET /' MUST return a JSON body
    │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
    │  ├─ PASS: Testing ?inline=capabilities (skip:1)
    │  │  └─ SKIP: ?inline not supported
+   │  └─ PASS: Parsing Capabilities MUST work
+   ├─ PASS: TestRegistryRoot
    ├─ PASS: TestGroups (skip:1)
    │  ├─ PASS: TestModel (cached)
    │  ├─ PASS: TestCapabilities (cached)
@@ -2851,6 +2871,8 @@ Pass: 4   Fail: 3   Warn: 0   Skip: 0
 	XCLI(t, "conform --run TestTDMixture --failfast", "",
 		`FAIL: http://localhost:8181
 └─ FAIL: TestTDMixture
+   ├─ PASS: TestTDInit
+   ├─ PASS: TestTDSimple1
    └─ FAIL: Local fail test
 Pass: 4   Fail: 3   Warn: 0   Skip: 0
 `, ``, 1)
@@ -2858,9 +2880,14 @@ Pass: 4   Fail: 3   Warn: 0   Skip: 0
 	XCLI(t, "conform --run TestTDMixture", "",
 		`FAIL: http://localhost:8181 (warn:1,skip:3)
 └─ FAIL: TestTDMixture (warn:1,skip:3)
+   ├─ PASS: TestTDInit
+   ├─ PASS: TestTDSimple1
    ├─ FAIL: Local fail test
    ├─ FAIL: TestTDSimpleFail
    │  └─ FAIL: SimpleFail
+   ├─ PASS: TestTDSimpleSkip (skip:1)
+   ├─ PASS: TestTDSimpleWarn (warn:1)
+   ├─ PASS: TestTDLevel2Fail
    ├─ SKIP: Top-level-skip
    ├─ FAIL: TestTDDepDepFail
    │  ├─ FAIL: TestTDLevel3DepF
@@ -2872,6 +2899,7 @@ Pass: 4   Fail: 3   Warn: 0   Skip: 0
    │  └─ FAIL: TestTDLevel3DepF
    │     ├─ FAIL: TestTDInitFail (cached)
    │     └─ Dependency "TestTDInitFail" failed, leaving
+   ├─ PASS: TestTDLevel23Skip (skip:1)
    ├─ FAIL: TestTDDepCacheFail
    │  ├─ FAIL: TestTDSimpleFail (cached)
    │  └─ Dependency "TestTDSimpleFail" failed, leaving
@@ -2885,9 +2913,14 @@ Pass: 16   Fail: 17   Warn: 1   Skip: 3
 	XCLI(t, "conform --run TestTDMixture --stats", "",
 		`FAIL: http://localhost:8181 (pass:16,fail:17,warn:1,skip:3)
 └─ FAIL: TestTDMixture (pass:16,fail:16,warn:1,skip:3)
+   ├─ PASS: TestTDInit (pass:2,fail:0,warn:0,skip:0)
+   ├─ PASS: TestTDSimple1 (pass:2,fail:0,warn:0,skip:0)
    ├─ FAIL: Local fail test
    ├─ FAIL: TestTDSimpleFail (pass:0,fail:2,warn:0,skip:0)
    │  └─ FAIL: SimpleFail
+   ├─ PASS: TestTDSimpleSkip (pass:1,fail:0,warn:0,skip:1)
+   ├─ PASS: TestTDSimpleWarn (pass:1,fail:0,warn:1,skip:0)
+   ├─ PASS: TestTDLevel2Fail (pass:5,fail:0,warn:0,skip:0)
    ├─ SKIP: Top-level-skip
    ├─ FAIL: TestTDDepDepFail (pass:0,fail:4,warn:0,skip:0)
    │  ├─ FAIL: TestTDLevel3DepF (pass:0,fail:3,warn:0,skip:0)
@@ -2899,6 +2932,7 @@ Pass: 16   Fail: 17   Warn: 1   Skip: 3
    │  └─ FAIL: TestTDLevel3DepF (pass:0,fail:2,warn:0,skip:0)
    │     ├─ FAIL: TestTDInitFail (cached - pass:1,fail:0,warn:0,skip:0)
    │     └─ Dependency "TestTDInitFail" failed, leaving
+   ├─ PASS: TestTDLevel23Skip (pass:4,fail:0,warn:0,skip:1)
    ├─ FAIL: TestTDDepCacheFail (pass:0,fail:2,warn:0,skip:0)
    │  ├─ FAIL: TestTDSimpleFail (cached - pass:1,fail:0,warn:0,skip:0)
    │  └─ Dependency "TestTDSimpleFail" failed, leaving

@@ -187,48 +187,43 @@ func (td *TD) write(out io.Writer, indent string, depth int) {
 	goDeep := depth >= 0 || td.Status == FAIL ||
 		(td.Config.ShowWarns && td.NumWarn > 0) ||
 		(td.Config.ShowSkips && td.NumSkip > 0)
+
+	td.writeHeader(out, indent, depth)
 	if goDeep {
-		td.writeHeader(out, indent, depth)
 		td.writeBody(out, indent, depth-1)
 	}
 }
 
 func (td *TD) writeHeader(out io.Writer, indent string, depth int) {
-	goDeep := depth >= 0 || td.Status == FAIL ||
-		(td.Config.ShowWarns && td.NumWarn > 0) ||
-		(td.Config.ShowSkips && td.NumSkip > 0)
+	// PASS: NAME
+	// PASS: NAME (warn:X,skip:X)
+	// PASS: NAME (pass:X,fail:X,warn:X,skip:X)   --stats
+	str := indent + StatusText[td.Status] + ": " + td.TestName
 
-	if goDeep {
-		// PASS: NAME
-		// PASS: NAME (warn:X,skip:X)
-		// PASS: NAME (pass:X,fail:X,warn:X,skip:X)   --stats
-		str := indent + StatusText[td.Status] + ": " + td.TestName
+	if td.Config.ShowStats || td.NumSkip > 0 || td.NumWarn > 0 {
+		strs := []string{}
 
-		if td.Config.ShowStats || td.NumSkip > 0 || td.NumWarn > 0 {
-			strs := []string{}
-
-			if td.Config.ShowStats {
-				strs = append(strs, fmt.Sprintf("pass:%d", td.NumPass))
-				strs = append(strs, fmt.Sprintf("fail:%d", td.NumFail))
-			}
-			if td.Config.ShowStats || td.NumWarn > 0 {
-				strs = append(strs, fmt.Sprintf("warn:%d", td.NumWarn))
-			}
-			if td.Config.ShowStats || td.NumSkip > 0 {
-				strs = append(strs, fmt.Sprintf("skip:%d", td.NumSkip))
-			}
-
-			str += " (" + strings.Join(strs, ",") + ")"
+		if td.Config.ShowStats {
+			strs = append(strs, fmt.Sprintf("pass:%d", td.NumPass))
+			strs = append(strs, fmt.Sprintf("fail:%d", td.NumFail))
+		}
+		if td.Config.ShowStats || td.NumWarn > 0 {
+			strs = append(strs, fmt.Sprintf("warn:%d", td.NumWarn))
+		}
+		if td.Config.ShowStats || td.NumSkip > 0 {
+			strs = append(strs, fmt.Sprintf("skip:%d", td.NumSkip))
 		}
 
-		if tdDebug {
-			str += fmt.Sprintf(" (hd: %d", depth)
-		}
-		out.Write([]byte(str + "\n"))
-
-		// Debug(out,"%s %d/%d/%d/%d",
-		// str, td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
+		str += " (" + strings.Join(strs, ",") + ")"
 	}
+
+	if tdDebug {
+		str += fmt.Sprintf(" (hd: %d", depth)
+	}
+	out.Write([]byte(str + "\n"))
+
+	// Debug(out,"%s %d/%d/%d/%d",
+	// str, td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
 }
 
 func (td *TD) writeBody(out io.Writer, indent string, depth int) {
