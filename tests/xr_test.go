@@ -2398,6 +2398,133 @@ Pass: 61   Fail: 0   Warn: 0   Skip: 3
 `, "", 0)
 }
 
+func TestXRConformAllGroupResources(t *testing.T) {
+	reg := NewRegistry("TestXRConformAllGroupResources")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "zgroups": {
+        "singular": "zgroup",
+        "resources": {
+          "zresources": { "singular": "zresource" },
+          "aresources": { "singular": "aresource" }
+        }
+      },
+      "mgroups": { "singular": "mgroup" },
+      "ngroups": { "singular": "ngroup" },
+      "agroups": {
+        "singular": "agroup",
+        "resources": {
+          "yresources": { "singular": "yresource" },
+          "mresources": { "singular": "mresource" },
+          "bresources": { "singular": "bresource" }
+        }
+      }
+    }
+  },
+  "zgroups": {
+    "zg1": {
+      "zresources": { "zr1": { "versionid": "v1" } },
+      "aresources": { "ar1": { "versionid": "v1" } }
+    }
+  },
+  "ngroups": { "ng1": {} },
+  "agroups": {
+    "ag2": {},
+    "ag1": {
+      "yresources": { "yr1": { "versionid": "v1" } },
+      "bresources": {
+        "br2": { "versionid": "v1" },
+        "br1": { "versionid": "v1" }
+      }
+    }
+  }
+}`, 200, "*")
+
+	const target = "http://localhost:8181"
+	XCLI(t, "conform --run entities --skips -d3 "+target, "",
+		`PASS: http://localhost:8181 (skip:3)
+└─ PASS: TestTDEntities (skip:3)
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups (skip:1)
+   │  ├─ PASS: TestModel (cached)
+   │  ├─ PASS: TestCapabilities (cached)
+   │  ├─ PASS: 'GET /agroups' MUST return 200
+   │  ├─ PASS: 'GET /agroups' MUST return a non-empty body
+   │  ├─ PASS: 'GET /agroups' MUST return a JSON body
+   │  ├─ PASS: "ag1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
+   │  ├─ PASS: Value of "ag1" MUST NOT be nil
+   │  ├─ PASS: 'GET /mgroups' MUST return 200
+   │  ├─ PASS: 'GET /mgroups' MUST return a non-empty body
+   │  ├─ PASS: 'GET /mgroups' MUST return a JSON body
+   │  ├─ SKIP: No groups defined for group type "mgroups"
+   │  ├─ PASS: 'GET /ngroups' MUST return 200
+   │  ├─ PASS: 'GET /ngroups' MUST return a non-empty body
+   │  ├─ PASS: 'GET /ngroups' MUST return a JSON body
+   │  ├─ PASS: "ng1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
+   │  ├─ PASS: Value of "ng1" MUST NOT be nil
+   │  ├─ PASS: 'GET /zgroups' MUST return 200
+   │  ├─ PASS: 'GET /zgroups' MUST return a non-empty body
+   │  ├─ PASS: 'GET /zgroups' MUST return a JSON body
+   │  ├─ PASS: "zg1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
+   │  ├─ PASS: Value of "zg1" MUST NOT be nil
+   └─ PASS: TestResources (skip:2)
+      ├─ PASS: TestGroups (cached)
+      ├─ PASS: 'GET /agroups/ag1/bresources' MUST return 200
+      ├─ PASS: 'GET /agroups/ag1/bresources' MUST return a non-empty body
+      ├─ PASS: 'GET /agroups/ag1/bresources' MUST return a JSON body
+      ├─ PASS: "br1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
+      ├─ PASS: Value of "br1" MUST NOT be nil
+      ├─ PASS: 'GET /agroups/ag1/mresources' MUST return 200
+      ├─ PASS: 'GET /agroups/ag1/mresources' MUST return a non-empty body
+      ├─ PASS: 'GET /agroups/ag1/mresources' MUST return a JSON body
+      ├─ SKIP: No resources defined for resource type  "mresources" - leaving
+      ├─ PASS: 'GET /agroups/ag1/yresources' MUST return 200
+      ├─ PASS: 'GET /agroups/ag1/yresources' MUST return a non-empty body
+      ├─ PASS: 'GET /agroups/ag1/yresources' MUST return a JSON body
+      ├─ PASS: "yr1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
+      ├─ PASS: Value of "yr1" MUST NOT be nil
+      ├─ SKIP: No Resource Types defined for "ngroups" Group Type - leaving
+      ├─ PASS: 'GET /zgroups/zg1/aresources' MUST return 200
+      ├─ PASS: 'GET /zgroups/zg1/aresources' MUST return a non-empty body
+      ├─ PASS: 'GET /zgroups/zg1/aresources' MUST return a JSON body
+      ├─ PASS: "ar1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
+      ├─ PASS: Value of "ar1" MUST NOT be nil
+      ├─ PASS: 'GET /zgroups/zg1/zresources' MUST return 200
+      ├─ PASS: 'GET /zgroups/zg1/zresources' MUST return a non-empty body
+      ├─ PASS: 'GET /zgroups/zg1/zresources' MUST return a JSON body
+      ├─ PASS: "zr1" MUST match "^[a-zA-Z0-9_][a-zA-Z0-9-\\._~:@]{0,127}$"
+      ├─ PASS: Value of "zr1" MUST NOT be nil
+Pass: 212   Fail: 0   Warn: 0   Skip: 3
+`, "", 0)
+
+	XCLI(t, "conform -d3 "+target, "",
+		`PASS: http://localhost:8181 (skip:3)
+└─ PASS: TestRegistry (skip:3)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups (skip:1)
+   └─ PASS: TestResources (skip:2)
+Pass: 215   Fail: 0   Warn: 0   Skip: 3
+`, "", 0)
+
+	XCLI(t, "conform --run all -d3 "+target, "",
+		`PASS: http://localhost:8181 (skip:3)
+└─ PASS: TestTDAll (skip:3)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups (skip:1)
+   └─ PASS: TestResources (skip:2)
+Pass: 215   Fail: 0   Warn: 0   Skip: 3
+`, "", 0)
+}
+
 func TestXRConformUnknownRun(t *testing.T) {
 	XCLI(t, "conform --run bogus http://127.0.0.1:1", "", "",
 		"Unknown --run value: \"bogus\". Valid values: all, smoke, entities.\n",

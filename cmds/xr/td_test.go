@@ -243,7 +243,7 @@ func TestConformanceStateErrorPrintCompleteResult(t *testing.T) {
 	td := newTestTD(target)
 	cachePassedTest(td, TestGroups)
 	reg := xrlib.DefineRegistry(target)
-	reg.SetStuff("gm", "not a GroupModel")
+	reg.SetStuff("groupPaths", "not group paths")
 	td.SetRegistry(reg)
 	td.Run(TestResources)
 
@@ -251,7 +251,7 @@ func TestConformanceStateErrorPrintCompleteResult(t *testing.T) {
 	XEqual(t, "State Error Output", got, `FAIL: http://example.com
 └─ FAIL: TestResources
    ├─ PASS: TestGroups (cached)
-   └─ FAIL: reg.stuff.gm != *GroupModel
+   └─ FAIL: reg.stuff.groupPaths != map[string]string
 Pass: 1   Fail: 3   Warn: 0   Skip: 0
 `)
 }
