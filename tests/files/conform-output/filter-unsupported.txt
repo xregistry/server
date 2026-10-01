@@ -1,0 +1,30 @@
+PASS: http://localhost:8282/conform-filter-unsupported (skip:3)
+└─ PASS: TestRegistry (skip:3)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: Retrieving capabilities
+   │  ├─ PASS: capabilities.available MUST include "capabilities"
+   │  ├─ PASS: capabilities.available MUST include "entities"
+   │  ├─ PASS: capabilities.available MUST include "model"
+   │  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+   │  ├─ PASS: 'GET /capabilities' MUST return 200
+   │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+   │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  ├─ PASS: Parsing capabilities MUST work
+   │  ├─ PASS: 'GET /' MUST return 200
+   │  ├─ PASS: 'GET /' MUST return a non-empty body
+   │  ├─ PASS: 'GET /' MUST return a JSON body
+   │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+   │  ├─ PASS: Testing ?inline=capabilities (skip:1)
+   │  │  └─ SKIP: ?inline not supported
+   │  └─ PASS: Parsing Capabilities MUST work
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups
+   ├─ PASS: TestFilter (skip:1)
+   │  ├─ PASS: TestCapabilities (cached)
+   │  └─ SKIP: ?filter not supported
+   └─ PASS: TestResources (skip:1)
+      ├─ PASS: TestGroups (cached)
+      └─ SKIP: No Resource Types defined for "widgets" Group Type - leaving
+Pass: 80   Fail: 0   Warn: 0   Skip: 3

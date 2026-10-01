@@ -25,6 +25,7 @@ import (
 const TestDBName = "registry"
 const TestRegName = "testreg"
 const specVersionPlaceholder = "$SPECVERSION"
+const outputSpacePlaceholder = "$SPACE"
 
 var XRServerConfig *Config
 var MainServer *registry.Server
@@ -127,8 +128,25 @@ func testFileServer() http.Handler {
 			req.Method = http.MethodGet
 		}
 
-		recorder := httptest.NewRecorder()
-		fileServer.ServeHTTP(recorder, req)
+		var recorder *httptest.ResponseRecorder
+		if r.URL.Query().Has("filter") {
+			filterReq := req.Clone(req.Context())
+			filterReq.URL.Path =
+				strings.TrimSuffix(filterReq.URL.Path, "/") + ".filter"
+			filterReq.URL.RawPath = ""
+			filterReq.URL.RawQuery = ""
+
+			filterRecorder := httptest.NewRecorder()
+			fileServer.ServeHTTP(filterRecorder, filterReq)
+			if filterRecorder.Code != http.StatusNotFound {
+				recorder = filterRecorder
+			}
+		}
+
+		if recorder == nil {
+			recorder = httptest.NewRecorder()
+			fileServer.ServeHTTP(recorder, req)
+		}
 
 		res := recorder.Result()
 		defer res.Body.Close()
@@ -596,7 +614,9 @@ func expectedOutput(t *testing.T, path string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return strings.ReplaceAll(string(data), specVersionPlaceholder, SPECVERSION)
+	output := strings.ReplaceAll(string(data), specVersionPlaceholder,
+		SPECVERSION)
+	return strings.ReplaceAll(output, outputSpacePlaceholder, " ")
 }
 
 func TestFileServerSpecVersion(t *testing.T) {
