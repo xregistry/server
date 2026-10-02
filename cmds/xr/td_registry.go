@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "fmt"
+	"net/url"
 	"regexp"
 
 	"github.com/xregistry/server/cmds/xr/xrlib"
@@ -23,6 +23,7 @@ func TestRegistry(td *TD) {
 	td.Run(TestCapabilities)
 	td.Run(TestRegistryRoot)
 	td.Run(TestGroups)
+	td.Run(TestFilter)
 	td.Run(TestResources)
 }
 
@@ -222,7 +223,8 @@ func TestGroups(td *TD) {
 				MakeURL(reg.GetStuffAsString("self"),
 					gm.Plural, MustString(gRes.JSON[gm.Singular+"id"])))
 			gTD.ObjReqMustEq(gRes.JSON, "xid",
-				MakeURL("/", gm.Plural, MustString(gRes.JSON[gm.Singular+"id"])))
+				MakeURL("/", gm.Plural,
+					MustString(gRes.JSON[gm.Singular+"id"])))
 			gTD.ObjReqMustGe(gRes.JSON, "epoch", 0)
 			gTD.ObjMayExist(gRes.JSON, "name", "")
 			gTD.ObjMayExist(gRes.JSON, "description", "")
@@ -238,6 +240,64 @@ func TestGroups(td *TD) {
 	}
 
 	reg.SetStuff("groupPaths", groupPaths)
+}
+
+func TestFilter(td *TD) {
+	td.DependsOn(TestCapabilities)
+	reg := td.GetRegistry()
+
+	if reg.Capabilities == nil {
+		td.Skip("No capabilities found - leaving")
+		return
+	}
+
+	if !reg.Capabilities.FlagEnabled("filter") {
+		td.Skip("?filter not supported - leaving")
+		return
+	}
+
+	td.DependsOn(TestGroups)
+
+	groupPathsAny, ok := reg.GetStuff("groupPaths")
+	if !ok {
+		td.Skip("No observable Group Types defined - leaving")
+		return
+	}
+	groupPaths, ok := groupPathsAny.(map[string]string)
+	PanicIf(!ok, "reg.stuff.groupPaths != map[string]string")
+
+	if len(groupPaths) == 0 {
+		td.Skip("No observable Group Types defined - leaving")
+		return
+	}
+
+	xid, err := ParseXid(groupPaths[SortedKeys(groupPaths)[0]])
+	PanicIf(err != nil, "reg.stuff.groupPaths has an invalid XID: %s", err)
+
+	gm := reg.Model.Groups[xid.Group]
+	filterAttr := gm.Singular + "id"
+	collectionPath := "/" + xid.Group
+	matchID := xid.GroupID
+	if matchID == "null" {
+		matchID = "NULL"
+	}
+
+	matchPath := collectionPath + "?filter=" + filterAttr + "=" +
+		url.QueryEscape(matchID)
+	matchRes := td.HTTPGetJSON(matchPath)
+	if matchRes != nil {
+		td.MustEqual([]string{xid.GroupID}, SortedKeys(matchRes.JSON),
+			"'GET %s' MUST return exactly group %q", matchPath, xid.GroupID)
+		td.Must(!IsNil(matchRes.JSON[xid.GroupID]),
+			"'GET %s' group %q MUST NOT be nil", matchPath, xid.GroupID)
+	}
+
+	absentPath := collectionPath + "?filter=" + filterAttr + "=null"
+	absentRes := td.HTTPGetJSON(absentPath)
+	if absentRes != nil {
+		td.MustEqual(0, len(absentRes.JSON),
+			"'GET %s' MUST return an empty collection", absentPath)
+	}
 }
 
 func TestResources(td *TD) {

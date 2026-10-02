@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/xregistry/server/cmds/xr/xrlib"
@@ -145,6 +148,107 @@ Pass: 2   Fail: 0   Warn: 0   Skip: 0
 `
 	XEqual(t, "Writer Output", out.String(), expected)
 	XEqual(t, "Stdout", stdout, "")
+}
+
+func TestTDHTTPGetJSON(t *testing.T) {
+	tests := []struct {
+		name   string
+		code   int
+		body   string
+		status int
+	}{
+		{"object", 200, `{"null":{}}`, PASS},
+		{"empty object", 200, `{}`, PASS},
+		{"wrong success status", 201, `{}`, FAIL},
+		{"error with null body", 500, `null`, FAIL},
+		{"empty body", 200, ``, FAIL},
+		{"null", 200, `null`, FAIL},
+		{"array", 200, `[]`, FAIL},
+		{"string", 200, `"not an object"`, FAIL},
+		{"malformed", 200, `{"null":`, FAIL},
+		{"transport", 200, `{}`, FAIL},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(test.code)
+					_, _ = w.Write([]byte(test.body))
+				}))
+			defer server.Close()
+			if test.name == "transport" {
+				server.Close()
+			}
+
+			td := newTestTD("HTTP GET")
+			td.SetRegistry(xrlib.DefineRegistry(server.URL))
+			const path = "/widgets?filter=widgetid=NULL"
+			res := td.HTTPGetJSON(path)
+
+			XEqual(t, "Root status", td.Status, test.status)
+			XEqual(t, "Request subtests", len(td.Logs), 1)
+			requestTD := td.Logs[0].Subtest
+			XEqual(t, "Request name", requestTD.TestName, "GET "+path)
+			XEqual(t, "Request status", requestTD.Status, test.status)
+			if test.status == PASS {
+				XCheck(t, res != nil, "Expected a JSON response")
+				XEqual(t, "Response status", res.Code, 200)
+				XEqual(t, "Response body", string(res.Body), test.body)
+				XCheck(t, res.JSON != nil, "Expected a JSON object")
+			} else {
+				XCheck(t, res == nil, "A failed request must return nil")
+			}
+			td.Pass("continued")
+			XEqual(t, "Final status", td.Status, test.status)
+		})
+	}
+
+	t.Run("independent requests", func(t *testing.T) {
+		var requests atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				if requests.Add(1) == 1 {
+					_, _ = w.Write([]byte("null"))
+				} else {
+					_, _ = w.Write([]byte("{}"))
+				}
+			}))
+		defer server.Close()
+
+		td := newTestTD("HTTP GET")
+		td.SetRegistry(xrlib.DefineRegistry(server.URL))
+		first := td.HTTPGetJSON("/widgets?filter=widgetid=NULL")
+		second := td.HTTPGetJSON("/widgets?filter=widgetid=null")
+		XCheck(t, first == nil, "The first request must fail")
+		XCheck(t, second != nil, "The second request must still run")
+		XEqual(t, "Requests", requests.Load(), int32(2))
+		XEqual(t, "First status", td.Logs[0].Subtest.Status, FAIL)
+		XEqual(t, "Second status", td.Logs[1].Subtest.Status, PASS)
+	})
+
+	t.Run("failfast", func(t *testing.T) {
+		var requests atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				_, _ = w.Write([]byte("null"))
+			}))
+		defer server.Close()
+
+		td := newTestTD("HTTP GET")
+		td.SetRegistry(xrlib.DefineRegistry(server.URL))
+		td.Config.FailFast = true
+		continued := false
+		td.Run(func(td *TD) {
+			td.HTTPGetJSON("/widgets?filter=widgetid=NULL")
+			continued = true
+			td.HTTPGetJSON("/widgets?filter=widgetid=null")
+		})
+		XEqual(t, "Root status", td.Status, FAIL)
+		XEqual(t, "Requests", requests.Load(), int32(1))
+		XEqual(t, "Continued", continued, false)
+	})
 }
 
 func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
