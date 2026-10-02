@@ -3,6 +3,7 @@ package tests
 // ├ │ └
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -2400,83 +2401,104 @@ Pass: 63   Fail: 0   Warn: 0   Skip: 4
 `, "", 0)
 }
 
-func TestXRConformFilterSupported(t *testing.T) {
-	reg := NewRegistry("TestXRConformFilterSupported")
-	defer PassDeleteReg(t, reg)
-
-	XHTTP(t, reg, "PUT", "/", `{
-  "modelsource": {
-    "groups": {
-      "widgets": {
-        "singular": "widget"
-      }
-    }
-  },
-  "widgets": {
-    "null": {},
-    "z@": {}
-  }
-}`, 200, `{
-  "specversion": "`+SPECVERSION+`",
-  "registryid": "TestXRConformFilterSupported",
-  "self": "http://localhost:8181/",
-  "xid": "/",
-  "epoch": 2,
-  "createdat": "2026-10-01T12:00:00Z",
-  "modifiedat": "2026-10-01T12:00:01Z",
-
-  "widgetsurl": "http://localhost:8181/widgets",
-  "widgetscount": 2
-}
-`)
-
+func TestXRConformFilter(t *testing.T) {
 	const target = "http://localhost:8181"
-	cliResult := XCLI(t, "conform -d3 -vvv "+target, "", `PASS: http://localhost:8181 (skip:1)
-└─ PASS: TestRegistry (skip:1)
+	tests := []struct {
+		name    string
+		flags   string
+		groups  string
+		count   int
+		query   string
+		options string
+		output  string
+	}{
+		{
+			name:   "literal null ID",
+			flags:  `["filter"]`,
+			groups: `{"null":{},"z@":{}}`,
+			count:  2,
+			query:  "NULL",
+			output: `PASS: http://localhost:8181 (skip:2)
+└─ PASS: TestRegistry (skip:2)
    ├─ PASS: TestSniff
    ├─ PASS: TestModel
-   ├─ PASS: TestCapabilities
+   ├─ PASS: TestCapabilities (skip:1)
    ├─ PASS: TestRegistryRoot
    ├─ PASS: TestGroups
    ├─ PASS: TestFilter
    └─ PASS: TestResources (skip:1)
-Pass: 95   Fail: 0   Warn: 0   Skip: 1
-`, "*", 0)
-
-	for _, request := range []string{
-		"Request: GET " + target + "/widgets?filter=widgetid=z%40",
-		"Request: GET " + target + "/widgets?filter=widgetid=null",
-	} {
-		if got := strings.Count(cliResult.Stderr, request); got != 1 {
-			t.Fatalf("%s logged %d times, expected 1:\n%s",
-				request, got, cliResult.Stderr)
-		}
-	}
-	if got := strings.Count(cliResult.Stderr, "?filter="); got != 2 {
-		t.Fatalf("filter requests logged %d times, expected 2:\n%s",
-			got, cliResult.Stderr)
-	}
-	if strings.Contains(cliResult.Stderr, "filter=widgetid=z@") {
-		t.Fatalf("filter value was not URL-escaped:\n%s", cliResult.Stderr)
-	}
-}
-
-func TestXRConformFilterUnsupported(t *testing.T) {
-	const target = "http://localhost:8282/conform-filter-unsupported"
-	cliResult := XCLI(t, "conform --skips -d3 -vvv "+target, "",
-		expectedOutput(t, "files/conform-output/filter-unsupported.txt"),
-		"*", 0)
-
-	if got := strings.Count(cliResult.Stderr, "?filter="); got != 0 {
-		t.Fatalf("filter requests logged %d times, expected 0:\n%s",
-			got, cliResult.Stderr)
-	}
-}
-
-func TestXRConformFilterNoObservableGroup(t *testing.T) {
-	const target = "http://localhost:8282/conform-filter-empty"
-	cliResult := XCLI(t, "conform --run all --skips -d3 -vvv "+target, "",
-		`PASS: http://localhost:8282/conform-filter-empty (skip:4)
+Pass: 92   Fail: 0   Warn: 0   Skip: 2
+`,
+		},
+		{
+			name:    "escaped ID and repeated all selection",
+			flags:   `["filter"]`,
+			groups:  `{"z@":{},"zz":{}}`,
+			count:   2,
+			query:   "z%40",
+			options: "--run all --run entities --run all",
+			output: `PASS: http://localhost:8181 (skip:2)
+├─ PASS: TestTDAll (skip:2)
+│  ├─ PASS: TestSniff
+│  ├─ PASS: TestModel
+│  ├─ PASS: TestCapabilities (skip:1)
+│  ├─ PASS: TestRegistryRoot
+│  ├─ PASS: TestGroups
+│  ├─ PASS: TestFilter
+│  └─ PASS: TestResources (skip:1)
+└─ PASS: TestTDEntities
+   ├─ PASS: TestRegistryRoot (cached)
+   ├─ PASS: TestGroups (cached)
+   └─ PASS: TestResources (cached)
+Pass: 96   Fail: 0   Warn: 0   Skip: 2
+`,
+		},
+		{
+			// Groups exist, so only the capability gate prevents probes.
+			name:    "filter not advertised",
+			flags:   `[]`,
+			groups:  `{"null":{},"z@":{}}`,
+			count:   2,
+			options: "--skips",
+			output: `PASS: http://localhost:8181 (skip:3)
+└─ PASS: TestRegistry (skip:3)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: Retrieving capabilities
+   │  ├─ PASS: capabilities.available MUST include "capabilities"
+   │  ├─ PASS: capabilities.available MUST include "entities"
+   │  ├─ PASS: capabilities.available MUST include "model"
+   │  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+   │  ├─ PASS: 'GET /capabilities' MUST return 200
+   │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+   │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  ├─ PASS: Parsing capabilities MUST work
+   │  ├─ PASS: 'GET /' MUST return 200
+   │  ├─ PASS: 'GET /' MUST return a non-empty body
+   │  ├─ PASS: 'GET /' MUST return a JSON body
+   │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+   │  ├─ PASS: Testing ?inline=capabilities (skip:1)
+   │  │  └─ SKIP: ?inline not supported
+   │  └─ PASS: Parsing Capabilities MUST work
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups
+   ├─ PASS: TestFilter (skip:1)
+   │  ├─ PASS: TestCapabilities (cached)
+   │  └─ SKIP: ?filter not supported - leaving
+   └─ PASS: TestResources (skip:1)
+      ├─ PASS: TestGroups (cached)
+      └─ SKIP: No Resource Types defined for "widgets" Group Type - leaving
+Pass: 80   Fail: 0   Warn: 0   Skip: 3
+`,
+		},
+		{
+			// Filtering is advertised, but the collection has no groups.
+			name:    "empty modeled collection",
+			flags:   `["filter"]`,
+			groups:  `{}`,
+			options: "--run all --skips",
+			output: `PASS: http://localhost:8181 (skip:4)
 └─ PASS: TestTDAll (skip:4)
    ├─ PASS: TestSniff
    ├─ PASS: TestModel
@@ -2508,44 +2530,360 @@ func TestXRConformFilterNoObservableGroup(t *testing.T) {
    ├─ PASS: TestFilter (skip:1)
    │  ├─ PASS: TestCapabilities (cached)
    │  ├─ PASS: TestGroups (cached)
-   │  └─ SKIP: No observable Group Types with a filterable ID - leaving
+   │  └─ SKIP: No observable Group Types defined - leaving
    └─ PASS: TestResources (skip:1)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Group Types defined  - leaving
 Pass: 64   Fail: 0   Warn: 0   Skip: 4
-`, "*", 0)
+`,
+		},
+	}
 
-	if got := strings.Count(cliResult.Stderr, "?filter="); got != 0 {
-		t.Fatalf("filter requests logged %d times, expected 0:\n%s",
-			got, cliResult.Stderr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reg := NewRegistry("TestXRConformFilter")
+			defer PassDeleteReg(t, reg)
+
+			XHTTP(t, reg, "PUT", "/", fmt.Sprintf(`{
+  "capabilities": {
+    "available": {
+      "capabilities": {"mutable": true},
+      "entities": {"mutable": true},
+      "model": {"mutable": false}
+    },
+    "flags": %s
+  },
+  "modelsource": {
+    "groups": {
+      "widgets": {
+        "singular": "widget"
+      }
+    }
+  },
+  "widgets": %s
+}`, test.flags, test.groups), 200, fmt.Sprintf(`{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConformFilter",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-10-01T12:00:00Z",
+  "modifiedat": "2026-10-01T12:00:01Z",
+
+  "widgetsurl": "http://localhost:8181/widgets",
+  "widgetscount": %d
+}
+`, test.count))
+
+			cliResult := XCLI(t, "conform "+test.options+" -d3 -vvv "+
+				target, "", test.output, "*", 0)
+			if test.query == "" {
+				XEqual(t, "Filter requests",
+					strings.Count(cliResult.Stderr, "?filter="), 0)
+			} else {
+				for _, query := range []string{test.query, "null"} {
+					request := "Request: GET " + target +
+						"/widgets?filter=widgetid=" + query
+					XEqual(t, request,
+						strings.Count(cliResult.Stderr, request), 1)
+				}
+				XEqual(t, "Filter requests",
+					strings.Count(cliResult.Stderr, "?filter="), 2)
+			}
+
+			if test.query == "z%40" {
+				XEqual(t, "Unescaped filter",
+					strings.Count(cliResult.Stderr, "filter=widgetid=z@"), 0)
+				const expected = `{
+  "z@": {
+    "widgetid": "z@",
+    "self": "http://localhost:8181/widgets/z@",
+    "xid": "/widgets/z@",
+    "epoch": 1,
+    "createdat": "2026-10-01T12:00:00Z",
+    "modifiedat": "2026-10-01T12:00:00Z"
+  }
+}
+`
+				// Filter strings compare case-insensitively, unlike URL IDs.
+				XHTTP(t, reg, "GET", "/widgets?filter=widgetid=z%40",
+					"", 200, expected)
+				XHTTP(t, reg, "GET", "/widgets?filter=widgetid=Z%40",
+					"", 200, expected)
+			}
+
+			if test.count == 0 {
+				XCLI(t, "conform --output json --run all "+target, "",
+					expectedOutput(t,
+						"files/conform-output/all-filter-empty.json"),
+					"", 0)
+			}
+		})
 	}
 }
 
-func TestXRConformFilterNullCapabilities(t *testing.T) {
-	const target = "http://localhost:8282/conform-filter-null-capabilities"
-	cliResult := XCLI(t, "conform --run all --skips -d3 -vvv "+target, "",
-		expectedOutput(t,
-			"files/conform-output/filter-null-capabilities.txt"),
-		"*", 0)
-
-	if got := strings.Count(cliResult.Stderr, "?filter="); got != 0 {
-		t.Fatalf("filter requests logged %d times, expected 0:\n%s",
-			got, cliResult.Stderr)
+func TestXRConformFilterResponses(t *testing.T) {
+	const path = "/TestXRConformFilterResponses"
+	const target = "http://localhost:8282" + path
+	const capabilities = `{
+  "available": {
+    "capabilities": {"mutable": true},
+    "entities": {"mutable": true},
+    "model": {"mutable": false}
+  },
+  "flags": ["filter"]
+}`
+	const model = `{
+  "groups": {
+    "widgets": {"plural":"widgets","singular":"widget"}
+  }
+}`
+	const groups = `{"null":{},"z@":{}}`
+	const root = `{
+  "specversion": "$SPECVERSION",
+  "registryid": "TestXRConformFilterResponses",
+  "self": "http://localhost:8282/TestXRConformFilterResponses/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-01-01T00:00:00Z",
+  "modifiedat": "2026-01-01T00:00:00Z",
+  "widgetscount": 2,
+  "widgetsurl": "http://localhost:8282/TestXRConformFilterResponses/widgets"
+}`
+	const group = `{
+  "widgetid": "null",
+  "self": "http://localhost:8282/TestXRConformFilterResponses/widgets/null",
+  "xid": "/widgets/null",
+  "epoch": 1,
+  "createdat": "2026-01-01T00:00:00Z",
+  "modifiedat": "2026-01-01T00:00:00Z"
+}`
+	tests := []struct {
+		name     string
+		code     int
+		match    string
+		absent   string
+		failfast bool
+		output   string
+	}{
+		{
+			// Advertised filtering is deliberately ignored for both probes.
+			name:   "advertised filter ignored",
+			code:   200,
+			match:  groups,
+			absent: groups,
+			output: `FAIL: http://localhost:8282/TestXRConformFilterResponses (skip:2)
+└─ FAIL: TestRegistry (skip:2)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups
+   ├─ FAIL: TestFilter
+   │  ├─ PASS: TestCapabilities (cached)
+   │  ├─ PASS: TestGroups (cached)
+   │  ├─ PASS: GET /widgets?filter=widgetid=NULL
+   │  ├─ FAIL: 'GET /widgets?filter=widgetid=NULL' MUST return exactly group "null"
+   │  │  ├─ Exp([]string): [
+   │  │  │    "null"
+   │  │  │  ]
+   │  │  ├─ Got([]string): [
+   │  │  │    "null",
+   │  │  │    "z@"
+   │  │  │  ]
+   │  │  └─ Diff(exp/got): diff Exp Got
+   │  │     --- Exp
+   │  │     +++ Got
+   │  │     @@ -1,3 +1,4 @@
+   │  │      [
+   │  │     -  "null"
+   │  │     +  "null",
+   │  │     +  "z@"
+   │  │      ]
+   │  │     \ No newline at end of file
+   │  │$SPACE$SPACE$SPACE$SPACE$SPACE
+   │  ├─ PASS: 'GET /widgets?filter=widgetid=NULL' group "null" MUST NOT be
+   │  │        nil
+   │  ├─ PASS: GET /widgets?filter=widgetid=null
+   │  └─ FAIL: 'GET /widgets?filter=widgetid=null' MUST return an empty collection
+   │     ├─ Exp(int): 0
+   │     └─ Got(int): 2
+   └─ PASS: TestResources (skip:1)
+Pass: 87   Fail: 5   Warn: 0   Skip: 2
+`,
+		},
+		{
+			name:   "invalid JSON for both probes",
+			code:   200,
+			match:  "not-json\n",
+			absent: "not-json\n",
+			output: `FAIL: http://localhost:8282/TestXRConformFilterResponses (skip:2)
+└─ FAIL: TestRegistry (skip:2)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups
+   ├─ FAIL: TestFilter
+   │  ├─ PASS: TestCapabilities (cached)
+   │  ├─ PASS: TestGroups (cached)
+   │  ├─ FAIL: GET /widgets?filter=widgetid=NULL
+   │  │  ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return 200
+   │  │  ├─ 'GET /widgets?filter=widgetid=NULL' Body:
+   │  │  │  not-json
+   │  │  │$SPACE$SPACE
+   │  │  ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return a non-empty
+   │  │  │        body
+   │  │  └─ FAIL: 'GET /widgets?filter=widgetid=NULL' MUST return a JSON body
+   │  └─ FAIL: GET /widgets?filter=widgetid=null
+   │     ├─ PASS: 'GET /widgets?filter=widgetid=null' MUST return 200
+   │     ├─ 'GET /widgets?filter=widgetid=null' Body:
+   │     │  not-json
+   │     │$SPACE$SPACE
+   │     ├─ PASS: 'GET /widgets?filter=widgetid=null' MUST return a non-empty
+   │     │        body
+   │     └─ FAIL: 'GET /widgets?filter=widgetid=null' MUST return a JSON body
+   └─ PASS: TestResources (skip:1)
+Pass: 82   Fail: 7   Warn: 0   Skip: 2
+`,
+		},
+		{
+			name:   "HTTP error with null body",
+			code:   500,
+			match:  "null",
+			absent: "{}",
+			output: `FAIL: http://localhost:8282/TestXRConformFilterResponses (skip:2)
+└─ FAIL: TestRegistry (skip:2)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups
+   ├─ FAIL: TestFilter
+   │  ├─ PASS: TestCapabilities (cached)
+   │  ├─ PASS: TestGroups (cached)
+   │  ├─ FAIL: GET /widgets?filter=widgetid=NULL
+   │  │  ├─ Unexpected error: There was an error talking to the server
+   │  │  │  (http://localhost:8282/TestXRConformFilterResponses/widgets?filter=
+   │  │  │  widgetid=NULL): null.
+   │  │  └─ FAIL: GET /widgets?filter=widgetid=NULL
+   │  ├─ PASS: GET /widgets?filter=widgetid=null
+   │  └─ PASS: 'GET /widgets?filter=widgetid=null' MUST return an empty
+   │           collection
+   └─ PASS: TestResources (skip:1)
+Pass: 83   Fail: 5   Warn: 0   Skip: 2
+`,
+		},
+		{
+			name:     "failfast after malformed matching response",
+			code:     200,
+			match:    "not-json\n",
+			absent:   "{}",
+			failfast: true,
+			output: `FAIL: http://localhost:8282/TestXRConformFilterResponses (skip:2)
+└─ FAIL: TestRegistry (skip:2)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   ├─ PASS: TestRegistryRoot
+   ├─ PASS: TestGroups
+   ├─ FAIL: TestFilter
+   │  ├─ PASS: TestCapabilities (cached)
+   │  ├─ PASS: TestGroups (cached)
+   │  └─ FAIL: GET /widgets?filter=widgetid=NULL
+   │     ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return 200
+   │     ├─ 'GET /widgets?filter=widgetid=NULL' Body:
+   │     │  not-json
+   │     │$SPACE$SPACE
+   │     ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return a non-empty
+   │     │        body
+   │     └─ FAIL: 'GET /widgets?filter=widgetid=NULL' MUST return a JSON body
+   └─ PASS: TestResources (skip:1)
+Pass: 80   Fail: 5   Warn: 0   Skip: 2
+`,
+		},
 	}
-}
 
-func TestXRConformFilterIgnored(t *testing.T) {
-	const target = "http://localhost:8282/conform-filter-ignored"
-	XCLI(t, "conform --skips -d4 "+target, "",
-		expectedOutput(t, "files/conform-output/filter-ignored.txt"),
-		"", 1)
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			FileServer.SetOutput(t, path+"/", 200, root)
+			FileServer.SetOutput(t, path+"/model", 200, model)
+			FileServer.SetOutput(t, path+"/capabilities", 200, capabilities)
+			FileServer.SetOutput(t, path+"/widgets", 200, groups)
+			FileServer.SetOutput(t, path+"/widgets/null", 200, group)
+			FileServer.SetOutput(t, path+"/widgets?filter=widgetid=NULL",
+				test.code, test.match)
+			FileServer.SetOutput(t, path+"/widgets?filter=widgetid=null",
+				200, test.absent)
 
-func TestXRConformFilterInvalidJSON(t *testing.T) {
-	const target = "http://localhost:8282/conform-filter-invalid"
-	XCLI(t, "conform --skips -d4 "+target, "",
-		expectedOutput(t, "files/conform-output/filter-invalid.txt"),
-		"", 1)
+			options := ""
+			if test.failfast {
+				options = "--failfast "
+			}
+			XCLI(t, "conform "+options+"-d3 "+target, "",
+				substituteOutput(test.output), "", 1)
+		})
+	}
+
+	// Keep the existing nil-capabilities skip contract until discovery changes.
+	t.Run("null capabilities", func(t *testing.T) {
+		FileServer.SetOutput(t, path+"/", 200, `{
+  "specversion": "$SPECVERSION",
+  "registryid": "TestXRConformFilterResponses",
+  "self": "http://localhost:8282/TestXRConformFilterResponses/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-01-01T00:00:00Z",
+  "modifiedat": "2026-01-01T00:00:00Z"
+}`)
+		FileServer.SetOutput(t, path+"/model", 200, "{}")
+		FileServer.SetOutput(t, path+"/capabilities", 200, "null")
+		cliResult := XCLI(t, "conform --run all --skips -d3 -vvv "+target,
+			"", substituteOutput(`PASS: http://localhost:8282/TestXRConformFilterResponses (skip:5)
+└─ PASS: TestTDAll (skip:5)
+   ├─ PASS: TestSniff
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: Retrieving capabilities
+   │  └─ SKIP: No capabilities found - leaving
+   ├─ PASS: TestRegistryRoot (skip:1)
+   │  ├─ PASS: TestModel (cached)
+   │  ├─ PASS: TestCapabilities (cached)
+   │  ├─ PASS: 'GET /' MUST return 200
+   │  ├─ PASS: 'GET /' MUST return a non-empty body
+   │  ├─ PASS: 'GET /' MUST return a JSON body
+   │  ├─ PASS: "specversion" ($SPECVERSION) MUST > "1.0"
+   │  ├─ PASS: "registryid" (TestXRConformFilterResponses) MUST != ""
+   │  ├─ PASS: "self" (http://localhost:8282/TestXRConformFilterResponses/)
+   │  │        MUST != ""
+   │  ├─ SKIP: "shortself" - Capabilities not available
+   │  ├─ PASS: "xid" (/) MUST = "/"
+   │  ├─ PASS: "epoch" (1) MUST >= 0
+   │  ├─ PASS: "name" MAY be present, but is missing
+   │  ├─ PASS: "description" MAY be present, but is missing
+   │  ├─ PASS: "documentation" MAY be present, but is missing
+   │  ├─ PASS: "icon" MUST != "" (if present), but is missing
+   │  ├─ PASS: "labels" MAY be present, but is missing
+   │  ├─ PASS: "createdat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
+   │  ├─ PASS: "modifiedat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
+   │  ├─ PASS: "capabilities" MUST NOT be present, and isn't
+   │  ├─ PASS: "model" MUST NOT be present, and isn't
+   │  └─ PASS: "modelsource" MUST NOT be present, and isn't
+   ├─ PASS: TestGroups (skip:1)
+   │  ├─ PASS: TestModel (cached)
+   │  ├─ PASS: TestCapabilities (cached)
+   │  └─ SKIP: No Group Types defined - leaving
+   ├─ PASS: TestFilter (skip:1)
+   │  ├─ PASS: TestCapabilities (cached)
+   │  └─ SKIP: No capabilities found - leaving
+   └─ PASS: TestResources (skip:1)
+      ├─ PASS: TestGroups (cached)
+      └─ SKIP: No Group Types defined  - leaving
+Pass: 43   Fail: 0   Warn: 0   Skip: 5
+`), "*", 0)
+		XEqual(t, "Filter requests",
+			strings.Count(cliResult.Stderr, "?filter="), 0)
+	})
 }
 
 func TestXRConformAllGroupResources(t *testing.T) {
@@ -2667,7 +3005,7 @@ Pass: 212   Fail: 0   Warn: 0   Skip: 3
    ├─ PASS: TestGroups (skip:1)
    ├─ PASS: TestFilter
    └─ PASS: TestResources (skip:2)
-Pass: 227   Fail: 0   Warn: 0   Skip: 3
+Pass: 229   Fail: 0   Warn: 0   Skip: 3
 `, "", 0)
 
 	XCLI(t, "conform --run all -d3 "+target, "",
@@ -2680,7 +3018,7 @@ Pass: 227   Fail: 0   Warn: 0   Skip: 3
    ├─ PASS: TestGroups (skip:1)
    ├─ PASS: TestFilter
    └─ PASS: TestResources (skip:2)
-Pass: 227   Fail: 0   Warn: 0   Skip: 3
+Pass: 229   Fail: 0   Warn: 0   Skip: 3
 `, "", 0)
 }
 
@@ -2749,11 +3087,6 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
 		expectedOutput(t, "files/conform-output/smoke-multigroup.json"),
 		"", 0)
 
-	const filterEmpty = "http://localhost:8282/conform-filter-empty"
-	XCLI(t, "conform --output json --run all "+filterEmpty, "",
-		expectedOutput(t, "files/conform-output/all-filter-empty.json"),
-		"", 0)
-
 	XCLI(t, "conform --output json --run TestTDDepFail "+
 		"http://one.example http://two.example", "",
 		expectedOutput(t, "files/conform-output/dependency-failure.json"),
@@ -2799,7 +3132,7 @@ func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
    │  └─ SKIP: No Group Types defined - leaving
    ├─ PASS: TestFilter (skip:1)
    │  ├─ PASS: TestCapabilities (cached)
-   │  └─ SKIP: ?filter not supported
+   │  └─ SKIP: ?filter not supported - leaving
    └─ PASS: TestResources (skip:1)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Group Types defined  - leaving
@@ -2833,7 +3166,7 @@ PASS: http://localhost:8282/conform (skip:4)
    │  └─ SKIP: No Group Types defined - leaving
    ├─ PASS: TestFilter (skip:1)
    │  ├─ PASS: TestCapabilities (cached)
-   │  └─ SKIP: ?filter not supported
+   │  └─ SKIP: ?filter not supported - leaving
    └─ PASS: TestResources (skip:1)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Group Types defined  - leaving
@@ -2946,7 +3279,7 @@ func TestXRConformBasic(t *testing.T) {
 	// Also verifies the default Registry is conformant
 	XCLI(t, "conform", "", `PASS: http://localhost:8181
 └─ PASS: TestRegistry
-Pass: 115   Fail: 0   Warn: 0   Skip: 0
+Pass: 117   Fail: 0   Warn: 0   Skip: 0
 `, ``, 0)
 
 	XCLI(t, "conform --run TestTDAllPass -d0", "", `PASS: http://localhost:8181

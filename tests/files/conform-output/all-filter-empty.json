@@ -1,6 +1,6 @@
 [
   {
-    "name": "http://localhost:8282/conform-filter-empty",
+    "name": "http://localhost:8181",
     "status": "PASS",
     "pass": 64,
     "fail": 0,
@@ -230,11 +230,11 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "\"registryid\" (conform-filter-empty) MUST != \"\""
+                    "text": "\"registryid\" (TestXRConformFilter) MUST != \"\""
                   },
                   {
                     "status": "PASS",
-                    "text": "\"self\" (http://localhost:8282/conform-filter-empty/) MUST != \"\""
+                    "text": "\"self\" (http://localhost:8181/) MUST != \"\""
                   },
                   {
                     "status": "PASS",
@@ -246,7 +246,7 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                    "text": "\"epoch\" (2) MUST \u003e= 0"
                   },
                   {
                     "status": "PASS",
@@ -270,11 +270,11 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "\"createdat\" (2026-01-01T00:00:00Z) MUST = \"\u003ctimestamp\u003e\""
+                    "text": "\"createdat\" (2026-10-01T12:00:00Z) MUST = \"\u003ctimestamp\u003e\""
                   },
                   {
                     "status": "PASS",
-                    "text": "\"modifiedat\" (2026-01-01T00:00:00Z) MUST = \"\u003ctimestamp\u003e\""
+                    "text": "\"modifiedat\" (2026-10-01T12:00:01Z) MUST = \"\u003ctimestamp\u003e\""
                   },
                   {
                     "status": "PASS",
@@ -294,7 +294,7 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "\"widgetsurl\" (http://localhost:8282/conform-filter-empty/widgets) MUST = \"http://localhost:8282/conform-filter-empty/widgets\""
+                    "text": "\"widgetsurl\" (http://localhost:8181/widgets) MUST = \"http://localhost:8181/widgets\""
                   }
                 ]
               }
@@ -354,7 +354,7 @@
                   },
                   {
                     "status": "SKIP",
-                    "text": "No observable Group Types with a filterable ID - leaving"
+                    "text": "No observable Group Types defined - leaving"
                   }
                 ]
               }

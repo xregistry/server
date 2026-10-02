@@ -3,7 +3,6 @@ package main
 import (
 	"net/url"
 	"regexp"
-	"strings"
 
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
@@ -192,7 +191,6 @@ func TestGroups(td *TD) {
 	}
 
 	groupPaths := map[string]string{}
-	filterGroupPaths := map[string]string{}
 
 	for _, groupType := range SortedKeys(reg.Model.Groups) {
 		gm := reg.Model.Groups[groupType]
@@ -207,16 +205,7 @@ func TestGroups(td *TD) {
 			td.Skip("No groups defined for group type %q", groupType)
 		}
 
-		ids := SortedKeys(gmRes.JSON)
-		for _, id := range ids {
-			if id != "null" && reSingularID.MatchString(id) &&
-				!IsNil(gmRes.JSON[id]) {
-				filterGroupPaths[groupType] = gmPath + "/" + id
-				break
-			}
-		}
-
-		for _, id := range ids {
+		for _, id := range SortedKeys(gmRes.JSON) {
 			v := gmRes.JSON[id]
 			td.Must(reSingularID.MatchString(id), "%q MUST match %q", id,
 				reSingularID)
@@ -251,7 +240,6 @@ func TestGroups(td *TD) {
 	}
 
 	reg.SetStuff("groupPaths", groupPaths)
-	reg.SetStuff("filterGroupPaths", filterGroupPaths)
 }
 
 func TestFilter(td *TD) {
@@ -264,80 +252,48 @@ func TestFilter(td *TD) {
 	}
 
 	if !reg.Capabilities.FlagEnabled("filter") {
-		td.Skip("?filter not supported")
+		td.Skip("?filter not supported - leaving")
 		return
 	}
 
 	td.DependsOn(TestGroups)
 
-	groupPathsAny, ok := reg.GetStuff("filterGroupPaths")
+	groupPathsAny, ok := reg.GetStuff("groupPaths")
 	if !ok {
 		td.Skip("No observable Group Types defined - leaving")
 		return
 	}
 	groupPaths, ok := groupPathsAny.(map[string]string)
-	if !ok {
-		td.FailNow("reg.stuff.groupPaths != map[string]string")
-	}
+	PanicIf(!ok, "reg.stuff.groupPaths != map[string]string")
 
-	groupType := ""
-	groupPath := ""
-	groupID := ""
-	for _, candidateType := range SortedKeys(groupPaths) {
-		gm := reg.Model.Groups[candidateType]
-		candidatePath := groupPaths[candidateType]
-		candidateID := strings.TrimPrefix(candidatePath, "/"+gm.Plural+"/")
-		if candidateID == candidatePath || candidateID == "" ||
-			candidateID == "null" {
-			continue
-		}
-
-		groupType = candidateType
-		groupPath = candidatePath
-		groupID = candidateID
-		break
-	}
-
-	if groupPath == "" {
-		td.Skip("No observable Group Types with a filterable ID - leaving")
+	if len(groupPaths) == 0 {
+		td.Skip("No observable Group Types defined - leaving")
 		return
 	}
 
-	gm := reg.Model.Groups[groupType]
+	xid, err := ParseXid(groupPaths[SortedKeys(groupPaths)[0]])
+	PanicIf(err != nil, "reg.stuff.groupPaths has an invalid XID: %s", err)
+
+	gm := reg.Model.Groups[xid.Group]
 	filterAttr := gm.Singular + "id"
-	collectionPath := "/" + gm.Plural
-
-	getCollection := func(path string) *xrlib.HttpResponse {
-		res, xErr := reg.HttpDo(VerboseCount > 2, "GET", path, nil)
-		td.NoError(xErr, "GET %s", path)
-		if xErr != nil {
-			return nil
-		}
-
-		td.HTTPStatusMustEqual(res, 200, "GET %s", path)
-		if res == nil || res.Code != 200 {
-			return nil
-		}
-
-		td.HTTPBodyMustJSON(res, "GET %s", path)
-		if len(res.Body) == 0 || res.JSON == nil {
-			return nil
-		}
-		return res
+	collectionPath := "/" + xid.Group
+	matchID := xid.GroupID
+	if matchID == "null" {
+		matchID = "NULL"
 	}
 
 	matchPath := collectionPath + "?filter=" + filterAttr + "=" +
-		url.QueryEscape(groupID)
-	matchRes := getCollection(matchPath)
+		url.QueryEscape(matchID)
+	matchRes := td.HTTPGetJSON(matchPath)
 	if matchRes != nil {
-		td.MustEqual([]string{groupID}, SortedKeys(matchRes.JSON),
-			"'GET %s' MUST return exactly group %q", matchPath, groupID)
-		td.Must(!IsNil(matchRes.JSON[groupID]),
-			"'GET %s' group %q MUST NOT be nil", matchPath, groupID)
+		td.MustEqual([]string{xid.GroupID}, SortedKeys(matchRes.JSON),
+			"'GET %s' MUST return exactly group %q", matchPath, xid.GroupID)
+		td.Must(!IsNil(matchRes.JSON[xid.GroupID]),
+			"'GET %s' group %q MUST NOT be nil", matchPath, xid.GroupID)
 	}
 
 	absentPath := collectionPath + "?filter=" + filterAttr + "=null"
-	absentRes := getCollection(absentPath)
+	absentRes := td.HTTPGetJSON(absentPath)
 	if absentRes != nil {
 		td.MustEqual(0, len(absentRes.JSON),
 			"'GET %s' MUST return an empty collection", absentPath)
