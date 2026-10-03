@@ -1073,7 +1073,7 @@ func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 }
 
 func (gm *GroupModel) Delete() *XRError {
-	defer log.Trace("tx: %s %s", gm.Model.Registry.tx.uuid, gm.Plural)()
+	defer log.Trace("tx: %s %s", gm.Model.Registry.Tx.uuid, gm.Plural)()
 
 	gm.Model.RemoveConditionalProps()
 	delete(gm.Model.Groups, gm.Plural)
@@ -1576,7 +1576,7 @@ func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, *XRError
 }
 
 func (rm *ResourceModel) Delete() *XRError {
-	defer log.Trace("tx: %s %s", rm.GroupModel.Model.Registry.tx.uuid,
+	defer log.Trace("tx: %s %s", rm.GroupModel.Model.Registry.Tx.uuid,
 		rm.Plural)()
 
 	rm.GroupModel.RemoveConditionalProps()

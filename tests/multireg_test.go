@@ -25,7 +25,16 @@ func TestMultiReg(t *testing.T) {
 }`
 	XHTTP(t, reg, "PUT", "/modelsource", model1, 200, model1+"\n")
 
-	reg2, err := registry.NewRegistry(nil, reg.GetXRServerConfig(), "reg2")
+	tx, xErr := registry.NewTx(NewUUID(), reg.GetXRServerConfig(),
+		registry.NewSQLBackend(reg.GetXRServerConfig()))
+	XNoErr(t, xErr)
+
+	reg2, err := registry.NewRegistry(tx, reg.GetXRServerConfig(), "reg2")
+	if err != nil {
+		tx.Rollback()
+	}
+	tx.Commit()
+
 	defer PassDeleteReg(t, reg2)
 	XNoErr(t, err)
 	model2 := `{

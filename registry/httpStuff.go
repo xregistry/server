@@ -280,7 +280,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 		panic(rec)
 	}()
 
-	tx, xErr := NewTx(uuid, s.XRSConfig, SQLBackend)
+	tx, xErr := NewTx(uuid, s.XRSConfig, NewSQLBackend(s.XRSConfig))
 	*txPtr = tx
 	if xErr != nil {
 		log.Printf("tx: %s Error talking to the DB creating new Tx: %s",
@@ -1167,18 +1167,6 @@ func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 		lastOffset = ((total - 1) / limit) * limit
 	}
 	addLink("last", lastOffset, true)
-}
-
-var specialAttrHeaders = map[string]*Attribute{}
-
-func init() {
-	// Load-up the attributes that have custom http header names
-	for _, attr := range OrderedSpecProps {
-		if attr.internals != nil && attr.internals.httpHeader != "" {
-			specialAttrHeaders[strings.ToLower(attr.internals.httpHeader)] =
-				attr
-		}
-	}
 }
 
 func HTTPPutPost(info *RequestInfo) *XRError {
@@ -2530,7 +2518,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 		seenMaps := map[string]bool{}
 		seenMetaMaps := map[string]bool{}
 
-		for name, attr := range specialAttrHeaders {
+		for name, attr := range SpecialAttrHeaders {
 			// TODO we may need some kind of "delete if missing" flag on
 			// each HttpHeader attribute since some may want to have an
 			// explicit 'null' to be erased instead of just missing (eg patch)
@@ -2756,7 +2744,7 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	info.StatusCode = xErr.Code
 	// If header not already set, set it. This will likely only happen
 	// when the error happens very very very early in our processing
-	if info.GetHeader("Content-Type") == "" {
+	if info.GetResponseHeader("Content-Type") == "" {
 		info.SetHeader("Content-Type", "application/json; charset=utf-8")
 	}
 
@@ -2771,7 +2759,7 @@ func AddRegistryRootHeader(info *RequestInfo) {
 
 	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
 
-	existingLinks := info.GetHeaderValues("Link")
+	existingLinks := info.GetResponseHeaderValues("Link")
 	for _, v := range existingLinks {
 		// Check if this Link header has rel=xregistry-root
 		if strings.Contains(v, "rel=xregistry-root") ||

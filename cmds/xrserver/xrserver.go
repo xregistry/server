@@ -317,8 +317,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	reg, xErr := registry.FindRegistry(nil, XRSConfig, regName,
-		registry.FOR_READ)
+	reg, xErr := registry.FindRegistry(nil, XRSConfig, regName, FOR_READ)
 	ErrStop(xErr, "Error finding registry(%s): %s", regName, xErr)
 
 	if reg != nil {
@@ -331,12 +330,17 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if reg == nil && (!DontCreate || RecreateReg) {
-		Verbose("Creating: %s/%s",
-			XRSConfig.Get("path.regcollection"), regName)
-		reg, xErr = registry.NewRegistry(nil, XRSConfig, regName)
-		if IsNil(xErr) {
-			xErr = reg.Commit()
-		}
+		Verbose("Creating: %s/%s", XRSConfig.Get("path.regcollection"), regName)
+
+		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
+			registry.NewSQLBackend(XRSConfig))
+		ErrStop(xErr, "Error creating a new Tx: %s", xErr)
+
+		reg, xErr = registry.NewRegistry(tx, XRSConfig, regName)
+		tx.Conditional(xErr)
+		// if IsNil(xErr) {
+		// xErr = reg.Commit()
+		// }
 
 		ErrStop(xErr, "Error creating new registry(%s): %s", regName, xErr)
 	}

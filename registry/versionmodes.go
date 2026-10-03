@@ -147,14 +147,14 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	// pinned to this tx's original RR snapshot, missing Version rows
 	// committed by other Txs after that snapshot was established.
 	lockExpr := ""
-	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
 	}
 
 	// Search the DB for all Versions of this Resource, sorted by 'createdat'
 	// and return the ones that do not have the proper 'ancestorid' value.
 	// Meaning, they don't point to the next oldest one (based on createdat)
-	results := Query(r.tx, `
+	results := Query(r.Tx, `
                 SELECT UID, ExpectedAncestorID FROM (
                   SELECT CreatedAt,
                          UID,
@@ -207,7 +207,7 @@ func (vm *ModifiedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// reasoning as CreatedatVersionMode.CheckAncestors().
 	lockExpr := ""
-	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
 	}
 
@@ -215,7 +215,7 @@ func (vm *ModifiedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	// 'modifiedat' and return the ones that do not have the proper
 	// 'ancestorid' value. Meaning, they don't point to the next oldest
 	// one (based on modifiedat)
-	results := Query(r.tx, `
+	results := Query(r.Tx, `
                 SELECT UID, ExpectedAncestorID FROM (
                   SELECT ModifiedAt,
                          UID,
@@ -273,11 +273,11 @@ func (vm *SemverVersionMode) CheckAncestors(r *Resource) *XRError {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// reasoning as CreatedatVersionMode.CheckAncestors().
 	lockExpr := ""
-	if meta := r.tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
 		lockExpr = " FOR UPDATE"
 	}
 
-	results := Query(r.tx, `
+	results := Query(r.Tx, `
                 SELECT UID, AncestorID FROM Versions
                 WHERE RegistrySID=? AND ResourceSID=?`+lockExpr,
 		r.Registry.DbSID, r.DbSID)

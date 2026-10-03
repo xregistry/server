@@ -125,10 +125,10 @@ benchmark:
 .sharedfiles: common/shared*
 	@echo
 	@echo "# Copying shared files"
-	@sed "s/XXX/registry/g" common/shared_entity > registry/shared_entity.go
-	@sed "s/XXX/xrlib/g" common/shared_entity > cmds/xr/xrlib/shared_entity.go
-	@sed "s/XXX/registry/g" common/shared_model > registry/shared_model.go
-	@sed "s/XXX/xrlib/g" common/shared_model > cmds/xr/xrlib/shared_model.go
+	@for i in common/shared_* ; do \
+		sed "s/XXX/registry/g" "$$i" > registry/$${i#common/}.go ; \
+		sed "s/XXX/xrlib/g" "$$i" > cmds/xr/xrlib/$${i#common/}.go ; \
+	 done
 	@touch .sharedfiles
 
 registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go

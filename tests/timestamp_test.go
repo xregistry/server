@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	. "github.com/xregistry/server/common"
-	"github.com/xregistry/server/registry"
 )
 
 func TestTimestampRegistry(t *testing.T) {
@@ -417,7 +416,7 @@ func TestTimestampParsing(t *testing.T) {
 			continue
 		}
 
-		reg.Refresh(registry.FOR_WRITE)
+		reg.Refresh(FOR_WRITE)
 		if test.utc != "" {
 			XEqual(t, "", reg.Get("modifiedat"), test.utc, NOMASK_TS)
 		} else {

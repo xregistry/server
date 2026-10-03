@@ -157,19 +157,34 @@ func testFileServer() http.Handler {
 // testing utils outside of the "testing" dir, so that's why they're split
 // across the 2 dirs this way. Kind of weird I know, but I'll clean it later
 
-func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
-	reg, _ := registry.FindRegistry(nil, XRServerConfig, name, registry.FOR_WRITE)
+func NewRegistry(name string) *registry.Registry {
+	tx, xErr := registry.NewTx(NewUUID(), XRServerConfig,
+		registry.NewSQLBackend(XRServerConfig))
+	if xErr != nil {
+		panic(fmt.Sprintf("Error creating new Tx: %s", xErr.ToJSON()))
+	}
+
+	reg, _ := registry.FindRegistry(tx, XRServerConfig, name, FOR_WRITE)
+	tx.Rollback()
 	if reg != nil {
 		reg.Delete()
 		reg.SaveAllAndCommit()
 	}
 
-	reg, xErr := registry.NewRegistry(nil, XRServerConfig, name, opts...)
+	tx, xErr = registry.NewTx(NewUUID(), XRServerConfig,
+		registry.NewSQLBackend(XRServerConfig))
 	if xErr != nil {
+		panic(fmt.Sprintf("Error creating new Tx: %s", xErr.ToJSON()))
+	}
+
+	reg, xErr = registry.NewRegistry(tx, XRServerConfig, name)
+	if xErr != nil {
+		tx.Rollback()
 		fmt.Fprintf(os.Stderr, "Error creating registry %q: %s\n", name, xErr)
 		ShowStack()
 		os.Exit(1)
 	}
+	tx.Commit()
 
 	MainServer.XRSConfig.Set("DefaultRegDbSID", reg.DbSID)
 
@@ -177,7 +192,7 @@ func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
 
 	/*
 		// Now find it again and start a new Tx
-		reg, xErr = registry.FindRegistry(nil, XRServerConfig, name, registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistry(nil, XRServerConfig, name, FOR_WRITE)
 		if xErr != nil {
 			panic(xErr.String())
 		}

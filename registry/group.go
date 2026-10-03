@@ -3,7 +3,6 @@ package registry
 import (
 	"fmt"
 	"maps"
-	"slices"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -25,7 +24,7 @@ func (g *Group) SetSave(name string, val any) *XRError {
 }
 
 func (g *Group) Delete() *XRError {
-	defer log.Trace("tx: %s %s", g.tx.uuid, g.UID)()
+	defer log.Trace("tx: %s %s", g.Tx.uuid, g.UID)()
 
 	// Make sure we don't have any readonly Resources. Callers (HTTPDelete/
 	// HTTPDeleteGroups) already lock g itself FOR_WRITE, but that doesn't
@@ -33,7 +32,7 @@ func (g *Group) Delete() *XRError {
 	// without FOR UPDATE here, a concurrent Tx setting readonly=true on a
 	// descendant after our RR snapshot was established could be missed,
 	// letting this Group be improperly deleted.
-	results := Query(g.tx, `
+	results := Query(g.Tx, `
 	    SELECT EXISTS(SELECT 1 FROM Props
 		WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
 		  XID LIKE '`+g.XID+`/%' AND
@@ -53,11 +52,11 @@ func (g *Group) Delete() *XRError {
 		}
 	}
 
-	DoOne(g.tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
+	DoOne(g.Tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
 
 	// Delete any pending changes so dirty check doesn't fail
 	g.NewObject = nil
-	g.tx.RemoveFromCache(&g.Entity)
+	g.Tx.RemoveFromCache(&g.Entity)
 
 	return nil
 }
@@ -69,16 +68,16 @@ func (g *Group) Delete() *XRError {
 // no analogous need to force every subsequent read through this Group
 // to inherit a prior FOR_WRITE.
 func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode int) (*Resource, *XRError) {
-	defer log.Trace("tx: %s %s,%s,%v", g.tx.uuid, rType, id, anyCase)()
+	defer log.Trace("tx: %s %s,%s,%v", g.Tx.uuid, rType, id, anyCase)()
 
-	if r := g.tx.GetResource(g, rType, id); r != nil {
+	if r := g.Tx.GetResource(g, rType, id); r != nil {
 		if accessMode == FOR_WRITE && r.AccessMode != FOR_WRITE {
 			r.Lock()
 		}
 		return r, nil
 	}
 
-	ent, xErr := RawEntityFromXID(g.tx, g.Registry.DbSID,
+	ent, xErr := RawEntityFromXID(g.Tx, g.Registry.DbSID,
 		g.XID+"/"+rType+"/"+id, anyCase, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", g.XID+"/"+rType+"/"+id).
@@ -86,13 +85,13 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 				id, rType, xErr.GetTitle()))
 	}
 	if ent == nil {
-		log.FuncPrintf("tx: %s None found", g.tx.uuid)
+		log.FuncPrintf("tx: %s None found", g.Tx.uuid)
 		return nil, nil
 	}
 
 	r := &Resource{Entity: *ent, Group: g}
 	r.Self = r
-	r.tx.AddResource(r)
+	r.Tx.AddResource(r)
 	return r, nil
 }
 
@@ -125,7 +124,7 @@ type ResourceUpsert struct {
 
 // Return: *Resource, isNew, error
 func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%s", g.tx.uuid, ru.RType, ru.Id)()
+	defer log.Trace("tx: %s %s,%s", g.Tx.uuid, ru.RType, ru.Id)()
 
 	// ru.VID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
@@ -290,17 +289,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// This will not create any Versions yet, just the Resource
 		r = &Resource{
 			Entity: Entity{
-				EntityExtensions: EntityExtensions{
-					AccessMode: FOR_WRITE,
-				},
-
-				tx:        g.tx,
-				Registry:  g.Registry,
-				DbSID:     NewUUID(),
-				ParentSID: g.DbSID,
-				Plural:    ru.RType,
-				Singular:  rModel.Singular,
-				UID:       ru.Id,
+				Tx:         g.Tx,
+				AccessMode: FOR_WRITE,
+				Registry:   g.Registry,
+				DbSID:      NewUUID(),
+				ParentSID:  g.DbSID,
+				Plural:     ru.RType,
+				Singular:   rModel.Singular,
+				UID:        ru.Id,
 
 				Type:     ENTITY_RESOURCE,
 				XID:      g.XID + "/" + ru.RType + "/" + ru.Id,
@@ -313,7 +309,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		}
 		r.Self = r
 
-		DoOne(r.tx, `
+		DoOne(r.Tx, `
         INSERT INTO Resources(
             SID, UID, RegistrySID,
             GroupSID, ModelSID,
@@ -343,7 +339,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		r.EntityInsert()
 
 		isNew = true
-		r.tx.AddResource(r)
+		r.Tx.AddResource(r)
 		g.Touch()
 
 		// Use the ID passed as an arg, not from the metadata, as the true
@@ -355,17 +351,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 		meta = &Meta{
 			Entity: Entity{
-				EntityExtensions: EntityExtensions{
-					AccessMode: FOR_WRITE,
-				},
-
-				tx:        g.tx,
-				Registry:  g.Registry,
-				DbSID:     NewUUID(),
-				ParentSID: r.DbSID,
-				Plural:    "metas",
-				Singular:  "meta",
-				UID:       r.UID,
+				Tx:         g.Tx,
+				AccessMode: FOR_WRITE,
+				Registry:   g.Registry,
+				DbSID:      NewUUID(),
+				ParentSID:  r.DbSID,
+				Plural:     "metas",
+				Singular:   "meta",
+				UID:        r.UID,
 
 				Type:     ENTITY_META,
 				XID:      r.XID + "/meta",
@@ -378,7 +371,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		}
 		meta.Self = meta
 
-		DoOne(r.tx, `
+		DoOne(r.Tx, `
                 INSERT INTO Metas(SID, RegistrySID, ResourceSID, XID,
                             Abstract, Plural, Singular)
                 SELECT ?,?,?,?,?,?,?`,
@@ -392,7 +385,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			return nil, false, xErr
 		}
 
-		r.tx.AddMeta(meta)
+		r.Tx.AddMeta(meta)
 		xErr = meta.JustSet("#nextversionid", 1)
 		if xErr != nil {
 			return nil, false, xErr
@@ -652,14 +645,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	r.tx.AddResourceToValidate(r, false, false)
+	r.Tx.AddResourceToValidate(r, false, false)
 
 	return r, isNew, xErr
 }
 
 // Returns a map of resourceType->*Resource
 func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string][]*Resource, *XRError) {
-	defer log.Trace("tx: %s", g.tx.uuid)()
+	defer log.Trace("tx: %s", g.Tx.uuid)()
 
 	resources := map[string][]*Resource{}
 
@@ -707,96 +700,8 @@ func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string
 	return resources, nil
 }
 
-func (g *Group) GetConstraints() (map[string]*Constraint, *XRError) {
-	if g.constraints == nil {
-		// Do NOT use maps.Clone(), we need a zero-size map instead
-		g.constraints = map[string]*Constraint{}
-
-		// Grab the model-level constraints first
-		for k, c := range g.GroupModel.Constraints {
-			g.constraints[k] = c // .Clone()
-		}
-
-		// Now merge in the group-instance level constraints
-		/*
-			constraintsAny := g.Get("constraints")
-			groupConstraints := map[string]*Constraint(nil)
-
-			if !IsNil(constraintsAny) {
-				err := Unmarshal([]byte(ToJSON(constraintsAny)), &groupConstraints)
-				if err != nil {
-					return nil, NewXRError("bad_request", g.XID,
-						"error_detail="+err.Error())
-				}
-				// groupConstraints = constraintsAny.(map[string]Constraint)
-			}
-		*/
-
-		// If the incoming request has g.constraints then g.groupConstraints
-		// should already been filled in by checkFn. So this is for cases
-		// where the constraints are from the DB - so parse 'em.
-		if g.groupConstraints == nil {
-			if val := g.Get("constraints"); !IsNil(val) {
-				err := Unmarshal([]byte(ToJSON(val)), &g.groupConstraints)
-				if err != nil {
-					return nil, NewXRError("bad_request", g.XID,
-						"error_detail="+err.Error())
-				}
-				// Not sure this is needed since if this wasn't dont in
-				// checkFn then it's an old value - which should have already
-				// been checked. But for now keep it just to be safe
-				xErr := g.GroupModel.ValidateConstraints(g, g.groupConstraints)
-				if xErr != nil {
-					return nil, xErr
-				}
-			}
-		}
-
-		for k, instanceC := range g.groupConstraints {
-			var c *Constraint
-
-			// See if one already exists (ie. was defined at the GM level)
-			if c = g.constraints[k]; c != nil {
-				// clone it and apply updated fields
-				c = c.Clone()
-				if !IsNil(instanceC.Default) {
-					c.Default = instanceC.Default
-				}
-				if len(instanceC.Enum) != 0 {
-					c.Enum = slices.Clone(instanceC.Enum)
-				}
-				if instanceC.Equals != "" {
-					c.Equals = instanceC.Equals
-				}
-			} else {
-				c = instanceC.Clone()
-			}
-
-			g.constraints[k] = c
-		}
-	}
-
-	return g.constraints, nil
-}
-
-// path = PATH-TO-ATTR, including attr.Name
-func (g *Group) GetAttrConstraint(v *Version, attr *Attribute, path *PropPath) *Constraint {
-	constraints, xErr := g.GetConstraints()
-	// Any error should have aleady been checked/reported
-	PanicIf(xErr != nil, "%s", xErr)
-
-	// Quick return - calculating the key is too expensive
-	if len(constraints) == 0 {
-		return nil
-	}
-
-	key := v.ResourceModel.Plural + "." + path.UI()
-
-	return constraints[key]
-}
-
 func (g *Group) Validate() *XRError {
-	defer log.Trace("tx: %s %s", g.tx.uuid, g.XID)()
+	defer log.Trace("tx: %s %s", g.Tx.uuid, g.XID)()
 
 	constraints, xErr := g.GetConstraints()
 	if xErr != nil {
@@ -887,8 +792,8 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
                 (vp.PropValue IS NULL OR vp.PropValue<>gp.PropValue)
             FOR UPDATE`)
 
-	// log.Printf("tx: %s %q vs %q", g.tx.uuid, gPP.DB(), pp.DB())
-	results := Query(g.tx, query,
+	// log.Printf("tx: %s %q vs %q", g.Tx.uuid, gPP.DB(), pp.DB())
+	results := Query(g.Tx, query,
 		ENTITY_VERSION, gPP.DB(), pp.DB(),
 		g.Registry.DbSID, g.DbSID, resPlural)
 	defer results.Close()
@@ -902,7 +807,7 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 			break
 		}
 
-		// log.Printf("tx: %s %q %q %q", g.tx.uuid,
+		// log.Printf("tx: %s %q %q %q", g.Tx.uuid,
 		// NotNilString(row[0]), NotNilString(row[1]),
 		// NotNilString(row[2]))
 
@@ -973,7 +878,7 @@ func (g *Group) validateEnum(constraint *Constraint, resPlural string,
             FOR UPDATE
             `, strings.Join(placeholders, ","))
 
-	results := Query(g.tx, query, args...)
+	results := Query(g.Tx, query, args...)
 	defer results.Close()
 
 	rXID := ""

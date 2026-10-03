@@ -50,14 +50,14 @@ func (m *Model) VerifyAndSave(verifyData bool) *XRError {
 
 func (m *Model) Save() *XRError {
 	// log.FuncPrintf("tx: %s In model.Save - changed: %v",
-	// m.Registry.tx.uuid, m.GetChanged())
+	// m.Registry.Tx.uuid, m.GetChanged())
 	if m.GetChanged() == false {
 		return nil
 	}
 
 	if log.HasVerbose("ModelSave") || log.IsFuncVerbose() {
 		buf, _ := json.MarshalIndent(m, "", "  ")
-		log.Printf("tx: %s Saving model:\n%s", m.Registry.tx.uuid, string(buf))
+		log.Printf("tx: %s Saving model:\n%s", m.Registry.Tx.uuid, string(buf))
 	}
 
 	// Diff against whatever is STILL persisted in the DB right now (not
@@ -113,8 +113,8 @@ func (m *Model) Save() *XRError {
 	// changed without having to compare/parse the full JSON blob.
 	changedID := NewUUID()
 
-	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.tx.uuid)
-	DoZeroTwo(m.Registry.tx, `
+	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.Tx.uuid)
+	DoZeroTwo(m.Registry.Tx, `
         INSERT INTO Models(RegistrySID, Model, Changed)
         VALUES(?,?,?)
         ON DUPLICATE KEY UPDATE Model=?, Changed=?`,
@@ -123,7 +123,7 @@ func (m *Model) Save() *XRError {
 		modelStr, changedID)
 
 	existingModelEntities := map[string]string{} // Abstract->SID
-	results := Query(m.Registry.tx,
+	results := Query(m.Registry.Tx,
 		`SELECT SID,Abstract FROM ModelEntities WHERE RegistrySID=?`,
 		m.Registry.DbSID)
 	defer results.Close()
@@ -185,7 +185,7 @@ func (m *Model) Save() *XRError {
 
 		var count int
 		if len(parts) == 1 {
-			results := Query(m.Registry.tx,
+			results := Query(m.Registry.Tx,
 				`SELECT COUNT(*) FROM "Groups" WHERE ModelSID=?`, sid)
 			count = NotNilInt(results.NextRow()[0])
 			results.Close()
@@ -199,7 +199,7 @@ func (m *Model) Save() *XRError {
 							parts[0], count))
 			}
 		} else {
-			results := Query(m.Registry.tx,
+			results := Query(m.Registry.Tx,
 				`SELECT COUNT(*) FROM Resources WHERE ModelSID=?`, sid)
 			count = NotNilInt(results.NextRow()[0])
 			results.Close()
@@ -219,7 +219,7 @@ func (m *Model) Save() *XRError {
 	// TODO consider batching if this gets too slow, or the list is too long
 	for meAbs, _ := range existingModelEntities {
 		if inUseAbs[meAbs] != true {
-			DoOne(m.Registry.tx, `
+			DoOne(m.Registry.Tx, `
                       DELETE FROM ModelEntities
                       WHERE RegistrySID=? AND Abstract=?`,
 				m.Registry.DbSID, meAbs)
@@ -233,7 +233,7 @@ func (m *Model) Save() *XRError {
 		// If GroupModel is already in DB then skip it
 		if _, ok := existingModelEntities[gmAbs]; !ok {
 			// Add new GroupModel
-			DoOne(m.Registry.tx,
+			DoOne(m.Registry.Tx,
 				`INSERT INTO ModelEntities(
                      SID, RegistrySID, ParentSID,
                      Abstract, Plural, Singular)
@@ -247,7 +247,7 @@ func (m *Model) Save() *XRError {
 			// If ResourceModel is already in DB then skip it
 			if _, ok := existingModelEntities[rmAbs]; !ok {
 				// Add new ResourceModel
-				DoOne(m.Registry.tx,
+				DoOne(m.Registry.Tx,
 					`INSERT INTO ModelEntities(
                              SID, RegistrySID, ParentSID,
                              Abstract, Plural, Singular)
@@ -320,7 +320,7 @@ func evictCachedModel(regSID string) {
 }
 
 func LoadModel(reg *Registry) *Model {
-	defer log.Trace("tx: %s %s", reg.tx.uuid, reg.UID)()
+	defer log.Trace("tx: %s %s", reg.Tx.uuid, reg.UID)()
 
 	model := loadModelFromDB(reg, true)
 	if model != nil {
@@ -341,7 +341,7 @@ func loadModelFromDB(reg *Registry, loud bool) *Model {
 	PanicIf(reg == nil, "nil")
 
 	// Load Registry model
-	results := Query(reg.tx,
+	results := Query(reg.Tx,
 		`SELECT Model,Changed FROM Models WHERE RegistrySID=?`,
 		reg.DbSID)
 	defer results.Close()
@@ -350,7 +350,7 @@ func loadModelFromDB(reg *Registry, loud bool) *Model {
 	if row == nil {
 		if loud {
 			ShowStack()
-			log.Printf("tx: %s Can't find registry: %s", reg.tx.uuid, reg.UID)
+			log.Printf("tx: %s Can't find registry: %s", reg.Tx.uuid, reg.UID)
 		}
 		return nil
 	}
@@ -388,7 +388,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 	}
 
 	newM.Registry = m.Registry
-	// log.FuncPrintf("tx: %s ApplyNewModel:\n%s", m.Registry.tx.uuid,
+	// log.FuncPrintf("tx: %s ApplyNewModel:\n%s", m.Registry.Tx.uuid,
 	// ToJSON(newM))
 
 	// Copy existing SIDs into the new Model so we don't create new ones
@@ -463,7 +463,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 
 		// Not everything goes thru the http code
 		if xErr.Instance == "" && m.Registry != nil {
-			xErr.Instance = m.Registry.tx.uuid
+			xErr.Instance = m.Registry.Tx.uuid
 		}
 
 		return xErr
@@ -507,7 +507,7 @@ func checkHasDocumentEnableViolation(reg *Registry, oldRM *ResourceModel) *XRErr
 		AND p.PropValue IS NOT NULL
 		LIMIT 1`
 
-	results := Query(reg.tx, query, oldRM.SID,
+	results := Query(reg.Tx, query, oldRM.SID,
 		names[0], names[1], names[2], names[3])
 	defer results.Close()
 
@@ -550,7 +550,7 @@ func (reg *Registry) clearValidationSystemProps(modelSID string, names ...string
 	// IsDefaultVerCopy mirror of it (same mirroring mechanism as
 	// isdefault/createdat/modifiedat - the Resource-level copy is
 	// what HTTP GET on the Resource actually serves).
-	Do(reg.tx, `
+	Do(reg.Tx, `
         DELETE FROM Props
         WHERE PropName IN (`+strings.Join(placeholders, ",")+`)
               AND (
