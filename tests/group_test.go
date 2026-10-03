@@ -5,7 +5,6 @@ import (
 
 	// log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
-	"github.com/xregistry/server/registry"
 )
 
 func TestGroupCreate(t *testing.T) {
@@ -104,32 +103,32 @@ func TestGroupCreate(t *testing.T) {
 }
 `)
 
-	g, err := reg.FindGroup("dirs", "d1", false, registry.FOR_WRITE)
+	g, err := reg.FindGroup("dirs", "d1", false, FOR_WRITE)
 	g.AccessMode = d1.AccessMode // cheat a little
 	XNoErr(t, err)
 	XJSONCheck(t, g, d1)
 
-	g, err = reg.FindGroup("xxx", "d1", false, registry.FOR_WRITE)
+	g, err = reg.FindGroup("xxx", "d1", false, FOR_WRITE)
 	XCheck(t, err == nil && g == nil, "Finding xxx/d1 should have failed")
 
-	g, err = reg.FindGroup("dirs", "xxx", false, registry.FOR_WRITE)
+	g, err = reg.FindGroup("dirs", "xxx", false, FOR_WRITE)
 	XCheck(t, err == nil && g == nil, "Finding dirs/xxx should have failed")
 
-	r, err := d1.FindResource("files", "f1", false, registry.FOR_WRITE)
+	r, err := d1.FindResource("files", "f1", false, FOR_WRITE)
 	XCheck(t, err == nil && r != nil, "Finding resource failed")
 	r.AccessMode = f1.AccessMode // minor cheat
 	XJSONCheck(t, r, f1)
 
-	r2, err := d1.FindResource("files", "xxx", false, registry.FOR_WRITE)
+	r2, err := d1.FindResource("files", "xxx", false, FOR_WRITE)
 	XCheck(t, err == nil && r2 == nil, "Finding files/xxx didn't work")
 
-	r2, err = d1.FindResource("xxx", "f1", false, registry.FOR_WRITE)
+	r2, err = d1.FindResource("xxx", "f1", false, FOR_WRITE)
 	XCheck(t, err == nil && r2 == nil, "Finding xxx/f1 didn't work")
 
 	err = d1.Delete()
 	XNoErr(t, err)
 
-	g, err = reg.FindGroup("dirs", "d1", false, registry.FOR_WRITE)
+	g, err = reg.FindGroup("dirs", "d1", false, FOR_WRITE)
 	XCheck(t, err == nil && g == nil, "Finding delete group failed")
 }
 

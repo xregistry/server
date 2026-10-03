@@ -358,3 +358,26 @@ var PropsFuncs = []*Attribute{}
 func (rm *ResourceModel) VerifyData() *XRError {
 	return nil
 }
+
+func (e *Entity) GetRequestInfo() *RequestInfo {
+	return e.Tx.RequestInfo
+}
+
+func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
+	panic("Find Version not implemented yet")
+	return nil, nil
+}
+
+// PLACEHOLDERS
+
+func lockEntityFamily(tx *Tx, ent *Entity) {}
+
+func (e *Entity) SaveSystemProps() {}
+
+func (m *Model) VerifyAndSave(verifyData bool) *XRError {
+	return nil
+}
+
+func (e *Entity) eSetSave(path string, val any) *XRError {
+	return nil
+}

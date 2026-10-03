@@ -7,7 +7,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"reflect"
 	"regexp"
@@ -150,14 +149,6 @@ func (tx *Tx) String() string {
 	return fmt.Sprintf("tx: sql.tx: %s, Registry: %s", txStr, regStr)
 }
 
-type SQLBackendType struct{}
-
-var SQLBackend SQLBackendType
-
-func (sqlBackend SQLBackendType) NewTx(tx *Tx) *XRError {
-	return tx.NewTx()
-}
-
 // It's ok for this to be called multiple times for the same Tx just to
 // make sure we have an active transaction - it's a no-op at that point
 func (tx *Tx) NewTx() *XRError {
@@ -225,38 +216,6 @@ func (tx *Tx) NewTx() *XRError {
 	TXsMutex.Unlock()
 
 	return nil
-}
-
-func (tx *Tx) DumpCache() {
-	log.Printf("tx: %s ==== CACHE =====", tx.uuid)
-	for path, _ := range tx.Cache {
-		log.Printf("tx: %s - %s", tx.uuid, path)
-	}
-}
-
-func (tx *Tx) EraseCache() {
-	tx.Cache = map[string]*Entity{}
-}
-
-func (tx *Tx) AddToCache(e *Entity) {
-	PanicIf(IsNil(e.Self), "tx: %s Self is nil, %s/%s",
-		tx.uuid, e.Singular, e.UID)
-	tx.Cache[e.Registry.UID+e.XID] = e
-}
-
-func (tx *Tx) RemoveFromCache(e *Entity) {
-	// If NewObject is missing or its the same as Obj then we're ok.
-	// "same" is ok because it means it was just touched, not really changed
-
-	// TODO turn this off when in prod (the maps.Equals probably isn't too
-	// expensive, but it's not free
-	if e.NewObject != nil && !maps.Equal(e.Object, e.NewObject) {
-		log.Printf("tx: %s OldObject:\n%s", tx.uuid, ToJSON(e.Object))
-		log.Printf("tx: %s NewObject:\n%s", tx.uuid, ToJSON(e.NewObject))
-		e.ShowStack()
-		panic(e.XID + " is dirty")
-	}
-	delete(tx.Cache, e.Registry.UID+e.XID)
 }
 
 func (tx *Tx) Lock() {
@@ -552,51 +511,6 @@ func (tx *Tx) Prepare(query string) (*sql.Stmt, *XRError) {
 	}
 
 	return ps, nil
-}
-
-func (tx *Tx) AddRegistry(r *Registry) { tx.AddToCache(&r.Entity) }
-func (tx *Tx) GetRegistry(rID string) *Registry {
-	entry, ok := tx.Cache[rID]
-	if !ok {
-		return nil
-	}
-	return (entry.Self).(*Registry)
-}
-
-func (tx *Tx) AddGroup(g *Group) { tx.AddToCache(&g.Entity) }
-func (tx *Tx) GetGroup(r *Registry, plural string, gID string) *Group {
-	entry, ok := tx.Cache[r.Registry.UID+"/"+plural+"/"+gID]
-	if !ok {
-		return nil
-	}
-	return (entry.Self).(*Group)
-}
-
-func (tx *Tx) AddResource(r *Resource) { tx.AddToCache(&r.Entity) }
-func (tx *Tx) GetResource(g *Group, plural string, rID string) *Resource {
-	entry, ok := tx.Cache[g.Registry.UID+g.XID+"/"+plural+"/"+rID]
-	if !ok {
-		return nil
-	}
-	return (entry.Self).(*Resource)
-}
-
-func (tx *Tx) AddMeta(m *Meta) { tx.AddToCache(&m.Entity) }
-func (tx *Tx) GetMeta(r *Resource) *Meta {
-	entry, ok := tx.Cache[r.Registry.UID+r.XID+"/meta"]
-	if !ok {
-		return nil
-	}
-	return (entry.Self).(*Meta)
-}
-
-func (tx *Tx) AddVersion(v *Version) { tx.AddToCache(&v.Entity) }
-func (tx *Tx) GetVersion(r *Resource, vID string) *Version {
-	entry, ok := tx.Cache[r.Registry.UID+r.XID+"/versions/"+vID]
-	if !ok {
-		return nil
-	}
-	return (entry.Self).(*Version)
 }
 
 type Result struct {

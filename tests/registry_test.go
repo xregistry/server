@@ -61,21 +61,35 @@ func TestRegistryCreate(t *testing.T) {
 `)
 
 	// make sure dups generate an error
-	reg2, err := registry.NewRegistry(nil, reg.GetXRServerConfig(),
+	tx, xErr := registry.NewTx(NewUUID(), reg.GetXRServerConfig(),
+		registry.NewSQLBackend(reg.GetXRServerConfig()))
+	XNoErr(t, xErr)
+
+	reg2, err := registry.NewRegistry(tx, reg.GetXRServerConfig(),
 		"TestRegistryCreate")
 	defer reg2.Rollback()
+	tx.Rollback()
 	if err == nil || reg2 != nil {
 		t.Errorf("Creating same named registry worked!")
 	}
 
 	// make sure it was really created
-	reg3, err := registry.FindRegistry(nil, reg.GetXRServerConfig(),
-		"TestRegistryCreate", registry.FOR_WRITE)
+	tx, xErr = registry.NewTx(NewUUID(), reg.GetXRServerConfig(),
+		registry.NewSQLBackend(reg.GetXRServerConfig()))
+	XNoErr(t, xErr)
+
+	reg3, err := registry.FindRegistry(tx, reg.GetXRServerConfig(),
+		"TestRegistryCreate", FOR_WRITE)
 	defer reg3.Rollback()
+	tx.Rollback()
 	XCheck(t, err == nil && reg3 != nil,
 		"Finding TestRegistryCreate should have worked")
 
-	reg3, err = registry.NewRegistry(nil, reg.GetXRServerConfig(), "")
+	tx, xErr = registry.NewTx(NewUUID(), reg.GetXRServerConfig(),
+		registry.NewSQLBackend(reg.GetXRServerConfig()))
+	XNoErr(t, xErr)
+	reg3, err = registry.NewRegistry(tx, reg.GetXRServerConfig(), "")
+	tx.Commit()
 	defer PassDeleteReg(t, reg3)
 	XNoErr(t, err)
 	XCheck(t, reg3 != nil, "reg3 shouldn't be nil")
@@ -98,7 +112,11 @@ func TestRegistryDelete(t *testing.T) {
 	defer PassDeleteReg(t, dummyReg)
 	xrsConfig := dummyReg.GetXRServerConfig()
 
-	reg, err := registry.NewRegistry(nil, xrsConfig, "TestRegistryDelete")
+	tx, xErr := registry.NewTx(NewUUID(), dummyReg.GetXRServerConfig(),
+		registry.NewSQLBackend(dummyReg.GetXRServerConfig()))
+	XNoErr(t, xErr)
+	reg, err := registry.NewRegistry(tx, xrsConfig, "TestRegistryDelete")
+	tx.Commit()
 	defer reg.Rollback()
 	XNoErr(t, err)
 
@@ -107,7 +125,7 @@ func TestRegistryDelete(t *testing.T) {
 	reg.SaveAllAndCommit()
 
 	reg, err = registry.FindRegistry(nil, xrsConfig, "TestRegistryDelete",
-		registry.FOR_WRITE)
+		FOR_WRITE)
 	defer reg.Rollback()
 	XCheck(t, reg == nil && err == nil,
 		"Finding TestRegistryCreate found one but shouldn't")
@@ -120,7 +138,7 @@ func TestRegistryRefresh(t *testing.T) {
 	reg.Entity.Object["xxx"] = "yyy"
 	XCheck(t, reg.Get("xxx") == "yyy", "xxx should be yyy")
 
-	err := reg.Refresh(registry.FOR_WRITE)
+	err := reg.Refresh(FOR_WRITE)
 	XNoErr(t, err)
 
 	XCheck(t, reg.Get("xxx") == nil, "xxx should not be there")
@@ -132,18 +150,26 @@ func TestRegistryFind(t *testing.T) {
 	xrsConfig := dummyReg.GetXRServerConfig()
 
 	reg, err := registry.FindRegistry(nil, xrsConfig, "TestRegistryFind",
-		registry.FOR_WRITE)
+		FOR_WRITE)
 	defer reg.Rollback()
 	XCheck(t, reg == nil && err == nil,
 		"Shouldn't have found TestFindRegistry")
 
-	reg, err = registry.NewRegistry(nil, xrsConfig, "TestFindRegistry")
+	tx, xErr := registry.NewTx(NewUUID(), dummyReg.GetXRServerConfig(),
+		registry.NewSQLBackend(dummyReg.GetXRServerConfig()))
+	XNoErr(t, xErr)
+	reg, err = registry.NewRegistry(tx, xrsConfig, "TestFindRegistry")
+	tx.Commit()
 	defer reg.SaveAllAndCommit()
 	defer reg.Delete() // PassDeleteReg(t, reg)
 	XNoErr(t, err)
 
-	reg2, err := registry.FindRegistry(nil, xrsConfig, reg.UID,
-		registry.FOR_WRITE)
+	tx, xErr = registry.NewTx(NewUUID(), dummyReg.GetXRServerConfig(),
+		registry.NewSQLBackend(dummyReg.GetXRServerConfig()))
+	XNoErr(t, xErr)
+	reg2, err := registry.FindRegistry(tx, xrsConfig, reg.UID,
+		FOR_WRITE)
+	tx.Rollback()
 	defer reg2.Rollback()
 	XNoErr(t, err)
 	reg2.AccessMode = reg.AccessMode

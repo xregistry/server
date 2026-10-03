@@ -5625,7 +5625,7 @@ func TestModelResourceCreate(t *testing.T) {
 
 	// Rollback since the previous "newModel" erased too much
 	XNoErr(t, reg.Rollback())
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	reg.LoadModel()
 
 	g, err := reg.AddGroup("dirs", "dir1")

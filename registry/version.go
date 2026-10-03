@@ -42,17 +42,17 @@ func (v *Version) JustDelete() *XRError {
 	}
 
 	// Zero is ok if it's already been deleted
-	DoZeroOne(v.tx, `DELETE FROM Versions WHERE SID=?`, v.DbSID)
+	DoZeroOne(v.Tx, `DELETE FROM Versions WHERE SID=?`, v.DbSID)
 
 	// Delete any pending changes so dirty check doesn't fail
 	v.NewObject = nil
-	v.tx.RemoveFromCache(&v.Entity)
+	v.Tx.RemoveFromCache(&v.Entity)
 
 	return nil
 }
 
 func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
-	defer log.Trace("tx: %s %s, %s", v.tx.uuid, v.UID, nextVersionID)()
+	defer log.Trace("tx: %s %s, %s", v.Tx.uuid, v.UID, nextVersionID)()
 
 	if v.Resource.IsXref() {
 		return NewXRError("bad_request", v.XID,
