@@ -1792,196 +1792,44 @@ func buildCanonicalLevelOrders() map[int][]string {
 	return result
 }
 
-// Backend stuff - was in db.go
+func (e *Entity) ValidateAndSave(force bool) *XRError {
+	defer log.Trace("tx: %s %s", e.Tx.uuid, e.XID)()
 
-type Backend interface {
-	// Start a new backend/DB Tx
-	NewTx(tx *Tx) *XRError
+	// Force will do a validate even if it doesn't look like anything changed.
+	// BUT if after validate() nothing still hasn't changed then it doesn't
+	// call save()
 
-	// Make e known to the backend/DB
-	RegisterEntity(e *Entity) *XRError
-
-	// Just update e's Object - everything else will be updated by other code
-	RefreshEntity(e *Entity, accessMode int) *XRError
-
-	// Registry stuff
-	FindRegistry(tx *Tx, c *Config, id string, mode int) (*Registry, *XRError)
-
-	// Resource stuff
-	GetResourceContents(e *Entity) []byte
-}
-
-// Holds info about the current transaction. In a lot of ways this is similar
-// to golang's Context in that it holds other info related to the current
-// changes that are going on. Maybe one day convert this to a Context where
-// Tx is just as apsect of it.
-type Tx struct {
-	// Common Fields
-	uuid string // a unique ID for the TXs map key
-
-	Config   *Config // Either XRSConfig and XRConfig
-	Registry *Registry
-
-	Backend Backend
-
-	// Cache of entities this Tx is dealing with. Things can get funky if
-	// we have more than one instance of the same entity in memory.
-	// Consider having Commit() just automatically call ValidateAndSave
-	// for all entities in the Tx - then people don't need to call save
-	// explicitly
-	Cache map[string]*Entity // e.XID
-
-	// Server Fields
-	tx          any    // *sql.Tx - actual DB Tx pointer
-	CreateTime  string // use for entity timestamps too
-	User        string
-	RequestInfo *RequestInfo
-	Locked      bool // no more writes allowed!
-	Validated   bool // just to make sure it's not called more than once
-
-	// List of Group XIDs of all the Groups we need to run verfication on
-	// w.r.t. constraints. This isn't always the same as "groups that changed"
-	// since it's possible only a Resource change could break a constraint.
-	GroupsToValidate map[string]*Group
-
-	// Resources (keyed by DbSID) that need Resource.ValidateResource()
-	// (re-)run before this Tx's results are visible - including their
-	// default-version-copy cascade and xref fan-out.
-	ResourcesToValidate map[string]*resourceValidation
-
-	// Snapshot of the batch Registry.Validate()'s drain loop is
-	// CURRENTLY iterating over (keyed by DbSID), exposed so
-	// Resource.runCascade() can tell whether an xref TARGET it's about
-	// to fan out to is itself still pending in the very same batch
-	// (i.e. hasn't started its own ValidateResource() yet) - see
-	// runCascade()'s "skip our own insert if the target is still
-	// pending" optimization. Deliberately separate from
-	// ResourcesToValidate above: Registry.Validate() swaps that field
-	// to a fresh empty map before draining a batch (so any NEW marks
-	// added mid-batch, e.g. via EnsureLatest(), safely land in the next
-	// iteration instead of racing the in-progress range over the old
-	// map) - so ResourcesToValidate itself is never a reliable way to
-	// ask "is X still pending in the batch currently being drained".
-	// Set for the duration of one drain-loop batch only; nil otherwise.
-	ResourcesValidatingBatch map[string]bool
-
-	// For debugging
-	stack  []string // Stack at time NewTX
-	connID int64    // MySQL CONNECTION_ID() this Tx is bound to
-}
-
-// resourceValidation is one entry in Tx.ResourcesToValidate - it carries
-// the flags Resource.ValidateResource() needs, merged across however
-// many times AddResourceToValidate() got called for the same Resource
-// within one Tx (see AddResourceToValidate()'s doc comment for the
-// merge policy).
-type resourceValidation struct {
-	r               *Resource
-	onlyMetaChanged bool
-	force           bool
-}
-
-func NewTx(uuid string, config *Config, backend Backend) (*Tx, *XRError) {
-	defer log.Trace("tx: %s NewTx", uuid)()
-
-	PanicIf(uuid == "", "missing uuid")
-	tx := &Tx{
-		uuid:    uuid,
-		Config:  config,
-		Backend: backend,
-	}
-
-	if xErr := backend.NewTx(tx); xErr != nil {
-		return nil, xErr
-	}
-
-	return tx, nil
-}
-
-// Technically a "backend" func but most code only has access to tx so
-// attach it there
-func (tx *Tx) GetResourceContents(e *Entity) []byte {
-	return tx.Backend.GetResourceContents(e)
-}
-
-func (tx *Tx) DumpCache() {
-	log.Printf("tx: %s ==== CACHE =====", tx.uuid)
-	for path, _ := range tx.Cache {
-		log.Printf("tx: %s - %s", tx.uuid, path)
-	}
-}
-
-func (tx *Tx) EraseCache() {
-	tx.Cache = map[string]*Entity{}
-}
-
-func (tx *Tx) AddToCache(e *Entity) {
-	PanicIf(IsNil(e.Self), "tx: %s Self is nil, %s/%s",
-		tx.uuid, e.Singular, e.UID)
-	tx.Cache[e.Registry.UID+e.XID] = e
-}
-
-func (tx *Tx) RemoveFromCache(e *Entity) {
-	// If NewObject is missing or its the same as Obj then we're ok.
-	// "same" is ok because it means it was just touched, not really changed
-
-	// TODO turn this off when in prod (the maps.Equals probably isn't too
-	// expensive, but it's not free
-	if e.NewObject != nil && !maps.Equal(e.Object, e.NewObject) {
-		log.Printf("tx: %s OldObject:\n%s", tx.uuid, ToJSON(e.Object))
-		log.Printf("tx: %s NewObject:\n%s", tx.uuid, ToJSON(e.NewObject))
-		e.ShowStack()
-		panic(e.XID + " is dirty")
-	}
-	delete(tx.Cache, e.Registry.UID+e.XID)
-}
-
-func (tx *Tx) AddRegistry(r *Registry) { tx.AddToCache(&r.Entity) }
-func (tx *Tx) GetRegistry(rID string) *Registry {
-	entry, ok := tx.Cache[rID]
-	if !ok {
+	// If nothing changed, then exit
+	if !force && e.NewObject == nil {
 		return nil
 	}
-	return (entry.Self).(*Registry)
-}
 
-func (tx *Tx) AddGroup(g *Group) { tx.AddToCache(&g.Entity) }
-func (tx *Tx) GetGroup(r *Registry, plural string, gID string) *Group {
-	entry, ok := tx.Cache[r.Registry.UID+"/"+plural+"/"+gID]
-	if !ok {
+	// Make sure we have a tx since Validate assumes it
+	e.Tx.EnsureTx()
+
+	verb := log.IsFuncVerbose()
+	if verb {
+		log.Printf("tx: %s "+
+			"Pre validate %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
+			e.Tx.uuid,
+			e.Abstract, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
+	}
+
+	if xErr := e.Validate(); xErr != nil {
+		return xErr
+	}
+
+	if verb {
+		log.Printf("tx: %s Post validate(%s): %s", e.Tx.uuid,
+			e.XID, ToJSON(e.NewObject))
+	}
+
+	if e.NewObject == nil {
 		return nil
 	}
-	return (entry.Self).(*Group)
-}
 
-func (tx *Tx) AddResource(r *Resource) { tx.AddToCache(&r.Entity) }
-func (tx *Tx) GetResource(g *Group, plural string, rID string) *Resource {
-	entry, ok := tx.Cache[g.Registry.UID+g.XID+"/"+plural+"/"+rID]
-	if !ok {
-		return nil
-	}
-	return (entry.Self).(*Resource)
+	return e.Save()
 }
-
-func (tx *Tx) AddMeta(m *Meta) { tx.AddToCache(&m.Entity) }
-func (tx *Tx) GetMeta(r *Resource) *Meta {
-	entry, ok := tx.Cache[r.Registry.UID+r.XID+"/meta"]
-	if !ok {
-		return nil
-	}
-	return (entry.Self).(*Meta)
-}
-
-func (tx *Tx) AddVersion(v *Version) { tx.AddToCache(&v.Entity) }
-func (tx *Tx) GetVersion(r *Resource, vID string) *Version {
-	entry, ok := tx.Cache[r.Registry.UID+r.XID+"/versions/"+vID]
-	if !ok {
-		return nil
-	}
-	return (entry.Self).(*Version)
-}
-
-// From entity.go
 
 // Doesn't fully validate in the sense that it'll assume read-only fields
 // are not worth checking since the server generated them.

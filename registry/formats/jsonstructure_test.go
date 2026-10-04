@@ -1,4 +1,4 @@
-package registry
+package formats
 
 // Unit tests for IsValidJsonStructure and checkJSCompat, covering the
 // features listed at the top of format_jsonstructure.go.

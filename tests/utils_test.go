@@ -20,6 +20,7 @@ import (
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
+	_ "github.com/xregistry/server/registry/formats"
 )
 
 const TestDBName = "registry"
@@ -67,15 +68,15 @@ func TestMain(m *testing.M) {
 	registry.SetXRServerConfigFromEnvVars(XRServerConfig)
 
 	// call flag.Parse() here if TestMain uses flags
-	registry.DeleteDB(XRServerConfig, TestRegName)
-	registry.CreateDB(XRServerConfig, TestRegName)
-	registry.OpenDB(XRServerConfig, TestRegName)
+	registry.DBDelete(XRServerConfig, registry.NewSQLBackend, TestRegName)
+	registry.DBCreate(XRServerConfig, registry.NewSQLBackend, TestRegName)
+	XRServerConfig.Set("db.name", TestRegName)
 
 	// DBName := "registry"
-	// if !registry.DBExists(XRServerConfig,DBName) {
-	// registry.CreateDB(XRServerConfig,DBName)
+	// if !registry.DBExists(XRServerConfig,registry.NewSQLBackend,DBName) {
+	// registry.DBCreate(XRServerConfig,registry.NewSQLBackend,DBName)
 	// }
-	// registry.OpenDB(XRServerConfig,DBName)
+	// XRServerConfig.Set("db.name", DBName)
 
 	if IsPortInUse(8181) {
 		panic("Port 8181 is already in use - kill it")
@@ -158,33 +159,19 @@ func testFileServer() http.Handler {
 // across the 2 dirs this way. Kind of weird I know, but I'll clean it later
 
 func NewRegistry(name string) *registry.Registry {
-	tx, xErr := registry.NewTx(NewUUID(), XRServerConfig,
-		registry.NewSQLBackend(XRServerConfig))
-	if xErr != nil {
-		panic(fmt.Sprintf("Error creating new Tx: %s", xErr.ToJSON()))
-	}
-
-	reg, _ := registry.FindRegistry(tx, XRServerConfig, name, FOR_WRITE)
-	tx.Rollback()
+	reg, _ := registry.FindRegistry(nil, XRServerConfig, name, FOR_WRITE)
 	if reg != nil {
 		reg.Delete()
 		reg.SaveAllAndCommit()
 	}
 
-	tx, xErr = registry.NewTx(NewUUID(), XRServerConfig,
-		registry.NewSQLBackend(XRServerConfig))
+	reg, xErr := registry.NewRegistry(nil, XRServerConfig,
+		registry.NewSQLBackend, name)
 	if xErr != nil {
-		panic(fmt.Sprintf("Error creating new Tx: %s", xErr.ToJSON()))
-	}
-
-	reg, xErr = registry.NewRegistry(tx, XRServerConfig, name)
-	if xErr != nil {
-		tx.Rollback()
 		fmt.Fprintf(os.Stderr, "Error creating registry %q: %s\n", name, xErr)
 		ShowStack()
 		os.Exit(1)
 	}
-	tx.Commit()
 
 	MainServer.XRSConfig.Set("DefaultRegDbSID", reg.DbSID)
 

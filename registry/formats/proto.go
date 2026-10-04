@@ -65,7 +65,7 @@
 //   - Extensions and options are not checked.
 //   - Field renames are not detected (only field numbers are matched).
 
-package registry
+package formats
 
 import (
 	"bytes"
@@ -76,19 +76,20 @@ import (
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 const PROTOBUF_FORMAT = "protobuf*"
 
 func init() {
-	RegisterFormat(PROTOBUF_FORMAT, FormatProtobuf{})
+	registry.RegisterFormat(PROTOBUF_FORMAT, FormatProtobuf{})
 }
 
 type FormatProtobuf struct{}
 
 // IsValid checks if the version is a valid Protobuf schema syntax.
-func (fp FormatProtobuf) IsValid(ver *Version) (bool, string, *XRError) {
+func (fp FormatProtobuf) IsValid(ver *registry.Version) (bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString("(?i)"+PROTOBUF_FORMAT, format); !ok {
 		return true, "", NewXRError("bad_request", ver.XID,
@@ -142,8 +143,8 @@ func IsValidProto(buf []byte) error {
 // newVersion is compatible with oldVersion in the given direction.
 func (fp FormatProtobuf) IsCompatible(
 	direction string,
-	oldVersion *Version,
-	newVersion *Version,
+	oldVersion *registry.Version,
+	newVersion *registry.Version,
 ) (bool, string, *XRError) {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 
