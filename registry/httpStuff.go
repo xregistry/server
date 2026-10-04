@@ -280,7 +280,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 		panic(rec)
 	}()
 
-	tx, xErr := NewTx(uuid, s.XRSConfig, NewSQLBackend(s.XRSConfig))
+	tx, xErr := NewTx(uuid, s.XRSConfig, NewSQLBackend)
 	*txPtr = tx
 	if xErr != nil {
 		log.Printf("tx: %s Error talking to the DB creating new Tx: %s",

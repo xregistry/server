@@ -109,12 +109,8 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 			return reg
 		}
 
-		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
-			registry.NewSQLBackend(XRSConfig))
-		ErrFatalf(xErr, "Error creating new Tx: %s", xErr)
-
-		reg, xErr = registry.NewRegistry(tx, XRSConfig, "APIs-Guru")
-		tx.Conditional(xErr)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, "APIs-Guru")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		// Verbose( "New registry:\n%#v", reg)
 		defer reg.Rollback()
@@ -251,12 +247,8 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
-			registry.NewSQLBackend(XRSConfig))
-		ErrFatalf(xErr, "Error creating new Tx: %s", xErr)
-
-		reg, xErr = registry.NewRegistry(tx, XRSConfig, "TestRegistry")
-		tx.Conditional(xErr)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, "TestRegistry")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 	}
@@ -278,12 +270,8 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
-			registry.NewSQLBackend(XRSConfig))
-		ErrFatalf(xErr, "Error creating new Tx: %s", xErr)
-
-		reg, xErr = registry.NewRegistry(tx, XRSConfig, "Endpoints")
-		tx.Conditional(xErr)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, "Endpoints")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -354,12 +342,8 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
-			registry.NewSQLBackend(XRSConfig))
-		ErrFatalf(xErr, "Error creating new Tx: %s", xErr)
-
-		reg, xErr = registry.NewRegistry(tx, XRSConfig, "Messages")
-		tx.Conditional(xErr)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, "Messages")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -394,12 +378,8 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
-			registry.NewSQLBackend(XRSConfig))
-		ErrFatalf(xErr, "Error creating new Tx: %s", xErr)
-
-		reg, xErr = registry.NewRegistry(tx, XRSConfig, "Schemas")
-		tx.Conditional(xErr)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, "Schemas")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -435,12 +415,8 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
-			registry.NewSQLBackend(XRSConfig))
-		ErrFatalf(xErr, "Error creating new Tx: %s", xErr)
-
-		reg, xErr = registry.NewRegistry(tx, XRSConfig, "Large")
-		tx.Conditional(xErr)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, "Large")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -504,12 +480,8 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
-			registry.NewSQLBackend(XRSConfig))
-		ErrFatalf(xErr, "Error creating new Tx: %s", xErr)
-
-		reg, xErr = registry.NewRegistry(tx, XRSConfig, "DocStore")
-		tx.Conditional(xErr)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, "DocStore")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -602,12 +574,8 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		tx, xErr := registry.NewTx(NewUUID(), XRSConfig,
-			registry.NewSQLBackend(XRSConfig))
-		ErrFatalf(xErr, "Error creating new Tx: %s", xErr)
-
-		reg, xErr = registry.NewRegistry(tx, XRSConfig, "CloudEvents")
-		tx.Conditional(xErr)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, "CloudEvents")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 

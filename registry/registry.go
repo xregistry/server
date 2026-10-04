@@ -209,7 +209,7 @@ func (r *Registry) Validate() *XRError {
 }
 
 func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
-	tx, xErr := NewTx(NewUUID(), xrsConfig, NewSQLBackend(xrsConfig))
+	tx, xErr := NewTx(NewUUID(), xrsConfig, NewSQLBackend)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -329,7 +329,7 @@ func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Regist
 	newTx := false
 	if tx == nil {
 		var xErr *XRError
-		tx, xErr = NewTx(NewUUID(), xrsConfig, NewSQLBackend(xrsConfig))
+		tx, xErr = NewTx(NewUUID(), xrsConfig, NewSQLBackend)
 		if xErr != nil {
 			return nil, xErr
 		}

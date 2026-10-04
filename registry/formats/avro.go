@@ -72,7 +72,7 @@
 //   - Namespace / full-name resolution is done by simple string
 //     comparison of the "name" fields.
 
-package registry
+package formats
 
 import (
 	"encoding/json"
@@ -81,12 +81,13 @@ import (
 	"strings"
 
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 const AVRO_FORMAT = "avro*"
 
 func init() {
-	RegisterFormat(AVRO_FORMAT, FormatAvro{})
+	registry.RegisterFormat(AVRO_FORMAT, FormatAvro{})
 }
 
 // FormatAvro implements the Format interface for Apache Avro schemas.
@@ -97,7 +98,7 @@ type FormatAvro struct{}
 // true or false, why not...
 // xErr is the error to use if we're returning an error to the user. Which
 // may happen in both cases based on strictvalidation=true
-func (fa FormatAvro) IsValid(ver *Version) (bool, string, *XRError) {
+func (fa FormatAvro) IsValid(ver *registry.Version) (bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString("(?i)"+AVRO_FORMAT, format); !ok {
 		return true, "", NewXRError("bad_request", ver.XID,
@@ -146,8 +147,8 @@ func (fa FormatAvro) IsValid(ver *Version) (bool, string, *XRError) {
 // oldVersion in the given direction.
 func (fa FormatAvro) IsCompatible(
 	direction string,
-	oldVersion *Version,
-	newVersion *Version,
+	oldVersion *registry.Version,
+	newVersion *registry.Version,
 ) (bool, string, *XRError) {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 

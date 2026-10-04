@@ -9,9 +9,47 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-func NewRegistry(tx *Tx, config *Config, id string) (*Registry, *XRError) {
-	PanicIf(tx == nil, "Tx can not be nil")
-	defer log.Trace("tx: %s %s", tx.uuid, id)()
+func DBExists(c *Config, fn func(*Config) Backend, name string) bool {
+	return fn(c).DBExists(c, name)
+}
+
+func DBCreate(c *Config, fn func(*Config) Backend, name string) *XRError {
+	return fn(c).DBCreate(c, name)
+}
+
+func DBDelete(c *Config, fn func(*Config) Backend, name string) *XRError {
+	return fn(c).DBDelete(c, name)
+}
+
+func DBList(c *Config, fn func(*Config) Backend) ([]string, *XRError) {
+	return fn(c).DBList(c)
+}
+
+func NewRegistry(tx *Tx, config *Config, fn func(*Config) Backend, id string) (*Registry, *XRError) {
+
+	if tx == nil {
+		defer log.Trace("%s", id)()
+	} else {
+		defer log.Trace("tx: %s %s", tx.uuid, id)()
+	}
+
+	var xErr *XRError // must be used for all error checking due to defer
+	newTx := false
+
+	defer func() {
+		if newTx {
+			// If created just for us, close it
+			tx.Conditional(xErr)
+		}
+	}()
+
+	if tx == nil {
+		tx, xErr = NewTx(NewUUID(), config, fn)
+		if xErr != nil {
+			return nil, xErr
+		}
+		newTx = true
+	}
 
 	if id == "" {
 		id = NewUUID()

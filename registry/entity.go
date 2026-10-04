@@ -451,45 +451,6 @@ func (e *Entity) eSetSave(path string, val any) *XRError {
 	return nil
 }
 
-func (e *Entity) ValidateAndSave(force bool) *XRError {
-	defer log.Trace("tx: %s %s", e.Tx.uuid, e.XID)()
-
-	// Force will do a validate even if it doesn't look like anything changed.
-	// BUT if after validate() nothing still hasn't changed then it doesn't
-	// call save()
-
-	// If nothing changed, then exit
-	if !force && e.NewObject == nil {
-		return nil
-	}
-
-	// Make sure we have a tx since Validate assumes it
-	e.Tx.NewTx()
-
-	verb := log.IsFuncVerbose()
-	if verb {
-		log.Printf("tx: %s "+
-			"Pre validate %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
-			e.Tx.uuid,
-			e.Abstract, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
-	}
-
-	if xErr := e.Validate(); xErr != nil {
-		return xErr
-	}
-
-	if verb {
-		log.Printf("tx: %s Post validate(%s): %s", e.Tx.uuid,
-			e.XID, ToJSON(e.NewObject))
-	}
-
-	if e.NewObject == nil {
-		return nil
-	}
-
-	return e.Save()
-}
-
 // This is really just an internal Setter used for testing.
 // It'll set a property and then validate and save the entity in the DB
 func (e *Entity) SetPP(pp *PropPath, val any) *XRError {

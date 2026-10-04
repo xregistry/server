@@ -29,7 +29,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 
 			force, _ := cmd.Flags().GetBool("force")
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,
-				registry.NewSQLBackend(XRSConfig))
+				registry.NewSQLBackend)
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
@@ -45,7 +45,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 				}
 
 				Verbose("Creating: %s", id)
-				reg, err = registry.NewRegistry(tx, XRSConfig, id)
+				reg, err = registry.NewRegistry(tx, XRSConfig, nil, id)
 				ErrStopTx(err, tx, "Error creating %q: %s", id, err)
 			}
 			err = tx.Commit()
@@ -65,7 +65,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 
 			force, _ := cmd.Flags().GetBool("force")
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,
-				registry.NewSQLBackend(XRSConfig))
+				registry.NewSQLBackend)
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
@@ -102,7 +102,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,
-				registry.NewSQLBackend(XRSConfig))
+				registry.NewSQLBackend)
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			reg, err := registry.FindRegistry(tx, XRSConfig, args[0], FOR_READ)
@@ -141,7 +141,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,
-				registry.NewSQLBackend(XRSConfig))
+				registry.NewSQLBackend)
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 1, 3, ' ', 0)

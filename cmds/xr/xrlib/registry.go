@@ -381,3 +381,7 @@ func (m *Model) VerifyAndSave(verifyData bool) *XRError {
 func (e *Entity) eSetSave(path string, val any) *XRError {
 	return nil
 }
+
+func (e *Entity) Save() *XRError {
+	return nil
+}

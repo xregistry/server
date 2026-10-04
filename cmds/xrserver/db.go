@@ -29,7 +29,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 				Stop("--output must be one of: json, table")
 			}
 
-			dbs, err := registry.ListDBs(XRSConfig)
+			dbs, err := registry.DBList(XRSConfig, registry.NewSQLBackend)
 			ErrStop(err, "Error talking to mysql: %s", err)
 
 			sort.Strings(dbs)
@@ -69,18 +69,19 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 			DBName := args[0]
 
-			if registry.DBExists(XRSConfig, DBName) {
+			if registry.DBExists(XRSConfig, registry.NewSQLBackend, DBName) {
 				if val, _ := cmd.Flags().GetBool("force"); !val {
 					Stop("DB %q already exists", DBName)
 				}
 
 				Verbose("Deleting DB: %s", DBName)
-				err := registry.DeleteDB(XRSConfig, DBName)
+				err := registry.DBDelete(XRSConfig, registry.NewSQLBackend,
+					DBName)
 				ErrStop(err, "Error deleting DB %q: %s", DBName, err)
 			}
 
 			Verbose("Creating DB: %s", DBName)
-			err := registry.CreateDB(XRSConfig, DBName)
+			err := registry.DBCreate(XRSConfig, registry.NewSQLBackend, DBName)
 			ErrStop(err, "Error creating DB %q: %s", DBName, err)
 		},
 	}
@@ -99,7 +100,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 			DBName := args[0]
 
-			if !registry.DBExists(XRSConfig, DBName) {
+			if !registry.DBExists(XRSConfig, registry.NewSQLBackend, DBName) {
 				if val, _ := cmd.Flags().GetBool("force"); !val {
 					Stop("DB %q doesn't exists", DBName)
 				}
@@ -107,7 +108,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			Verbose("Deleting DB: %s", DBName)
-			err := registry.DeleteDB(XRSConfig, DBName)
+			err := registry.DBDelete(XRSConfig, registry.NewSQLBackend, DBName)
 			ErrStop(err, "Error deleting DB %q: %s", DBName, err)
 		},
 	}
@@ -126,7 +127,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 			DBName := args[0]
 
-			if !registry.DBExists(XRSConfig, DBName) {
+			if !registry.DBExists(XRSConfig, registry.NewSQLBackend, DBName) {
 				Stop("DB %q doesn't exist", DBName)
 			}
 

@@ -114,7 +114,7 @@ ftest: .ftest
 	@touch .ftest
 
 test: xrlint errors qtest ftest testimages
-	@msg=`gofmt -l .` && [ -z "$$msg" ] || \
+	@msg=`gofmt -l . common/shared_*` && [ -z "$$msg" ] || \
 		( echo -e "\n**** Run gofmt:\n$$msg\n" ; exit 1 )
 
 benchmark:
@@ -137,7 +137,7 @@ registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@go run ./cmds/genspecattrs
 
 xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
-	common/* registry/*
+	common/* registry/* registry/formats/*
 	@echo
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \
@@ -368,6 +368,6 @@ clean:
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1
 	@-docker rm -f mysql mysql-client > /dev/null 2>&1
 	@# do "sleep" so that "docker system prune" won't delete the mysql image
-	@-docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
+	@# -docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
 	@-docker system prune -f -a --volumes > /dev/null
 	@rm -rf ./mysql-data
