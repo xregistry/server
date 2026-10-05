@@ -256,6 +256,64 @@ Pass: 1   Fail: 3   Warn: 0   Skip: 0
 `)
 }
 
+func TestSetTDStatus(t *testing.T) {
+	td := NewTD(nil, "").Run(func(td *TD) { td.Skip() })
+	XEqual(t, "", printTD(td), `SKIP: func1 (skip:1)
+Pass: 0   Fail: 0   Warn: 0   Skip: 1
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Fail(); td.Skip() })
+	XEqual(t, "", printTD(td), `FAIL: func2
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Fail(); td.Warn() })
+	XEqual(t, "", printTD(td), `FAIL: func3
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Fail(); td.Pass() })
+	XEqual(t, "", printTD(td), `FAIL: func4
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Warn(); td.Skip() })
+	XEqual(t, "", printTD(td), `WARN: func5 (warn:1)
+Pass: 0   Fail: 0   Warn: 1   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Warn(); td.Fail() })
+	XEqual(t, "", printTD(td), `FAIL: func6
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Warn(); td.Skip() })
+	XEqual(t, "", printTD(td), `WARN: func7 (warn:1)
+Pass: 0   Fail: 0   Warn: 1   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Warn(); td.Pass() })
+	XEqual(t, "", printTD(td), `WARN: func8 (warn:1)
+Pass: 0   Fail: 0   Warn: 1   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Skip(); td.Fail() })
+	XEqual(t, "", printTD(td), `FAIL: func9
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Skip(); td.Warn() })
+	XEqual(t, "", printTD(td), `WARN: func10 (warn:1)
+Pass: 0   Fail: 0   Warn: 1   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Skip(); td.Pass() })
+	XEqual(t, "", printTD(td), `SKIP: func11 (skip:1)
+Pass: 0   Fail: 0   Warn: 0   Skip: 1
+`)
+
+}
+
 func dependencyFailure(td *TD) {
 	td.Fail("dependency failed")
 }
