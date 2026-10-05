@@ -397,14 +397,27 @@ func (td *TD) recordStatus(status int, args ...any) int {
 			Text:    line,
 			Subtest: nil,
 		})
-	} /* else {
-		td.Logs = append(td.Logs, &LogEntry{
-			Date:    time.Now(),
-			Type:    status,
-			Text:    "",
-			Subtest: nil,
-		})
-	} */
+	} else {
+		// No args means we're trying to change the current TD's status
+		if status < LOG {
+			switch td.Status {
+			case FAIL:
+				// don't change me
+			case PASS:
+				td.Status = status
+			case SKIP:
+				// FAIL or WARN can change me
+				if status != PASS {
+					td.Status = status
+				}
+			case WARN:
+				// Only FAIL is worth changing over
+				if status == FAIL {
+					td.Status = status
+				}
+			}
+		}
+	}
 	td.AddStatus(status)
 	return status
 }
