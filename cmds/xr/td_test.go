@@ -251,6 +251,41 @@ func TestTDHTTPGetJSON(t *testing.T) {
 	})
 }
 
+func TestCapabilitiesMissingResponseStatus(t *testing.T) {
+	tests := []struct {
+		name   string
+		code   int
+		body   string
+		status int
+	}{
+		{"no capabilities", 200, "null", SKIP},
+		{"malformed capabilities", 200, "{", FAIL},
+		{"capabilities HTTP error", 500, "null", FAIL},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					w.WriteHeader(test.code)
+					_, _ = w.Write([]byte(test.body))
+				}))
+			defer server.Close()
+
+			root := newTestTD("Capabilities")
+			root.SetRegistry(xrlib.DefineRegistry(server.URL))
+			td := root.Run(TestCapabilities)
+			XEqual(t, "Capabilities status", td.Status, test.status)
+			XEqual(t, "Requests", requests.Load(), int32(1))
+			XEqual(t, "Diagnostic",
+				td.Logs[len(td.Logs)-1].Text,
+				"No capabilities found - leaving")
+		})
+	}
+}
+
 func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 	staleRun := NewTD(nil, "stale")
 	staleRun.Fail("stale failure")
@@ -358,6 +393,64 @@ func TestConformanceStateErrorPrintCompleteResult(t *testing.T) {
    └─ FAIL: reg.stuff.groupPaths != map[string]string
 Pass: 1   Fail: 3   Warn: 0   Skip: 0
 `)
+}
+
+func TestSetTDStatus(t *testing.T) {
+	td := NewTD(nil, "").Run(func(td *TD) { td.Skip() })
+	XEqual(t, "", printTD(td), `SKIP: func1 (skip:1)
+Pass: 0   Fail: 0   Warn: 0   Skip: 1
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Fail(); td.Skip() })
+	XEqual(t, "", printTD(td), `FAIL: func2
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Fail(); td.Warn() })
+	XEqual(t, "", printTD(td), `FAIL: func3
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Fail(); td.Pass() })
+	XEqual(t, "", printTD(td), `FAIL: func4
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Warn(); td.Skip() })
+	XEqual(t, "", printTD(td), `WARN: func5 (warn:1)
+Pass: 0   Fail: 0   Warn: 1   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Warn(); td.Fail() })
+	XEqual(t, "", printTD(td), `FAIL: func6
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Warn(); td.Skip() })
+	XEqual(t, "", printTD(td), `WARN: func7 (warn:1)
+Pass: 0   Fail: 0   Warn: 1   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Warn(); td.Pass() })
+	XEqual(t, "", printTD(td), `WARN: func8 (warn:1)
+Pass: 0   Fail: 0   Warn: 1   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Skip(); td.Fail() })
+	XEqual(t, "", printTD(td), `FAIL: func9
+Pass: 0   Fail: 1   Warn: 0   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Skip(); td.Warn() })
+	XEqual(t, "", printTD(td), `WARN: func10 (warn:1)
+Pass: 0   Fail: 0   Warn: 1   Skip: 0
+`)
+
+	td = NewTD(nil, "").Run(func(td *TD) { td.Skip(); td.Pass() })
+	XEqual(t, "", printTD(td), `SKIP: func11 (skip:1)
+Pass: 0   Fail: 0   Warn: 0   Skip: 1
+`)
+
 }
 
 func dependencyFailure(td *TD) {

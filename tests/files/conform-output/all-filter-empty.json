@@ -2,19 +2,19 @@
   {
     "name": "http://localhost:8181",
     "status": "PASS",
-    "pass": 64,
+    "pass": 63,
     "fail": 0,
     "warn": 0,
-    "skip": 4,
+    "skip": 5,
     "entries": [
       {
         "subtest": {
           "name": "TestTDAll",
           "status": "PASS",
-          "pass": 63,
+          "pass": 62,
           "fail": 0,
           "warn": 0,
-          "skip": 4,
+          "skip": 5,
           "entries": [
             {
               "subtest": {
@@ -338,11 +338,11 @@
             {
               "subtest": {
                 "name": "TestFilter",
-                "status": "PASS",
-                "pass": 3,
+                "status": "SKIP",
+                "pass": 2,
                 "fail": 0,
                 "warn": 0,
-                "skip": 1,
+                "skip": 2,
                 "entries": [
                   {
                     "status": "PASS",

@@ -57,6 +57,7 @@ func TestCapabilities(td *TD) {
 
 	if reg.Capabilities == nil {
 		td.Skip("No capabilities found - leaving")
+		td.Skip()
 		return
 	}
 
@@ -248,11 +249,13 @@ func TestFilter(td *TD) {
 
 	if reg.Capabilities == nil {
 		td.Skip("No capabilities found - leaving")
+		td.Skip()
 		return
 	}
 
 	if !reg.Capabilities.FlagEnabled("filter") {
 		td.Skip("?filter not supported - leaving")
+		td.Skip()
 		return
 	}
 
@@ -261,6 +264,7 @@ func TestFilter(td *TD) {
 	groupPathsAny, ok := reg.GetStuff("groupPaths")
 	if !ok {
 		td.Skip("No observable Group Types defined - leaving")
+		td.Skip()
 		return
 	}
 	groupPaths, ok := groupPathsAny.(map[string]string)
@@ -268,6 +272,7 @@ func TestFilter(td *TD) {
 
 	if len(groupPaths) == 0 {
 		td.Skip("No observable Group Types defined - leaving")
+		td.Skip()
 		return
 	}
 

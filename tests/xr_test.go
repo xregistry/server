@@ -2360,21 +2360,21 @@ func TestXRConformRunAllBeforeSmoke(t *testing.T) {
 		"conform -d3 --run all --run smoke "+
 			"http://localhost:8282/conform",
 		"",
-		`PASS: http://localhost:8282/conform (skip:4)
-├─ PASS: TestTDAll (skip:4)
+		`PASS: http://localhost:8282/conform (skip:5)
+├─ PASS: TestTDAll (skip:5)
 │  ├─ PASS: TestSniff
 │  ├─ PASS: TestModel
 │  ├─ PASS: TestCapabilities (skip:1)
 │  ├─ PASS: TestRegistryRoot
 │  ├─ PASS: TestGroups (skip:1)
-│  ├─ PASS: TestFilter (skip:1)
+│  ├─ SKIP: TestFilter (skip:2)
 │  └─ PASS: TestResources (skip:1)
 └─ PASS: TestTDSmoke
    ├─ PASS: TestSniff (cached)
    ├─ PASS: TestModel (cached)
    ├─ PASS: TestCapabilities (cached)
    └─ PASS: TestRegistryRoot (cached)
-Pass: 63   Fail: 0   Warn: 0   Skip: 4
+Pass: 62   Fail: 0   Warn: 0   Skip: 5
 `, "", 0)
 }
 
@@ -2383,21 +2383,21 @@ func TestXRConformRunAllAfterSmoke(t *testing.T) {
 		"conform -d3 --run smoke --run all "+
 			"http://localhost:8282/conform",
 		"",
-		`PASS: http://localhost:8282/conform (skip:4)
+		`PASS: http://localhost:8282/conform (skip:5)
 ├─ PASS: TestTDSmoke (skip:1)
 │  ├─ PASS: TestSniff
 │  ├─ PASS: TestModel
 │  ├─ PASS: TestCapabilities (skip:1)
 │  └─ PASS: TestRegistryRoot
-└─ PASS: TestTDAll (skip:3)
+└─ PASS: TestTDAll (skip:4)
    ├─ PASS: TestSniff (cached)
    ├─ PASS: TestModel (cached)
    ├─ PASS: TestCapabilities (cached)
    ├─ PASS: TestRegistryRoot (cached)
    ├─ PASS: TestGroups (skip:1)
-   ├─ PASS: TestFilter (skip:1)
+   ├─ SKIP: TestFilter (skip:2)
    └─ PASS: TestResources (skip:1)
-Pass: 63   Fail: 0   Warn: 0   Skip: 4
+Pass: 62   Fail: 0   Warn: 0   Skip: 5
 `, "", 0)
 }
 
@@ -2460,8 +2460,8 @@ Pass: 96   Fail: 0   Warn: 0   Skip: 2
 			groups:  `{"null":{},"z@":{}}`,
 			count:   2,
 			options: "--skips",
-			output: `PASS: http://localhost:8181 (skip:3)
-└─ PASS: TestRegistry (skip:3)
+			output: `PASS: http://localhost:8181 (skip:4)
+└─ PASS: TestRegistry (skip:4)
    ├─ PASS: TestSniff
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
@@ -2483,13 +2483,13 @@ Pass: 96   Fail: 0   Warn: 0   Skip: 2
    │  └─ PASS: Parsing Capabilities MUST work
    ├─ PASS: TestRegistryRoot
    ├─ PASS: TestGroups
-   ├─ PASS: TestFilter (skip:1)
+   ├─ SKIP: TestFilter (skip:2)
    │  ├─ PASS: TestCapabilities (cached)
    │  └─ SKIP: ?filter not supported - leaving
    └─ PASS: TestResources (skip:1)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Resource Types defined for "widgets" Group Type - leaving
-Pass: 80   Fail: 0   Warn: 0   Skip: 3
+Pass: 79   Fail: 0   Warn: 0   Skip: 4
 `,
 		},
 		{
@@ -2498,8 +2498,8 @@ Pass: 80   Fail: 0   Warn: 0   Skip: 3
 			flags:   `["filter"]`,
 			groups:  `{}`,
 			options: "--run all --skips",
-			output: `PASS: http://localhost:8181 (skip:4)
-└─ PASS: TestTDAll (skip:4)
+			output: `PASS: http://localhost:8181 (skip:5)
+└─ PASS: TestTDAll (skip:5)
    ├─ PASS: TestSniff
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
@@ -2527,14 +2527,14 @@ Pass: 80   Fail: 0   Warn: 0   Skip: 3
    │  ├─ PASS: 'GET /widgets' MUST return a non-empty body
    │  ├─ PASS: 'GET /widgets' MUST return a JSON body
    │  └─ SKIP: No groups defined for group type "widgets"
-   ├─ PASS: TestFilter (skip:1)
+   ├─ SKIP: TestFilter (skip:2)
    │  ├─ PASS: TestCapabilities (cached)
    │  ├─ PASS: TestGroups (cached)
    │  └─ SKIP: No observable Group Types defined - leaving
    └─ PASS: TestResources (skip:1)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Group Types defined  - leaving
-Pass: 64   Fail: 0   Warn: 0   Skip: 4
+Pass: 63   Fail: 0   Warn: 0   Skip: 5
 `,
 		},
 	}
@@ -2839,16 +2839,16 @@ Pass: 80   Fail: 5   Warn: 0   Skip: 2
 		FileServer.SetOutput(t, path+"/model", 200, "{}")
 		FileServer.SetOutput(t, path+"/capabilities", 200, "null")
 		cliResult := XCLI(t, "conform --run all --skips -d3 -vvv "+target,
-			"", substituteOutput(`PASS: http://localhost:8282/TestXRConformFilterResponses (skip:5)
-└─ PASS: TestTDAll (skip:5)
+			"", substituteOutput(`PASS: http://localhost:8282/TestXRConformFilterResponses (skip:10)
+└─ PASS: TestTDAll (skip:10)
    ├─ PASS: TestSniff
    ├─ PASS: TestModel
-   ├─ PASS: TestCapabilities (skip:1)
+   ├─ SKIP: TestCapabilities (skip:2)
    │  ├─ PASS: Retrieving capabilities
    │  └─ SKIP: No capabilities found - leaving
-   ├─ PASS: TestRegistryRoot (skip:1)
+   ├─ PASS: TestRegistryRoot (skip:2)
    │  ├─ PASS: TestModel (cached)
-   │  ├─ PASS: TestCapabilities (cached)
+   │  ├─ SKIP: TestCapabilities (cached)
    │  ├─ PASS: 'GET /' MUST return 200
    │  ├─ PASS: 'GET /' MUST return a non-empty body
    │  ├─ PASS: 'GET /' MUST return a JSON body
@@ -2869,17 +2869,17 @@ Pass: 80   Fail: 5   Warn: 0   Skip: 2
    │  ├─ PASS: "capabilities" MUST NOT be present, and isn't
    │  ├─ PASS: "model" MUST NOT be present, and isn't
    │  └─ PASS: "modelsource" MUST NOT be present, and isn't
-   ├─ PASS: TestGroups (skip:1)
+   ├─ PASS: TestGroups (skip:2)
    │  ├─ PASS: TestModel (cached)
-   │  ├─ PASS: TestCapabilities (cached)
+   │  ├─ SKIP: TestCapabilities (cached)
    │  └─ SKIP: No Group Types defined - leaving
-   ├─ PASS: TestFilter (skip:1)
-   │  ├─ PASS: TestCapabilities (cached)
+   ├─ SKIP: TestFilter (skip:3)
+   │  ├─ SKIP: TestCapabilities (cached)
    │  └─ SKIP: No capabilities found - leaving
    └─ PASS: TestResources (skip:1)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Group Types defined  - leaving
-Pass: 43   Fail: 0   Warn: 0   Skip: 5
+Pass: 38   Fail: 0   Warn: 0   Skip: 10
 `), "*", 0)
 		XEqual(t, "Filter requests",
 			strings.Count(cliResult.Stderr, "?filter="), 0)
@@ -3104,8 +3104,8 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
 func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
 	const target = "http://localhost:8282/conform"
 	cliResult := XCLI(t, "conform --skips -vvv "+target+" "+target, "",
-		`PASS: http://localhost:8282/conform (skip:4)
-└─ PASS: TestRegistry (skip:4)
+		`PASS: http://localhost:8282/conform (skip:5)
+└─ PASS: TestRegistry (skip:5)
    ├─ PASS: TestSniff
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
@@ -3130,16 +3130,16 @@ func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
    │  ├─ PASS: TestModel (cached)
    │  ├─ PASS: TestCapabilities (cached)
    │  └─ SKIP: No Group Types defined - leaving
-   ├─ PASS: TestFilter (skip:1)
+   ├─ SKIP: TestFilter (skip:2)
    │  ├─ PASS: TestCapabilities (cached)
    │  └─ SKIP: ?filter not supported - leaving
    └─ PASS: TestResources (skip:1)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Group Types defined  - leaving
-Pass: 58   Fail: 0   Warn: 0   Skip: 4
+Pass: 57   Fail: 0   Warn: 0   Skip: 5
 
-PASS: http://localhost:8282/conform (skip:4)
-└─ PASS: TestRegistry (skip:4)
+PASS: http://localhost:8282/conform (skip:5)
+└─ PASS: TestRegistry (skip:5)
    ├─ PASS: TestSniff
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
@@ -3164,13 +3164,13 @@ PASS: http://localhost:8282/conform (skip:4)
    │  ├─ PASS: TestModel (cached)
    │  ├─ PASS: TestCapabilities (cached)
    │  └─ SKIP: No Group Types defined - leaving
-   ├─ PASS: TestFilter (skip:1)
+   ├─ SKIP: TestFilter (skip:2)
    │  ├─ PASS: TestCapabilities (cached)
    │  └─ SKIP: ?filter not supported - leaving
    └─ PASS: TestResources (skip:1)
       ├─ PASS: TestGroups (cached)
       └─ SKIP: No Group Types defined  - leaving
-Pass: 58   Fail: 0   Warn: 0   Skip: 4
+Pass: 57   Fail: 0   Warn: 0   Skip: 5
 `, `*`, 0)
 
 	for _, check := range []struct {

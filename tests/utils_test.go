@@ -199,8 +199,7 @@ func (s *TestFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content := strings.ReplaceAll(string(data), specVersionPlaceholder,
-		SPECVERSION)
+	content := substituteOutput(string(data))
 	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
 	w.WriteHeader(res.StatusCode)
 	if r.Method != http.MethodHead {
@@ -718,7 +717,7 @@ func TestFileServerRegisteredOutputs(t *testing.T) {
 	server := testFileServer()
 	const path = "/TestFileServerRegisteredOutputs/widgets" +
 		"?filter=widgetid=NULL&sort=name&inline"
-	const output = `{"specversion":"$SPECVERSION"}`
+	const output = `{"specversion":"$SPECVERSION","space":"$SPACE"}`
 	server.SetOutput(t, path, http.StatusBadRequest, output)
 
 	req := httptest.NewRequest(http.MethodGet, path, nil)
@@ -726,7 +725,7 @@ func TestFileServerRegisteredOutputs(t *testing.T) {
 	server.ServeHTTP(res, req)
 	XEqual(t, "", res.Code, http.StatusBadRequest)
 	XEqual(t, "", res.Body.String(),
-		`{"specversion":"`+SPECVERSION+`"}`)
+		`{"specversion":"`+SPECVERSION+`","space":" "}`)
 	XEqual(t, "", res.Header().Get("Content-Length"),
 		strconv.Itoa(len(res.Body.Bytes())))
 
