@@ -5514,7 +5514,7 @@ function renderConfig() {
     +   '<label class="cfg-radio-row">'
     +     '<select id="cfg-default-limit" onchange="cfgSetDefaultLimit(this.value)">'
     +       cfgPageSizeOptionsHTML(optDefaultLimit())
-    +     + '</select>'
+    +     '</select>'
     +   '</label>'
     +   '<span class="cfg-option-desc">Starting page size for collection'
     +   ' List views on servers that support pagination \u2014 \u201cAll\u201d'
