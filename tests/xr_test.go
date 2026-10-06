@@ -3720,7 +3720,7 @@ hi
 # dirs/d1/files/f1/versions/v1$details.hdr
 content-type: application/json
 # dirs/d1/files/f1/versions/v1.hdr
-content-disposition:f1
+content-disposition:inline; filename="f1"
 content-length:2
 content-location:dirs/d1/files/f1/versions/v1
 xregistry-ancestorid:v1
@@ -3752,7 +3752,7 @@ xregistry-xid:/dirs/d1/files/f1/versions/v1
 # dirs/d1/files/f1$details.hdr
 content-type: application/json
 # dirs/d1/files/f1.hdr
-content-disposition:f1
+content-disposition:inline; filename="f1"
 content-length:2
 content-location:dirs/d1/files/f1/versions/v1
 xregistry-ancestorid:v1
@@ -3832,7 +3832,7 @@ hi
 # dirs/d1/files/f2/versions/v1$details.hdr
 content-type: application/json
 # dirs/d1/files/f2/versions/v1.hdr
-content-disposition:f2
+content-disposition:inline; filename="f2"
 content-length:2
 content-location:dirs/d1/files/f2/versions/v1
 xregistry-ancestorid:v1
@@ -3862,7 +3862,7 @@ hi
 # dirs/d1/files/f2/versions/v2$details.hdr
 content-type: application/json
 # dirs/d1/files/f2/versions/v2.hdr
-content-disposition:f2
+content-disposition:inline; filename="f2"
 content-length:2
 content-location:dirs/d1/files/f2/versions/v2
 xregistry-ancestorid:v1
@@ -3894,7 +3894,7 @@ xregistry-xid:/dirs/d1/files/f2/versions/v2
 # dirs/d1/files/f2$details.hdr
 content-type: application/json
 # dirs/d1/files/f2.hdr
-content-disposition:f2
+content-disposition:inline; filename="f2"
 content-length:2
 content-location:dirs/d1/files/f2/versions/v2
 xregistry-ancestorid:v1
@@ -4022,7 +4022,7 @@ and some text
 # dirs/d1/files/f3.md/versions/v1$details.hdr
 content-type: application/json
 # dirs/d1/files/f3.md/versions/v1.hdr
-content-disposition:f3.md
+content-disposition:inline; filename="f3.md"
 content-length:27
 content-location:dirs/d1/files/f3.md/versions/v1
 xregistry-ancestorid:v1
@@ -4054,7 +4054,7 @@ xregistry-xid:/dirs/d1/files/f3.md/versions/v1
 # dirs/d1/files/f3.md$details.hdr
 content-type: application/json
 # dirs/d1/files/f3.md.hdr
-content-disposition:f3.md
+content-disposition:inline; filename="f3.md"
 content-length:27
 content-location:dirs/d1/files/f3.md/versions/v1
 xregistry-ancestorid:v1

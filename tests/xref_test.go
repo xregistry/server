@@ -1677,7 +1677,7 @@ func TestXrefDocs(t *testing.T) {
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/fx/versions",
 			"xRegistry-versionscount: 1",
 			"Content-Location: http://localhost:8181/dirs/d1/files/fx/versions/1",
-			"Content-Disposition: fx",
+			"content-disposition: inline; filename=\"fx\"",
 			"Content-Length: 11",
 		},
 		ResBody: `hello world`,

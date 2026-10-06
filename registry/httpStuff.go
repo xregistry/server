@@ -707,7 +707,8 @@ FROM Props WHERE RegSID=? AND `
 			info.BaseURL+entity.XID+"/versions")
 	}
 	info.SetHeader("Content-Location", info.BaseURL+version.XID)
-	info.SetHeader("Content-Disposition", info.ResourceUID)
+	info.SetHeader("Content-Disposition",
+		`inline; filename="`+info.ResourceUID+`"`)
 
 	url := ""
 	singular := info.ResourceModel.Singular
