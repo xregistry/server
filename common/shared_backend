@@ -18,15 +18,40 @@ type Backend interface {
 	Commit(tx *Tx) *XRError
 	Rollback(tx *Tx) *XRError
 
-	// Make e known to the backend/DB
+	// Model related stuff
+	ClearResourceModelSystemProps(rm *ResourceModel, props []string) *XRError
+
+	// Make Entity known to the backend/DB
 	RegisterEntity(e *Entity) *XRError
 
 	// Just update e's Object - everything else will be updated by other code
 	RefreshEntity(e *Entity, accessMode int) *XRError
 
+	ClearUserProps(e *Entity) *XRError
+
+	// args is chunks of 13 any's per row/entity
+	BatchUpdateProps(e *Entity, isSystem bool, args []any) *XRError
+	BatchDeleteProps(e *Entity, args []any) *XRError
+
 	// Registry stuff
 	FindRegistry(tx *Tx, c *Config, id string, mode int) (*Registry, *XRError)
 
 	// Resource stuff
-	GetResourceContents(e *Entity) []byte
+	GetResourceContents(e *Entity) ([]byte, *XRError)
+	SetResourceContents(e *Entity, val []byte) *XRError
+
+	RecalcVersionsIsDefault(r *Resource) *XRError // recalc all R's versions
+	DeleteResourceDefaultVersionProps(r *Resource) *XRError
+	CopyResourceDefaultVersionProps(r *Resource) *XRError
+
+	// Xref stuff
+	ClearXrefState(meta *Meta) *XRError                   // in prep for new/del xref
+	CopyXrefState(meta *Meta) *XRError                    // copy xref meta props & vers
+	CopyXrefDefaultVersionProps(r *Resource) *XRError     // copy xref def ver
+	CopyXrefVersions(r *Resource, tgtSID string) *XRError // copy xref vers
+}
+
+type BatchRow struct {
+	IsSystem bool
+	Args     [13]any
 }

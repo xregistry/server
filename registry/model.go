@@ -86,15 +86,23 @@ func (m *Model) Save() *XRError {
 				if oldRM == nil {
 					continue
 				}
+
+				props := []string{}
+
 				if oldRM.GetValidateFormat() && !rm.GetValidateFormat() {
-					m.Registry.clearValidationSystemProps(rm.SID,
-						"formatvalidated", "formatvalidatedreason")
+					props = append(props, "formatvalidated",
+						"formatvalidatedreason")
 				}
 				if oldRM.GetValidateCompatibility() &&
 					!rm.GetValidateCompatibility() {
-					m.Registry.clearValidationSystemProps(rm.SID,
-						"compatibilityvalidated",
+					props = append(props, "compatibilityvalidated",
 						"compatibilityvalidatedreason")
+				}
+				if len(props) > 0 {
+					xErr := rm.clearValidationSystemProps(props)
+					if xErr != nil {
+						return xErr
+					}
 				}
 			}
 		}
@@ -523,46 +531,13 @@ func checkHasDocumentEnableViolation(reg *Registry, oldRM *ResourceModel) *XRErr
 	return nil
 }
 
-// clearValidationSystemProps bulk-clears the given system prop(s) (e.g.
-// "formatvalidated"/"formatvalidatedreason" or "compatibilityvalidated"/
-// "compatibilityvalidatedreason") from every Version of every Resource
-// instance of the ResourceModel identified by modelSID, in one indexed
-// sweep. Called by Model.Save() right after a validateformat/
-// validatecompatibility true->false transition is detected, so
-// EnsureCompat() (registry/resource.go) no longer needs to defensively
-// re-clear these on every single save while validation stays off - this
-// one-time, model-change-triggered sweep is the sole owner of clearing
-// stale values.
-func (reg *Registry) clearValidationSystemProps(modelSID string, names ...string) {
-	if len(names) == 0 {
-		return
+func (rm *ResourceModel) clearValidationSystemProps(props []string) *XRError {
+	if len(props) == 0 {
+		return nil
 	}
 
-	placeholders := make([]string, len(names))
-	args := make([]any, 0, len(names)+4)
-	for i, name := range names {
-		placeholders[i] = "?"
-		args = append(args, name+string(DB_IN))
-	}
-	args = append(args, reg.DbSID, modelSID, reg.DbSID, modelSID)
-
-	// Clear both the Version's own row AND the Resource-level
-	// IsDefaultVerCopy mirror of it (same mirroring mechanism as
-	// isdefault/createdat/modifiedat - the Resource-level copy is
-	// what HTTP GET on the Resource actually serves).
-	Do(reg.Tx, `
-        DELETE FROM Props
-        WHERE PropName IN (`+strings.Join(placeholders, ",")+`)
-              AND (
-                eSID IN (
-                    SELECT SID FROM Versions WHERE ResourceSID IN (
-                        SELECT SID FROM Resources
-                        WHERE RegistrySID=? AND ModelSID=?))
-                OR
-                eSID IN (
-                    SELECT SID FROM Resources
-                    WHERE RegistrySID=? AND ModelSID=?)
-              )`, args...)
+	reg := rm.GroupModel.Model.Registry
+	return reg.Tx.Backend.ClearResourceModelSystemProps(rm, props)
 }
 
 func (m *Model) ApplyNewModelFromJSON(buf []byte, verify bool) *XRError {

@@ -2687,7 +2687,9 @@ func (e *Entity) GetPP(pp *PropPath) any {
 	if (e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION) && pp.Len() == 1 {
 		rm := e.GetResourceModel()
 		if rm.GetHasDocument() && pp.Top() == rm.Singular {
-			return e.Tx.Backend.GetResourceContents(e)
+			buf, xErr := e.Tx.Backend.GetResourceContents(e)
+			PanicIf(xErr != nil, "bubble up?")
+			return buf
 		}
 	}
 
