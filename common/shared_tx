@@ -221,7 +221,8 @@ func (tx *Tx) IsLocked() bool {
 // Technically a "backend" func but most code only has access to tx so
 // attach it there
 func (tx *Tx) GetResourceContents(e *Entity) []byte {
-	return tx.Backend.GetResourceContents(e)
+	buf, _ := tx.Backend.GetResourceContents(e)
+	return buf
 }
 
 // Validate does this Tx's own bookkeeping/sanity-checks, then delegates

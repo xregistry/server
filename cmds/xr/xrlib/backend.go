@@ -55,11 +55,10 @@ func (CLIBE *CLIBackend) Rollback(tx *Tx) *XRError {
 	return nil
 }
 
-func (CLIBE *CLIBackend) FindRegistry(tx *Tx, config *Config, id string,
-	accessMode int) (*Registry, *XRError) {
-
+func (CLIBE *CLIBackend) ClearResourceModelSystemProps(rm *ResourceModel, props []string) *XRError {
+	// Delete all props all all Versions of all Resource instances of "rm"
 	panic("not yet")
-	return nil, nil
+	return nil
 }
 
 func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
@@ -69,13 +68,80 @@ func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
 
 func (CLIBE *CLIBackend) RefreshEntity(e *Entity, accessMode int) *XRError {
 	// Nothing to do for in-memory
+	panic("not yet")
 	return nil
 }
 
-func (CLIBE *CLIBackend) GetResourceContents(e *Entity) []byte {
+func (CLIBE *CLIBackend) ClearUserProps(e *Entity) *XRError {
+	panic("not yet")
+	return nil
+}
+
+// args is chunks of 13 any's per row/entity
+func (CLIEBE *CLIBackend) BatchUpdateProps(e *Entity, isSystem bool, args []any) *XRError {
+	panic("not yet")
+	return nil
+}
+
+// args is chunks of any's (names) per row/entity
+func (CLIEBE *CLIBackend) BatchDeleteProps(e *Entity, args []any) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) FindRegistry(tx *Tx, config *Config, id string,
+	accessMode int) (*Registry, *XRError) {
+
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) GetResourceContents(e *Entity) ([]byte, *XRError) {
 	if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
 		panic("not yet")
-		return []byte("Placeholder")
+		return []byte("Placeholder"), nil
 	}
 	panic(fmt.Sprintf("%s: I'm not a Resource or Version", e.XID))
+}
+
+func (CLIBE *CLIBackend) SetResourceContents(e *Entity, val []byte) *XRError {
+	panic("not yet")
+	return nil
+}
+
+// recalc all R's versions
+func (CLIBE *CLIBackend) RecalcVersionsIsDefault(r *Resource) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) DeleteResourceDefaultVersionProps(r *Resource) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) CopyResourceDefaultVersionProps(r *Resource) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) ClearXrefState(meta *Meta) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) CopyXrefState(meta *Meta) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) CopyXrefDefaultVersionProps(r *Resource) *XRError {
+	panic("not yet")
+	return nil
+}
+
+// copy xref vers
+func (CLIBE *CLIBackend) CopyXrefVersions(r *Resource, tgtSID string) *XRError {
+	panic("not yet")
+	return nil
 }

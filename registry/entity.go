@@ -528,13 +528,26 @@ func (e *Entity) prepDBProperty(pp *PropPath, val any) (row dbPropRow,
 		if rm.GetHasDocument() && pp.Top() == rm.Singular {
 			if IsNil(val) {
 				// Remove the content
-				Do(e.Tx, `DELETE FROM ResourceContents WHERE VersionSID=?`,
-					e.DbSID)
+				xErr := e.Tx.Backend.SetResourceContents(e, nil)
+				if xErr != nil {
+					return dbPropRow{}, false, xErr
+				}
 			} else {
 				// Update the content
-				DoOneTwo(e.Tx, `
-                REPLACE INTO ResourceContents(VersionSID, Content)
-            	VALUES(?,?)`, e.DbSID, val)
+				var buf []byte
+
+				if by, ok := val.([]byte); ok {
+					buf = by
+				} else if str, ok := val.(string); ok {
+					buf = []byte(str)
+				} else {
+					buf = []byte(fmt.Sprintf("%v", val))
+				}
+
+				xErr := e.Tx.Backend.SetResourceContents(e, buf)
+				if xErr != nil {
+					return dbPropRow{}, false, xErr
+				}
 
 				PanicIf(IsNil(e.NewObject["#contentid"]), "Missing cid")
 
@@ -671,15 +684,15 @@ const dbPropBatchChunkSize = 200
 // REPLACE INTO Props statements (see DBWritePropsBatch()
 // in fulltree.go), then clears the buffer. Called once by Save(),
 // right after its traversal loop finishes.
-func (e *Entity) DoDBPropertyBatch() {
+func (e *Entity) DoDBPropertyBatch() *XRError {
 	if len(e.dbPropBatch) == 0 {
-		return
+		return nil
 	}
 
 	rows := e.dbPropBatch
 	e.dbPropBatch = nil
 
-	e.DBWritePropsBatch(rows, false)
+	return e.DBWritePropsBatch(rows, false)
 }
 
 // Clears system prop(s) for all versions of this resource. Accepts
@@ -1186,11 +1199,7 @@ func (e *Entity) Save() *XRError {
 
 	// Delete all user props for this entity, we assume that NewObject
 	// contains everything we want going forward
-	Do(e.Tx, `DELETE FROM Props
-              WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
-                    AND IsXrefVerCopy=false AND IsSystemProp=false
-                    AND IsCalcStatic=false AND IsCalcDynamic=false`,
-		e.DbSID)
+	xErr := e.Tx.Backend.ClearUserProps(e)
 
 	resSingular := ""
 	resHasDoc := false
@@ -1283,7 +1292,7 @@ func (e *Entity) Save() *XRError {
 		return nil
 	}
 
-	xErr := traverse(NewPP(), newObj, e.NewObject)
+	xErr = traverse(NewPP(), newObj, e.NewObject)
 	if xErr != nil {
 		return xErr
 	}
@@ -1291,7 +1300,10 @@ func (e *Entity) Save() *XRError {
 	// Flush all buffered own-property rows from the traversal above as
 	// one (or a few, if chunked) multi-row REPLACE INTO, instead of the
 	// one-row-per-property writes SetDBProperty() would have done.
-	e.DoDBPropertyBatch()
+	xErr = e.DoDBPropertyBatch()
+	if xErr != nil {
+		return xErr
+	}
 
 	// Copy 'newObj', removing all 'nil' attributes
 	e.Object = map[string]any{}
@@ -1615,9 +1627,9 @@ func (e *Entity) DBWriteProp(name string, propValue *string,
 // DoDBPropertyBatch) - same meaning as DBWriteProp's isSystem
 // param, just batched across multiple rows in one statement instead of
 // one statement per row.
-func (e *Entity) DBWritePropsBatch(rows []dbPropRow, isSystem bool) {
+func (e *Entity) DBWritePropsBatch(rows []dbPropRow, isSystem bool) *XRError {
 	if len(rows) == 0 {
-		return
+		return nil
 	}
 
 	var parentArg any
@@ -1625,12 +1637,32 @@ func (e *Entity) DBWritePropsBatch(rows []dbPropRow, isSystem bool) {
 		parentArg = e.ParentSID
 	}
 
-	isSystemStr := "false"
-	if isSystem {
-		isSystemStr = "true"
+	if true {
+		pos := 0
+		size := len(rows)
+		args := make([]any, 0, 13*max(size, dbPropBatchChunkSize))
+
+		for pos < size {
+			end := min(pos+dbPropBatchChunkSize, size)
+			args = args[:0]
+
+			for ; pos < end; pos++ {
+				row := rows[pos]
+				args = append(args,
+					e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
+					e.DbSID, e.UID, e.XID,
+					row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
+			}
+
+			xErr := e.Tx.Backend.BatchUpdateProps(e, isSystem, args)
+			if xErr != nil {
+				panic("handle xErr")
+				// return xErr
+			}
+		}
+
+		return nil
 	}
-	rowPlaceholder := "(?,?,?,?,?,?,?,?, ?,?,?,?,?, false,false,false, " +
-		isSystemStr + ",false,false)"
 
 	for len(rows) > 0 {
 		n := len(rows)
@@ -1640,24 +1672,23 @@ func (e *Entity) DBWritePropsBatch(rows []dbPropRow, isSystem bool) {
 		chunk := rows[:n]
 		rows = rows[n:]
 
-		placeholders := make([]string, len(chunk))
 		args := make([]any, 0, len(chunk)*13)
-		for i, row := range chunk {
-			placeholders[i] = rowPlaceholder
+
+		for _, row := range chunk {
 			args = append(args,
 				e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
 				e.DbSID, e.UID, e.XID,
 				row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
 		}
 
-		Do(e.Tx, `
-            REPLACE INTO Props(
-                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
-                PropName, PropValue, PropType, Abstract, DocView,
-                IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
-                IsSystemProp, IsCalcStatic, IsCalcDynamic)
-            VALUES `+strings.Join(placeholders, ","), args...)
+		xErr := e.Tx.Backend.BatchUpdateProps(e, isSystem, args)
+		if xErr != nil {
+			panic("handle xErr")
+			// return xErr
+		}
 	}
+
+	return nil
 }
 
 // DBDeletePropsBatch deletes multiple own/system Props
@@ -1667,33 +1698,31 @@ func (e *Entity) DBWritePropsBatch(rows []dbPropRow, isSystem bool) {
 // single-row delete filter (own rows only - never cascaded/copied
 // ones), regardless of isSystem, since own vs. system PropNames never
 // collide.
-func (e *Entity) DBDeletePropsBatch(names []string) {
+func (e *Entity) DBDeletePropsBatch(names []string) *XRError {
 	if len(names) == 0 {
-		return
+		return nil
 	}
 
-	for len(names) > 0 {
-		n := len(names)
-		if n > dbPropBatchChunkSize {
-			n = dbPropBatchChunkSize
-		}
-		chunk := names[:n]
-		names = names[n:]
+	pos := 0
+	size := len(names)
+	args := make([]any, 0, size)
 
-		placeholders := make([]string, len(chunk))
-		args := make([]any, 0, len(chunk)+1)
-		args = append(args, e.DbSID)
-		for i, name := range chunk {
-			placeholders[i] = "?"
-			args = append(args, name)
+	for pos < size {
+		end := min(pos+dbPropBatchChunkSize, size)
+		args = args[:0]
+
+		for ; pos < end; pos++ {
+			args = append(args, names[pos])
 		}
 
-		Do(e.Tx, `
-            DELETE FROM Props
-            WHERE eSID=? AND PropName IN (`+strings.Join(placeholders, ",")+`)
-                  AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
-                  AND IsXrefVerCopy=false`, args...)
+		xErr := e.Tx.Backend.BatchDeleteProps(e, args)
+		if xErr != nil {
+			panic("handle xErr")
+			// return xErr
+		}
 	}
+
+	return nil
 }
 
 // DBWriteOwnProp writes (or deletes, if propValue is nil) a
@@ -1710,9 +1739,9 @@ func (e *Entity) DBWriteOwnProp(name string, propValue *string,
 // tx.WriteCache()) and is a no-op if nothing was buffered. It diffs
 // NewSystem against System so only props that actually changed get
 // written to the DB.
-func (e *Entity) SaveSystemProps() {
+func (e *Entity) SaveSystemProps() *XRError {
 	if e.NewSystem == nil {
-		return
+		return nil
 	}
 
 	newSystem := e.NewSystem
@@ -1735,7 +1764,7 @@ func (e *Entity) SaveSystemProps() {
 	e.System = newSystem
 
 	if len(changed) == 0 {
-		return
+		return nil
 	}
 
 	_, propsMap := e.GetPropsOrdered()
@@ -1781,8 +1810,13 @@ func (e *Entity) SaveSystemProps() {
 		})
 	}
 
-	e.DBDeletePropsBatch(deleteNames)
-	e.DBWritePropsBatch(insertRows, true)
+	if xErr := e.DBDeletePropsBatch(deleteNames); xErr != nil {
+		return xErr
+	}
+
+	if xErr := e.DBWritePropsBatch(insertRows, true); xErr != nil {
+		return xErr
+	}
 
 	// If this is a Version, make sure we fully validate its owning Resource
 	if e.Type == ENTITY_VERSION {
@@ -1790,6 +1824,8 @@ func (e *Entity) SaveSystemProps() {
 			e.Tx.AddResourceToValidate(v.Resource, true, false)
 		}
 	}
+
+	return nil
 }
 
 // SaveCalcStaticInsert writes e's write-once calculated attributes:
@@ -1893,108 +1929,4 @@ func (e *Entity) SaveVersionCalc() {
 		e.Registry.DbSID, e.Type, e.Plural, e.Singular, e.ParentSID, e.DbSID,
 		e.UID, e.XID, "isdefault"+string(DB_IN), e.UID, e.Abstract,
 		e.ParentSID)
-}
-
-// SaveXrefCascade refreshes the IsXrefPropCopy (this Meta's own
-// copied meta.* attrs) and IsXrefVerCopy (synthetic Version rows) sets
-// for a source Meta entity whose xref may have just been set, changed,
-// or cleared.
-// SaveXrefCascade refreshes the IsXrefPropCopy (this Meta's own
-// copied meta.* attrs) and IsXrefVerCopy (synthetic Version rows) sets
-// for a source Meta entity (e) whose xref may have just been set,
-// changed, or cleared. e is always the real, in-memory Meta - either
-// the one Save() is currently running for, or (via xref fan-out) one
-// resolved through Registry.FindResourceByXID()+FindMeta() rather than
-// a raw row.
-func (e *Entity) SaveXrefCascade() {
-	e.SaveXrefCascadeDelete()
-	e.SaveXrefCascadeInsert()
-}
-
-// SaveXrefCascadeDelete clears this Meta's stale IsXrefPropCopy
-// rows and its Resource's stale IsXrefVerCopy rows, from whatever the
-// PREVIOUS xref state was.
-func (e *Entity) SaveXrefCascadeDelete() {
-	// e is always a real, in-memory Meta, which always has a parent
-	// Resource, so e.ParentSID is never empty here.
-	Do(e.Tx, `DELETE FROM Props WHERE eSID=? AND IsXrefPropCopy=true`,
-		e.DbSID)
-	Do(e.Tx, `
-        DELETE FROM Props
-        WHERE RegSID=? AND ParentSID=? AND IsXrefVerCopy=true`,
-		e.Registry.DbSID, e.ParentSID)
-	Do(e.Tx, `
-        DELETE FROM Entities
-        WHERE RegSID=? AND ParentSID=? AND IsXrefVerCopy=true`,
-		e.Registry.DbSID, e.ParentSID)
-}
-
-// SaveXrefCascadeInsert (re)inserts this Meta's IsXrefPropCopy and
-// IsXrefVerCopy rows based on the CURRENT xref state. Assumes
-// SaveXrefCascadeDelete (and, for the own-props exclusion to work
-// correctly, fullSaveOwnPropsDelete) have already run.
-func (e *Entity) SaveXrefCascadeInsert() {
-	results := Query(e.Tx, `
-        SELECT xRefXID FROM Metas WHERE SID=?`, e.DbSID)
-	row := results.NextRow()
-	results.Close()
-	if row == nil || NotNilString(row[0]) == "" {
-		return
-	}
-	xRefXID := NotNilString(row[0])
-
-	// Resolve the target live, by RegistrySID+XID (XID alone isn't
-	// unique across the whole DB, only within one Registry) - never by
-	// a cached SID, so this always reflects reality even if the
-	// target didn't exist (or existed under a different SID) the last
-	// time this ran. This is a source reading its xref TARGET's row,
-	// the mirror image of SaveXrefFanOutForTarget's target-reads-
-	// sources direction (which correctly uses FindResourceByXID(...,
-	// FOR_WRITE)) - so it must be FOR UPDATE too: a plain SELECT here
-	// would still be pinned to this Tx's RR snapshot and could copy
-	// stale target data into this source's mirror even after a
-	// concurrent Tx already committed a newer version of the target,
-	// which would then feed this source's Group constraint validation
-	// with stale mirrored data.
-	tResults := Query(e.Tx, `
-        SELECT m.SID, m.ResourceSID, r.Singular FROM Resources AS r
-        JOIN Metas AS m ON (m.ResourceSID=r.SID)
-        WHERE r.RegistrySID=? AND r.XID=?
-        FOR UPDATE`, e.Registry.DbSID, xRefXID)
-	tRow := tResults.NextRow()
-	tResults.Close()
-	if tRow == nil {
-		return
-	}
-	targetMetaSID := NotNilString(tRow[0])
-	targetResourceSID := NotNilString(tRow[1])
-	targetSingular := NotNilString(tRow[2])
-
-	// e is always the real Meta entity, so its owning Resource is
-	// directly accessible via e.Self.(*Meta).Resource - no need to
-	// look it up as a "parent" entity at all. e always has a parent
-	// Resource, so e.ParentSID is never empty here.
-	resource := e.Self.(*Meta).Resource
-
-	// Copy the target's meta.* props into this (source) Meta, excluding
-	// its own xref and "<singular>id" attrs, and any '#' internal props.
-	Do(e.Tx, `
-        REPLACE INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
-            PropName, PropValue, PropType, Abstract, DocView,
-            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
-        SELECT ?,?,?,?,?,?,?,?, PropName, PropValue, PropType, ?, false,
-               false, true, false
-        FROM Props
-        WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
-              AND IsXrefVerCopy=false AND IsCalcStatic=false
-              AND IsCalcDynamic=false
-              AND PropName NOT IN (?, ?) AND LEFT(PropName,1)<>'#'`,
-		e.Registry.DbSID, e.Type, e.Plural, e.Singular, e.ParentSID, e.DbSID,
-		e.UID, e.XID, e.Abstract, targetMetaSID,
-		"xref"+string(DB_IN), targetSingular+"id"+string(DB_IN))
-
-	if resource != nil {
-		resource.SaveXrefVersionCopies(targetResourceSID)
-	}
 }
