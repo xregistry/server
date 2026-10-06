@@ -210,7 +210,7 @@ func TestFormatSimple(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
-			"content-disposition: f2",
+			"content-disposition: inline; filename=\"f2\"",
 			"content-location: http://localhost:8181/dirs/d1/files/f2/versions/1",
 			"xRegistry-fileid: f2",
 			"xRegistry-versionid: 1",
@@ -284,7 +284,7 @@ func TestFormatSimple(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
-			"content-disposition: f2",
+			"content-disposition: inline; filename=\"f2\"",
 			"content-location: http://localhost:8181/dirs/d1/files/f2/versions/1",
 			"xRegistry-fileid: f2",
 			"xRegistry-versionid: 1",
@@ -330,7 +330,7 @@ func TestFormatSimple(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
-			"content-disposition: f2",
+			"content-disposition: inline; filename=\"f2\"",
 			"content-location: http://localhost:8181/dirs/d1/files/f2/versions/1",
 			"xRegistry-fileid: f2",
 			"xRegistry-versionid: 1",
@@ -391,7 +391,7 @@ func TestFormatSimple(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
-			"content-disposition: f3",
+			"content-disposition: inline; filename=\"f3\"",
 			"content-location: http://localhost:8181/dirs/d1/files/f3/versions/1",
 			"xRegistry-fileid: f3",
 			"xRegistry-versionid: 1",
@@ -575,7 +575,7 @@ func TestFormatCompatSimple(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
-			"content-disposition: f1",
+			"content-disposition: inline; filename=\"f1\"",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
 			"xRegistry-fileid: f1",
 			"xRegistry-versionid: 1",
@@ -655,7 +655,7 @@ func TestFormatCompatSimple(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
-			"content-disposition: f1",
+			"content-disposition: inline; filename=\"f1\"",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
 			"xRegistry-fileid: f1",
 			"xRegistry-versionid: 1",
@@ -731,7 +731,7 @@ func TestFormatCompatSimple(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
-			"content-disposition: f1",
+			"content-disposition: inline; filename=\"f1\"",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/2",
 			"xRegistry-fileid: f1",
 			"xRegistry-versionid: 2",

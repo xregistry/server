@@ -1602,7 +1602,7 @@ func TestMetaLabels(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"access-control-allow-origin: *",
-			"content-disposition: f1",
+			"content-disposition: inline; filename=\"f1\"",
 			"content-length: 6",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
 
@@ -1716,7 +1716,7 @@ func TestMetaXregHeaders(t *testing.T) {
 		ResHeaders: []string{
 			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"access-control-allow-origin: *",
-			"content-disposition: f1",
+			"content-disposition: inline; filename=\"f1\"",
 			"content-length: 6",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
 
