@@ -124,7 +124,7 @@ CREATE TABLE "Groups" (
     SID             VARCHAR(64) NOT NULL,   # System ID
     UID             VARCHAR(64) NOT NULL,   # User defined
     RegistrySID     VARCHAR(64) NOT NULL,
-    ModelSID        VARCHAR(64) NOT NULL,
+    ModelSID        VARCHAR(64) NOT NULL,   # gm.SID
     XID             VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Plural          VARCHAR(64) NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE Resources (
     UID             VARCHAR(64) NOT NULL,   # User defined
     RegistrySID     VARCHAR(64) NOT NULL,
     GroupSID        VARCHAR(64) NOT NULL,   # System ID
-    ModelSID        VARCHAR(64) NOT NULL,
+    ModelSID        VARCHAR(64) NOT NULL,   # rm.SID
     XID             VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Plural          VARCHAR(64) NOT NULL,

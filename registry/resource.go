@@ -802,14 +802,20 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		}
 		meta.Self = meta
 
-		DoOne(r.Tx, `
-        INSERT INTO Metas(SID, RegistrySID, ResourceSID,
-            XID, Abstract, Plural, Singular)
-        SELECT ?,?,?,?,?,?`,
-			meta.DbSID, r.Registry.DbSID, r.DbSID,
-			meta.XID, meta.Abstract, r.Plural, r.Singular)
+		if xErr := meta.Tx.Backend.RegisterEntity(&meta.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
-		meta.EntityInsert()
+		/*
+					DoOne(r.Tx, `
+			        INSERT INTO Metas(SID, RegistrySID, ResourceSID,
+			            XID, Abstract, Plural, Singular)
+			        SELECT ?,?,?,?,?,?`,
+						meta.DbSID, r.Registry.DbSID, r.DbSID,
+						meta.XID, meta.Abstract, r.Plural, r.Singular)
+
+					meta.EntityInsert()
+		*/
 
 		if xErr := meta.JustSet(r.Singular+"id", r.UID); xErr != nil {
 			return nil, false, xErr
@@ -1136,14 +1142,9 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		}
 		v.Self = v
 
-		DoOne(r.Tx, `
-        INSERT INTO Versions(SID, UID, RegistrySID, ResourceSID, XID, Abstract)
-        VALUES(?,?,?,?,?,?)`,
-			v.DbSID, vu.Id, r.Registry.DbSID, r.DbSID,
-			r.XID+"/versions/"+v.UID,
-			r.Group.Plural+string(DB_IN)+r.Plural+string(DB_IN)+"versions")
-
-		v.EntityInsert()
+		if xErr := v.Tx.Backend.RegisterEntity(&v.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
 		v.Tx.AddVersion(v)
 

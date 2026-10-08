@@ -32,17 +32,13 @@ func (g *Group) Delete() *XRError {
 	// without FOR UPDATE here, a concurrent Tx setting readonly=true on a
 	// descendant after our RR snapshot was established could be missed,
 	// letting this Group be improperly deleted.
-	results := Query(g.Tx, `
-	    SELECT EXISTS(SELECT 1 FROM Props
-		WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
-		  XID LIKE '`+g.XID+`/%' AND
-		  PropName='readonly`+string(DB_IN)+`' AND
-		  PropValue='true') FOR UPDATE`,
-		g.Registry.DbSID)
-	defer results.Close()
+	hasReadOnlyResource, xErr := g.Tx.Backend.HasReadOnlyResource(g)
 
-	row := results.NextRow()
-	if NotNilInt(row[0]) != 0 {
+	if xErr != nil {
+		return xErr
+	}
+
+	if hasReadOnlyResource {
 		return NewXRError("readonly", g.XID)
 	}
 
@@ -52,7 +48,9 @@ func (g *Group) Delete() *XRError {
 		}
 	}
 
-	DoOne(g.Tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
+	if xErr := g.Tx.Backend.DeleteGroup(g); xErr != nil {
+		return xErr
+	}
 
 	// Delete any pending changes so dirty check doesn't fail
 	g.NewObject = nil
@@ -309,34 +307,9 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		}
 		r.Self = r
 
-		DoOne(r.Tx, `
-        INSERT INTO Resources(
-            SID, UID, RegistrySID,
-            GroupSID, ModelSID,
-            XID, Abstract,
-            Plural, Singular)
-        SELECT ?,?,?,?,SID,?,?,?,?
-        FROM ModelEntities
-        WHERE RegistrySID=?
-          AND ParentSID IN (
-            SELECT SID FROM ModelEntities
-            WHERE RegistrySID=?
-            AND ParentSID IS NULL
-            AND Plural=?)
-            AND Plural=?`,
-
-			r.DbSID, r.UID, g.Registry.DbSID,
-			g.DbSID, /* , ModelSID */
-			r.XID, r.Abstract,
-			r.Plural, r.Singular,
-
-			g.Registry.DbSID, g.Registry.DbSID, g.Plural,
-			ru.RType)
-		// When we delete entities due to their model def being deleted
-		// then I think we can use rModel.SID in the above sql stmt
-		// instead of the sub-query
-
-		r.EntityInsert()
+		if xErr := r.Tx.Backend.RegisterEntity(&r.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
 		isNew = true
 		r.Tx.AddResource(r)
@@ -371,14 +344,9 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		}
 		meta.Self = meta
 
-		DoOne(r.Tx, `
-                INSERT INTO Metas(SID, RegistrySID, ResourceSID, XID,
-                            Abstract, Plural, Singular)
-                SELECT ?,?,?,?,?,?,?`,
-			meta.DbSID, g.Registry.DbSID, r.DbSID,
-			meta.XID, meta.Abstract, r.Plural, r.Singular)
-
-		meta.EntityInsert()
+		if xErr := meta.Tx.Backend.RegisterEntity(&meta.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
 		xErr = meta.JustSet(r.Singular+"id", r.UID)
 		if xErr != nil {
@@ -725,13 +693,15 @@ func (g *Group) Validate() *XRError {
 		}
 
 		if constraint.Equals != "" {
-			if xErr := g.validateEquals(constraint, resPlural, pp); xErr != nil {
+			xErr := g.validateEquals(constraint, constraint.rm, pp)
+			if xErr != nil {
 				return xErr
 			}
 		}
 
 		if len(constraint.Enum) > 0 {
-			if xErr := g.validateEnum(constraint, resPlural, pp); xErr != nil {
+			xErr := g.validateEnum(constraint, constraint.rm, pp)
+			if xErr != nil {
 				return xErr
 			}
 		}
@@ -754,8 +724,8 @@ func (g *Group) Validate() *XRError {
 // letting two Txs each pass a constraint that's violated once
 // combined. FOR UPDATE forces this read to see latest-committed data
 // and to block on any in-flight conflicting Tx, closing that gap.
-func (g *Group) validateEquals(constraint *Constraint, resPlural string,
-	pp *PropPath) *XRError {
+func (g *Group) validateEquals(constraint *Constraint, rm *ResourceModel,
+	rPP *PropPath) *XRError {
 
 	// groupAttr parsed into a PP
 	gPP, _ := PropPathFromUI(constraint.Equals)
@@ -766,64 +736,15 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 		return nil
 	}
 
-	query := fmt.Sprintf(`
-            SELECT
-                r.XID, v.UID, vp.PropValue
-            FROM Resources r
-            JOIN Entities AS v ON (
-                v.RegSID=r.RegistrySID AND
-                v.ParentSID=r.SID AND
-                v.Type=?
-            )
-            JOIN Props AS gp ON (
-                gp.RegSID=r.RegistrySID AND
-                gp.eSID=r.GroupSID AND
-                gp.PropName=?
-            )
-            LEFT JOIN Props AS vp ON (
-                vp.RegSID=v.RegSID AND
-                vp.eSID=v.eSID AND
-                vp.PropName=?
-            )
-            WHERE
-                r.RegistrySID=? AND
-                r.GroupSID=? AND
-                r.Plural=? AND
-                (vp.PropValue IS NULL OR vp.PropValue<>gp.PropValue)
-            FOR UPDATE`)
-
-	// log.Printf("tx: %s %q vs %q", g.Tx.uuid, gPP.DB(), pp.DB())
-	results := Query(g.Tx, query,
-		ENTITY_VERSION, gPP.DB(), pp.DB(),
-		g.Registry.DbSID, g.DbSID, resPlural)
-	defer results.Close()
-
-	rXID := ""
-	failures := []string{}
-
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-
-		// log.Printf("tx: %s %q %q %q", g.Tx.uuid,
-		// NotNilString(row[0]), NotNilString(row[1]),
-		// NotNilString(row[2]))
-
-		// Stop on 2nd Resource
-		if rXID != "" && rXID != NotNilString(row[0]) {
-			break
-		}
-		rXID = NotNilString(row[0])
-		failures = append(failures, NotNilString(row[1]))
-
+	rXID, vIDs, xErr := g.Tx.Backend.FindBadEqualsVersions(g, gPP, rm, rPP)
+	if xErr != nil {
+		return xErr
 	}
 
-	if len(failures) > 0 {
+	if len(vIDs) > 0 {
 		return NewXRError("constraint_failure", rXID,
-			"path="+pp.UI(), "kind=equals").SetDetailf("Versions: %s.",
-			strings.Join(failures, ","))
+			"path="+rPP.UI(), "kind=equals").SetDetailf("Versions: %s.",
+			strings.Join(vIDs, ","))
 	}
 
 	return nil
@@ -838,71 +759,19 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 //
 // See validateEquals()'s comment above for why this must be a FOR
 // UPDATE (locking) read rather than a plain SELECT.
-func (g *Group) validateEnum(constraint *Constraint, resPlural string,
-	pp *PropPath) *XRError {
+func (g *Group) validateEnum(c *Constraint, rm *ResourceModel,
+	rPP *PropPath) *XRError {
 
-	// Encode each enum value the same way prepDBProperty() encodes a
-	// real attribute value before it's written to PropValue (booleans
-	// as "true"/"false", everything else via fmt.Sprintf("%v", v)) so
-	// the SQL string comparison lines up with what's actually stored.
-	placeholders := make([]string, 0, len(constraint.Enum))
-	args := []any{ENTITY_VERSION, pp.DB(), g.Registry.DbSID, g.DbSID,
-		resPlural}
-	enumArgs := make([]any, 0, len(constraint.Enum))
-	for _, v := range constraint.Enum {
-		enumArgs = append(enumArgs, EnumValueToDBString(v))
-		placeholders = append(placeholders, "?")
-	}
-	args = append(args, enumArgs...)
-
-	query := fmt.Sprintf(`
-            SELECT
-                r.XID, v.UID, vp.PropValue
-            FROM Resources r
-            JOIN Entities AS v ON (
-                v.RegSID=r.RegistrySID AND
-                v.ParentSID=r.SID AND
-                v.Type=?
-            )
-            LEFT JOIN Props AS vp ON (
-                vp.RegSID=v.RegSID AND
-                vp.eSID=v.eSID AND
-                vp.PropName=?
-            )
-            WHERE
-                r.RegistrySID=? AND
-                r.GroupSID=? AND
-                r.Plural=? AND
-                vp.PropValue IS NOT NULL AND
-                vp.PropValue NOT IN (%s)
-            FOR UPDATE
-            `, strings.Join(placeholders, ","))
-
-	results := Query(g.Tx, query, args...)
-	defer results.Close()
-
-	rXID := ""
-	failures := []string{}
-
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-
-		// Stop on 2nd Resource
-		if rXID != "" && rXID != NotNilString(row[0]) {
-			break
-		}
-		rXID = NotNilString(row[0])
-		failures = append(failures, NotNilString(row[1]))
+	rXID, vIDs, xErr := g.Tx.Backend.FindBadEnumVersions(g, c, rm, rPP)
+	if xErr != nil {
+		return xErr
 	}
 
-	if len(failures) > 0 {
+	if len(vIDs) > 0 {
 		return NewXRError("constraint_failure", rXID,
-			"path="+pp.UI(), "kind=enum").SetDetailf("Versions: %s. Must "+
-			"be one of: %s.", strings.Join(failures, ","),
-			EnumAsString(constraint.Enum))
+			"path="+rPP.UI(), "kind=enum").SetDetailf("Versions: %s. Must "+
+			"be one of: %s.", strings.Join(vIDs, ","),
+			EnumAsString(c.Enum))
 	}
 
 	return nil

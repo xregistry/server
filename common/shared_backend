@@ -34,7 +34,14 @@ type Backend interface {
 	BatchDeleteProps(e *Entity, args []any) *XRError
 
 	// Registry stuff
+	DeleteRegistry(r *Registry) *XRError
 	FindRegistry(tx *Tx, c *Config, id string, mode int) (*Registry, *XRError)
+
+	// Group stuff
+	DeleteGroup(g *Group) *XRError
+	HasReadOnlyResource(g *Group) (bool, *XRError)
+	FindBadEqualsVersions(g *Group, gPP *PropPath, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) // rID, vIDs, err
+	FindBadEnumVersions(g *Group, c *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError)   // rID, vIDs, err
 
 	// Resource stuff
 	GetResourceContents(e *Entity) ([]byte, *XRError)

@@ -288,10 +288,202 @@ func (sqlBE *SQLBackend) ClearResourceModelSystemProps(rm *ResourceModel, props 
 	return nil
 }
 
+func (sqlBE *SQLBackend) DeleteRegistry(r *Registry) *XRError {
+	DoOne(r.Tx, `DELETE FROM Registries WHERE SID=?`, r.DbSID)
+
+	return nil
+}
+
 func (sqlBE *SQLBackend) FindRegistry(tx *Tx, config *Config, id string,
 	accessMode int) (*Registry, *XRError) {
 
 	return FindRegistry(tx, config, id, accessMode)
+}
+
+func (sqlBE *SQLBackend) DeleteGroup(g *Group) *XRError {
+	DoOne(g.Tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
+
+	return nil
+}
+
+func (sqlBE *SQLBackend) HasReadOnlyResource(g *Group) (bool, *XRError) {
+	// Make sure we don't have any readonly Resources. Callers (HTTPDelete/
+	// HTTPDeleteGroups) already lock g itself FOR_WRITE, but that doesn't
+	// lock the descendant Resources/Metas whose readonly Props this scans -
+	// without FOR UPDATE here, a concurrent Tx setting readonly=true on a
+	// descendant after our RR snapshot was established could be missed,
+	// letting this Group be improperly deleted.
+	results := Query(g.Tx, `
+        SELECT EXISTS(SELECT 1 FROM Props
+        WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
+          XID LIKE '`+g.XID+`/%' AND
+          PropName='readonly`+string(DB_IN)+`' AND
+          PropValue='true') FOR UPDATE`,
+		g.Registry.DbSID)
+	defer results.Close()
+
+	row := results.NextRow()
+
+	return NotNilInt(row[0]) != 0, nil
+}
+
+func (sqlBE *SQLBackend) FindBadEqualsVersions(g *Group, gPP *PropPath, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) {
+	// validateEquals checks the "equals" half of a constraint: every
+	// Version (real or xref-mirrored, since this scans Entities/
+	// Props broadly) of resPlural, under this Group, must have
+	// pp's value equal to this Group's own value of constraint.Equals.
+	//
+	// This scans ALL Resources/Versions under the Group, not just
+	// whatever triggered this validation run, so it must use a locking
+	// (FOR UPDATE) read rather than a plain SELECT. Under RR isolation a
+	// plain SELECT would reuse this Tx's original snapshot (established
+	// at its first read), which could predate a concurrent Tx's commit of
+	// a new/changed sibling Resource or Version in this same Group -
+	// letting two Txs each pass a constraint that's violated once
+	// combined. FOR UPDATE forces this read to see latest-committed data
+	// and to block on any in-flight conflicting Tx, closing that gap.
+
+	query := fmt.Sprintf(`
+            SELECT
+                r.XID, v.UID, vp.PropValue
+            FROM Resources r
+            JOIN Entities AS v ON (
+                v.RegSID=r.RegistrySID AND
+                v.ParentSID=r.SID AND
+                v.Type=?
+            )
+            JOIN Props AS gp ON (
+                gp.RegSID=r.RegistrySID AND
+                gp.eSID=r.GroupSID AND
+                gp.PropName=?
+            )
+            LEFT JOIN Props AS vp ON (
+                vp.RegSID=v.RegSID AND
+                vp.eSID=v.eSID AND
+                vp.PropName=?
+            )
+            WHERE
+                # r.RegistrySID=? AND
+                r.GroupSID=? AND
+                r.Plural=? AND
+                # r.GroupSID=? AND
+                # r.ModelSID=? AND
+                # #r.Plural=? AND
+                (vp.PropValue IS NULL OR vp.PropValue<>gp.PropValue)
+            FOR UPDATE`)
+
+	results := Query(g.Tx, query,
+		ENTITY_VERSION, gPP.DB(), rPP.DB(),
+		// g.Registry.DbSID, g.DbSID, rm.Plural)
+		g.DbSID, rm.Plural)
+	// TODO figure out why we can query by rm.SID instead. For some reason
+	// rm.SID doesn't match r.ModelSID. Must have something to do with either
+	// that we're updating the model during this tx, or because the test is
+	// using ximportresources.
+	// See:  // bad: import with xref + group constraints / enum bad
+	// in test_constraints.go
+	// g.DbSID, rm.SID)
+	defer results.Close()
+
+	rXID := ""
+	vIDs := []string{}
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+
+		// r.XID, v.UID, vp.PropValue
+
+		// log.Printf("tx: %s %q %q %q", g.Tx.uuid,
+		// NotNilString(row[0]), NotNilString(row[1]),
+		// NotNilString(row[2]))
+
+		// Stop on 2nd Resource
+		if rXID != "" && rXID != NotNilString(row[0]) {
+			break
+		}
+		rXID = NotNilString(row[0])
+		vIDs = append(vIDs, NotNilString(row[1]))
+
+	}
+
+	return rXID, vIDs, nil
+}
+
+func (sqlBE *SQLBackend) FindBadEnumVersions(g *Group, constraint *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) {
+
+	// validateEnum checks the "enum" half of a constraint: every Version
+	// (real or xref-mirrored, since this scans Entities/Props
+	// broadly - so a xref whose mirrored value violates the hosting
+	// group's "enum" constraint is caught here too) of resPlural, under
+	// this Group, must have pp's value (when set) be one of
+	// constraint.Enum's values.
+	//
+	// See validateEquals()'s comment above for why this must be a FOR
+	// UPDATE (locking) read rather than a plain SELECT.
+
+	// Encode each enum value the same way prepDBProperty() encodes a
+	// real attribute value before it's written to PropValue (booleans
+	// as "true"/"false", everything else via fmt.Sprintf("%v", v)) so
+	// the SQL string comparison lines up with what's actually stored.
+	placeholders := make([]string, 0, len(constraint.Enum))
+
+	args := []any{ENTITY_VERSION, rPP.DB(), g.Registry.DbSID, g.DbSID,
+		rm.Plural}
+	enumArgs := make([]any, 0, len(constraint.Enum))
+
+	for _, v := range constraint.Enum {
+		enumArgs = append(enumArgs, EnumValueToDBString(v))
+		placeholders = append(placeholders, "?")
+	}
+	args = append(args, enumArgs...)
+
+	query := fmt.Sprintf(`
+            SELECT
+                r.XID, v.UID, vp.PropValue
+            FROM Resources r
+            JOIN Entities AS v ON (
+                v.RegSID=r.RegistrySID AND
+                v.ParentSID=r.SID AND
+                v.Type=?
+            )
+            LEFT JOIN Props AS vp ON (
+                vp.RegSID=v.RegSID AND
+                vp.eSID=v.eSID AND
+                vp.PropName=?
+            )
+            WHERE
+                r.RegistrySID=? AND
+                r.GroupSID=? AND
+                r.Plural=? AND
+                vp.PropValue IS NOT NULL AND
+                vp.PropValue NOT IN (%s)
+            FOR UPDATE
+            `, strings.Join(placeholders, ","))
+
+	results := Query(g.Tx, query, args...)
+	defer results.Close()
+
+	rXID := ""
+	vIDs := []string{}
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+
+		// Stop on 2nd Resource
+		if rXID != "" && rXID != NotNilString(row[0]) {
+			break
+		}
+		rXID = NotNilString(row[0])
+		vIDs = append(vIDs, NotNilString(row[1]))
+	}
+
+	return rXID, vIDs, nil
 }
 
 func (sqlBE *SQLBackend) RegisterEntity(e *Entity) *XRError {
@@ -307,16 +499,58 @@ func (sqlBE *SQLBackend) RegisterEntity(e *Entity) *XRError {
 		DoOne(e.Tx, `INSERT INTO Models(RegistrySID) VALUES(?)`, e.DbSID)
 
 	case ENTITY_GROUP:
-		panic("Not implemented yet: Group")
+		DoOne(e.Tx, `
+            INSERT INTO "Groups"(
+                SID, RegistrySID, UID,
+                ModelSID, XID, Abstract,
+                Plural, Singular)
+            VALUES(?,?,?,?,?,?,?,?)`,
+
+			e.DbSID, e.Registry.DbSID, e.UID,
+			e.GroupModel.SID, e.XID, e.Abstract,
+			e.Plural, e.Singular)
+
+		e.EntityInsert()
 
 	case ENTITY_RESOURCE:
-		panic("Not implemented yet: Resource")
+		DoOne(e.Tx, `
+            INSERT INTO Resources(
+                SID, UID, RegistrySID,
+                GroupSID, ModelSID,
+                XID, Abstract,
+                Plural, Singular)
+            VALUES(?,?,?,?,?,?,?,?,?)`,
+
+			e.DbSID, e.UID, e.Registry.DbSID,
+			e.ParentSID, e.ResourceModel.SID,
+			e.XID, e.Abstract,
+			e.Plural, e.Singular)
+
+		e.EntityInsert() // Add to Entities table
 
 	case ENTITY_META:
-		panic("Not implemented yet: Meta")
+		DoOne(e.Tx, `
+            INSERT INTO Metas(SID, RegistrySID, ResourceSID,
+                        XID, Abstract,
+                        Plural, Singular)
+            VALUES(?,?,?,?,?,?,?)`,
+
+			e.DbSID, e.Registry.DbSID, e.ParentSID,
+			e.XID, e.Abstract,
+			e.ResourceModel.Plural, e.ResourceModel.Singular)
+
+		e.EntityInsert() // Add to Entities table
 
 	case ENTITY_VERSION:
-		panic("Not implemented yet: Version")
+		DoOne(e.Tx, `
+            INSERT INTO Versions(SID, UID, RegistrySID,
+                ResourceSID, XID, Abstract)
+            VALUES(?,?,?,?,?,?)`,
+
+			e.DbSID, e.UID, e.Registry.DbSID, e.ParentSID,
+			e.XID, e.Abstract)
+
+		e.EntityInsert() // Add to Entities table
 
 	default:
 		panic(fmt.Sprintf("Uknown type: %d", e.Type))

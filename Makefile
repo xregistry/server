@@ -370,4 +370,4 @@ clean:
 	@# do "sleep" so that "docker system prune" won't delete the mysql image
 	@# -docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
 	@-docker system prune -f -a --volumes > /dev/null
-	@rm -rf ./mysql-data
+	@rm -rf ./.mysql-data
