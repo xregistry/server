@@ -61,6 +61,26 @@ func (CLIBE *CLIBackend) ClearResourceModelSystemProps(rm *ResourceModel, props 
 	return nil
 }
 
+func (CLIBE *CLIBackend) DeleteGroup(g *Group) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) HasReadOnlyResource(g *Group) (bool, *XRError) {
+	panic("not yet")
+	return false, nil
+}
+
+func (CLIBE *CLIBackend) FindBadEqualsVersions(g *Group, gPP *PropPath, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) {
+	panic("not yet")
+	return "", nil, nil
+}
+
+func (CLIBE *CLIBackend) FindBadEnumVersions(g *Group, c *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) {
+	panic("not yet")
+	return "", nil, nil
+}
+
 func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
 	// Nothing to do for in-memory
 	return nil
@@ -85,6 +105,11 @@ func (CLIEBE *CLIBackend) BatchUpdateProps(e *Entity, isSystem bool, args []any)
 
 // args is chunks of any's (names) per row/entity
 func (CLIEBE *CLIBackend) BatchDeleteProps(e *Entity, args []any) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) DeleteRegistry(r *Registry) *XRError {
 	panic("not yet")
 	return nil
 }

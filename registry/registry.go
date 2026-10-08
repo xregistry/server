@@ -251,7 +251,10 @@ func (reg *Registry) Delete() *XRError {
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
 	reg.Lock()
-	DoOne(reg.Tx, `DELETE FROM Registries WHERE SID=?`, reg.DbSID)
+
+	if xErr := reg.Tx.Backend.DeleteRegistry(reg); xErr != nil {
+		return xErr
+	}
 
 	// Avoid an unbounded leak of dead entries in the in-process Model
 	// cache (see registry/model.go) - the DbSID is never reused, but
@@ -781,17 +784,9 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		g.Self = g
 
-		DoOne(reg.Tx, `
-			INSERT INTO "Groups"(
-                SID, RegistrySID, UID,
-                ModelSID, XID, Abstract,
-                Plural, Singular)
-			SELECT ?,?,?,?,?,?,?,?`,
-			g.DbSID, g.Registry.DbSID, g.UID,
-			gm.SID, g.XID, g.Abstract,
-			g.Plural, g.Singular)
-
-		g.EntityInsert()
+		if xErr = g.Tx.Backend.RegisterEntity(&g.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
