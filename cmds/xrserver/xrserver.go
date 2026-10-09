@@ -315,7 +315,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	reg, xErr := registry.FindRegistry(nil, XRSConfig, regName, FOR_READ)
+	reg, xErr := registry.FindRegistryByUID(nil, XRSConfig, regName, FOR_READ)
 	ErrStop(xErr, "Error finding registry(%s): %s", regName, xErr)
 
 	if reg != nil {

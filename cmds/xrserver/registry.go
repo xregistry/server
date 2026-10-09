@@ -33,7 +33,8 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
-				reg, err := registry.FindRegistry(tx, XRSConfig, id, FOR_WRITE)
+				reg, err := registry.FindRegistryByUID(tx, XRSConfig, id,
+					FOR_WRITE)
 				ErrStopTx(err, tx, "Error looking for %q: %s", id, err)
 
 				if reg != nil {
@@ -69,7 +70,8 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
-				reg, err := registry.FindRegistry(tx, XRSConfig, id, FOR_WRITE)
+				reg, err := registry.FindRegistryByUID(tx, XRSConfig, id,
+					FOR_WRITE)
 				ErrStopTx(err, tx, "Error looking for %q: %s", id, err)
 
 				if reg == nil {
@@ -105,7 +107,8 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 				registry.NewSQLBackend)
 			ErrStop(err, "Error talking to the DB: %s", err)
 
-			reg, err := registry.FindRegistry(tx, XRSConfig, args[0], FOR_READ)
+			reg, err := registry.FindRegistryByUID(tx, XRSConfig, args[0],
+				FOR_READ)
 			ErrStop(err, "Error retrieving the registry: %s", err)
 
 			tx.Rollback()
@@ -148,7 +151,8 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			fmt.Fprintf(tw, "ID\tNAME\tCREATED\tMODIFIED\n")
 
 			for _, id := range ids {
-				reg, err := registry.FindRegistry(tx, XRSConfig, id, FOR_READ)
+				reg, err := registry.FindRegistryByUID(tx, XRSConfig, id,
+					FOR_READ)
 				ErrStop(err, "Error retrieving registry %q: %s", id, err)
 
 				t, _ := time.Parse(time.RFC3339, reg.GetAsString("createdat"))

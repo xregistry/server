@@ -215,15 +215,7 @@ func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
 	}
 	defer tx.Rollback()
 
-	results := Query(tx, `SELECT UID FROM Registries ORDER BY UID`)
-	defer results.Close()
-
-	res := []string{}
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		res = append(res, NotNilString(row[0]))
-	}
-
-	return res, nil
+	return tx.Backend.ListRegistries(tx)
 }
 
 var _ EntitySetter = &Registry{}
@@ -296,15 +288,9 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	tx.Registry = reg
 	tx.AddRegistry(reg)
 
-	// UsesXref lives on the raw Registries table (not Entities/
-	// Props, since it's a plain internal flag, not a real
-	// attribute), so it needs its own tiny supplemental lookup here -
-	// a single indexed PK read, once per Tx.
-	results := Query(tx, `SELECT UsesXref FROM Registries WHERE SID=?`, sid)
-	if row := results.NextRow(); row != nil {
-		reg.UsesXref = NotNilBoolDef(row[0], false)
+	if reg.UsesXref, xErr = tx.Backend.RegistryGetUsesXref(reg); xErr != nil {
+		return nil, xErr
 	}
-	results.Close()
 
 	reg.LoadCapabilities()
 	reg.LoadModel()
@@ -315,14 +301,14 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 }
 
 // BY UID
-func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Registry, *XRError) {
+func FindRegistryByUID(tx *Tx, xrsConfig *Config, uid string, accessMode int) (*Registry, *XRError) {
 	if tx == nil {
-		defer log.Trace("%s", id)()
+		defer log.Trace("%s", uid)()
 	} else {
-		defer log.Trace("tx: %s %s", tx.uuid, id)()
+		defer log.Trace("tx: %s %s", tx.uuid, uid)()
 	}
 
-	if tx != nil && tx.Registry != nil && tx.Registry.UID == id {
+	if tx != nil && tx.Registry != nil && tx.Registry.UID == uid {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
 			tx.Registry.Lock()
 		}
@@ -355,31 +341,23 @@ func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Regist
 		}
 	}()
 
-	results := Query(tx, `
-	   	SELECT SID
-	   	FROM Registries
-	   	WHERE UID=?`, id)
-
-	defer results.Close()
-
-	row := results.NextRow()
-
-	if row == nil {
+	regSID, xErr := tx.Backend.MapRegistryUID2SID(tx, uid)
+	if xErr != nil {
+		return nil, xErr
+	}
+	if regSID == "" {
 		log.FuncPrintf("tx: %s None found", tx.uuid)
 		return nil, nil
 	}
 
-	id = NotNilString(row[0])
-	results.Close()
-
-	ent, xErr := RawEntityFromXID(tx, id, "/", false, accessMode)
+	ent, xErr := RawEntityFromXID(tx, regSID, "/", false, accessMode)
 
 	if xErr != nil {
 		if newTx {
 			tx.Rollback()
 		}
 		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", id, xErr.GetTitle())
+			"Error finding Registry %q: %s.", uid, xErr.GetTitle())
 	}
 
 	PanicIf(ent == nil, "No entity but we found a reg")

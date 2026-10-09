@@ -55,10 +55,11 @@ func NewRegistry(tx *Tx, config *Config, fn func(*Config) Backend, id string) (*
 		id = NewUUID()
 	}
 
-	r, xErr := tx.Backend.FindRegistry(tx, config, id, FOR_READ)
+	r, xErr := FindRegistryByUID(tx, config, id, FOR_READ)
 	if xErr != nil {
 		return nil, xErr
 	}
+
 	if r != nil {
 		return nil, NewXRError("bad_request", "/",
 			"error_detail="+

@@ -370,18 +370,30 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 
 // PLACEHOLDERS
 
-func lockEntityFamily(tx *Tx, ent *Entity) {}
+func lockEntityFamily(tx *Tx, ent *Entity) {
+	panic("not yet")
+}
 
-func (e *Entity) SaveSystemProps() {}
+func (e *Entity) SaveSystemProps() {
+	panic("not yet")
+}
 
 func (m *Model) VerifyAndSave(verifyData bool) *XRError {
+	panic("not yet")
 	return nil
 }
 
 func (e *Entity) eSetSave(path string, val any) *XRError {
+	panic("not yet")
 	return nil
 }
 
 func (e *Entity) Save() *XRError {
+	panic("not yet")
 	return nil
+}
+
+func FindRegistryByUID(tx *Tx, c *Config, uid string, accessMode int) (*Registry, *XRError) {
+	panic("not yet")
+	return nil, nil
 }

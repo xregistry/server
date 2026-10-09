@@ -806,17 +806,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			return nil, false, xErr
 		}
 
-		/*
-					DoOne(r.Tx, `
-			        INSERT INTO Metas(SID, RegistrySID, ResourceSID,
-			            XID, Abstract, Plural, Singular)
-			        SELECT ?,?,?,?,?,?`,
-						meta.DbSID, r.Registry.DbSID, r.DbSID,
-						meta.XID, meta.Abstract, r.Plural, r.Singular)
-
-					meta.EntityInsert()
-		*/
-
 		if xErr := meta.JustSet(r.Singular+"id", r.UID); xErr != nil {
 			return nil, false, xErr
 		}
@@ -1548,9 +1537,10 @@ func (r *Resource) runCascade() *XRError {
 			// the full design, including why clearing it back to false
 			// is instead handled lazily via DB triggers).
 			if !r.Tx.Registry.UsesXref {
-				DoZeroOne(r.Tx,
-					`UPDATE Registries SET UsesXref=true WHERE SID=? AND UsesXref=false`,
-					r.Tx.Registry.DbSID)
+				xErr := r.Tx.Backend.RegistrySetUsesXref(r.Tx.Registry, true)
+				if xErr != nil {
+					return xErr
+				}
 				r.Tx.Registry.UsesXref = true
 			}
 
@@ -2014,10 +2004,9 @@ func (r *Resource) Delete() *XRError {
 		}
 	}
 
-	// Any xref source's stale mirror is cleared by ResourcesTrigger
-	// (init.sql), which fires for every deletion path (this, whole-
-	// Group delete, whole-Registry delete) uniformly.
-	DoOne(r.Tx, `DELETE FROM Resources WHERE SID=?`, r.DbSID)
+	if xErr := r.Tx.Backend.DeleteResource(r); xErr != nil {
+		return xErr
+	}
 
 	// No longer anything to validate - drop any pending mark so
 	// Registry.Validate() doesn't try to (re-)validate a Resource whose
@@ -2036,10 +2025,9 @@ func (r *Resource) Delete() *XRError {
 func (m *Meta) Delete() *XRError {
 	defer log.Trace("tx: %s %s", m.Tx.uuid, m.UID)()
 
-	// Props/Entities rows for this Meta are cleaned up by
-	// ResourcesTrigger (ParentSID=OLD.SID) when the owning Resource is
-	// deleted right after this.
-	DoOne(m.Tx, `DELETE FROM Metas WHERE SID=?`, m.DbSID)
+	if xErr := m.Tx.Backend.DeleteMeta(m); xErr != nil {
+		return xErr
+	}
 
 	// Delete any pending changes so dirty check doesn't fail
 	m.NewObject = nil

@@ -108,28 +108,23 @@ func (m *Model) Save() *XRError {
 		}
 	}
 
+	// OLD?
 	// Create a temporary type so that we don't use the MarshalJSON func
 	// in model.go. That one will exclude "model" from the serialization and
 	// we don't want to do that when we're saving it in the DB. We only want
 	// to do that when we're serializing the model for the end user.
-
-	buf, _ := json.Marshal(m)
-	modelStr := string(buf)
 
 	// A fresh opaque value every save - lets other requests/replicas
 	// (see loadModelFromDB's cache check) cheaply notice this Model row
 	// changed without having to compare/parse the full JSON blob.
 	changedID := NewUUID()
 
-	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.Tx.uuid)
-	DoZeroTwo(m.Registry.Tx, `
-        INSERT INTO Models(RegistrySID, Model, Changed)
-        VALUES(?,?,?)
-        ON DUPLICATE KEY UPDATE Model=?, Changed=?`,
+	xErr := m.Registry.Tx.Backend.SaveModel(m, changedID)
+	if xErr != nil {
+		return xErr
+	}
 
-		m.Registry.DbSID, modelStr, changedID,
-		modelStr, changedID)
-
+	// Load old model's ModelEntities so we can diff them
 	existingModelEntities := map[string]string{} // Abstract->SID
 	results := Query(m.Registry.Tx,
 		`SELECT SID,Abstract FROM ModelEntities WHERE RegistrySID=?`,
@@ -227,10 +222,11 @@ func (m *Model) Save() *XRError {
 	// TODO consider batching if this gets too slow, or the list is too long
 	for meAbs, _ := range existingModelEntities {
 		if inUseAbs[meAbs] != true {
-			DoOne(m.Registry.Tx, `
-                      DELETE FROM ModelEntities
-                      WHERE RegistrySID=? AND Abstract=?`,
-				m.Registry.DbSID, meAbs)
+			xErr := m.Registry.Tx.Backend.DeleteModelEnityByAbstract(
+				m.Registry, meAbs)
+			if xErr != nil {
+				return xErr
+			}
 		}
 	}
 
@@ -241,13 +237,10 @@ func (m *Model) Save() *XRError {
 		// If GroupModel is already in DB then skip it
 		if _, ok := existingModelEntities[gmAbs]; !ok {
 			// Add new GroupModel
-			DoOne(m.Registry.Tx,
-				`INSERT INTO ModelEntities(
-                     SID, RegistrySID, ParentSID,
-                     Abstract, Plural, Singular)
-                 VALUES(?,?,?,?,?,?)`,
-				gm.SID, m.Registry.DbSID, nil,
-				gmAbs, gm.Plural, gm.Singular)
+			xErr := m.Registry.Tx.Backend.RegisterModelEntity(gm)
+			if xErr != nil {
+				return xErr
+			}
 		}
 
 		for _, rm := range gm.Resources {
@@ -255,13 +248,10 @@ func (m *Model) Save() *XRError {
 			// If ResourceModel is already in DB then skip it
 			if _, ok := existingModelEntities[rmAbs]; !ok {
 				// Add new ResourceModel
-				DoOne(m.Registry.Tx,
-					`INSERT INTO ModelEntities(
-                             SID, RegistrySID, ParentSID,
-                             Abstract, Plural, Singular)
-                         VALUES(?,?,?,?,?,?)`,
-					rm.SID, m.Registry.DbSID, gm.SID,
-					gmAbs+"/"+rm.Plural, rm.Plural, rm.Singular)
+				xErr := m.Registry.Tx.Backend.RegisterModelEntity(rm)
+				if xErr != nil {
+					return xErr
+				}
 			}
 		}
 	}

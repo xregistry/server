@@ -408,7 +408,7 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		info.BaseURL += "/" + parts[0] + "/" + parts[1]
 		info.OriginalPath = strings.Join(parts[2:], "/")
 
-		reg, xErr := FindRegistry(info.tx, info.XRSConfig, parts[1], FOR_READ)
+		reg, xErr := FindRegistryByUID(info.tx, info.XRSConfig, parts[1], FOR_READ)
 		if xErr != nil {
 			return NewXRError("server_error",
 				info.OriginalRequest.URL.RequestURI()).

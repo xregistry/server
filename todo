@@ -115,3 +115,11 @@ TODOs:
    would expose lots of registries as a single one.
 - only check-in the generated files for xregistry.io, not hub.xreg.io
 - get rid of default writer if we can
+- add new pagination stuff
+- checkin the generated js files so people can easily download it
+
+- Backend
+  - move Do* calls
+  - move Query() calls
+  - move mysql triggers to be go initiated
+  - create static prepare statements to avoid reparsing sql each time
