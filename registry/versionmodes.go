@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"sort"
 	"strconv"
 	"strings"
 
@@ -146,43 +145,24 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	// the write path (via ValidateResource()) and without a lock hint can be
 	// pinned to this tx's original RR snapshot, missing Version rows
 	// committed by other Txs after that snapshot was established.
-	lockExpr := ""
+	lock := false
 	if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
+		lock = true
 	}
 
-	// Search the DB for all Versions of this Resource, sorted by 'createdat'
-	// and return the ones that do not have the proper 'ancestorid' value.
-	// Meaning, they don't point to the next oldest one (based on createdat)
-	results := Query(r.Tx, `
-                SELECT UID, ExpectedAncestorID FROM (
-                  SELECT CreatedAt,
-                         UID,
-                         AncestorID,
-                         IFNULL(lag(UID) OVER (ORDER BY CreatedAt, UID),
-                                UID) AS ExpectedAncestorID
-                  FROM Versions
-                  WHERE RegistrySID=? AND ResourceSID=?`+lockExpr+`) AS list
-                WHERE list.AncestorID != list.ExpectedAncestorID
-                ORDER BY CreatedAt ASC`+lockExpr,
-		r.Registry.DbSID, r.DbSID)
-	defer results.Close()
+	AVs, xErr := r.Tx.Backend.FindBadAncestorsCreatedAt(r, lock)
+	if xErr != nil {
+		return xErr
+	}
 
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-		vID := NotNilString(row[0])
-		ancestorID := NotNilString(row[1])
-
-		v, xErr := r.FindVersion(vID, false)
+	for _, av := range AVs {
+		v, xErr := r.FindVersion(av.VersionUID, false)
 		if xErr != nil {
 			return xErr
 		}
-		PanicIf(v == nil, "Didn't find version %q", vID)
+		PanicIf(v == nil, "Didn't find version %q", av.VersionUID)
 
-		v.SetSave("ancestorid", ancestorID)
+		v.SetSave("ancestorid", av.AncestorID)
 	}
 
 	return nil
@@ -206,44 +186,24 @@ func (vm *ModifiedatVersionMode) Name() string { return "modifiedat" }
 func (vm *ModifiedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// reasoning as CreatedatVersionMode.CheckAncestors().
-	lockExpr := ""
+	lock := false
 	if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
+		lock = true
 	}
 
-	// Search the DB for all Versions of this Resource, sorted by
-	// 'modifiedat' and return the ones that do not have the proper
-	// 'ancestorid' value. Meaning, they don't point to the next oldest
-	// one (based on modifiedat)
-	results := Query(r.Tx, `
-                SELECT UID, ExpectedAncestorID FROM (
-                  SELECT ModifiedAt,
-                         UID,
-                         AncestorID,
-                         IFNULL(lag(UID) OVER (ORDER BY ModifiedAt, UID),
-                                UID) AS ExpectedAncestorID
-                  FROM Versions
-                  WHERE RegistrySID=? AND ResourceSID=?`+lockExpr+`) AS list
-                WHERE list.AncestorID != list.ExpectedAncestorID
-                ORDER BY ModifiedAt ASC`+lockExpr,
-		r.Registry.DbSID, r.DbSID)
-	defer results.Close()
+	AVs, xErr := r.Tx.Backend.FindBadAncestorsModifiedAt(r, lock)
+	if xErr != nil {
+		return xErr
+	}
 
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-		vID := NotNilString(row[0])
-		ancestorID := NotNilString(row[1])
-
-		v, xErr := r.FindVersion(vID, false)
+	for _, av := range AVs {
+		v, xErr := r.FindVersion(av.VersionUID, false)
 		if xErr != nil {
 			return xErr
 		}
-		PanicIf(v == nil, "Didn't find version %q", vID)
+		PanicIf(v == nil, "Didn't find version %q", av.VersionUID)
 
-		v.SetSave("ancestorid", ancestorID)
+		v.SetSave("ancestorid", av.AncestorID)
 	}
 
 	return nil
@@ -272,62 +232,24 @@ func (vm *SemverVersionMode) Name() string { return "semver" }
 func (vm *SemverVersionMode) CheckAncestors(r *Resource) *XRError {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// reasoning as CreatedatVersionMode.CheckAncestors().
-	lockExpr := ""
+	lock := false
 	if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
+		lock = true
 	}
 
-	results := Query(r.Tx, `
-                SELECT UID, AncestorID FROM Versions
-                WHERE RegistrySID=? AND ResourceSID=?`+lockExpr,
-		r.Registry.DbSID, r.DbSID)
-	defer results.Close()
-
-	type verRow struct {
-		vID        string
-		ancestorID string
+	AVs, xErr := r.Tx.Backend.FindBadAncestorsSemVer(r, lock)
+	if xErr != nil {
+		return xErr
 	}
 
-	vers := ([]*verRow)(nil)
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-		vers = append(vers, &verRow{
-			vID:        NotNilString(row[0]),
-			ancestorID: NotNilString(row[1]),
-		})
-	}
-
-	// Sort oldest->newest by semver precedence, falling back to a
-	// case-insensitive 'versionid' comparison to break ties (same
-	// tie-break convention used elsewhere for "newest"/"oldest" - see
-	// the versionmode doc in model.md), so results are deterministic.
-	sort.Slice(vers, func(i, j int) bool {
-		if c := CompareSemver(vers[i].vID, vers[j].vID); c != 0 {
-			return c < 0
-		}
-		return strings.ToLower(vers[i].vID) < strings.ToLower(vers[j].vID)
-	})
-
-	for i, ver := range vers {
-		expectedAncestorID := ver.vID // oldest/root points to itself
-		if i > 0 {
-			expectedAncestorID = vers[i-1].vID
-		}
-
-		if ver.ancestorID == expectedAncestorID {
-			continue
-		}
-
-		v, xErr := r.FindVersion(ver.vID, false)
+	for _, av := range AVs {
+		v, xErr := r.FindVersion(av.VersionUID, false)
 		if xErr != nil {
 			return xErr
 		}
-		PanicIf(v == nil, "Didn't find version %q", ver.vID)
+		PanicIf(v == nil, "Didn't find version %q", av.VersionUID)
 
-		v.SetSave("ancestorid", expectedAncestorID)
+		v.SetSave("ancestorid", av.AncestorID)
 	}
 
 	return nil

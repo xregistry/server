@@ -24,6 +24,10 @@ type Backend interface {
 	// Make Entity known to the backend/DB
 	RegisterEntity(e *Entity) *XRError
 
+	SaveModel(m *Model, changeUUID string) *XRError
+	RegisterModelEntity(me any) *XRError
+	DeleteModelEnityByAbstract(reg *Registry, abstract string) *XRError
+
 	// Just update e's Object - everything else will be updated by other code
 	RefreshEntity(e *Entity, accessMode int) *XRError
 
@@ -34,8 +38,12 @@ type Backend interface {
 	BatchDeleteProps(e *Entity, args []any) *XRError
 
 	// Registry stuff
+	ListRegistries(tx *Tx) ([]string, *XRError) // Order by UID,ASC case-insen.
 	DeleteRegistry(r *Registry) *XRError
-	FindRegistry(tx *Tx, c *Config, id string, mode int) (*Registry, *XRError)
+	MapRegistryUID2SID(tx *Tx, uid string) (string, *XRError)
+	RegistryGetUsesXref(r *Registry) (bool, *XRError)
+	RegistrySetUsesXref(r *Registry, b bool) *XRError
+	RegistryRecalcUsesXref(r *Registry) *XRError
 
 	// Group stuff
 	DeleteGroup(g *Group) *XRError
@@ -44,12 +52,20 @@ type Backend interface {
 	FindBadEnumVersions(g *Group, c *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError)   // rID, vIDs, err
 
 	// Resource stuff
+	DeleteResource(r *Resource) *XRError
 	GetResourceContents(e *Entity) ([]byte, *XRError)
 	SetResourceContents(e *Entity, val []byte) *XRError
 
 	RecalcVersionsIsDefault(r *Resource) *XRError // recalc all R's versions
 	DeleteResourceDefaultVersionProps(r *Resource) *XRError
 	CopyResourceDefaultVersionProps(r *Resource) *XRError
+
+	FindBadAncestorsCreatedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError)
+	FindBadAncestorsModifiedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError)
+	FindBadAncestorsSemVer(r *Resource, lock bool) ([]*AncestorVersion, *XRError)
+
+	// Meta stuff
+	DeleteMeta(meta *Meta) *XRError
 
 	// Xref stuff
 	ClearXrefState(meta *Meta) *XRError                   // in prep for new/del xref
@@ -61,4 +77,9 @@ type Backend interface {
 type BatchRow struct {
 	IsSystem bool
 	Args     [13]any
+}
+
+type AncestorVersion struct {
+	VersionUID string
+	AncestorID string
 }

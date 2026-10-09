@@ -101,7 +101,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "APIs-Guru",
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "APIs-Guru",
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
@@ -239,7 +239,7 @@ var testRegJson string
 func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "TestRegistry",
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "TestRegistry",
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
@@ -262,7 +262,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Endpoints",
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "Endpoints",
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
@@ -334,7 +334,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Messages",
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "Messages",
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
@@ -370,7 +370,7 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Schemas",
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "Schemas",
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
@@ -407,7 +407,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	start := time.Now()
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Large",
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "Large",
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
@@ -472,7 +472,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "DocStore",
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "DocStore",
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
@@ -566,7 +566,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "CloudEvents",
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "CloudEvents",
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {

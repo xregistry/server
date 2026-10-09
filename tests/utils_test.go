@@ -214,7 +214,7 @@ func (s *TestFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // across the 2 dirs this way. Kind of weird I know, but I'll clean it later
 
 func NewRegistry(name string) *registry.Registry {
-	reg, _ := registry.FindRegistry(nil, XRServerConfig, name, FOR_WRITE)
+	reg, _ := registry.FindRegistryByUID(nil, XRServerConfig, name, FOR_WRITE)
 	if reg != nil {
 		reg.Delete()
 		reg.SaveAllAndCommit()
@@ -234,7 +234,7 @@ func NewRegistry(name string) *registry.Registry {
 
 	/*
 		// Now find it again and start a new Tx
-		reg, xErr = registry.FindRegistry(nil, XRServerConfig, name, FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRServerConfig, name, FOR_WRITE)
 		if xErr != nil {
 			panic(xErr.String())
 		}

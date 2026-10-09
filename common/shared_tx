@@ -69,6 +69,9 @@ type Tx struct {
 	// Set for the duration of one drain-loop batch only; nil otherwise.
 	ResourcesValidatingBatch map[string]bool
 
+	// Recalc the UsesXref registry flag before we commit
+	RecalcUsesXref bool
+
 	// For debugging
 	stack  []string // Stack at time NewTX
 	connID int64    // MySQL CONNECTION_ID() this Tx is bound to
@@ -254,6 +257,14 @@ func (tx *Tx) Validate() *XRError {
 		// AddResourceToValidate() rather than validated immediately),
 		// so it must run before the cache-dirty assertion below.
 		if xErr := tx.Registry.Validate(); xErr != nil {
+			return xErr
+		}
+	}
+
+	if tx.RecalcUsesXref {
+		// Call this but not all backend will do anything because they
+		// might have a mechanism to clear/set it in a more efficient way
+		if xErr := tx.Backend.RegistryRecalcUsesXref(tx.Registry); xErr != nil {
 			return xErr
 		}
 	}

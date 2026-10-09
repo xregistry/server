@@ -3,7 +3,9 @@ package registry
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -288,16 +290,77 @@ func (sqlBE *SQLBackend) ClearResourceModelSystemProps(rm *ResourceModel, props 
 	return nil
 }
 
+func (sqlBE *SQLBackend) ListRegistries(tx *Tx) ([]string, *XRError) {
+	// Order by UID, ASC - case insensitive
+	results := Query(tx, `SELECT UID FROM Registries ORDER BY UID ASC`)
+	defer results.Close()
+
+	res := []string{}
+	for row := results.NextRow(); row != nil; row = results.NextRow() {
+		res = append(res, NotNilString(row[0]))
+	}
+
+	return res, nil
+}
+
 func (sqlBE *SQLBackend) DeleteRegistry(r *Registry) *XRError {
 	DoOne(r.Tx, `DELETE FROM Registries WHERE SID=?`, r.DbSID)
 
 	return nil
 }
 
-func (sqlBE *SQLBackend) FindRegistry(tx *Tx, config *Config, id string,
-	accessMode int) (*Registry, *XRError) {
+func (sqlBE *SQLBackend) MapRegistryUID2SID(tx *Tx, uid string) (string, *XRError) {
+	results := Query(tx, `SELECT SID FROM Registries WHERE UID=?`, uid)
+	defer results.Close()
 
-	return FindRegistry(tx, config, id, accessMode)
+	row := results.NextRow()
+	if row == nil {
+		log.FuncPrintf("tx: %s None found", tx.uuid)
+		return "", nil
+	}
+
+	return NotNilString(row[0]), nil
+}
+
+func (sqlBE *SQLBackend) RegistryGetUsesXref(r *Registry) (bool, *XRError) {
+	// UsesXref lives on the raw Registries table (not Entities/
+	// Props, since it's a plain internal flag, not a real
+	// attribute), so it needs its own tiny supplemental lookup here -
+	// a single indexed PK read, once per Tx.
+	results := Query(r.Tx, `SELECT UsesXref FROM Registries WHERE SID=?`,
+		r.DbSID)
+	defer results.Close()
+
+	if row := results.NextRow(); row != nil {
+		return NotNilBoolDef(row[0], false), nil
+	}
+
+	panic("can't find registry: " + r.DbSID)
+	return false, nil
+}
+
+func (sqlBE *SQLBackend) RegistrySetUsesXref(r *Registry, b bool) *XRError {
+	DoZeroOne(r.Tx,
+		`UPDATE Registries SET UsesXref=? WHERE SID=? AND UsesXref<>?`,
+		b, r.Tx.Registry.DbSID, b)
+
+	return nil
+}
+
+func (sqlBE *SQLBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
+	// We do this via triggers in init.sql so no need to do it here.
+	// However, here's the SQL I think we'd use:
+	/*
+			   UPDATE Registries
+			       SET UsesXref = EXISTS(
+			           SELECT 1 FROM Metas
+			               WHERE RegistrySID=OLD.RegSID
+			               AND xRefXID IS NOT NULL AND xRefXID != "" )
+			       WHERE SID=OLD.RegSID AND UsesXref=true
+		       may not need the != ""  part, not sure
+	*/
+
+	return nil
 }
 
 func (sqlBE *SQLBackend) DeleteGroup(g *Group) *XRError {
@@ -559,6 +622,57 @@ func (sqlBE *SQLBackend) RegisterEntity(e *Entity) *XRError {
 	return nil
 }
 
+func (sqlBE *SQLBackend) SaveModel(m *Model, changeUUID string) *XRError {
+	buf, _ := json.Marshal(m)
+	modelStr := string(buf)
+
+	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.Tx.uuid)
+	DoZeroTwo(m.Registry.Tx, `
+        INSERT INTO Models(RegistrySID, Model, Changed)
+            VALUES(?,?,?)
+            ON DUPLICATE KEY UPDATE Model=?, Changed=?`,
+
+		m.Registry.DbSID, modelStr, changeUUID,
+		modelStr, changeUUID)
+
+	return nil
+}
+
+func (sqlBE *SQLBackend) RegisterModelEntity(me any) *XRError {
+	if gm, ok := me.(*GroupModel); ok {
+		DoOne(gm.Model.Registry.Tx,
+			`INSERT INTO ModelEntities(
+                     SID, RegistrySID, ParentSID,
+                     Abstract, Plural, Singular)
+                 VALUES(?,?,?,?,?,?)`,
+			gm.SID, gm.Model.Registry.DbSID, nil,
+			"/"+gm.Plural, gm.Plural, gm.Singular)
+	} else if rm, ok := me.(*ResourceModel); ok {
+		gm := rm.GroupModel
+		gmAbs := "/" + gm.Plural
+
+		DoOne(rm.GroupModel.Model.Registry.Tx,
+			`INSERT INTO ModelEntities(
+                     SID, RegistrySID, ParentSID,
+                     Abstract, Plural, Singular)
+                 VALUES(?,?,?,?,?,?)`,
+			rm.SID, gm.Model.Registry.DbSID, gm.SID,
+			gmAbs+"/"+rm.Plural, rm.Plural, rm.Singular)
+	} else {
+		panic("I don't know who I am")
+	}
+
+	return nil
+}
+
+func (sqlBE *SQLBackend) DeleteModelEnityByAbstract(reg *Registry, abstract string) *XRError {
+	DoOne(reg.Tx, `DELETE FROM ModelEntities
+        WHERE RegistrySID=? AND Abstract=?`,
+		reg.DbSID, abstract)
+
+	return nil
+}
+
 func (sqlBE *SQLBackend) RefreshEntity(e *Entity, accessMode int) *XRError {
 	mode := ""
 	if accessMode == FOR_WRITE {
@@ -665,6 +779,15 @@ func (sqlBE *SQLBackend) BatchDeleteProps(e *Entity, args []any) *XRError {
 	return nil
 }
 
+func (sqlBE *SQLBackend) DeleteResource(r *Resource) *XRError {
+	// Any xref source's stale mirror is cleared by ResourcesTrigger
+	// (init.sql), which fires for every deletion path (this, whole-
+	// Group delete, whole-Registry delete) uniformly.
+	DoOne(r.Tx, `DELETE FROM Resources WHERE SID=?`, r.DbSID)
+
+	return nil
+}
+
 func (sqlBE *SQLBackend) GetResourceContents(e *Entity) ([]byte, *XRError) {
 	if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
 		contentID := e.Get("#contentid")
@@ -751,6 +874,157 @@ func (sqlBE *SQLBackend) CopyResourceDefaultVersionProps(r *Resource) *XRError {
               AND IsXrefVerCopy=false AND IsCalcStatic=false`,
 		r.Registry.DbSID, r.Type, r.Plural, r.Singular, r.ParentSID, r.DbSID,
 		r.UID, r.XID, r.Abstract, ver.DbSID)
+
+	return nil
+}
+
+func (sqlBE *SQLBackend) FindBadAncestorsCreatedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+	// Search the DB for all Versions of this Resource, sorted by 'createdat'
+	// and return the ones that do not have the proper 'ancestorid' value.
+	// Meaning, they don't point to the next oldest one (based on createdat)
+	lockExpr := ""
+	if lock {
+		lockExpr = " FOR UPDATE"
+	}
+
+	results := Query(r.Tx, `
+                SELECT UID, ExpectedAncestorID FROM (
+                  SELECT CreatedAt,
+                         UID,
+                         AncestorID,
+                         IFNULL(lag(UID) OVER (ORDER BY CreatedAt, UID),
+                                UID) AS ExpectedAncestorID
+                  FROM Versions
+                  WHERE RegistrySID=? AND ResourceSID=?`+lockExpr+`) AS list
+                WHERE list.AncestorID != list.ExpectedAncestorID
+                ORDER BY CreatedAt ASC`+lockExpr,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	AVs := []*AncestorVersion{}
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		AVs = append(AVs, &AncestorVersion{
+			VersionUID: NotNilString(row[0]),
+			AncestorID: NotNilString(row[1]),
+		})
+	}
+
+	return AVs, nil
+}
+
+func (sqlBE *SQLBackend) FindBadAncestorsModifiedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+	// Search the DB for all Versions of this Resource, sorted by
+	// 'modifiedat' and return the ones that do not have the proper
+	// 'ancestorid' value. Meaning, they don't point to the next oldest
+	// one (based on modifiedat)
+	lockExpr := ""
+	if lock {
+		lockExpr = " FOR UPDATE"
+	}
+
+	results := Query(r.Tx, `
+                SELECT UID, ExpectedAncestorID FROM (
+                  SELECT ModifiedAt,
+                         UID,
+                         AncestorID,
+                         IFNULL(lag(UID) OVER (ORDER BY ModifiedAt, UID),
+                                UID) AS ExpectedAncestorID
+                  FROM Versions
+                  WHERE RegistrySID=? AND ResourceSID=?`+lockExpr+`) AS list
+                WHERE list.AncestorID != list.ExpectedAncestorID
+                ORDER BY ModifiedAt ASC`+lockExpr,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	AVs := []*AncestorVersion{}
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		AVs = append(AVs, &AncestorVersion{
+			VersionUID: NotNilString(row[0]),
+			AncestorID: NotNilString(row[1]),
+		})
+	}
+
+	return AVs, nil
+}
+
+func (sqlBE *SQLBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+	// Search the DB for all Versions of this Resource, sorted by
+	// 'semver' and return the ones that do not have the proper
+	// 'ancestorid' value. Meaning, they don't point to the next oldest
+	// one (based on semver)
+
+	lockExpr := ""
+	if lock {
+		lockExpr = " FOR UPDATE"
+	}
+
+	results := Query(r.Tx, `
+                SELECT UID, AncestorID FROM Versions
+                WHERE RegistrySID=? AND ResourceSID=?`+lockExpr,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	AVs := []*AncestorVersion{}
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		AVs = append(AVs, &AncestorVersion{
+			VersionUID: NotNilString(row[0]),
+			AncestorID: NotNilString(row[1]),
+		})
+	}
+
+	// Sort oldest->newest by semver precedence, falling back to a
+	// case-insensitive 'versionid' comparison to break ties (same
+	// tie-break convention used elsewhere for "newest"/"oldest" - see
+	// the versionmode doc in model.md), so results are deterministic.
+	sort.Slice(AVs, func(i, j int) bool {
+		if c := CompareSemver(AVs[i].VersionUID, AVs[j].VersionUID); c != 0 {
+			return c < 0
+		}
+		iVUID := strings.ToLower(AVs[i].VersionUID)
+		jVUID := strings.ToLower(AVs[j].VersionUID)
+		return iVUID < jVUID
+	})
+
+	AVs2 := []*AncestorVersion{}
+
+	// Pick just AVs that are bad
+	for i, av := range AVs {
+		expectedAncestorID := av.VersionUID // oldest/root points to itself
+		if i > 0 {
+			expectedAncestorID = AVs[i-1].VersionUID
+		}
+
+		if av.AncestorID == expectedAncestorID {
+			continue
+		}
+
+		av.AncestorID = expectedAncestorID // set to proper value
+		AVs2 = append(AVs2, av)
+	}
+
+	return AVs2, nil
+}
+
+func (sqlBE *SQLBackend) DeleteMeta(meta *Meta) *XRError {
+	// Props/Entities rows for this Meta are cleaned up by
+	// ResourcesTrigger (ParentSID=OLD.SID) when the owning Resource is
+	// deleted right after this.
+	DoOne(meta.Tx, `DELETE FROM Metas WHERE SID=?`, meta.DbSID)
 
 	return nil
 }

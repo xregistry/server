@@ -82,12 +82,26 @@ func (CLIBE *CLIBackend) FindBadEnumVersions(g *Group, c *Constraint, rm *Resour
 }
 
 func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
-	// Nothing to do for in-memory
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) SaveModel(m *Model, changeUUID string) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) RegisterModelEntity(me any) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) DeleteModelEnityByAbstract(r *Registry, abstract string) *XRError {
+	panic("not yet")
 	return nil
 }
 
 func (CLIBE *CLIBackend) RefreshEntity(e *Entity, accessMode int) *XRError {
-	// Nothing to do for in-memory
 	panic("not yet")
 	return nil
 }
@@ -109,16 +123,39 @@ func (CLIEBE *CLIBackend) BatchDeleteProps(e *Entity, args []any) *XRError {
 	return nil
 }
 
+func (CLIBE *CLIBackend) ListRegistries(tx *Tx) ([]string, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
 func (CLIBE *CLIBackend) DeleteRegistry(r *Registry) *XRError {
 	panic("not yet")
 	return nil
 }
 
-func (CLIBE *CLIBackend) FindRegistry(tx *Tx, config *Config, id string,
-	accessMode int) (*Registry, *XRError) {
-
+func (CLIBE *CLIBackend) MapRegistryUID2SID(tx *Tx, uid string) (string, *XRError) {
 	panic("not yet")
-	return nil, nil
+	return "", nil
+}
+
+func (CLIBE *CLIBackend) RegistryGetUsesXref(r *Registry) (bool, *XRError) {
+	panic("not yet")
+	return false, nil
+}
+
+func (CLIBE *CLIBackend) RegistrySetUsesXref(r *Registry, b bool) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) DeleteResource(r *Resource) *XRError {
+	panic("not yet")
+	return nil
 }
 
 func (CLIBE *CLIBackend) GetResourceContents(e *Entity) ([]byte, *XRError) {
@@ -146,6 +183,26 @@ func (CLIBE *CLIBackend) DeleteResourceDefaultVersionProps(r *Resource) *XRError
 }
 
 func (CLIBE *CLIBackend) CopyResourceDefaultVersionProps(r *Resource) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) FindBadAncestorsCreatedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) FindBadAncestorsModifiedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) DeleteMeta(meta *Meta) *XRError {
 	panic("not yet")
 	return nil
 }
