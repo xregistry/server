@@ -280,7 +280,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 		panic(rec)
 	}()
 
-	tx, xErr := NewTx(uuid, s.XRSConfig)
+	tx, xErr := NewTx(uuid, s.XRSConfig, NewSQLBackend)
 	*txPtr = tx
 	if xErr != nil {
 		log.Printf("tx: %s Error talking to the DB creating new Tx: %s",
@@ -556,7 +556,7 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 }
 
 func HTTPGETContent(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s", info.tx.uuid)()
+	defer log.Trace("tx: %s", info.uuid)()
 
 	query := `
 SELECT
@@ -580,7 +580,7 @@ FROM Props WHERE RegSID=? AND `
 
 	isV := log.IsFuncVerbose()
 	if isV {
-		log.Printf("tx: %s Query:\n%s", info.tx.uuid, SubQuery(query, args))
+		log.Printf("tx: %s Query:\n%s", info.uuid, SubQuery(query, args))
 	}
 
 	results := Query(info.tx, query, args...)
@@ -588,11 +588,11 @@ FROM Props WHERE RegSID=? AND `
 
 	entity, xErr := readNextEntity(info.tx, results, FOR_READ)
 	if isV {
-		log.Printf("tx: %s Entity: %#v", info.tx.uuid, entity)
+		log.Printf("tx: %s Entity: %#v", info.uuid, entity)
 	}
 	if entity == nil {
 		if xErr != nil {
-			log.Printf("tx: %s Error loading entity: %s", info.tx.uuid, xErr)
+			log.Printf("tx: %s Error loading entity: %s", info.uuid, xErr)
 			return NewXRError("server_error", XID).SetDetailf(
 				"error loading entity: %s.", xErr.GetTitle())
 		} else {
@@ -656,10 +656,10 @@ FROM Props WHERE RegSID=? AND `
 	}
 
 	if isV {
-		log.Printf("tx: %s Version: %#v", info.tx.uuid, version)
+		log.Printf("tx: %s Version: %#v", info.uuid, version)
 	}
 
-	headerIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
+	headerIt := func(e *Entity, key string, val any, attr *Attribute) *XRError {
 		if key[0] == '#' {
 			return nil
 		}
@@ -667,6 +667,8 @@ FROM Props WHERE RegSID=? AND `
 		if attr.internals != nil && attr.internals.neverSerialize {
 			return nil
 		}
+
+		info := e.GetRequestInfo()
 
 		if attr.Type == MAP && IsScalar(attr.Item.Type) {
 			for name, value := range val.(map[string]any) {
@@ -695,7 +697,7 @@ FROM Props WHERE RegSID=? AND `
 		return nil
 	}
 
-	xErr = entity.SerializeProps(info, headerIt)
+	xErr = entity.SerializeProps(headerIt)
 	if xErr != nil {
 		panic(xErr)
 	}
@@ -731,7 +733,7 @@ FROM Props WHERE RegSID=? AND `
 	url = entity.GetAsString(singular + "proxyurl")
 
 	if isV {
-		log.Printf("tx: %s %sproxyurl: %s", info.tx.uuid, singular, url)
+		log.Printf("tx: %s %sproxyurl: %s", info.uuid, singular, url)
 	}
 	if url != "" {
 		// Just act as a proxy and copy the remote resource as our response
@@ -777,7 +779,7 @@ FROM Props WHERE RegSID=? AND `
 }
 
 func HTTPOptions(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s %s", info.tx.uuid, info.OriginalPath)()
+	defer log.Trace("tx: %s %s", info.uuid, info.OriginalPath)()
 
 	// Headers will be set automatically by info.Write()
 	info.StatusCode = 200
@@ -786,7 +788,7 @@ func HTTPOptions(info *RequestInfo) *XRError {
 }
 
 func HTTPGet(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s %s", info.tx.uuid, info.What)()
+	defer log.Trace("tx: %s %s", info.uuid, info.What)()
 
 	info.Root = strings.Trim(info.Root, "/")
 
@@ -808,7 +810,7 @@ func HTTPGet(info *RequestInfo) *XRError {
 		if !info.IsAvailable("export") {
 			return NewXRError("not_available", "/export")
 		}
-		return SerializeQuery(info, nil, "Registry", info.Filters)
+		return SerializeQuery(info, nil, "Registry")
 	}
 
 	if info.RootPath == "model" {
@@ -848,16 +850,16 @@ func HTTPGet(info *RequestInfo) *XRError {
 	resXIDs := map[string][]string{
 		"": []string{"/" + strings.Join(info.Parts, "/")},
 	}
-	return SerializeQuery(info, resXIDs, info.What, info.Filters)
+	return SerializeQuery(info, resXIDs, info.What)
 }
 
 func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
-	what string, filters [][]*FilterExpr) *XRError {
+	what string) *XRError {
 
-	defer log.Trace("tx: %s", info.tx.uuid)()
+	defer log.Trace("tx: %s", info.uuid)()
 
 	// Make sure everything is ok before we send back the results
-	if xErr := info.tx.Validate(info); xErr != nil {
+	if xErr := info.tx.Validate(); xErr != nil {
 		return xErr
 	}
 
@@ -889,7 +891,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		defer func() {
 			if log.GetLevel() > 3 {
 				diff := time.Now().Sub(start).Truncate(time.Millisecond)
-				log.Printf("tx: %s Total Time: %s", info.tx.uuid, diff)
+				log.Printf("tx: %s Total Time: %s", info.uuid, diff)
 			}
 		}()
 	*/
@@ -919,8 +921,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 
 		// "!" is special - it means skip the query and just produce: {}
 		if len(XIDs) != 1 || XIDs[0] != "!" {
-			query, args, err := GenerateQuery(info.Registry, what, XIDs,
-				filters, info.DoDocView(), info.SortKey, info.Limit, info.Offset)
+			query, args, err := GenerateQuery(info.Registry, what, XIDs)
 			if err != nil {
 				return err
 			}
@@ -928,9 +929,9 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			defer results.Close()
 
 			if log.IsFuncVerbose() {
-				log.Printf("tx: %s Query: %s", info.tx.uuid,
+				log.Printf("tx: %s Query: %s", info.uuid,
 					SubQuery(query, args))
-				log.Printf("tx: %s # results: %d", info.tx.uuid,
+				log.Printf("tx: %s # results: %d", info.uuid,
 					len(results.AllRows))
 			}
 		}
@@ -1168,22 +1169,10 @@ func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 	addLink("last", lastOffset, true)
 }
 
-var specialAttrHeaders = map[string]*Attribute{}
-
-func init() {
-	// Load-up the attributes that have custom http header names
-	for _, attr := range OrderedSpecProps {
-		if attr.internals != nil && attr.internals.httpHeader != "" {
-			specialAttrHeaders[strings.ToLower(attr.internals.httpHeader)] =
-				attr
-		}
-	}
-}
-
 func HTTPPutPost(info *RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
 
-	defer log.Trace("tx: %s %s %s", info.tx.uuid, method, info.OriginalPath)()
+	defer log.Trace("tx: %s %s %s", info.uuid, method, info.OriginalPath)()
 
 	isNew := false
 	XIDs := ([]string)(nil)
@@ -1281,7 +1270,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 			// Return HTTP GET of Registry root
 			resXIDs := map[string][]string{"": []string{""}}
-			return SerializeQuery(info, resXIDs, "Registry", info.Filters)
+			return SerializeQuery(info, resXIDs, "Registry")
 		}
 
 		// Must be POST /    + body:map[GROUPS]map[id]Group
@@ -1309,7 +1298,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		// Return HTTP GET of Groups created or updated
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	// URL: /GROUPs[/gID]...
@@ -1346,7 +1335,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Return HTTP GET of Groups created or updated
 		resXIDs := map[string][]string{"": XIDs}
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	if numParts == 2 {
@@ -1373,7 +1362,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 			// Return HTTP GET of Group
 			resXIDs := map[string][]string{"": []string{group.XID}}
-			return SerializeQuery(info, resXIDs, "Entity", info.Filters)
+			return SerializeQuery(info, resXIDs, "Entity")
 		}
 
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
@@ -1415,7 +1404,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		// Return HTTP GET of Resources created or updated
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	// Must be PUT/POST /GROUPs/gID/...
@@ -1499,7 +1488,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Return HTTP GET of Resources created or modified
 		resXIDs := map[string][]string{"": XIDs}
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	if numParts > 3 {
@@ -1663,7 +1652,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		resXIDs := map[string][]string{"": []string{meta.XID}}
-		return SerializeQuery(info, resXIDs, "Entity", info.Filters)
+		return SerializeQuery(info, resXIDs, "Entity")
 	}
 
 	// Just double-check
@@ -1745,12 +1734,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			meta := resource.MustFindMeta(false)
 
 			if meta.Get("readonly") == true {
-				if resource.tx.RequestInfo.HasIgnore("readonly") {
+				if resource.GetRequestInfo().HasIgnore("readonly") {
 					// ?ignore=readonly so just stop w/o error
 					// Force an empty collection to be returned
 					XIDs = []string{"!"}
 					resXIDs := map[string][]string{"": XIDs}
-					return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+					return SerializeQuery(info, resXIDs, "Coll")
 				} else {
 					return NewXRError("readonly", resource.XID)
 				}
@@ -1791,7 +1780,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			XIDs = []string{"!"} // Force an empty collection to be returned
 		}
 		resXIDs := map[string][]string{"": XIDs}
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	if numParts == 6 {
@@ -1843,7 +1832,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	PanicIf(xErr != nil, "err should be nil")
 
 	// Make sure everything is ok before we send back the results
-	if xErr := info.tx.Validate(info); xErr != nil {
+	if xErr := info.tx.Validate(); xErr != nil {
 		return xErr
 	}
 
@@ -1891,7 +1880,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	resXIDs := map[string][]string{"": XIDs}
-	return SerializeQuery(info, resXIDs, what, info.Filters)
+	return SerializeQuery(info, resXIDs, what)
 }
 
 func HTTPPUTCapabilities(info *RequestInfo) *XRError {
@@ -2019,7 +2008,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		return info.tx.Validate(info)
+		return info.tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID...
@@ -2044,7 +2033,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(info); xErr != nil {
+		if xErr := info.tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -2063,7 +2052,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		return info.tx.Validate(info)
+		return info.tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID...
@@ -2093,7 +2082,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(info); xErr != nil {
+		if xErr := info.tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -2114,7 +2103,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		return info.tx.Validate(info)
+		return info.tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
@@ -2142,7 +2131,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(info); xErr != nil {
+		if xErr := info.tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -2529,7 +2518,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 		seenMaps := map[string]bool{}
 		seenMetaMaps := map[string]bool{}
 
-		for name, attr := range specialAttrHeaders {
+		for name, attr := range SpecialAttrHeaders {
 			// TODO we may need some kind of "delete if missing" flag on
 			// each HttpHeader attribute since some may want to have an
 			// explicit 'null' to be erased instead of just missing (eg patch)
@@ -2755,7 +2744,7 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	info.StatusCode = xErr.Code
 	// If header not already set, set it. This will likely only happen
 	// when the error happens very very very early in our processing
-	if info.GetHeader("Content-Type") == "" {
+	if info.GetResponseHeader("Content-Type") == "" {
 		info.SetHeader("Content-Type", "application/json; charset=utf-8")
 	}
 
@@ -2770,7 +2759,7 @@ func AddRegistryRootHeader(info *RequestInfo) {
 
 	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
 
-	existingLinks := info.GetHeaderValues("Link")
+	existingLinks := info.GetResponseHeaderValues("Link")
 	for _, v := range existingLinks {
 		// Check if this Link header has rel=xregistry-root
 		if strings.Contains(v, "rel=xregistry-root") ||
@@ -2808,7 +2797,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 	results := Query(tx, query, ss)
 	defer results.Close()
 
-	regCollectionSegment := tx.XRSConfig.GetAsString("path.regcollection")
+	regCollectionSegment := tx.Config.GetAsString("path.regcollection")
 
 	row := results.NextRow()
 	if row != nil {

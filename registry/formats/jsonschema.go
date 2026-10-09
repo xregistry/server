@@ -106,7 +106,7 @@
 //   - Cross-type widening (e.g. integer → number when "type" is
 //     absent).
 
-package registry
+package formats
 
 import (
 	"bytes"
@@ -121,17 +121,18 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 const JSON_FORMAT = "jsonschema*"
 
 func init() {
-	RegisterFormat(JSON_FORMAT, FormatJson{})
+	registry.RegisterFormat(JSON_FORMAT, FormatJson{})
 }
 
 type FormatJson struct{}
 
-func (fj FormatJson) IsValid(ver *Version) (bool, string, *XRError) {
+func (fj FormatJson) IsValid(ver *registry.Version) (bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString("(?i)"+JSON_FORMAT, format); !ok {
 		return true, "", NewXRError("bad_request", ver.XID,
@@ -176,8 +177,8 @@ func (fj FormatJson) IsValid(ver *Version) (bool, string, *XRError) {
 
 func (fj FormatJson) IsCompatible(
 	direction string,
-	oldVersion *Version,
-	newVersion *Version,
+	oldVersion *registry.Version,
+	newVersion *registry.Version,
 ) (bool, string, *XRError) {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 

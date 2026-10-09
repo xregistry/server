@@ -98,7 +98,7 @@
 //     (only exact name matches are treated as "the same field").
 //   - `$offers`/`$uses` add-ins are not applied before comparison.
 
-package registry
+package formats
 
 import (
 	"encoding/json"
@@ -107,12 +107,13 @@ import (
 	"regexp"
 
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 const JSON_STRUCTURE_FORMAT = "jsonstructure*"
 
 func init() {
-	RegisterFormat(JSON_STRUCTURE_FORMAT, FormatJsonStructure{})
+	registry.RegisterFormat(JSON_STRUCTURE_FORMAT, FormatJsonStructure{})
 }
 
 type FormatJsonStructure struct{}
@@ -151,7 +152,7 @@ func isJSPrimitiveName(t string) bool {
 	return jsJSONPrimitives[t] || jsExtendedPrimitives[t]
 }
 
-func (fjs FormatJsonStructure) IsValid(ver *Version) (bool, string, *XRError) {
+func (fjs FormatJsonStructure) IsValid(ver *registry.Version) (bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString("(?i)"+JSON_STRUCTURE_FORMAT, format); !ok {
 		return true, "", NewXRError("bad_request", ver.XID,
@@ -196,8 +197,8 @@ func (fjs FormatJsonStructure) IsValid(ver *Version) (bool, string, *XRError) {
 
 func (fjs FormatJsonStructure) IsCompatible(
 	direction string,
-	oldVersion *Version,
-	newVersion *Version,
+	oldVersion *registry.Version,
+	newVersion *registry.Version,
 ) (bool, string, *XRError) {
 	checked, reason, xErr := fjs.IsValid(oldVersion)
 	if xErr != nil {

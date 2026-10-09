@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
+	_ "github.com/xregistry/server/registry/formats"
 )
 
 var DontCreate = false
@@ -268,9 +269,9 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if RecreateDB {
-		if registry.DBExists(XRSConfig, DBName) {
+		if registry.DBExists(XRSConfig, registry.NewSQLBackend, DBName) {
 			Verbose("Deleting DB: %s", DBName)
-			err := registry.DeleteDB(XRSConfig, DBName)
+			err := registry.DBDelete(XRSConfig, registry.NewSQLBackend, DBName)
 			ErrStop(err, "Error deleting DB(%s): %s", DBName, err)
 		}
 
@@ -278,18 +279,15 @@ func runFunc(cmd *cobra.Command, args []string) {
 		// cmd.Flags().Set("createreg", "true")
 	}
 
-	if !registry.DBExists(XRSConfig, DBName) {
+	if !registry.DBExists(XRSConfig, registry.NewSQLBackend, DBName) {
 		if !DontCreate || RecreateDB {
 			Verbose("Creating DB: %s", DBName)
-			err := registry.CreateDB(XRSConfig, DBName)
+			err := registry.DBCreate(XRSConfig, registry.NewSQLBackend, DBName)
 			ErrStop(err, "Error creating DB(%s): %s", DBName, err)
 		} else {
 			Stop("DB %q does not exist", DBName)
 		}
 	}
-
-	_, err := registry.OpenDB(XRSConfig, DBName)
-	ErrStop(err, "Can't connect to db(%s): %s", DBName, err)
 
 	// Load samples before we look for the default reg because if the default
 	// one points to sample, but it's not there, it might try to create it
@@ -317,8 +315,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	reg, xErr := registry.FindRegistry(nil, XRSConfig, regName,
-		registry.FOR_READ)
+	reg, xErr := registry.FindRegistryByUID(nil, XRSConfig, regName, FOR_READ)
 	ErrStop(xErr, "Error finding registry(%s): %s", regName, xErr)
 
 	if reg != nil {
@@ -331,9 +328,10 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if reg == nil && (!DontCreate || RecreateReg) {
-		Verbose("Creating: %s/%s",
-			XRSConfig.Get("path.regcollection"), regName)
-		reg, xErr = registry.NewRegistry(nil, XRSConfig, regName)
+		Verbose("Creating: %s/%s", XRSConfig.Get("path.regcollection"), regName)
+
+		reg, xErr = registry.NewRegistry(nil, XRSConfig,
+			registry.NewSQLBackend, regName)
 		if IsNil(xErr) {
 			xErr = reg.Commit()
 		}

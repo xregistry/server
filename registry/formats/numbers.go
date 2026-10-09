@@ -1,4 +1,4 @@
-package registry
+package formats
 
 // Just a test file "format".
 // It'll add up all of the integers on each line of the file.
@@ -13,17 +13,18 @@ import (
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 const NUMBERS_FORMAT = "numbers"
 
 func init() {
-	RegisterFormat(NUMBERS_FORMAT, FormatNumbers{})
+	registry.RegisterFormat(NUMBERS_FORMAT, FormatNumbers{})
 }
 
 type FormatNumbers struct{}
 
-func GetVersionSum(ver *Version) (int, bool, string, *XRError) {
+func GetVersionSum(ver *registry.Version) (int, bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString("(?i)"+NUMBERS_FORMAT, format); !ok {
 		return 0, true, "", NewXRError("bad_request", ver.XID,
@@ -77,15 +78,15 @@ func GetVersionSum(ver *Version) (int, bool, string, *XRError) {
 	return sum, true, "", nil
 }
 
-func (ft FormatNumbers) IsValid(ver *Version) (bool, string, *XRError) {
-	defer log.Trace("tx: %s %s", ver.tx.uuid, ver.UID)()
+func (ft FormatNumbers) IsValid(ver *registry.Version) (bool, string, *XRError) {
+	defer log.Trace("tx: %s %s", ver.Tx.GetUUID(), ver.UID)()
 
 	_, checked, reason, xErr := GetVersionSum(ver)
 	return checked, reason, xErr
 }
 
-func (ft FormatNumbers) IsCompatible(direction string, oldVer, newVer *Version) (bool, string, *XRError) {
-	defer log.Trace("tx: %s old:%s,new:%s", oldVer.tx.uuid,
+func (ft FormatNumbers) IsCompatible(direction string, oldVer, newVer *registry.Version) (bool, string, *XRError) {
+	defer log.Trace("tx: %s old:%s,new:%s", oldVer.Tx.GetUUID(),
 		oldVer.UID, newVer.UID)()
 
 	if direction == "forward" {

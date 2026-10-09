@@ -50,14 +50,14 @@ func (m *Model) VerifyAndSave(verifyData bool) *XRError {
 
 func (m *Model) Save() *XRError {
 	// log.FuncPrintf("tx: %s In model.Save - changed: %v",
-	// m.Registry.tx.uuid, m.GetChanged())
+	// m.Registry.Tx.uuid, m.GetChanged())
 	if m.GetChanged() == false {
 		return nil
 	}
 
 	if log.HasVerbose("ModelSave") || log.IsFuncVerbose() {
 		buf, _ := json.MarshalIndent(m, "", "  ")
-		log.Printf("tx: %s Saving model:\n%s", m.Registry.tx.uuid, string(buf))
+		log.Printf("tx: %s Saving model:\n%s", m.Registry.Tx.uuid, string(buf))
 	}
 
 	// Diff against whatever is STILL persisted in the DB right now (not
@@ -86,44 +86,47 @@ func (m *Model) Save() *XRError {
 				if oldRM == nil {
 					continue
 				}
+
+				props := []string{}
+
 				if oldRM.GetValidateFormat() && !rm.GetValidateFormat() {
-					m.Registry.clearValidationSystemProps(rm.SID,
-						"formatvalidated", "formatvalidatedreason")
+					props = append(props, "formatvalidated",
+						"formatvalidatedreason")
 				}
 				if oldRM.GetValidateCompatibility() &&
 					!rm.GetValidateCompatibility() {
-					m.Registry.clearValidationSystemProps(rm.SID,
-						"compatibilityvalidated",
+					props = append(props, "compatibilityvalidated",
 						"compatibilityvalidatedreason")
+				}
+				if len(props) > 0 {
+					xErr := rm.clearValidationSystemProps(props)
+					if xErr != nil {
+						return xErr
+					}
 				}
 			}
 		}
 	}
 
+	// OLD?
 	// Create a temporary type so that we don't use the MarshalJSON func
 	// in model.go. That one will exclude "model" from the serialization and
 	// we don't want to do that when we're saving it in the DB. We only want
 	// to do that when we're serializing the model for the end user.
-
-	buf, _ := json.Marshal(m)
-	modelStr := string(buf)
 
 	// A fresh opaque value every save - lets other requests/replicas
 	// (see loadModelFromDB's cache check) cheaply notice this Model row
 	// changed without having to compare/parse the full JSON blob.
 	changedID := NewUUID()
 
-	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.tx.uuid)
-	DoZeroTwo(m.Registry.tx, `
-        INSERT INTO Models(RegistrySID, Model, Changed)
-        VALUES(?,?,?)
-        ON DUPLICATE KEY UPDATE Model=?, Changed=?`,
+	xErr := m.Registry.Tx.Backend.SaveModel(m, changedID)
+	if xErr != nil {
+		return xErr
+	}
 
-		m.Registry.DbSID, modelStr, changedID,
-		modelStr, changedID)
-
+	// Load old model's ModelEntities so we can diff them
 	existingModelEntities := map[string]string{} // Abstract->SID
-	results := Query(m.Registry.tx,
+	results := Query(m.Registry.Tx,
 		`SELECT SID,Abstract FROM ModelEntities WHERE RegistrySID=?`,
 		m.Registry.DbSID)
 	defer results.Close()
@@ -185,7 +188,7 @@ func (m *Model) Save() *XRError {
 
 		var count int
 		if len(parts) == 1 {
-			results := Query(m.Registry.tx,
+			results := Query(m.Registry.Tx,
 				`SELECT COUNT(*) FROM "Groups" WHERE ModelSID=?`, sid)
 			count = NotNilInt(results.NextRow()[0])
 			results.Close()
@@ -199,7 +202,7 @@ func (m *Model) Save() *XRError {
 							parts[0], count))
 			}
 		} else {
-			results := Query(m.Registry.tx,
+			results := Query(m.Registry.Tx,
 				`SELECT COUNT(*) FROM Resources WHERE ModelSID=?`, sid)
 			count = NotNilInt(results.NextRow()[0])
 			results.Close()
@@ -219,10 +222,11 @@ func (m *Model) Save() *XRError {
 	// TODO consider batching if this gets too slow, or the list is too long
 	for meAbs, _ := range existingModelEntities {
 		if inUseAbs[meAbs] != true {
-			DoOne(m.Registry.tx, `
-                      DELETE FROM ModelEntities
-                      WHERE RegistrySID=? AND Abstract=?`,
-				m.Registry.DbSID, meAbs)
+			xErr := m.Registry.Tx.Backend.DeleteModelEnityByAbstract(
+				m.Registry, meAbs)
+			if xErr != nil {
+				return xErr
+			}
 		}
 	}
 
@@ -233,13 +237,10 @@ func (m *Model) Save() *XRError {
 		// If GroupModel is already in DB then skip it
 		if _, ok := existingModelEntities[gmAbs]; !ok {
 			// Add new GroupModel
-			DoOne(m.Registry.tx,
-				`INSERT INTO ModelEntities(
-                     SID, RegistrySID, ParentSID,
-                     Abstract, Plural, Singular)
-                 VALUES(?,?,?,?,?,?)`,
-				gm.SID, m.Registry.DbSID, nil,
-				gmAbs, gm.Plural, gm.Singular)
+			xErr := m.Registry.Tx.Backend.RegisterModelEntity(gm)
+			if xErr != nil {
+				return xErr
+			}
 		}
 
 		for _, rm := range gm.Resources {
@@ -247,13 +248,10 @@ func (m *Model) Save() *XRError {
 			// If ResourceModel is already in DB then skip it
 			if _, ok := existingModelEntities[rmAbs]; !ok {
 				// Add new ResourceModel
-				DoOne(m.Registry.tx,
-					`INSERT INTO ModelEntities(
-                             SID, RegistrySID, ParentSID,
-                             Abstract, Plural, Singular)
-                         VALUES(?,?,?,?,?,?)`,
-					rm.SID, m.Registry.DbSID, gm.SID,
-					gmAbs+"/"+rm.Plural, rm.Plural, rm.Singular)
+				xErr := m.Registry.Tx.Backend.RegisterModelEntity(rm)
+				if xErr != nil {
+					return xErr
+				}
 			}
 		}
 	}
@@ -320,7 +318,7 @@ func evictCachedModel(regSID string) {
 }
 
 func LoadModel(reg *Registry) *Model {
-	defer log.Trace("tx: %s %s", reg.tx.uuid, reg.UID)()
+	defer log.Trace("tx: %s %s", reg.Tx.uuid, reg.UID)()
 
 	model := loadModelFromDB(reg, true)
 	if model != nil {
@@ -341,7 +339,7 @@ func loadModelFromDB(reg *Registry, loud bool) *Model {
 	PanicIf(reg == nil, "nil")
 
 	// Load Registry model
-	results := Query(reg.tx,
+	results := Query(reg.Tx,
 		`SELECT Model,Changed FROM Models WHERE RegistrySID=?`,
 		reg.DbSID)
 	defer results.Close()
@@ -350,7 +348,7 @@ func loadModelFromDB(reg *Registry, loud bool) *Model {
 	if row == nil {
 		if loud {
 			ShowStack()
-			log.Printf("tx: %s Can't find registry: %s", reg.tx.uuid, reg.UID)
+			log.Printf("tx: %s Can't find registry: %s", reg.Tx.uuid, reg.UID)
 		}
 		return nil
 	}
@@ -388,7 +386,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 	}
 
 	newM.Registry = m.Registry
-	// log.FuncPrintf("tx: %s ApplyNewModel:\n%s", m.Registry.tx.uuid,
+	// log.FuncPrintf("tx: %s ApplyNewModel:\n%s", m.Registry.Tx.uuid,
 	// ToJSON(newM))
 
 	// Copy existing SIDs into the new Model so we don't create new ones
@@ -463,7 +461,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 
 		// Not everything goes thru the http code
 		if xErr.Instance == "" && m.Registry != nil {
-			xErr.Instance = m.Registry.tx.uuid
+			xErr.Instance = m.Registry.Tx.uuid
 		}
 
 		return xErr
@@ -507,7 +505,7 @@ func checkHasDocumentEnableViolation(reg *Registry, oldRM *ResourceModel) *XRErr
 		AND p.PropValue IS NOT NULL
 		LIMIT 1`
 
-	results := Query(reg.tx, query, oldRM.SID,
+	results := Query(reg.Tx, query, oldRM.SID,
 		names[0], names[1], names[2], names[3])
 	defer results.Close()
 
@@ -523,46 +521,13 @@ func checkHasDocumentEnableViolation(reg *Registry, oldRM *ResourceModel) *XRErr
 	return nil
 }
 
-// clearValidationSystemProps bulk-clears the given system prop(s) (e.g.
-// "formatvalidated"/"formatvalidatedreason" or "compatibilityvalidated"/
-// "compatibilityvalidatedreason") from every Version of every Resource
-// instance of the ResourceModel identified by modelSID, in one indexed
-// sweep. Called by Model.Save() right after a validateformat/
-// validatecompatibility true->false transition is detected, so
-// EnsureCompat() (registry/resource.go) no longer needs to defensively
-// re-clear these on every single save while validation stays off - this
-// one-time, model-change-triggered sweep is the sole owner of clearing
-// stale values.
-func (reg *Registry) clearValidationSystemProps(modelSID string, names ...string) {
-	if len(names) == 0 {
-		return
+func (rm *ResourceModel) clearValidationSystemProps(props []string) *XRError {
+	if len(props) == 0 {
+		return nil
 	}
 
-	placeholders := make([]string, len(names))
-	args := make([]any, 0, len(names)+4)
-	for i, name := range names {
-		placeholders[i] = "?"
-		args = append(args, name+string(DB_IN))
-	}
-	args = append(args, reg.DbSID, modelSID, reg.DbSID, modelSID)
-
-	// Clear both the Version's own row AND the Resource-level
-	// IsDefaultVerCopy mirror of it (same mirroring mechanism as
-	// isdefault/createdat/modifiedat - the Resource-level copy is
-	// what HTTP GET on the Resource actually serves).
-	Do(reg.tx, `
-        DELETE FROM Props
-        WHERE PropName IN (`+strings.Join(placeholders, ",")+`)
-              AND (
-                eSID IN (
-                    SELECT SID FROM Versions WHERE ResourceSID IN (
-                        SELECT SID FROM Resources
-                        WHERE RegistrySID=? AND ModelSID=?))
-                OR
-                eSID IN (
-                    SELECT SID FROM Resources
-                    WHERE RegistrySID=? AND ModelSID=?)
-              )`, args...)
+	reg := rm.GroupModel.Model.Registry
+	return reg.Tx.Backend.ClearResourceModelSystemProps(rm, props)
 }
 
 func (m *Model) ApplyNewModelFromJSON(buf []byte, verify bool) *XRError {

@@ -297,7 +297,9 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	jw.Printf("{")
 	jw.Indent()
 
-	jsonIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
+	jsonIt := func(e *Entity, key string, val any, attr *Attribute) *XRError {
+		info := e.GetRequestInfo()
+
 		log.VPrintf("WriteEntity", "tx: %s jsonIt: %q", info.uuid, key)
 		if key == "$space" {
 			addSpace = true
@@ -330,7 +332,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 		if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
 			rm := e.GetResourceModel()
 			if rm.GetHasDocument() && key == rm.Singular {
-				return SerializeResourceContents(jw, jw.Entity, jw.info, &extra)
+				return SerializeResourceContents(jw, jw.Entity, &extra)
 			}
 		}
 
@@ -397,7 +399,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	// Skip serializing the root entity's attributes if ?collections is set
 	// AND we're on the root entity of the response
 	if !jw.info.HasFlag("collections") || jw.info.Root != jw.Entity.XID[1:] {
-		xErr := jw.Entity.SerializeProps(jw.info, jsonIt)
+		xErr := jw.Entity.SerializeProps(jsonIt)
 		if xErr != nil {
 			panic(xErr)
 		}
@@ -512,7 +514,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	return nil
 }
 
-func SerializeResourceContents(jw *JsonWriter, e *Entity, info *RequestInfo, extra *string) *XRError {
+func SerializeResourceContents(jw *JsonWriter, e *Entity, extra *string) *XRError {
 	PanicIf(e.Type != ENTITY_RESOURCE && e.Type != ENTITY_VERSION, "Bad eType: %d", e.Type)
 	// Add the "resource*" props
 	_, rm := jw.Entity.GetModels()

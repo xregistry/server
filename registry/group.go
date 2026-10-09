@@ -3,7 +3,6 @@ package registry
 import (
 	"fmt"
 	"maps"
-	"slices"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -25,7 +24,7 @@ func (g *Group) SetSave(name string, val any) *XRError {
 }
 
 func (g *Group) Delete() *XRError {
-	defer log.Trace("tx: %s %s", g.tx.uuid, g.UID)()
+	defer log.Trace("tx: %s %s", g.Tx.uuid, g.UID)()
 
 	// Make sure we don't have any readonly Resources. Callers (HTTPDelete/
 	// HTTPDeleteGroups) already lock g itself FOR_WRITE, but that doesn't
@@ -33,17 +32,13 @@ func (g *Group) Delete() *XRError {
 	// without FOR UPDATE here, a concurrent Tx setting readonly=true on a
 	// descendant after our RR snapshot was established could be missed,
 	// letting this Group be improperly deleted.
-	results := Query(g.tx, `
-	    SELECT EXISTS(SELECT 1 FROM Props
-		WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
-		  XID LIKE '`+g.XID+`/%' AND
-		  PropName='readonly`+string(DB_IN)+`' AND
-		  PropValue='true') FOR UPDATE`,
-		g.Registry.DbSID)
-	defer results.Close()
+	hasReadOnlyResource, xErr := g.Tx.Backend.HasReadOnlyResource(g)
 
-	row := results.NextRow()
-	if NotNilInt(row[0]) != 0 {
+	if xErr != nil {
+		return xErr
+	}
+
+	if hasReadOnlyResource {
 		return NewXRError("readonly", g.XID)
 	}
 
@@ -53,11 +48,13 @@ func (g *Group) Delete() *XRError {
 		}
 	}
 
-	DoOne(g.tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
+	if xErr := g.Tx.Backend.DeleteGroup(g); xErr != nil {
+		return xErr
+	}
 
 	// Delete any pending changes so dirty check doesn't fail
 	g.NewObject = nil
-	g.tx.RemoveFromCache(&g.Entity)
+	g.Tx.RemoveFromCache(&g.Entity)
 
 	return nil
 }
@@ -69,16 +66,16 @@ func (g *Group) Delete() *XRError {
 // no analogous need to force every subsequent read through this Group
 // to inherit a prior FOR_WRITE.
 func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode int) (*Resource, *XRError) {
-	defer log.Trace("tx: %s %s,%s,%v", g.tx.uuid, rType, id, anyCase)()
+	defer log.Trace("tx: %s %s,%s,%v", g.Tx.uuid, rType, id, anyCase)()
 
-	if r := g.tx.GetResource(g, rType, id); r != nil {
+	if r := g.Tx.GetResource(g, rType, id); r != nil {
 		if accessMode == FOR_WRITE && r.AccessMode != FOR_WRITE {
 			r.Lock()
 		}
 		return r, nil
 	}
 
-	ent, xErr := RawEntityFromXID(g.tx, g.Registry.DbSID,
+	ent, xErr := RawEntityFromXID(g.Tx, g.Registry.DbSID,
 		g.XID+"/"+rType+"/"+id, anyCase, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", g.XID+"/"+rType+"/"+id).
@@ -86,13 +83,13 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 				id, rType, xErr.GetTitle()))
 	}
 	if ent == nil {
-		log.FuncPrintf("tx: %s None found", g.tx.uuid)
+		log.FuncPrintf("tx: %s None found", g.Tx.uuid)
 		return nil, nil
 	}
 
 	r := &Resource{Entity: *ent, Group: g}
 	r.Self = r
-	r.tx.AddResource(r)
+	r.Tx.AddResource(r)
 	return r, nil
 }
 
@@ -125,7 +122,7 @@ type ResourceUpsert struct {
 
 // Return: *Resource, isNew, error
 func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%s", g.tx.uuid, ru.RType, ru.Id)()
+	defer log.Trace("tx: %s %s,%s", g.Tx.uuid, ru.RType, ru.Id)()
 
 	// ru.VID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
@@ -167,11 +164,12 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 	// calc rXID so we can use it even if r == nil
 	rXID := g.XID + "/" + ru.RType + "/" + ru.Id
+	info := g.GetRequestInfo()
 
 	if r != nil {
 		meta := r.MustFindMeta(false)
 		if meta.Get("readonly") == true {
-			if r.tx.RequestInfo.HasIgnore("readonly") {
+			if info.HasIgnore("readonly") {
 				// Ignoring that it's read-only but also stopping
 				return r, false, nil
 			} else {
@@ -188,7 +186,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				rModel.Singular, ru.Id, r.UID))
 	}
 
-	if g.tx.RequestInfo.HasIgnore("id") && len(g.tx.RequestInfo.Parts) == 4 {
+	if info.HasIgnore("id") && len(info.Parts) == 4 {
 		delete(ru.Obj, rModel.Singular+"id")
 	}
 
@@ -289,17 +287,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// This will not create any Versions yet, just the Resource
 		r = &Resource{
 			Entity: Entity{
-				EntityExtensions: EntityExtensions{
-					tx:         g.tx,
-					AccessMode: FOR_WRITE,
-				},
-
-				Registry:  g.Registry,
-				DbSID:     NewUUID(),
-				ParentSID: g.DbSID,
-				Plural:    ru.RType,
-				Singular:  rModel.Singular,
-				UID:       ru.Id,
+				Tx:         g.Tx,
+				AccessMode: FOR_WRITE,
+				Registry:   g.Registry,
+				DbSID:      NewUUID(),
+				ParentSID:  g.DbSID,
+				Plural:     ru.RType,
+				Singular:   rModel.Singular,
+				UID:        ru.Id,
 
 				Type:     ENTITY_RESOURCE,
 				XID:      g.XID + "/" + ru.RType + "/" + ru.Id,
@@ -312,37 +307,12 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		}
 		r.Self = r
 
-		DoOne(r.tx, `
-        INSERT INTO Resources(
-            SID, UID, RegistrySID,
-            GroupSID, ModelSID,
-            XID, Abstract,
-            Plural, Singular)
-        SELECT ?,?,?,?,SID,?,?,?,?
-        FROM ModelEntities
-        WHERE RegistrySID=?
-          AND ParentSID IN (
-            SELECT SID FROM ModelEntities
-            WHERE RegistrySID=?
-            AND ParentSID IS NULL
-            AND Plural=?)
-            AND Plural=?`,
-
-			r.DbSID, r.UID, g.Registry.DbSID,
-			g.DbSID, /* , ModelSID */
-			r.XID, r.Abstract,
-			r.Plural, r.Singular,
-
-			g.Registry.DbSID, g.Registry.DbSID, g.Plural,
-			ru.RType)
-		// When we delete entities due to their model def being deleted
-		// then I think we can use rModel.SID in the above sql stmt
-		// instead of the sub-query
-
-		r.EntityInsert()
+		if xErr := r.Tx.Backend.RegisterEntity(&r.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
 		isNew = true
-		r.tx.AddResource(r)
+		r.Tx.AddResource(r)
 		g.Touch()
 
 		// Use the ID passed as an arg, not from the metadata, as the true
@@ -354,17 +324,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 		meta = &Meta{
 			Entity: Entity{
-				EntityExtensions: EntityExtensions{
-					tx:         g.tx,
-					AccessMode: FOR_WRITE,
-				},
-
-				Registry:  g.Registry,
-				DbSID:     NewUUID(),
-				ParentSID: r.DbSID,
-				Plural:    "metas",
-				Singular:  "meta",
-				UID:       r.UID,
+				Tx:         g.Tx,
+				AccessMode: FOR_WRITE,
+				Registry:   g.Registry,
+				DbSID:      NewUUID(),
+				ParentSID:  r.DbSID,
+				Plural:     "metas",
+				Singular:   "meta",
+				UID:        r.UID,
 
 				Type:     ENTITY_META,
 				XID:      r.XID + "/meta",
@@ -377,21 +344,16 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		}
 		meta.Self = meta
 
-		DoOne(r.tx, `
-                INSERT INTO Metas(SID, RegistrySID, ResourceSID, XID,
-                            Abstract, Plural, Singular)
-                SELECT ?,?,?,?,?,?,?`,
-			meta.DbSID, g.Registry.DbSID, r.DbSID,
-			meta.XID, meta.Abstract, r.Plural, r.Singular)
-
-		meta.EntityInsert()
+		if xErr := meta.Tx.Backend.RegisterEntity(&meta.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
 		xErr = meta.JustSet(r.Singular+"id", r.UID)
 		if xErr != nil {
 			return nil, false, xErr
 		}
 
-		r.tx.AddMeta(meta)
+		r.Tx.AddMeta(meta)
 		xErr = meta.JustSet("#nextversionid", 1)
 		if xErr != nil {
 			return nil, false, xErr
@@ -651,14 +613,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	r.tx.AddResourceToValidate(r, false, false)
+	r.Tx.AddResourceToValidate(r, false, false)
 
 	return r, isNew, xErr
 }
 
 // Returns a map of resourceType->*Resource
 func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string][]*Resource, *XRError) {
-	defer log.Trace("tx: %s", g.tx.uuid)()
+	defer log.Trace("tx: %s", g.Tx.uuid)()
 
 	resources := map[string][]*Resource{}
 
@@ -706,96 +668,8 @@ func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string
 	return resources, nil
 }
 
-func (g *Group) GetConstraints() (map[string]*Constraint, *XRError) {
-	if g.constraints == nil {
-		// Do NOT use maps.Clone(), we need a zero-size map instead
-		g.constraints = map[string]*Constraint{}
-
-		// Grab the model-level constraints first
-		for k, c := range g.GroupModel.Constraints {
-			g.constraints[k] = c // .Clone()
-		}
-
-		// Now merge in the group-instance level constraints
-		/*
-			constraintsAny := g.Get("constraints")
-			groupConstraints := map[string]*Constraint(nil)
-
-			if !IsNil(constraintsAny) {
-				err := Unmarshal([]byte(ToJSON(constraintsAny)), &groupConstraints)
-				if err != nil {
-					return nil, NewXRError("bad_request", g.XID,
-						"error_detail="+err.Error())
-				}
-				// groupConstraints = constraintsAny.(map[string]Constraint)
-			}
-		*/
-
-		// If the incoming request has g.constraints then g.groupConstraints
-		// should already been filled in by checkFn. So this is for cases
-		// where the constraints are from the DB - so parse 'em.
-		if g.groupConstraints == nil {
-			if val := g.Get("constraints"); !IsNil(val) {
-				err := Unmarshal([]byte(ToJSON(val)), &g.groupConstraints)
-				if err != nil {
-					return nil, NewXRError("bad_request", g.XID,
-						"error_detail="+err.Error())
-				}
-				// Not sure this is needed since if this wasn't dont in
-				// checkFn then it's an old value - which should have already
-				// been checked. But for now keep it just to be safe
-				xErr := g.GroupModel.ValidateConstraints(g, g.groupConstraints)
-				if xErr != nil {
-					return nil, xErr
-				}
-			}
-		}
-
-		for k, instanceC := range g.groupConstraints {
-			var c *Constraint
-
-			// See if one already exists (ie. was defined at the GM level)
-			if c = g.constraints[k]; c != nil {
-				// clone it and apply updated fields
-				c = c.Clone()
-				if !IsNil(instanceC.Default) {
-					c.Default = instanceC.Default
-				}
-				if len(instanceC.Enum) != 0 {
-					c.Enum = slices.Clone(instanceC.Enum)
-				}
-				if instanceC.Equals != "" {
-					c.Equals = instanceC.Equals
-				}
-			} else {
-				c = instanceC.Clone()
-			}
-
-			g.constraints[k] = c
-		}
-	}
-
-	return g.constraints, nil
-}
-
-// path = PATH-TO-ATTR, including attr.Name
-func (g *Group) GetAttrConstraint(v *Version, attr *Attribute, path *PropPath) *Constraint {
-	constraints, xErr := g.GetConstraints()
-	// Any error should have aleady been checked/reported
-	PanicIf(xErr != nil, "%s", xErr)
-
-	// Quick return - calculating the key is too expensive
-	if len(constraints) == 0 {
-		return nil
-	}
-
-	key := v.ResourceModel.Plural + "." + path.UI()
-
-	return constraints[key]
-}
-
 func (g *Group) Validate() *XRError {
-	defer log.Trace("tx: %s %s", g.tx.uuid, g.XID)()
+	defer log.Trace("tx: %s %s", g.Tx.uuid, g.XID)()
 
 	constraints, xErr := g.GetConstraints()
 	if xErr != nil {
@@ -819,13 +693,15 @@ func (g *Group) Validate() *XRError {
 		}
 
 		if constraint.Equals != "" {
-			if xErr := g.validateEquals(constraint, resPlural, pp); xErr != nil {
+			xErr := g.validateEquals(constraint, constraint.rm, pp)
+			if xErr != nil {
 				return xErr
 			}
 		}
 
 		if len(constraint.Enum) > 0 {
-			if xErr := g.validateEnum(constraint, resPlural, pp); xErr != nil {
+			xErr := g.validateEnum(constraint, constraint.rm, pp)
+			if xErr != nil {
 				return xErr
 			}
 		}
@@ -848,8 +724,8 @@ func (g *Group) Validate() *XRError {
 // letting two Txs each pass a constraint that's violated once
 // combined. FOR UPDATE forces this read to see latest-committed data
 // and to block on any in-flight conflicting Tx, closing that gap.
-func (g *Group) validateEquals(constraint *Constraint, resPlural string,
-	pp *PropPath) *XRError {
+func (g *Group) validateEquals(constraint *Constraint, rm *ResourceModel,
+	rPP *PropPath) *XRError {
 
 	// groupAttr parsed into a PP
 	gPP, _ := PropPathFromUI(constraint.Equals)
@@ -860,64 +736,15 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 		return nil
 	}
 
-	query := fmt.Sprintf(`
-            SELECT
-                r.XID, v.UID, vp.PropValue
-            FROM Resources r
-            JOIN Entities AS v ON (
-                v.RegSID=r.RegistrySID AND
-                v.ParentSID=r.SID AND
-                v.Type=?
-            )
-            JOIN Props AS gp ON (
-                gp.RegSID=r.RegistrySID AND
-                gp.eSID=r.GroupSID AND
-                gp.PropName=?
-            )
-            LEFT JOIN Props AS vp ON (
-                vp.RegSID=v.RegSID AND
-                vp.eSID=v.eSID AND
-                vp.PropName=?
-            )
-            WHERE
-                r.RegistrySID=? AND
-                r.GroupSID=? AND
-                r.Plural=? AND
-                (vp.PropValue IS NULL OR vp.PropValue<>gp.PropValue)
-            FOR UPDATE`)
-
-	// log.Printf("tx: %s %q vs %q", g.tx.uuid, gPP.DB(), pp.DB())
-	results := Query(g.tx, query,
-		ENTITY_VERSION, gPP.DB(), pp.DB(),
-		g.Registry.DbSID, g.DbSID, resPlural)
-	defer results.Close()
-
-	rXID := ""
-	failures := []string{}
-
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-
-		// log.Printf("tx: %s %q %q %q", g.tx.uuid,
-		// NotNilString(row[0]), NotNilString(row[1]),
-		// NotNilString(row[2]))
-
-		// Stop on 2nd Resource
-		if rXID != "" && rXID != NotNilString(row[0]) {
-			break
-		}
-		rXID = NotNilString(row[0])
-		failures = append(failures, NotNilString(row[1]))
-
+	rXID, vIDs, xErr := g.Tx.Backend.FindBadEqualsVersions(g, gPP, rm, rPP)
+	if xErr != nil {
+		return xErr
 	}
 
-	if len(failures) > 0 {
+	if len(vIDs) > 0 {
 		return NewXRError("constraint_failure", rXID,
-			"path="+pp.UI(), "kind=equals").SetDetailf("Versions: %s.",
-			strings.Join(failures, ","))
+			"path="+rPP.UI(), "kind=equals").SetDetailf("Versions: %s.",
+			strings.Join(vIDs, ","))
 	}
 
 	return nil
@@ -932,71 +759,19 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 //
 // See validateEquals()'s comment above for why this must be a FOR
 // UPDATE (locking) read rather than a plain SELECT.
-func (g *Group) validateEnum(constraint *Constraint, resPlural string,
-	pp *PropPath) *XRError {
+func (g *Group) validateEnum(c *Constraint, rm *ResourceModel,
+	rPP *PropPath) *XRError {
 
-	// Encode each enum value the same way prepDBProperty() encodes a
-	// real attribute value before it's written to PropValue (booleans
-	// as "true"/"false", everything else via fmt.Sprintf("%v", v)) so
-	// the SQL string comparison lines up with what's actually stored.
-	placeholders := make([]string, 0, len(constraint.Enum))
-	args := []any{ENTITY_VERSION, pp.DB(), g.Registry.DbSID, g.DbSID,
-		resPlural}
-	enumArgs := make([]any, 0, len(constraint.Enum))
-	for _, v := range constraint.Enum {
-		enumArgs = append(enumArgs, EnumValueToDBString(v))
-		placeholders = append(placeholders, "?")
-	}
-	args = append(args, enumArgs...)
-
-	query := fmt.Sprintf(`
-            SELECT
-                r.XID, v.UID, vp.PropValue
-            FROM Resources r
-            JOIN Entities AS v ON (
-                v.RegSID=r.RegistrySID AND
-                v.ParentSID=r.SID AND
-                v.Type=?
-            )
-            LEFT JOIN Props AS vp ON (
-                vp.RegSID=v.RegSID AND
-                vp.eSID=v.eSID AND
-                vp.PropName=?
-            )
-            WHERE
-                r.RegistrySID=? AND
-                r.GroupSID=? AND
-                r.Plural=? AND
-                vp.PropValue IS NOT NULL AND
-                vp.PropValue NOT IN (%s)
-            FOR UPDATE
-            `, strings.Join(placeholders, ","))
-
-	results := Query(g.tx, query, args...)
-	defer results.Close()
-
-	rXID := ""
-	failures := []string{}
-
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-
-		// Stop on 2nd Resource
-		if rXID != "" && rXID != NotNilString(row[0]) {
-			break
-		}
-		rXID = NotNilString(row[0])
-		failures = append(failures, NotNilString(row[1]))
+	rXID, vIDs, xErr := g.Tx.Backend.FindBadEnumVersions(g, c, rm, rPP)
+	if xErr != nil {
+		return xErr
 	}
 
-	if len(failures) > 0 {
+	if len(vIDs) > 0 {
 		return NewXRError("constraint_failure", rXID,
-			"path="+pp.UI(), "kind=enum").SetDetailf("Versions: %s. Must "+
-			"be one of: %s.", strings.Join(failures, ","),
-			EnumAsString(constraint.Enum))
+			"path="+rPP.UI(), "kind=enum").SetDetailf("Versions: %s. Must "+
+			"be one of: %s.", strings.Join(vIDs, ","),
+			EnumAsString(c.Enum))
 	}
 
 	return nil

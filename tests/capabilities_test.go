@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	. "github.com/xregistry/server/common"
-	"github.com/xregistry/server/registry"
 )
 
 func TestCapabilitySimple(t *testing.T) {
@@ -584,7 +583,7 @@ func TestCapabilityPath(t *testing.T) {
 }
 `)
 
-	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	XNoErr(t, reg.Refresh(FOR_WRITE))
 	reg.Capabilities.SetAvailable("capabilities", true)
 	reg.Capabilities.SetAvailable("entities", true)
 	XNoErr(t, reg.SaveCapabilities())
@@ -2195,7 +2194,7 @@ func TestCapabilityAvailable(t *testing.T) {
 	reg.Capabilities.SetAvailable("capabilities", true)
 	reg.Capabilities.SetAvailable("entities", true)
 	XNoErr(t, reg.SaveCapabilities())
-	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	XNoErr(t, reg.Refresh(FOR_WRITE))
 
 	// Open /capabilities back up
 	XHTTP(t, reg, "PUT", "/capabilities",
@@ -2346,11 +2345,11 @@ func TestCapabilityAvailable(t *testing.T) {
 
 	// Test entity operations when entities.mutable = false
 	// First, add a model and create some test entities while entities is still mutable
-	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	XNoErr(t, reg.Refresh(FOR_WRITE))
 	reg.Capabilities.SetAvailable("capabilities", true)
 	reg.Capabilities.SetAvailable("entities", true)
 	XNoErr(t, reg.SaveCapabilities())
-	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	XNoErr(t, reg.Refresh(FOR_WRITE))
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, false)
@@ -2599,11 +2598,11 @@ func TestCapabilityAvailable(t *testing.T) {
 `)
 
 	// Reset to default with entities mutable again
-	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	XNoErr(t, reg.Refresh(FOR_WRITE))
 	reg.Capabilities.SetAvailable("capabilities", true)
 	reg.Capabilities.SetAvailable("entities", true)
 	XNoErr(t, reg.SaveCapabilities())
-	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	XNoErr(t, reg.Refresh(FOR_WRITE))
 
 	// Reset to default
 
@@ -4493,7 +4492,7 @@ func TestCapabilityWildcard(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// Enable capabilities so we can test them
-	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	XNoErr(t, reg.Refresh(FOR_WRITE))
 	reg.Capabilities.SetAvailable("capabilities", true)
 	XNoErr(t, reg.SaveCapabilities())
 

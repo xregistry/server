@@ -69,18 +69,18 @@ func SetXRServerConfigFromEnvVars(xrsConfig *Config) *Config {
 }
 
 func (r *Registry) GetTx() *Tx {
-	return r.tx
+	return r.Tx
 }
 
 func (r *Registry) GetXRServerConfig() *Config {
-	PanicIf(r.tx == nil, "Shouldn't be nil")
-	return r.tx.XRSConfig
+	PanicIf(r.Tx == nil, "Shouldn't be nil")
+	return r.Tx.Config
 }
 
 func GetDefaultReg(tx *Tx) *Registry {
 	PanicIf(tx == nil, "Check me")
 
-	regDbSID := tx.XRSConfig.GetAsString("DefaultRegDbSID")
+	regDbSID := tx.Config.GetAsString("DefaultRegDbSID")
 
 	if regDbSID == "" {
 		panic("No registry specified")
@@ -99,7 +99,7 @@ func GetDefaultReg(tx *Tx) *Registry {
 
 func (r *Registry) Rollback() *XRError {
 	if r != nil {
-		return r.tx.Rollback()
+		return r.Tx.Rollback()
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func (r *Registry) SaveAll() *XRError {
 				return xErr
 			}
 		}
-		return r.tx.SaveAll()
+		return r.Tx.SaveAll()
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func (r *Registry) SaveAllAndCommit() *XRError {
 				return xErr
 			}
 		}
-		return r.tx.SaveAllAndCommit()
+		return r.Tx.SaveAllAndCommit()
 	}
 	return nil
 }
@@ -141,19 +141,19 @@ func (r *Registry) Refresh(accessMode int) *XRError {
 // ONLY CALL FROM TESTS - NEVER IN PROD
 func (r *Registry) SaveCommitRefresh() *XRError {
 	if r != nil {
-		return r.tx.SaveCommitRefresh()
+		return r.Tx.SaveCommitRefresh()
 	}
 	return nil
 }
 
 // ONLY CALL FROM TESTS - NEVER IN PROD
 func (r *Registry) AddToCache(e *Entity) {
-	r.tx.AddToCache(e)
+	r.Tx.AddToCache(e)
 }
 
 func (r *Registry) Commit() *XRError {
 	if r != nil {
-		return r.tx.Commit()
+		return r.Tx.Commit()
 	}
 	return nil
 }
@@ -165,8 +165,8 @@ func (r *Registry) Commit() *XRError {
 // are Tx-scoped bookkeeping (see those fields' doc comments in db.go).
 // Called from Tx.Validate() once the Tx's own bookkeeping/sanity-checks
 // are done.
-func (r *Registry) Validate(info *RequestInfo) *XRError {
-	tx := r.tx
+func (r *Registry) Validate() *XRError {
+	tx := r.Tx
 
 	// Drain any Resources marked for (re-)validation - possibly marked
 	// several times each (see AddResourceToValidate()'s doc comment).
@@ -208,132 +208,14 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 	return nil
 }
 
-type RegOpt string
-
-func NewRegistry(tx *Tx, xrsConfig *Config, id string, regOpts ...RegOpt) (*Registry, *XRError) {
-
-	if tx == nil {
-		defer log.Trace("%s", id)()
-	} else {
-		defer log.Trace("tx: %s %s", tx.uuid, id)()
-	}
-
-	var xErr *XRError // must be used for all error checking due to defer
-	newTx := false
-
-	defer func() {
-		if newTx {
-			// If created just for us, close it
-			tx.Conditional(xErr)
-		}
-	}()
-
-	if tx == nil {
-		tx, xErr = NewTx(NewUUID(), xrsConfig)
-		if xErr != nil {
-			return nil, xErr
-		}
-		newTx = true
-	}
-
-	if id == "" {
-		id = NewUUID()
-	}
-
-	r, xErr := FindRegistry(tx, xrsConfig, id, FOR_READ)
-	if xErr != nil {
-		return nil, xErr
-	}
-	if r != nil {
-		return nil, NewXRError("bad_request", "/",
-			"error_detail="+
-				fmt.Sprintf("A registry with ID %q already exists", id))
-	}
-
-	dbSID := NewUUID()
-	DoOne(tx, `
-		INSERT INTO Registries(SID, UID)
-		VALUES(?,?)`, dbSID, id)
-
-	reg := &Registry{
-		Entity: Entity{
-			EntityExtensions: EntityExtensions{
-				tx:         tx,
-				AccessMode: FOR_WRITE,
-			},
-
-			DbSID:    dbSID,
-			Plural:   "registries",
-			Singular: "registry",
-			UID:      id,
-
-			Type:     ENTITY_REGISTRY,
-			XID:      "/",
-			Abstract: "",
-		},
-	}
-
-	reg.Self = reg
-	reg.Entity.Registry = reg
-	reg.EntityInsert()
-	reg.Capabilities = DefaultCapabilities.Clone()
-	reg.Model = &Model{
-		Registry: reg,
-		Groups:   map[string]*GroupModel{},
-	}
-
-	tx.Registry = reg
-	tx.AddRegistry(reg)
-
-	xErr = reg.Model.Verify()
-	if xErr != nil {
-		return nil, xErr
-	}
-
-	DoOne(tx, `
-		INSERT INTO Models(RegistrySID)
-		VALUES(?)`, dbSID)
-
-	if xErr = reg.JustSet("specversion", SPECVERSION); xErr != nil {
-		return nil, xErr
-	}
-	if xErr = reg.JustSet("registryid", reg.UID); xErr != nil {
-		return nil, xErr
-	}
-
-	/*
-		for _, regOpt := range regOpts {
-			// if regOpts == RegOpt_STRING { ... }
-		}
-	*/
-
-	if xErr = reg.SetSave("epoch", 1); xErr != nil {
-		return nil, xErr
-	}
-
-	if xErr = reg.Model.VerifyAndSave(true); xErr != nil {
-		return nil, xErr
-	}
-
-	return reg, nil
-}
-
 func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
-	tx, xErr := NewTx(NewUUID(), xrsConfig)
+	tx, xErr := NewTx(NewUUID(), xrsConfig, NewSQLBackend)
 	if xErr != nil {
 		return nil, xErr
 	}
 	defer tx.Rollback()
 
-	results := Query(tx, `SELECT UID FROM Registries ORDER BY UID`)
-	defer results.Close()
-
-	res := []string{}
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		res = append(res, NotNilString(row[0]))
-	}
-
-	return res, nil
+	return tx.Backend.ListRegistries(tx)
 }
 
 var _ EntitySetter = &Registry{}
@@ -352,18 +234,8 @@ func (reg *Registry) JustSet(name string, val any) *XRError {
 	return reg.Entity.eJustSetPath(name, val)
 }
 
-func (reg *Registry) SetSave(name string, val any) *XRError {
-	// Normally we should never call Lock() directly, however Registry is
-	// kind of special because we rarely know if we want to "Find" the Registry
-	// for writing until later in the process. So instead of forcing the
-	// code to re-Find with FOR_WRITE, we'll just make it easy and these
-	// variants of 'update' will just lock it automatically
-	reg.Lock()
-	return reg.Entity.eSetSave(name, val)
-}
-
 func (reg *Registry) Delete() *XRError {
-	defer log.Trace("tx: %s %s", reg.tx.uuid, reg.UID)()
+	defer log.Trace("tx: %s %s", reg.Tx.uuid, reg.UID)()
 
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
@@ -371,7 +243,10 @@ func (reg *Registry) Delete() *XRError {
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
 	reg.Lock()
-	DoOne(reg.tx, `DELETE FROM Registries WHERE SID=?`, reg.DbSID)
+
+	if xErr := reg.Tx.Backend.DeleteRegistry(reg); xErr != nil {
+		return xErr
+	}
 
 	// Avoid an unbounded leak of dead entries in the in-process Model
 	// cache (see registry/model.go) - the DbSID is never reused, but
@@ -380,8 +255,8 @@ func (reg *Registry) Delete() *XRError {
 
 	// Delete any pending changes so dirty check doesn't fail
 	reg.NewObject = nil
-	reg.tx.EraseCache()
-	reg.tx.Registry = nil
+	reg.Tx.EraseCache()
+	reg.Tx.Registry = nil
 
 	return nil
 }
@@ -406,22 +281,16 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	}
 
 	reg := &Registry{Entity: *ent}
-	reg.tx = tx
+	reg.Tx = tx
 	reg.Self = reg
 	reg.Entity.Registry = reg
 
 	tx.Registry = reg
 	tx.AddRegistry(reg)
 
-	// UsesXref lives on the raw Registries table (not Entities/
-	// Props, since it's a plain internal flag, not a real
-	// attribute), so it needs its own tiny supplemental lookup here -
-	// a single indexed PK read, once per Tx.
-	results := Query(tx, `SELECT UsesXref FROM Registries WHERE SID=?`, sid)
-	if row := results.NextRow(); row != nil {
-		reg.UsesXref = NotNilBoolDef(row[0], false)
+	if reg.UsesXref, xErr = tx.Backend.RegistryGetUsesXref(reg); xErr != nil {
+		return nil, xErr
 	}
-	results.Close()
 
 	reg.LoadCapabilities()
 	reg.LoadModel()
@@ -432,14 +301,14 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 }
 
 // BY UID
-func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Registry, *XRError) {
+func FindRegistryByUID(tx *Tx, xrsConfig *Config, uid string, accessMode int) (*Registry, *XRError) {
 	if tx == nil {
-		defer log.Trace("%s", id)()
+		defer log.Trace("%s", uid)()
 	} else {
-		defer log.Trace("tx: %s %s", tx.uuid, id)()
+		defer log.Trace("tx: %s %s", tx.uuid, uid)()
 	}
 
-	if tx != nil && tx.Registry != nil && tx.Registry.UID == id {
+	if tx != nil && tx.Registry != nil && tx.Registry.UID == uid {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
 			tx.Registry.Lock()
 		}
@@ -449,7 +318,7 @@ func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Regist
 	newTx := false
 	if tx == nil {
 		var xErr *XRError
-		tx, xErr = NewTx(NewUUID(), xrsConfig)
+		tx, xErr = NewTx(NewUUID(), xrsConfig, NewSQLBackend)
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -472,31 +341,23 @@ func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Regist
 		}
 	}()
 
-	results := Query(tx, `
-	   	SELECT SID
-	   	FROM Registries
-	   	WHERE UID=?`, id)
-
-	defer results.Close()
-
-	row := results.NextRow()
-
-	if row == nil {
+	regSID, xErr := tx.Backend.MapRegistryUID2SID(tx, uid)
+	if xErr != nil {
+		return nil, xErr
+	}
+	if regSID == "" {
 		log.FuncPrintf("tx: %s None found", tx.uuid)
 		return nil, nil
 	}
 
-	id = NotNilString(row[0])
-	results.Close()
-
-	ent, xErr := RawEntityFromXID(tx, id, "/", false, accessMode)
+	ent, xErr := RawEntityFromXID(tx, regSID, "/", false, accessMode)
 
 	if xErr != nil {
 		if newTx {
 			tx.Rollback()
 		}
 		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", id, xErr.GetTitle())
+			"Error finding Registry %q: %s.", uid, xErr.GetTitle())
 	}
 
 	PanicIf(ent == nil, "No entity but we found a reg")
@@ -509,9 +370,9 @@ func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Regist
 	}
 
 	reg.Entity.Registry = reg
-	reg.tx = tx
+	reg.Tx = tx
 
-	reg.tx.AddRegistry(reg)
+	reg.Tx.AddRegistry(reg)
 
 	reg.LoadCapabilities()
 	reg.LoadModel()
@@ -559,7 +420,7 @@ func (reg *Registry) SaveModel(verifyData bool) *XRError {
 }
 
 func (reg *Registry) LoadModelFromFile(file string) *XRError {
-	defer log.Trace("tx: %s %s", reg.tx.uuid, file)()
+	defer log.Trace("tx: %s %s", reg.Tx.uuid, file)()
 
 	var xErr *XRError
 	var err error
@@ -613,7 +474,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 }
 
 func (reg *Registry) Update(obj Object, addType AddType) *XRError {
-	defer log.Trace("tx: %s", reg.tx.uuid)()
+	defer log.Trace("tx: %s", reg.Tx.uuid)()
 
 	if xErr := CheckAttrs(obj, reg.XID); xErr != nil {
 		return xErr
@@ -633,11 +494,13 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	// Ignore any incoming "model" attribute
 	delete(reg.NewObject, "model")
 
-	if reg.tx.RequestInfo.HasIgnore("capabilities") && !IsNil(reg.NewObject) {
+	info := reg.GetRequestInfo()
+
+	if info.HasIgnore("capabilities") && !IsNil(reg.NewObject) {
 		delete(reg.NewObject, "capabilities")
 	}
 
-	if reg.tx.RequestInfo.HasIgnore("modelsource") && !IsNil(reg.NewObject) {
+	if info.HasIgnore("modelsource") && !IsNil(reg.NewObject) {
 		delete(reg.NewObject, "modelsource")
 	}
 
@@ -769,31 +632,31 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 // prevent, where a decision (e.g. "does this Resource already exist?")
 // computed from an unlocked read could go stale before the write.
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
-	defer log.Trace("tx: %s %s,%s,%v", reg.tx.uuid, gType, id, anyCase)()
+	defer log.Trace("tx: %s %s,%s,%v", reg.Tx.uuid, gType, id, anyCase)()
 
-	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
+	if g := reg.Tx.GetGroup(reg, gType, id); g != nil {
 		log.FuncPrintf("tx: %s FindGroup %s,%s from cache",
-			reg.tx.uuid, gType, id)
+			reg.Tx.uuid, gType, id)
 		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
 			g.Lock()
 		}
 		return g, nil
 	}
 
-	ent, xErr := RawEntityFromXID(reg.tx, reg.DbSID, "/"+gType+"/"+id, anyCase,
+	ent, xErr := RawEntityFromXID(reg.Tx, reg.DbSID, "/"+gType+"/"+id, anyCase,
 		accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
 			"Error finding Group %q(%s): %s.", id, gType, xErr.GetTitle())
 	}
 	if ent == nil {
-		log.FuncPrintf("tx: %s None found", reg.tx.uuid)
+		log.FuncPrintf("tx: %s None found", reg.Tx.uuid)
 		return nil, nil
 	}
 
 	g := &Group{Entity: *ent, Registry: reg}
 	g.Self = g
-	g.tx.AddGroup(g)
+	g.Tx.AddGroup(g)
 	return g, nil
 }
 
@@ -813,7 +676,7 @@ func (reg *Registry) UpsertGroup(gType string, id string) (*Group, bool, *XRErro
 }
 
 func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, addType AddType) (*Group, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%s", reg.tx.uuid, gType, id)()
+	defer log.Trace("tx: %s %s,%s", reg.Tx.uuid, gType, id)()
 
 	// Move to below, after the "findGroup". Is SaveModel needs it then
 	// it'll lock it.
@@ -857,7 +720,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	}
 
 	log.FuncPrintf("tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
-		reg.tx.uuid, gType, id, g != nil)
+		reg.Tx.uuid, gType, id, g != nil)
 
 	if g != nil && g.UID != id {
 		return nil, false,
@@ -880,17 +743,14 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		// Not found, so create a new one
 		g = &Group{
 			Entity: Entity{
-				EntityExtensions: EntityExtensions{
-					tx:         reg.tx,
-					AccessMode: FOR_WRITE,
-				},
-
-				Registry:  reg,
-				DbSID:     NewUUID(),
-				ParentSID: reg.DbSID,
-				Plural:    gType,
-				Singular:  gm.Singular,
-				UID:       id,
+				Tx:         reg.Tx,
+				AccessMode: FOR_WRITE,
+				Registry:   reg,
+				DbSID:      NewUUID(),
+				ParentSID:  reg.DbSID,
+				Plural:     gType,
+				Singular:   gm.Singular,
+				UID:        id,
 
 				Type:     ENTITY_GROUP,
 				XID:      "/" + gType + "/" + id,
@@ -902,17 +762,9 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		g.Self = g
 
-		DoOne(reg.tx, `
-			INSERT INTO "Groups"(
-                SID, RegistrySID, UID,
-                ModelSID, XID, Abstract,
-                Plural, Singular)
-			SELECT ?,?,?,?,?,?,?,?`,
-			g.DbSID, g.Registry.DbSID, g.UID,
-			gm.SID, g.XID, g.Abstract,
-			g.Plural, g.Singular)
-
-		g.EntityInsert()
+		if xErr = g.Tx.Backend.RegisterEntity(&g.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
@@ -921,7 +773,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		isNew = true
 		g.Registry.Touch()
-		g.tx.AddGroup(g)
+		g.Tx.AddGroup(g)
 	}
 
 	g.RemoveReadOnlyImmutable(obj)
@@ -1017,7 +869,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 // Returns a map of groupType->*Group
 func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[string][]*Group, *XRError) {
-	defer log.Trace("tx: %s", reg.tx.uuid)()
+	defer log.Trace("tx: %s", reg.Tx.uuid)()
 
 	groups := map[string][]*Group{}
 
@@ -1141,8 +993,8 @@ func GenerateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interf
 				}
 
 				PanicIf(!has, "Must have *") // Sanity check
-				// log.Printf("tx: %s fpn: %q", reg.tx.uuid, filterPropName)
-				// log.Printf("tx: %s fpn: %s", reg.tx.uuid, filter.PP.Debug())
+				// log.Printf("tx: %s fpn: %q", reg.Tx.uuid, filterPropName)
+				// log.Printf("tx: %s fpn: %s", reg.Tx.uuid, filter.PP.Debug())
 			} else {
 				if filter.Operator == FILTER_PRESENT ||
 					filter.Operator == FILTER_ABSENT {
@@ -1368,15 +1220,22 @@ func topLevelSlashCount(xid string) string {
 }
 
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
-func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*FilterExpr, docView bool, sortKey string, limit uint64, offset uint64) (string, []interface{}, *XRError) {
+func GenerateQuery(reg *Registry, what string, XIDs []string) (string, []interface{}, *XRError) {
 	query := ""
 	args := []any{}
+
+	info := reg.GetRequestInfo()
+	filters := info.Filters
+	docView := info.DoDocView()
+	sortKey := info.SortKey
+	limit := info.Limit
+	offset := info.Offset
 
 	// ?filter=excludeall returns nothing
 	if len(filters) == 1 && filters[0][0].Path == "excludeall"+string(DB_IN) {
 		if what != "Coll" {
 			return "", nil, NewXRError("bad_filter",
-				reg.tx.RequestInfo.OriginalRequest.URL.RequestURI(),
+				info.OriginalRequest.URL.RequestURI(),
 				"value=excludeall",
 				"error_detail=\"excludeall\" must only be used "+
 					"on collections")
@@ -1445,7 +1304,7 @@ func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*Filte
 	// nested <COLLECTION>url filter for each entity in the result.
 	if len(filters) > 64 {
 		return "", nil, NewXRError("bad_filter",
-			reg.tx.RequestInfo.OriginalRequest.URL.RequestURI(),
+			info.OriginalRequest.URL.RequestURI(),
 			"value=filter",
 			"error_detail=too many OR'd filter expressions "+
 				fmt.Sprintf("(%d), the max supported is 64", len(filters)))
@@ -1599,7 +1458,7 @@ SELECT
 	}
 
 	if log.GetLevel() > 3 || log.HasVerbose("genq") {
-		log.Printf("tx: %s Query:\n%s\n\n", reg.tx.uuid, SubQuery(query, args))
+		log.Printf("tx: %s Query:\n%s\n\n", reg.Tx.uuid, SubQuery(query, args))
 	}
 	return query, args, nil
 }
@@ -1885,7 +1744,7 @@ func (r *Registry) VerifyData() *XRError {
 	}
 
 	// Now do all Groups
-	entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
+	entities, xErr := RawEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
 		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
 	if xErr != nil {
 		return xErr
@@ -1899,7 +1758,7 @@ func (r *Registry) VerifyData() *XRError {
 		}
 
 		// Now do all Resource in this Group and implicitly it's owning Meta
-		entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
+		entities, xErr = RawEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
 			`e.ParentSID=?`, group.DbSID)
 		if xErr != nil {
 			return xErr
@@ -1915,7 +1774,7 @@ func (r *Registry) VerifyData() *XRError {
 			// AddResourceToValidate() call site - r.Validate(nil) below
 			// drains it (along with GroupsToValidate) once all Resources
 			// and Versions in this loop have been marked/processed.
-			r.tx.AddResourceToValidate(resource, false, true)
+			r.Tx.AddResourceToValidate(resource, false, true)
 
 			// Skip xref'd resources, the real owner will do it.
 			// Note that we're assuming we're just skipping data validation.
@@ -1933,7 +1792,7 @@ func (r *Registry) VerifyData() *XRError {
 			// Resource's Meta shares the same ParentSID
 			// (resource.DbSID), so without this filter we'd also pick
 			// up the Meta row here and mis-process it as a Version.
-			entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
+			entities, xErr := RawEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
 				fmt.Sprintf(`e.ParentSID=? AND e.Type=%d`, ENTITY_VERSION),
 				resource.DbSID)
 			if xErr != nil {
@@ -1961,7 +1820,7 @@ func (r *Registry) VerifyData() *XRError {
 	// all per-Version attribute validation above, so a more specific
 	// per-attribute error isn't masked by a more generic one for the
 	// same violation.
-	if xErr := r.Validate(nil); xErr != nil {
+	if xErr := r.Validate(); xErr != nil {
 		return xErr
 	}
 
