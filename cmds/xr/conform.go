@@ -164,6 +164,7 @@ func TestTDAll(td *TD) {
 	td.DependsOn(TestCapabilities)
 	td.DependsOn(TestRegistryRoot)
 	td.DependsOn(TestGroups)
+	td.DependsOn(TestFilter)
 	td.DependsOn(TestResources)
 }
 

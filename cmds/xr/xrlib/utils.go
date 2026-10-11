@@ -45,7 +45,7 @@ func Debug(args ...any) {
 
 	str := fmt.Sprintf(fmtStr, args[1:]...)
 
-	log.VPrintf(2, str)
+	log.VPrintf(2, "%s", str)
 	/*
 		fmt.Fprint(os.Stderr, str)
 		if str[len(str)-1] != '\n' && str[len(str)-1] != '\r' {
@@ -165,7 +165,7 @@ func HttpDo(debug bool, verb string, url string, headers map[string]string, body
 			// If we 'think' it's an XRError then return it, else just
 			// return the raw data
 			err := json.Unmarshal(httpRes.Body, &xErr)
-			if (err == nil && xErr.Type == "") || err != nil {
+			if err != nil || xErr == nil || xErr.Type == "" {
 				xErr = NewXRError("talking_to_server", url,
 					"error_detail="+strings.TrimSpace(string(httpRes.Body)))
 			}

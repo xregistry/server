@@ -736,6 +736,28 @@ func (td *TD) ShouldEqual(exp any, got any, args ...any) {
 	td.Pass(args...)
 }
 
+// HTTPGetJSON records a request subtest and returns nil after a failed check.
+// FailFast still stops execution on the first failure.
+func (td *TD) HTTPGetJSON(path string) *xrlib.HttpResponse {
+	nTD := NewTD(td, "GET %s", path)
+	res, xErr := td.GetRegistry().HttpDo(VerboseCount > 2, "GET", path, nil)
+	nTD.NoError(xErr, "GET %s", path)
+	if nTD.Status == FAIL {
+		return nil
+	}
+
+	nTD.HTTPStatusMustEqual(res, 200, "GET %s", path)
+	if nTD.Status == FAIL {
+		return nil
+	}
+
+	nTD.HTTPBodyMustJSON(res, "GET %s", path)
+	if nTD.Status == FAIL {
+		return nil
+	}
+	return res
+}
+
 func (td *TD) HTTPStatusMustEqual(res *xrlib.HttpResponse, exp int, args ...any) {
 	if res == nil {
 		td.Fail(args...)

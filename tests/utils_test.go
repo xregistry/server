@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,9 +26,16 @@ import (
 const TestDBName = "registry"
 const TestRegName = "testreg"
 const specVersionPlaceholder = "$SPECVERSION"
+const outputSpacePlaceholder = "$SPACE"
 
 var XRServerConfig *Config
 var MainServer *registry.Server
+var FileServer = testFileServer()
+
+var outputSubstitutions = [][2]string{
+	{specVersionPlaceholder, SPECVERSION},
+	{outputSpacePlaceholder, " "},
+}
 
 const MODEL_DIRS = `{
   "groups": {
@@ -94,7 +102,7 @@ func TestMain(m *testing.M) {
 
 	fsServer := &http.Server{
 		Addr:    ":8282",
-		Handler: testFileServer(),
+		Handler: FileServer,
 	}
 	go fsServer.ListenAndServe()
 
@@ -117,39 +125,86 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
-func testFileServer() http.Handler {
-	fileServer := http.FileServer(http.Dir("files"))
+type TestFileServer struct {
+	fileServer http.Handler
+	mu         sync.RWMutex
+	outputs    map[string]testServerOutput
+}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		req := r
-		if r.Method == http.MethodHead {
-			req = r.Clone(r.Context())
-			req.Method = http.MethodGet
-		}
+type testServerOutput struct {
+	code int
+	body string
+}
 
-		recorder := httptest.NewRecorder()
-		fileServer.ServeHTTP(recorder, req)
+func testFileServer() *TestFileServer {
+	return &TestFileServer{
+		fileServer: http.FileServer(http.Dir("files")),
+		outputs:    map[string]testServerOutput{},
+	}
+}
 
-		res := recorder.Result()
-		defer res.Body.Close()
-		for name, values := range res.Header {
-			w.Header()[name] = values
-		}
+func (s *TestFileServer) SetOutput(t *testing.T, path string, code int,
+	body string) {
 
-		data, err := io.ReadAll(res.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+	t.Helper()
+	if !strings.HasPrefix(path, "/") {
+		t.Fatalf("Test server path must start with '/': %q", path)
+	}
 
-		content := strings.ReplaceAll(string(data), specVersionPlaceholder,
-			SPECVERSION)
-		w.Header().Set("Content-Length", strconv.Itoa(len(content)))
-		w.WriteHeader(res.StatusCode)
-		if r.Method != http.MethodHead {
-			_, _ = io.WriteString(w, content)
+	s.mu.Lock()
+	previous, exists := s.outputs[path]
+	s.outputs[path] = testServerOutput{code: code, body: body}
+	s.mu.Unlock()
+
+	t.Cleanup(func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if exists {
+			s.outputs[path] = previous
+		} else {
+			delete(s.outputs, path)
 		}
 	})
+}
+
+func (s *TestFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	req := r
+	if r.Method == http.MethodHead {
+		req = r.Clone(r.Context())
+		req.Method = http.MethodGet
+	}
+
+	s.mu.RLock()
+	output, ok := s.outputs[r.URL.RequestURI()]
+	s.mu.RUnlock()
+
+	recorder := httptest.NewRecorder()
+	if ok && req.Method == http.MethodGet {
+		recorder.Header().Set("Content-Type", "application/json")
+		recorder.WriteHeader(output.code)
+		_, _ = io.WriteString(recorder, output.body)
+	} else {
+		s.fileServer.ServeHTTP(recorder, req)
+	}
+
+	res := recorder.Result()
+	defer res.Body.Close()
+	for name, values := range res.Header {
+		w.Header()[name] = values
+	}
+
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	content := substituteOutput(string(data))
+	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
+	w.WriteHeader(res.StatusCode)
+	if r.Method != http.MethodHead {
+		_, _ = io.WriteString(w, content)
+	}
 }
 
 // The funcs that use registry.* types can't be in "common/test.go" because
@@ -596,7 +651,14 @@ func expectedOutput(t *testing.T, path string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return strings.ReplaceAll(string(data), specVersionPlaceholder, SPECVERSION)
+	return substituteOutput(string(data))
+}
+
+func substituteOutput(output string) string {
+	for _, sub := range outputSubstitutions {
+		output = strings.ReplaceAll(output, sub[0], sub[1])
+	}
+	return output
 }
 
 func TestFileServerSpecVersion(t *testing.T) {
@@ -647,6 +709,52 @@ func TestExpectedOutputSpecVersion(t *testing.T) {
 	literal, err := os.ReadFile(literalPath)
 	XNoErr(t, err)
 	XEqual(t, "", expectedOutput(t, literalPath), string(literal))
+	XEqual(t, "", substituteOutput("$SPECVERSION:$SPACE$SPACE"),
+		SPECVERSION+":  ")
+}
+
+func TestFileServerRegisteredOutputs(t *testing.T) {
+	server := testFileServer()
+	const path = "/TestFileServerRegisteredOutputs/widgets" +
+		"?filter=widgetid=NULL&sort=name&inline"
+	const output = `{"specversion":"$SPECVERSION","space":"$SPACE"}`
+	server.SetOutput(t, path, http.StatusBadRequest, output)
+
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	res := httptest.NewRecorder()
+	server.ServeHTTP(res, req)
+	XEqual(t, "", res.Code, http.StatusBadRequest)
+	XEqual(t, "", res.Body.String(),
+		`{"specversion":"`+SPECVERSION+`","space":" "}`)
+	XEqual(t, "", res.Header().Get("Content-Length"),
+		strconv.Itoa(len(res.Body.Bytes())))
+
+	req = httptest.NewRequest(http.MethodHead, path, nil)
+	res = httptest.NewRecorder()
+	server.ServeHTTP(res, req)
+	XEqual(t, "", res.Code, http.StatusBadRequest)
+	XEqual(t, "", res.Body.String(), "")
+	XEqual(t, "", res.Header().Get("Content-Length"),
+		strconv.Itoa(len(substituteOutput(output))))
+
+	req = httptest.NewRequest(http.MethodGet,
+		strings.ReplaceAll(path, "NULL", "null"), nil)
+	res = httptest.NewRecorder()
+	server.ServeHTTP(res, req)
+	XEqual(t, "", res.Code, http.StatusNotFound)
+
+	const cleanupPath = "/TestFileServerRegisteredOutputs/cleanup"
+	t.Run("cleanup", func(t *testing.T) {
+		server.SetOutput(t, cleanupPath, http.StatusOK, "{}")
+		req := httptest.NewRequest(http.MethodGet, cleanupPath, nil)
+		res := httptest.NewRecorder()
+		server.ServeHTTP(res, req)
+		XEqual(t, "", res.Code, http.StatusOK)
+	})
+	req = httptest.NewRequest(http.MethodGet, cleanupPath, nil)
+	res = httptest.NewRecorder()
+	server.ServeHTTP(res, req)
+	XEqual(t, "", res.Code, http.StatusNotFound)
 }
 
 type CLIResult struct {
