@@ -86,6 +86,12 @@ func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
 	return nil
 }
 
+// JSON, uuid
+func (CLIBE *CLIBackend) LoadModelJSON(r *Registry) (string, string, *XRError) {
+	panic("not yet")
+	return "", "", nil
+}
+
 func (CLIBE *CLIBackend) SaveModel(m *Model, changeUUID string) *XRError {
 	panic("not yet")
 	return nil
@@ -99,6 +105,33 @@ func (CLIBE *CLIBackend) RegisterModelEntity(me any) *XRError {
 func (CLIBE *CLIBackend) DeleteModelEnityByAbstract(r *Registry, abstract string) *XRError {
 	panic("not yet")
 	return nil
+}
+
+func (CLIBE *CLIBackend) GetModelEntitiesByAbstract(r *Registry) (map[string]string, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) CountGroupModelUsed(r *Registry, gmSID string) (int, *XRError) {
+	panic("not yet")
+	return 0, nil
+}
+
+func (CLIBE *CLIBackend) CountResourceModelUsed(r *Registry, rmSID string) (int, *XRError) {
+	panic("not yet")
+	return 0, nil
+}
+
+// versionXID, attrName, error
+func (CLIBE *CLIBackend) IsHasDocUsed(r *Registry, rm *ResourceModel) (string, string, *XRError) {
+	panic("not yet")
+	return "", "", nil
+}
+
+// versionXID, , error
+func (CLIBE *CLIBackend) HasDocContent(r *Resource) (string, *XRError) {
+	panic("not yet")
+	return "", nil
 }
 
 func (CLIBE *CLIBackend) RefreshEntity(e *Entity, accessMode int) *XRError {
@@ -200,6 +233,47 @@ func (CLIBE *CLIBackend) FindBadAncestorsModifiedAt(r *Resource, lock bool) ([]*
 func (CLIBE *CLIBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
 	panic("not yet")
 	return nil, nil
+}
+
+func (CLIBE *CLIBackend) FindNewestVersionID(r *Resource, excludeTBD bool) (string, *XRError) {
+	panic("not yet")
+	return "", nil
+}
+
+func (CLIBE *CLIBackend) GetVersionIDs(r *Resource) ([]*VersionAncestor, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) GetRootVersionIDs(r *Resource) ([]string, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) GetProblematicVersions(r *Resource) ([]*VersionAncestor, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) GetChildVersionIDs(r *Resource, parentVID string) ([]string, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
+	panic("not yet")
+	return 0, nil
+}
+
+func (CLIBE *CLIBackend) GetXrefSources(r *Resource) ([]string, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+// numValues, numNonEmptyUnique, numEmpty, error
+func (CLIBE *CLIBackend) CountNonMatchingVersions(r *Resource, vAttrPath *PropPath) (int, int, int, *XRError) {
+	panic("not yet")
+	return 0, 0, 0, nil
 }
 
 func (CLIBE *CLIBackend) DeleteMeta(meta *Meta) *XRError {

@@ -2350,12 +2350,13 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		vIDs, xErr := resource.GetVersionIDs()
+
+		VAs, xErr := resource.GetVersionIDs()
 		if xErr != nil {
 			return xErr
 		}
-		for _, vID := range vIDs {
-			list[vID] = EpochEntry{}
+		for _, va := range VAs {
+			list[va.VID] = EpochEntry{}
 		}
 	}
 

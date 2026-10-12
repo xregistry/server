@@ -75,7 +75,13 @@ func (m *Model) Save() *XRError {
 	// the sole owner of clearing stale values on a true->false
 	// transition. false->true needs no clearing - normal per-save
 	// checking just starts happening again.
-	if oldM := loadModelFromDB(m.Registry, false); oldM != nil {
+
+	oldM, xErr := loadModelFromDB(m.Registry, false)
+	if xErr != nil {
+		return xErr
+	}
+
+	if oldM != nil {
 		for gmPlural, gm := range m.Groups {
 			oldGM := oldM.FindGroupModel(gmPlural)
 			if oldGM == nil {
@@ -119,26 +125,17 @@ func (m *Model) Save() *XRError {
 	// changed without having to compare/parse the full JSON blob.
 	changedID := NewUUID()
 
-	xErr := m.Registry.Tx.Backend.SaveModel(m, changedID)
+	xErr = m.Registry.Tx.Backend.SaveModel(m, changedID)
 	if xErr != nil {
 		return xErr
 	}
 
 	// Load old model's ModelEntities so we can diff them
-	existingModelEntities := map[string]string{} // Abstract->SID
-	results := Query(m.Registry.Tx,
-		`SELECT SID,Abstract FROM ModelEntities WHERE RegistrySID=?`,
-		m.Registry.DbSID)
-	defer results.Close()
-
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-		sid := NotNilString(row[0])
-		abs := NotNilString(row[1])
-		existingModelEntities[abs] = sid
+	// map[string]string ; Abstract->SID
+	existingModelEntities, xErr :=
+		m.Registry.Tx.Backend.GetModelEntitiesByAbstract(m.Registry)
+	if xErr != nil {
+		return xErr
 	}
 
 	// Remove from existingModelEntities all MEs that are going to be kept
@@ -186,12 +183,11 @@ func (m *Model) Save() *XRError {
 		// a Resource type's looks like "/gPlural/rPlural" (2 segments)
 		parts := strings.Split(strings.Trim(meAbs, "/"), "/")
 
-		var count int
 		if len(parts) == 1 {
-			results := Query(m.Registry.Tx,
-				`SELECT COUNT(*) FROM "Groups" WHERE ModelSID=?`, sid)
-			count = NotNilInt(results.NextRow()[0])
-			results.Close()
+			count, xErr := m.Registry.Tx.Backend.CountGroupModelUsed(m.Registry, sid)
+			if xErr != nil {
+				return xErr
+			}
 
 			if count > 0 {
 				return NewXRError("model_error", "/model",
@@ -202,10 +198,10 @@ func (m *Model) Save() *XRError {
 							parts[0], count))
 			}
 		} else {
-			results := Query(m.Registry.Tx,
-				`SELECT COUNT(*) FROM Resources WHERE ModelSID=?`, sid)
-			count = NotNilInt(results.NextRow()[0])
-			results.Close()
+			count, xErr := m.Registry.Tx.Backend.CountResourceModelUsed(m.Registry, sid)
+			if xErr != nil {
+				return xErr
+			}
 
 			if count > 0 {
 				return NewXRError("model_error", "/model",
@@ -317,14 +313,17 @@ func evictCachedModel(regSID string) {
 	modelCacheMutex.Unlock()
 }
 
-func LoadModel(reg *Registry) *Model {
+func LoadModel(reg *Registry) (*Model, *XRError) {
 	defer log.Trace("tx: %s %s", reg.Tx.uuid, reg.UID)()
 
-	model := loadModelFromDB(reg, true)
+	model, xErr := loadModelFromDB(reg, true)
+	if xErr != nil {
+		return nil, xErr
+	}
 	if model != nil {
 		reg.Model = model
 	}
-	return model
+	return model, nil
 }
 
 // loadModelFromDB reads and parses whatever Model is CURRENTLY persisted
@@ -335,45 +334,38 @@ func LoadModel(reg *Registry) *Model {
 // If loud is false, a missing row is treated as "nothing persisted yet"
 // (e.g. the very first model save for a brand new Registry) instead of
 // being logged as an error.
-func loadModelFromDB(reg *Registry, loud bool) *Model {
+func loadModelFromDB(reg *Registry, loud bool) (*Model, *XRError) {
 	PanicIf(reg == nil, "nil")
 
-	// Load Registry model
-	results := Query(reg.Tx,
-		`SELECT Model,Changed FROM Models WHERE RegistrySID=?`,
-		reg.DbSID)
-	defer results.Close()
+	modelStr, changed, xErr := reg.Tx.Backend.LoadModelJSON(reg)
+	if xErr != nil {
+		return nil, xErr
+	}
 
-	row := results.NextRow()
-	if row == nil {
+	if modelStr == "" {
+		// no model there yet.
+		// Not sure we we log it w/o panicing... TODO investigate
 		if loud {
 			ShowStack()
 			log.Printf("tx: %s Can't find registry: %s", reg.Tx.uuid, reg.UID)
 		}
-		return nil
+		return nil, nil
 	}
 
-	changed := NotNilString(row[1])
 	if model := getCachedModel(reg.DbSID, changed); model != nil {
 		model.Registry = reg
-		return model
+		return model, nil
 	}
 
-	modelBuf := []byte(nil)
-	if row[0] != nil {
-		modelBuf = []byte(NotNilString(row[0]))
-	}
-	results.Close()
-
-	model, xErr := ParseModel(modelBuf, reg)
+	model, xErr := ParseModel([]byte(modelStr), reg)
 	if xErr != nil {
-		return nil
+		return nil, xErr
 	}
 	model.Registry = reg
 
 	setCachedModel(reg.DbSID, changed, model)
 
-	return model
+	return model, nil
 }
 
 func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError {
@@ -489,33 +481,15 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 // reference, so re-running this check on every subsequent write would
 // incorrectly reject normal document usage.
 func checkHasDocumentEnableViolation(reg *Registry, oldRM *ResourceModel) *XRError {
-	names := []string{
-		oldRM.Singular + string(DB_IN),
-		oldRM.Singular + "url" + string(DB_IN),
-		oldRM.Singular + "base64" + string(DB_IN),
-		oldRM.Singular + "proxyurl" + string(DB_IN),
+
+	vXID, attrName, xErr := reg.Tx.Backend.IsHasDocUsed(reg, oldRM)
+	if xErr != nil {
+		return xErr
 	}
 
-	query := `
-		SELECT v.XID, p.PropName FROM Versions v
-		JOIN Resources r ON v.ResourceSID = r.SID
-		JOIN Props p ON p.eSID = v.SID
-		WHERE r.ModelSID = ?
-		AND p.PropName IN (?, ?, ?, ?)
-		AND p.PropValue IS NOT NULL
-		LIMIT 1`
-
-	results := Query(reg.Tx, query, oldRM.SID,
-		names[0], names[1], names[2], names[3])
-	defer results.Close()
-
-	row := results.NextRow()
-	if row != nil {
-		versionXID := string((*(row[0])).([]byte))
-		propName := strings.TrimRight(string((*(row[1])).([]byte)),
-			string(DB_IN))
-		return NewXRError("hasdocument_enable_violation", versionXID,
-			"name="+propName)
+	if vXID != "" {
+		return NewXRError("hasdocument_enable_violation", vXID,
+			"name="+attrName)
 	}
 
 	return nil

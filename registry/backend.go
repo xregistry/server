@@ -736,6 +736,28 @@ func (sqlBE *SQLBackend) RegisterEntity(e *Entity) *XRError {
 	return nil
 }
 
+func (sqlBE *SQLBackend) LoadModelJSON(r *Registry) (string, string, *XRError) {
+	// Load Registry model
+	results := Query(r.Tx,
+		`SELECT Model,Changed FROM Models WHERE RegistrySID=?`,
+		r.DbSID)
+	defer results.Close()
+
+	row := results.NextRow()
+	if row == nil {
+		return "", "", nil
+		/*
+			NewXRError("server_error", "/model").
+				SetDetailf("tx: %s Can't find registry: %s", r.Tx.uuid, r.UID)
+		*/
+	}
+
+	model := NotNilString(row[0])
+	changedUUID := NotNilString(row[1])
+
+	return model, changedUUID, nil
+}
+
 func (sqlBE *SQLBackend) SaveModel(m *Model, changeUUID string) *XRError {
 	buf, _ := json.Marshal(m)
 	modelStr := string(buf)
@@ -785,6 +807,115 @@ func (sqlBE *SQLBackend) DeleteModelEnityByAbstract(reg *Registry, abstract stri
 		reg.DbSID, abstract)
 
 	return nil
+}
+
+func (sqlBE *SQLBackend) GetModelEntitiesByAbstract(r *Registry) (map[string]string, *XRError) {
+	// Load old model's ModelEntities so we can diff them
+	existingModelEntities := map[string]string{} // Abstract->SID
+	results := Query(r.Tx,
+		`SELECT SID,Abstract FROM ModelEntities WHERE RegistrySID=?`,
+		r.DbSID)
+	defer results.Close()
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		sid := NotNilString(row[0])
+		abs := NotNilString(row[1])
+		existingModelEntities[abs] = sid
+	}
+
+	return existingModelEntities, nil
+}
+
+func (sqlBE *SQLBackend) CountGroupModelUsed(r *Registry, gmSID string) (int, *XRError) {
+	results := Query(r.Tx,
+		`SELECT COUNT(*) FROM "Groups" WHERE ModelSID=?`, gmSID)
+	count := NotNilInt(results.NextRow()[0])
+	results.Close()
+
+	return count, nil
+}
+
+func (sqlBE *SQLBackend) CountResourceModelUsed(r *Registry, rmSID string) (int, *XRError) {
+	results := Query(r.Tx,
+		`SELECT COUNT(*) FROM Resources WHERE ModelSID=?`, rmSID)
+	count := NotNilInt(results.NextRow()[0])
+	results.Close()
+
+	return count, nil
+}
+
+// versionXID, attr, err
+func (sqlBE *SQLBackend) IsHasDocUsed(r *Registry, rm *ResourceModel) (string, string, *XRError) {
+	names := []string{
+		rm.Singular + string(DB_IN),
+		rm.Singular + "url" + string(DB_IN),
+		rm.Singular + "base64" + string(DB_IN),
+		rm.Singular + "proxyurl" + string(DB_IN),
+	}
+
+	query := `
+        SELECT v.XID, p.PropName FROM Versions v
+        JOIN Resources r ON v.ResourceSID = r.SID
+        JOIN Props p ON p.eSID = v.SID
+        WHERE r.ModelSID = ?
+        AND p.PropName IN (?, ?, ?, ?)
+        AND p.PropValue IS NOT NULL
+        LIMIT 1`
+
+	results := Query(r.Tx, query, rm.SID,
+		names[0], names[1], names[2], names[3])
+	defer results.Close()
+
+	row := results.NextRow()
+	if row == nil {
+		return "", "", nil
+	}
+
+	vXID := NotNilString(row[0])
+	attr := strings.TrimRight(NotNilString(row[1]), string(DB_IN))
+
+	return vXID, attr, nil
+}
+
+// versionXID, attr, err
+func (sqlBE *SQLBackend) HasDocContent(r *Resource) (string, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID(). Called from ValidateResource()
+	// on the write path.
+	lockExpr := ""
+	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if r.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+	// The nested EXISTS subquery below reads ResourceContents, a
+	// different table than the outer query's Versions - MySQL does NOT
+	// propagate the outer query's FOR UPDATE into a correlated
+	// subquery's own table reads (confirmed empirically elsewhere in
+	// this investigation, e.g. the VersionAncestors view bug), so
+	// lockExpr must be applied to the subquery explicitly too.
+	query := `
+        SELECT v.XID FROM Versions v
+        WHERE v.ResourceSID = ?
+        AND EXISTS (
+            SELECT 1 FROM ResourceContents rc
+            WHERE rc.VersionSID = v.SID` + lockExpr + `
+        )
+        LIMIT 1` + lockExpr
+
+	results := Query(r.Tx, query, r.DbSID)
+	defer results.Close()
+
+	row := results.NextRow()
+	if row != nil {
+		// Found a version with document content
+		return NotNilString(row[0]), nil
+	}
+	return "", nil
 }
 
 func (sqlBE *SQLBackend) RefreshEntity(e *Entity, accessMode int) *XRError {
@@ -1132,6 +1263,273 @@ func (sqlBE *SQLBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*Ance
 	}
 
 	return AVs2, nil
+}
+
+func (sqlBE *SQLBackend) FindNewestVersionID(r *Resource, excludeTBD bool) (string, *XRError) {
+
+	lockExpr := ""
+	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if r.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	exclude := ""
+	if excludeTBD {
+		exclude = ` AND v.AncestorID <> '` + ANCESTORID_TBD + `'`
+	}
+
+	results := Query(r.Tx, `
+                SELECT v.UID FROM Versions AS v
+                WHERE
+                  v.ResourceSID=? `+exclude+`
+                  AND NOT EXISTS (
+                    SELECT 1 FROM Versions AS v2
+                    WHERE v2.ResourceSID=v.ResourceSID AND
+                      v2.AncestorID=v.UID AND
+                      v2.UID <> v.UID`+lockExpr+`)
+                ORDER BY v.CreatedAt DESC, v.UID `+FILTER_CI_COLLATE+` DESC
+                LIMIT 1`+lockExpr,
+		r.DbSID)
+
+	defer results.Close()
+
+	for {
+		row := results.NextRow()
+		if row == nil { // nothing
+			break
+		}
+
+		return NotNilString(row[0]), nil
+	}
+
+	// Must have a cycle - let the caller (non-backend specific code) deal
+	// with it
+
+	return "", nil
+}
+
+func (sqlBE *SQLBackend) GetVersionIDs(r *Resource) ([]*VersionAncestor, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID().
+	lockExpr := ""
+	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if r.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	// Find all version IDs for this Resource
+	results := Query(r.Tx, `
+            SELECT UID, AncestorID, CreatedAt FROM Versions
+            WHERE RegistrySID=? AND ResourceSID=?`+lockExpr,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	VAs := ([]*VersionAncestor)(nil)
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		VAs = append(VAs, &VersionAncestor{
+			VID:        NotNilString(row[0]),
+			AncestorID: NotNilString(row[1]),
+			CreatedAt:  NotNilString(row[2]),
+		})
+	}
+
+	return VAs, nil
+}
+
+func (sqlBE *SQLBackend) GetRootVersionIDs(r *Resource) ([]string, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors()
+	lockExpr := ""
+	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if r.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	results := Query(r.Tx, `
+            SELECT UID FROM Versions
+            WHERE RegistrySID=? AND ResourceSID=? AND UID=AncestorID`+lockExpr,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	vIDs := ([]string)(nil)
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		vIDs = append(vIDs, NotNilString(row[0]))
+	}
+
+	return vIDs, nil
+}
+
+func (sqlBE *SQLBackend) GetProblematicVersions(r *Resource) ([]*VersionAncestor, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID(). This is called from
+	// CheckAncestors() on the write path, and its correlated subquery
+	// needs its own lock hint too (see HasCircularAncestors()).
+	lockExpr := ""
+	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if r.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+	// Find all versions that point to non-existing versions
+	results := Query(r.Tx, `   
+            SELECT v1.UID, v1.AncestorID, v1.CreatedAt FROM Versions AS v1
+            WHERE v1.RegistrySID=? AND
+                  v1.ResourceSID=? AND
+                  (v1.AncestorID='`+ANCESTORID_TBD+`' OR (
+                      v1.UID<>v1.AncestorID AND
+                      NOT EXISTS(SELECT 1 FROM Versions AS v2
+                                WHERE v2.RegistrySID=v1.RegistrySID AND
+                                      v2.ResourceSID=v1.ResourceSID AND
+                                      v2.UID=v1.AncestorID`+lockExpr+`)))
+            ORDER BY CreatedAt ASC, UID ASC`+lockExpr,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	vers := ([]*VersionAncestor)(nil)
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		vers = append(vers, &VersionAncestor{
+			VID:        NotNilString(row[0]),
+			AncestorID: NotNilString(row[1]),
+			CreatedAt:  NotNilString(row[2]),
+		})
+	}
+
+	return vers, nil
+}
+
+func (sqlBE *SQLBackend) GetChildVersionIDs(r *Resource, parentVID string) ([]string, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID(). Called from WillDelete() on
+	// the write path.
+	lockExpr := ""
+	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if r.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	// Find all versions that point 'parentVID'.
+	// Note that roots will include themselves - not sure if this is ok or not
+	results := Query(r.Tx, `   
+            SELECT UID FROM Versions
+            WHERE RegistrySID=? AND ResourceSID=? AND AncestorID=?`+lockExpr,
+		r.Registry.DbSID, r.DbSID, parentVID)
+	defer results.Close()
+
+	vIDs := ([]string)(nil)
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		vIDs = append(vIDs, NotNilString(row[0]))
+	}
+
+	return vIDs, nil
+}
+
+func (sqlBE *SQLBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
+	// ManualVersionMode.newestVersionID(). Called from write paths
+	// (e.g. Version.Delete(), UpsertVersion()).
+	lockExpr := ""
+	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if r.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	// Get the list of Version IDs for this Resource
+	results := Query(r.Tx, `
+            SELECT COUNT(*) FROM Versions
+            WHERE RegistrySID=? AND ResourceSID=?`+lockExpr,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	row := results.NextRow()
+	return NotNilInt(row[0]), nil
+}
+
+func (sqlBE *SQLBackend) GetXrefSources(r *Resource) ([]string, *XRError) {
+	XIDs := []string{}
+
+	// FOR UPDATE: this is r (the target) reading the "who xrefs me" set
+	// from Metas.xRefXID - a plain SELECT here would still be pinned
+	// to this Tx's original RR snapshot, and could miss a source Meta
+	// that set its xref to r AND committed after this Tx began (e.g. a
+	// brand new source Resource created and xref'd to r by a concurrent
+	// Tx that's already committed by the time we run this). Missing it
+	// here means that source's mirrored Props never get refreshed to
+	// reflect r's just-saved change, even though r is committing last.
+	results := Query(r.Tx, `
+        SELECT res.XID
+        FROM Metas AS m
+        JOIN Resources AS res ON (res.SID=m.ResourceSID)
+        WHERE m.RegistrySID=? AND m.xRefXID=?  FOR UPDATE`,
+		r.Registry.DbSID, r.XID)
+	defer results.Close()
+
+	for row := results.NextRow(); row != nil; row = results.NextRow() {
+		XIDs = append(XIDs, NotNilString(row[0]))
+	}
+
+	return XIDs, nil
+}
+
+// numValues, numNonEmptyUnique, numEmpty, error
+func (sqlBE *SQLBackend) CountNonMatchingVersions(r *Resource, vAttrPath *PropPath) (int, int, int, *XRError) {
+
+	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
+	// RR-snapshot-staleness reasoning as HasCircularAncestors(),
+	// otherwise this can miss sibling Version
+	// rows committed by other Txs after this tx's snapshot was taken.
+	lockExpr := ""
+	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
+	if r.AccessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	query := `
+        SELECT count(*),p.PropName,p.PropValue FROM Entities e
+        LEFT JOIN Props AS p ON ( p.eSID=e.eSID AND p.PropName=?)
+        WHERE e.RegSID = ?  AND e.ParentSID = ?  AND e.Type = ?
+        GROUP BY PropValue` + lockExpr
+
+	results := Query(r.Tx, query, vAttrPath.DB(),
+		r.Registry.DbSID, r.DbSID, ENTITY_VERSION)
+	defer results.Close()
+
+	numEmpty := 0
+	numNonEmpty := 0
+	numValues := 0
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		if IsNil(*row[2]) {
+			// if NotNilString(row[2]) == ""
+			numEmpty = NotNilInt(row[0])
+		} else {
+			numNonEmpty++
+		}
+		numValues++
+	}
+
+	return numValues, numNonEmpty, numEmpty, nil
 }
 
 func (sqlBE *SQLBackend) DeleteMeta(meta *Meta) *XRError {

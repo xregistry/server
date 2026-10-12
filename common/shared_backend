@@ -24,9 +24,21 @@ type Backend interface {
 	// Make Entity known to the backend/DB
 	RegisterEntity(e *Entity) *XRError
 
+	LoadModelJSON(r *Registry) (string, string, *XRError) // json, uuid
 	SaveModel(m *Model, changeUUID string) *XRError
 	RegisterModelEntity(me any) *XRError
 	DeleteModelEnityByAbstract(reg *Registry, abstract string) *XRError
+
+	// map(Abs->SID)
+	GetModelEntitiesByAbstract(r *Registry) (map[string]string, *XRError)
+
+	CountGroupModelUsed(r *Registry, gmSID string) (int, *XRError)
+	CountResourceModelUsed(r *Registry, rmSID string) (int, *XRError)
+	// versionXID, attribugName, error - vXID of version with hasDoc=true
+	IsHasDocUsed(r *Registry, rm *ResourceModel) (string, string, *XRError)
+
+	// versionXID of version that has doc content
+	HasDocContent(r *Resource) (string, *XRError)
 
 	// Just update e's Object - everything else will be updated by other code
 	RefreshEntity(e *Entity, accessMode int) *XRError
@@ -64,6 +76,18 @@ type Backend interface {
 	FindBadAncestorsModifiedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError)
 	FindBadAncestorsSemVer(r *Resource, lock bool) ([]*AncestorVersion, *XRError)
 
+	FindNewestVersionID(r *Resource, excludeTBD bool) (string, *XRError)
+	GetVersionIDs(r *Resource) ([]*VersionAncestor, *XRError)
+	GetRootVersionIDs(r *Resource) ([]string, *XRError)
+	GetProblematicVersions(r *Resource) ([]*VersionAncestor, *XRError)
+	GetChildVersionIDs(r *Resource, parentVID string) ([]string, *XRError)
+	GetNumberOfVersions(r *Resource) (int, *XRError)
+
+	GetXrefSources(r *Resource) ([]string, *XRError)
+
+	// numValues, numNonEmptyUnique, numEmpty, error
+	CountNonMatchingVersions(r *Resource, vAttrPath *PropPath) (int, int, int, *XRError)
+
 	// Meta stuff
 	DeleteMeta(meta *Meta) *XRError
 
@@ -82,7 +106,14 @@ type BatchRow struct {
 	Args     [13]any
 }
 
+// TODO see if we can use VersionAncestor instead
 type AncestorVersion struct {
 	VersionUID string
 	AncestorID string
+}
+
+type VersionAncestor struct {
+	VID        string
+	AncestorID string
+	CreatedAt  string
 }

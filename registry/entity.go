@@ -326,11 +326,11 @@ func (e *Entity) Query(query string, args ...any) [][]any {
 
 	data := ([][]any)(nil)
 	/*
-		Ks := make([]string, len(results.colTypes))
+	   Ks := make([]string, len(results.colTypes))
 
-		for i, t := range results.colTypes {
-			Ks[i] = t.Kind().String()
-		}
+	   for i, t := range results.colTypes {
+	           Ks[i] = t.Kind().String()
+	   }
 	*/
 
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
@@ -342,18 +342,18 @@ func (e *Entity) Query(query string, args ...any) [][]any {
 		for i, d := range row {
 			r[i] = d
 			/*
-				k := Ks[i]
-				if k == "slice" {
-					r[i] = NotNilString(d)
-				} else if k == "int64" || k == "uint64" {
-					r[i] = NotNilInt(d)
-				} else {
-					log.Printf("%v", reflect.ValueOf(*d).Type().String())
-					log.Printf("%v", reflect.ValueOf(*d).Type().Kind().String())
-					log.Printf("Ks: %v", Ks)
-					log.Printf("i: %d", i)
-					panic("help")
-				}
+			   k := Ks[i]
+			   if k == "slice" {
+			           r[i] = NotNilString(d)
+			   } else if k == "int64" || k == "uint64" {
+			           r[i] = NotNilInt(d)
+			   } else {
+			           log.Printf("%v", reflect.ValueOf(*d).Type().String())
+			           log.Printf("%v", reflect.ValueOf(*d).Type().Kind().String())
+			           log.Printf("Ks: %v", Ks)
+			           log.Printf("i: %d", i)
+			           panic("help")
+			   }
 			*/
 		}
 		data = append(data, r)

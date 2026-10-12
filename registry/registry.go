@@ -411,7 +411,7 @@ func (reg *Registry) LoadCapabilities() *Capabilities {
 	return reg.Capabilities
 }
 
-func (reg *Registry) LoadModel() *Model {
+func (reg *Registry) LoadModel() (*Model, *XRError) {
 	return LoadModel(reg)
 }
 

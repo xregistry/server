@@ -9400,7 +9400,8 @@ func TestModelAPI(t *testing.T) {
 	gm2, _ := reg.Model.AddGroupModel("dirs2", "dir2")
 	gm2.AddResourceModel("files", "file", 0, false, true)
 
-	m := reg.LoadModel()
+	m, err := reg.LoadModel()
+	XNoErr(t, err)
 	XJSONCheck(t, m, reg.Model)
 	XNoErr(t, reg.SaveAllAndCommit())
 }
