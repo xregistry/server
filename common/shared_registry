@@ -86,8 +86,6 @@ func NewRegistry(tx *Tx, config *Config, fn func(*Config) Backend, id string) (*
 	reg.Self = reg
 	reg.Entity.Registry = reg
 
-	// reg.EntityInsert()
-
 	reg.Capabilities = DefaultCapabilities.Clone()
 	reg.Model = &Model{
 		Registry: reg,

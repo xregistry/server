@@ -23,7 +23,7 @@ import (
 // loss, etc.) is NOT retryable and should keep surfacing exactly as it
 // does today (500 via the outer recover()).
 //
-// This codebase's Query()/doCount()/etc. always panic via
+// This codebase's Query()/Do()/etc. always panic via
 // Must()/PanicIf()/Panicf() (see common/utils.go), which panic with a
 // formatted STRING (fmt.Sprintf(msg, args...)), not the original *error*
 // value - so the underlying *mysql.MySQLError is normally unwrappable
@@ -336,8 +336,8 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	return result
 }
 
-func doCount(tx *Tx, cmd string, args ...interface{}) int {
-	log.FuncPrintf("tx: %s doCount: %q args: %v", tx.uuid, cmd, args)
+func Do(tx *Tx, cmd string, args ...interface{}) int {
+	log.FuncPrintf("tx: %s Do: %q args: %v", tx.uuid, cmd, args)
 
 	if tx.IsLocked() {
 		ShowStack("Attempting a write when TX is locked - tx: %p", tx)
@@ -351,28 +351,24 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 
 	result, err := ps.Exec(args...)
 	if err != nil {
-		Panicf("tx: %s doCount: Error DB(%s)->%s\n", tx.uuid,
+		Panicf("tx: %s Do: Error DB(%s)->%s\n", tx.uuid,
 			SubQuery(cmd, args), err)
 	}
 
 	count, _ := result.RowsAffected()
-	log.FuncPrintf("tx: %s doCount: %d rows", tx.uuid, count)
+	log.FuncPrintf("tx: %s Do: %d rows", tx.uuid, count)
 	return int(count)
 }
 
-func Do(tx *Tx, cmd string, args ...interface{}) {
-	doCount(tx, cmd, args...)
-}
-
 func DoOne(tx *Tx, cmd string, args ...interface{}) {
-	count := doCount(tx, cmd, args...)
+	count := Do(tx, cmd, args...)
 
 	PanicIf(count != 1, "tx: %s DoOne: Error DB(%s) didn't change "+
 		"exactly 1 row(%d)", tx.uuid, SubQuery(cmd, args), count)
 }
 
 func DoZeroOne(tx *Tx, cmd string, args ...interface{}) {
-	count := doCount(tx, cmd, args...)
+	count := Do(tx, cmd, args...)
 
 	PanicIf(count != 0 && count != 1,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/1 row(%d)",
@@ -380,7 +376,7 @@ func DoZeroOne(tx *Tx, cmd string, args ...interface{}) {
 }
 
 func DoOneTwo(tx *Tx, cmd string, args ...interface{}) {
-	count := doCount(tx, cmd, args...)
+	count := Do(tx, cmd, args...)
 
 	PanicIf(count != 1 && count != 2,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 1/2 row(%d)",
@@ -388,19 +384,10 @@ func DoOneTwo(tx *Tx, cmd string, args ...interface{}) {
 }
 
 func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) {
-	count := doCount(tx, cmd, args...)
+	count := Do(tx, cmd, args...)
 	PanicIf(count != 0 && count != 2,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/2 row(%d)",
 		tx.uuid, SubQuery(cmd, args), count)
-}
-
-func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
-	log.FuncPrintf("tx: %s DoCount: %s", tx.uuid, cmd)
-	count := doCount(tx, cmd, args...)
-
-	PanicIf(count != num,
-		"tx: %s DoOne: Error DB(%s) didn't change exactly %d row(%d)",
-		tx.uuid, SubQuery(cmd, args), num, count)
 }
 
 //go:embed init.sql

@@ -41,8 +41,9 @@ func (v *Version) JustDelete() *XRError {
 		return NewXRError("readonly", v.XID)
 	}
 
-	// Zero is ok if it's already been deleted
-	DoZeroOne(v.Tx, `DELETE FROM Versions WHERE SID=?`, v.DbSID)
+	if xErr := v.Tx.Backend.DeleteVersion(v); xErr != nil {
+		return xErr
+	}
 
 	// Delete any pending changes so dirty check doesn't fail
 	v.NewObject = nil

@@ -207,6 +207,11 @@ func (CLIBE *CLIBackend) DeleteMeta(meta *Meta) *XRError {
 	return nil
 }
 
+func (CLIBE *CLIBackend) DeleteVersion(v *Version) *XRError {
+	panic("not yet")
+	return nil
+}
+
 func (CLIBE *CLIBackend) ClearXrefState(meta *Meta) *XRError {
 	panic("not yet")
 	return nil

@@ -67,6 +67,9 @@ type Backend interface {
 	// Meta stuff
 	DeleteMeta(meta *Meta) *XRError
 
+	// Version stuff
+	DeleteVersion(v *Version) *XRError
+
 	// Xref stuff
 	ClearXrefState(meta *Meta) *XRError                   // in prep for new/del xref
 	CopyXrefState(meta *Meta) *XRError                    // copy xref meta props & vers

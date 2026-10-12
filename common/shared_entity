@@ -2962,7 +2962,7 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	/*
 	   if e.Type == ENTITY_RESOURCE && pp.Top() == "xref" {
 	       // Handles both val=nil and non-nil cases
-	       xErr := DoOneTwo(e.Tx,
+	       xErr := Do_OneTwo(e.Tx,
 	          `UPDATE Resources SET xRef=? WHERE SID=?`,
 	           val, e.DbSID)
 	       if xErr != nil {

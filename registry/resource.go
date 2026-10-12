@@ -2623,7 +2623,7 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 	return nil
 }
 
-// See entity.go's above EntityInsert()
+// See backend RegisterEntity
 // for the overall Props/Entities incremental-population design.
 
 // SaveDefaultVersionCascade refreshes the IsDefaultVerCopy=true rows on

@@ -635,21 +635,6 @@ func EnumValueToDBString(v any) string {
 	return fmt.Sprintf("%v", v)
 }
 
-func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
-	defer log.Trace("tx: %s %s=%v", e.Tx.uuid, pp, val)()
-
-	row, skip, xErr := e.prepDBProperty(pp, val)
-	if xErr != nil {
-		return xErr
-	}
-	if skip {
-		return nil
-	}
-
-	e.DBWriteOwnProp(row.Name, row.Value, row.Type, row.DocView)
-	return nil
-}
-
 // SetDBPropertyBatch is like SetDBProperty() but, instead of writing
 // the property's Props row immediately, buffers it into
 // e.dbPropBatch for a later single multi-row REPLACE INTO via
@@ -1551,74 +1536,6 @@ func CheckAttrs(obj map[string]any, source string) *XRError {
 	return nil
 }
 
-// EntityInsert adds a row to Entities for a newly-created
-// Registry/Group/Resource/Meta/Version - called from the same places
-// that insert into the corresponding "real" entity table, right after
-// e's fields (DbSID, ParentSID, etc.) have been populated. It also
-// writes e's write-once calculated ("IsCalcStatic") attributes here,
-// since they're provably immutable for the rest of this entity's
-// lifetime (see SaveCalcStaticInsert()'s doc comment), this only ever runs
-// once, at creation.
-func (e *Entity) EntityInsert() {
-	var parentArg any
-	if e.ParentSID != "" {
-		parentArg = e.ParentSID
-	}
-
-	// e.DbSID is always freshly generated for a brand-new entity, so
-	// this REPLACE always inserts (never replaces) exactly 1 row.
-	DoOne(e.Tx, `
-        REPLACE INTO Entities(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID,
-            Abstract, XID, IsXrefVerCopy)
-        VALUES(?,?,?,?,?,?,?,?,?,false)`,
-		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
-		e.UID, e.Abstract, e.XID)
-
-	e.SaveCalcStaticInsert()
-}
-
-// DBWriteProp is the low-level writer for a single own
-// (non-cascaded, non-calculated) Props row. Deleting
-// (propValue==nil) removes the row; otherwise it's REPLACEd with the
-// new value. isSystem marks whether this is a plain user-set prop
-// (SetDBProperty, false) or a system-managed one (SetSystemDBProperty,
-// true).
-func (e *Entity) DBWriteProp(name string, propValue *string,
-	propType string, docView bool, isSystem bool) {
-
-	// defer log.FuncTrace("tx: %s %s/%s", e.Tx.uuid, e.XID, name)()
-
-	if propValue == nil {
-		// The prop row may or may not exist yet (e.g. deleting a prop
-		// that was never set), so 0 or 1 rows is valid.
-		DoZeroOne(e.Tx, `
-            DELETE FROM Props
-            WHERE eSID=? AND PropName=? AND IsDefaultVerCopy=false
-                  AND IsXrefPropCopy=false AND IsXrefVerCopy=false`,
-			e.DbSID, name)
-		return
-	}
-
-	var parentArg any
-	if e.ParentSID != "" {
-		parentArg = e.ParentSID
-	}
-
-	// REPLACE reports 1 row if this (eSID,PropName) is new, 2 if it
-	// replaced an existing row.
-	DoOneTwo(e.Tx, `
-        REPLACE INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
-            PropName, PropValue, PropType, Abstract, DocView,
-            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
-            IsSystemProp, IsCalcStatic, IsCalcDynamic)
-        VALUES(?,?,?,?,?,?,?,?, ?,?,?,?,?, false,false,false, ?,false,false)`,
-		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
-		e.UID, e.XID, name, *propValue, propType, e.Abstract, docView,
-		isSystem)
-}
-
 // DBWritePropsBatch writes multiple own/system Props rows
 // for e in as few REPLACE INTO statements as possible, chunked at
 // dbPropBatchChunkSize rows/statement as a max_allowed_packet safety
@@ -1725,14 +1642,6 @@ func (e *Entity) DBDeletePropsBatch(names []string) *XRError {
 	return nil
 }
 
-// DBWriteOwnProp writes (or deletes, if propValue is nil) a
-// plain user-set own property row for e - called by
-// Entity.SetDBProperty() as part of Save()'s per-property traversal.
-func (e *Entity) DBWriteOwnProp(name string, propValue *string,
-	propType string, docView bool) {
-	e.DBWriteProp(name, propValue, propType, docView, false)
-}
-
 // SaveSystemProps flushes any system-prop changes buffered by
 // SetSystemDBProperty() (into e.NewSystem) since the last flush. It's
 // called once per cached entity at Tx-commit time (see
@@ -1826,107 +1735,4 @@ func (e *Entity) SaveSystemProps() *XRError {
 	}
 
 	return nil
-}
-
-// SaveCalcStaticInsert writes e's write-once calculated attributes:
-// xid (every entity type) and Version.RESOURCEid (e.g. "fileid",
-// pointing at the owning Resource's UID). Neither can ever change
-// after creation: an entity's UID/XID is immutable (no rename API -
-// reusing an existing ID just errors instead of renaming), and a
-// Version's owning Resource never changes. So these only need to be
-// computed once - here, called from EntityInsert() right after
-// creation.
-// Marked IsCalcStatic=true so later reads/cascades can identify them
-// and, e.g., exclude them when copying an entity's "real" props
-// elsewhere.
-//
-// Also gives a brand-new Version its very first isdefault row (via
-// SaveVersionCalc() - see its doc comment): unlike xid/RESOURCEid,
-// isdefault's VALUE can change post-creation, but nothing else ever
-// INSERTs its row (the end-of-tx SaveDefaultVersionCascade() bulk
-// fix-up is an UPDATE...JOIN, so it can only correct an existing row,
-// never create one) - so without this, a new Version would have no
-// isdefault attribute at all until something else happened to trigger
-// a recompute.
-func (e *Entity) SaveCalcStaticInsert() {
-	var parentArg any
-	if e.ParentSID != "" {
-		parentArg = e.ParentSID
-	}
-
-	// xid - every entity type. Plain single-row INSERT, always exactly
-	// 1 (this is called once, at creation, on a brand-new eSID).
-	DoOne(e.Tx, `
-        INSERT INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
-            PropName, PropValue, PropType, Abstract, DocView,
-            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
-            IsCalcStatic, IsCalcDynamic)
-        VALUES(?,?,?,?,?,?,?,?, ?, ?, 'string', ?, true,
-               false, false, false, true, false)`,
-		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
-		e.UID, e.XID, "xid"+string(DB_IN), e.XID, e.Abstract)
-
-	if e.Type == ENTITY_VERSION {
-		// e is always a real, in-memory Version, which always has a
-		// parent Resource, so e.ParentSID is never empty here. The
-		// owning Resource is guaranteed to already exist (e was just
-		// created as one of its Versions), so this always inserts
-		// exactly 1 row.
-		DoOne(e.Tx, `
-            INSERT INTO Props(
-                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
-                PropName, PropValue, PropType, Abstract, DocView,
-                IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
-                IsCalcStatic, IsCalcDynamic)
-            SELECT ?,?,?,?,?,?,?,?, CONCAT(r.Singular,?), r.UID, 'string', ?,
-                   true, false, false, false, true, false
-            FROM Resources AS r WHERE r.SID=?`,
-			e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
-			e.DbSID, e.UID, e.XID, "id"+string(DB_IN), e.Abstract,
-			e.ParentSID)
-
-		// Give this brand-new Version its first isdefault row. Its
-		// DELETE is a no-op here (nothing exists yet for this eSID),
-		// so this just inserts the initial value based on the owning
-		// Resource's Meta.defaultVID at this moment - which is fine
-		// even if it's not yet the final answer, since
-		// SaveDefaultVersionCascade() will fix it up (for every
-		// Version of this Resource) once EnsureLatest() has settled
-		// on the true default, at end-of-tx.
-		e.SaveVersionCalc()
-	}
-}
-
-// SaveVersionCalc (re)computes the calculated 'isdefault' attribute
-// for a (real, non-xref-synthetic) Version - the only Version-level
-// calculated value that can actually change post-creation (xid and
-// RESOURCEid are write-once - see SaveCalcStaticInsert(), called
-// once from EntityInsert() instead). Unlike those, isdefault isn't
-// recomputed on every subsequent Save() either: its row is inserted
-// exactly once, from SaveCalcStaticInsert() at creation, and its
-// VALUE is thereafter only ever corrected in bulk, for every Version
-// of a Resource at once, by the end-of-tx SaveDefaultVersionCascade()
-// UPDATE. This func itself is only ever called from
-// SaveCalcStaticInsert(), for that one initial insert.
-func (e *Entity) SaveVersionCalc() {
-	// isdefault - true only if this Version is the owning Resource's
-	// current default (via its Meta.defaultVID), or - for a Resource
-	// with no defaultVID set but which is itself an xref source - if
-	// it matches the xref target's default. In the common non-xref
-	// case this just checks m.defaultVID. The owning Resource's Meta
-	// is guaranteed to exist, so this always inserts exactly 1 row.
-	DoOne(e.Tx, `
-        INSERT INTO Props(
-            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, XID,
-            PropName, PropValue, PropType, Abstract, DocView,
-            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
-            IsCalcStatic, IsCalcDynamic)
-        SELECT ?,?,?,?,?,?,?,?, ?,
-               IF(m.defaultVID IS NOT NULL AND ?=m.defaultVID, 'true', 'false'),
-               'boolean', ?, true, false, false, false, false, true
-        FROM Metas AS m WHERE m.ResourceSID=?`,
-		e.Registry.DbSID, e.Type, e.Plural, e.Singular, e.ParentSID, e.DbSID,
-		e.UID, e.XID, "isdefault"+string(DB_IN), e.UID, e.Abstract,
-		e.ParentSID)
 }
