@@ -31,7 +31,7 @@ func TestExportBasic(t *testing.T) {
 	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -265,7 +265,7 @@ func TestExportBasic(t *testing.T) {
 	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -369,7 +369,7 @@ func TestExportBasic(t *testing.T) {
 	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -508,7 +508,7 @@ func TestExportBasic(t *testing.T) {
 	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -1223,7 +1223,7 @@ func TestExportBasic(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/dirs/d1?doc&inline=*", ``, 200, `{
   "dirid": "d1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1",
   "epoch": 2,
   "createdat": "2025-01-01T12:00:02Z",
@@ -1378,7 +1378,7 @@ func TestExportBasic(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline=*", ``, 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",
@@ -1435,7 +1435,7 @@ func TestExportBasic(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc&inline=*", ``, 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 2,
   "createdat": "2025-01-01T12:00:02Z",
@@ -1450,7 +1450,7 @@ func TestExportBasic(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc&inline=*", ``, 200, `{
   "fileid": "fx",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/fx",
 
   "metaurl": "#/meta",
@@ -1465,7 +1465,7 @@ func TestExportBasic(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/meta?doc&inline=*", ``, 200, `{
   "fileid": "fx",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/fx/meta",
   "xref": "/dirs/d1/files/f1"
 }
@@ -1508,7 +1508,7 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?doc&inline=*", ``, 200, `{
   "fileid": "f1",
   "versionid": "v1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1/versions/v1",
   "epoch": 1,
   "isdefault": false,
@@ -1552,7 +1552,7 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline&"+
 		"filter=versions.versionid=v1", "", 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",
@@ -1596,7 +1596,7 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline&"+
 		"filter=versions.versionid=v2", "", 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",
@@ -1648,7 +1648,7 @@ func TestExportBasic(t *testing.T) {
 	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -1751,7 +1751,7 @@ func TestExportBasic(t *testing.T) {
 	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -1841,7 +1841,7 @@ func TestExportBasic(t *testing.T) {
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
@@ -1871,7 +1871,7 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1?doc", ``, 200,
 		`{
   "dirid": "d1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1",
   "epoch": 2,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
@@ -1907,7 +1907,7 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc", ``, 200,
 		`{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1920,7 +1920,7 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc", ``, 200,
 		`{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 2,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
@@ -1966,7 +1966,7 @@ func TestExportBasic(t *testing.T) {
 		`{
   "fileid": "f1",
   "versionid": "v1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1/versions/v1",
   "epoch": 1,
   "isdefault": false,
@@ -1980,7 +1980,7 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc", ``, 200,
 		`{
   "fileid": "fx",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/fx",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta"
@@ -1990,7 +1990,7 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/meta?doc", ``, 200,
 		`{
   "fileid": "fx",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/fx/meta",
   "xref": "/dirs/d1/files/f1"
 }
@@ -2127,7 +2127,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2141,7 +2141,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2158,7 +2158,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2205,7 +2205,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2254,7 +2254,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2295,7 +2295,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.meta", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2349,7 +2349,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2403,7 +2403,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions,dirs.files.meta", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2564,7 +2564,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.meta", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2618,7 +2618,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2671,7 +2671,7 @@ func TestExportURLs(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc", "", 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 1,
   "createdat": "2025-01-01T12:00:03Z",
@@ -2702,7 +2702,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/1?doc", "", 200, `{
   "fileid": "f1",
   "versionid": "1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1/versions/1",
   "epoch": 1,
   "isdefault": true,
@@ -2717,7 +2717,7 @@ func TestExportURLs(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc&inline=*", "", 200, `{
   "fileid": "fx",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/fx",
 
   "metaurl": "#/meta",
@@ -2735,7 +2735,7 @@ func TestExportURLs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/?doc&inline=*", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
@@ -2824,7 +2824,7 @@ func TestExportNoDoc(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1?doc", "{}", 201, `{
   "fileid": "f1",
   "versionid": "v1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1/versions/v1",
   "epoch": 1,
   "isdefault": true,
@@ -2837,7 +2837,7 @@ func TestExportNoDoc(t *testing.T) {
 	// Make sure there's no $details
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline=meta", "{}", 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",
@@ -2863,7 +2863,7 @@ func TestExportNoDoc(t *testing.T) {
 	// No $default
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline", "{}", 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",

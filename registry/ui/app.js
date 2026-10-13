@@ -3783,13 +3783,13 @@ function buildMoreMenuItems() {
   // editing-indicator (see renderHeader()) remains the one-click way to
   // *exit* edit mode once it's on.
   if (!isConfig && computeEnableEdit()) {
-    items.push({label: 'Edit Mode', onclick: 'toggleEdit()', active: _state.editMode, icon: '<span class="popup-icon-pencil">&#9998;</span>'});
+    items.push({label: 'Edit Mode', onclick: 'toggleEdit()', active: _state.editMode, icon: pencilIconSvgHtml()});
   }
   // Config — always available here (not just narrow screens) now that the
   // standalone gear-btn has moved into this menu.
   if (!isConfig) {
     if (items.length) items.push({sep: true});
-    items.push({label: 'Config', onclick: 'goToConfig()', icon: '<span class="popup-icon-gear">&#9881;</span>'});
+    items.push({label: 'Config', onclick: 'goToConfig()', icon: gearIconSvgHtml()});
   }
   return items;
 }
@@ -3830,7 +3830,7 @@ function crumb(label, clickExpr) {
 // ---- Refresh (main render loop) ------------------------------------------
 
 var _lastData = null;
-// Pagination — parsed Link-header entries {first,prev,next,last} for the
+// Pagination — parsed Link-header entries {self,first,prev,next,last} for the
 // CURRENT collection page (see fetchJSONWithLinks()/parseLinkHeader()),
 // or null when pagination isn't active for this response (no Link header,
 // or not a collection page). Paired with _lastData via the usual
@@ -4898,6 +4898,35 @@ function serverCardClick(e, card, url) {
 // the Home Grid/List card "..." menus' "Refresh" item shows the identical
 // icon/arrow orientation everywhere, rather than a second hand-drawn
 // refresh glyph that could visually drift out of sync over time.
+// Inline SVG icons (no dependency on installed fonts). All use currentColor.
+function svgIcon(cls, size, body) {
+  return '<svg class="' + cls + '" width="' + size + '" height="' + size
+    + '" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" '
+    + 'xmlns="http://www.w3.org/2000/svg">' + body + '</svg>';
+}
+function starIconSvgHtml(on, size) {
+  return svgIcon('icon-star', size || 16,
+    '<path d="M8 1.5l2 4.3 4.7.6-3.4 3.2.9 4.6L8 11.9l-4.2 2.3.9-4.6L1.3 6.4 6 5.8z"'
+    + (on ? ' fill="currentColor"' : '') + '/>');
+}
+function trashIconSvgHtml() {
+  return svgIcon('popup-icon-trash', 14,
+    '<path d="M2.5 4h11M6 4V2.5h4V4M3.8 4l.7 9.5h7l.7-9.5M6.7 6.5v5M9.3 6.5v5"/>');
+}
+function searchIconSvgHtml() {
+  return svgIcon('popup-icon-search', 14,
+    '<circle cx="6.8" cy="6.8" r="4.3"/><path d="M10 10l4 4"/>');
+}
+function pencilIconSvgHtml() {
+  return svgIcon('popup-icon-pencil', 14,
+    '<path d="M2 14l.8-3.4 7.9-7.9a1.4 1.4 0 012 0l.6.6a1.4 1.4 0 010 2L5.4 13.2z M9.5 4l2.5 2.5"/>');
+}
+function gearIconSvgHtml() {
+  return svgIcon('popup-icon-gear', 18,
+    '<path d="M7.05 2.68 L7.21 0.84 L8.79 0.84 L8.95 2.68 L11.09 3.57 L12.50 2.38 L13.62 3.50 L12.43 4.91 L13.32 7.05 L15.16 7.21 L15.16 8.79 L13.32 8.95 L12.43 11.09 L13.62 12.50 L12.50 13.62 L11.09 12.43 L8.95 13.32 L8.79 15.16 L7.21 15.16 L7.05 13.32 L4.91 12.43 L3.50 13.62 L2.38 12.50 L3.57 11.09 L2.68 8.95 L0.84 8.79 L0.84 7.21 L2.68 7.05 L3.57 4.91 L2.38 3.50 L3.50 2.38 L4.91 3.57zM8 5.7a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 1 0 0-4.6z" fill="currentColor" fill-rule="evenodd" stroke="none"/>');
+}
+
 function refreshIconSvgHtml() {
   return '<svg class="popup-icon-refresh-svg" width="14" height="14" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">'
     + '<path d="M14.5 8.5A6 6 0 1 1 12.4 3.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>'
@@ -4920,10 +4949,10 @@ function toggleServerCardMenu(e, btn, url) {
     {
       label: fav ? 'Remove as Favorite' : 'Add as Favorite',
       onclick: esc('svCardMenuToggleFavorite(' + JSON.stringify(url) + ')'),
-      icon: '<span class="popup-icon-star">' + (fav ? '\u2605' : '\u2606') + '</span>'
+      icon: '<span class="popup-icon-star">' + starIconSvgHtml(fav, 18) + '</span>'
     },
-    {label: 'Scan for Registries', onclick: esc('svCardMenuScan(' + JSON.stringify(url) + ')'), icon: '<span class="popup-icon-search">&#128269;</span>'},
-    {label: 'Delete\u2026', onclick: esc('svCardMenuDelete(' + JSON.stringify(url) + ')'), icon: '<span class="popup-icon-trash">&#128465;</span>'}
+    {label: 'Scan for Registries', onclick: esc('svCardMenuScan(' + JSON.stringify(url) + ')'), icon: searchIconSvgHtml()},
+    {label: 'Delete\u2026', onclick: esc('svCardMenuDelete(' + JSON.stringify(url) + ')'), icon: trashIconSvgHtml()}
   ];
   toggleHeaderPopup(btn, items, true);
 }
@@ -5230,7 +5259,7 @@ function cfgFavoriteCellHTML(url, isFav) {
     + '<button type="button" class="cfg-fav-btn' + (isFav ? ' cfg-fav-on' : '') + '" '
     +   'title="' + esc(title) + '" '
     +   'onclick="cfgSetFavorite(' + esc(JSON.stringify(url)) + ', ' + (!isFav) + ')">'
-    +   (isFav ? '\u2605' : '\u2606')
+    +   starIconSvgHtml(isFav, 15)
     + '</button></td>';
 }
 
@@ -7244,15 +7273,30 @@ var _pageLastIconSVG = '<svg viewBox="0 0 16 16" width="13" height="13" fill="cu
 
 function paginationBarHtml(itemCount) {
   if (!_lastPageLinks) return '';
-  var total = null;
-  ['first', 'last', 'next', 'prev'].some(function(rel) {
-    if (_lastPageLinks[rel] && _lastPageLinks[rel].count !== undefined) {
-      total = _lastPageLinks[rel].count;
-      return true;
-    }
-    return false;
-  });
-  var countText = 'Total: ' + (total !== null ? total : itemCount);
+  var self = _lastPageLinks.self || {};
+  var total = self.count !== undefined ? self.count : null;
+  if (total === null) {
+    ['first', 'last', 'next', 'prev'].some(function(rel) {
+      if (_lastPageLinks[rel] && _lastPageLinks[rel].count !== undefined) {
+        total = _lastPageLinks[rel].count;
+        return true;
+      }
+      return false;
+    });
+  }
+  // Only show what the server actually told us: a range needs the offset
+  // (and a non-empty page), the total needs a count.
+  var parts = [];
+  if (self.offset !== undefined && itemCount > 0) {
+    var range = (self.offset + 1) + '\u2013' + (self.offset + itemCount);
+    parts.push(total !== null ? 'Showing ' + range + ' of ' + total
+                              : 'Showing ' + range);
+  } else if (total !== null) {
+    parts.push('Total: ' + total);
+  } else {
+    parts.push('Showing ' + itemCount + (itemCount === 1 ? ' item' : ' items'));
+  }
+  var countText = parts.join(' \u00b7 ');
 
   function btn(rel, pairShown, icon, title) {
     if (!pairShown) return '';
@@ -7403,7 +7447,7 @@ function buildRegEndpointPillsHtml() {
     var sHrefP = buildURL(Object.assign({}, _state, {section: s, useExport: false}));
     html += '<a class="reg-endpoint-pill" href="' + esc(sHrefP) + '" onclick="' + esc(guardedOnclick(pushExprP)) + '">'
       + esc(sectionNamesP[s])
-      + (mutP ? ' <span class="reg-endpoint-pill-edit" title="Mutable">&#9998;</span>' : '')
+      + (mutP ? ' <span class="reg-endpoint-pill-edit" title="Mutable">' + svgIcon('', 11, '<path d="M2 14l.8-3.4 7.9-7.9a1.4 1.4 0 012 0l.6.6a1.4 1.4 0 010 2L5.4 13.2z M9.5 4l2.5 2.5"/>') + '</span>' : '')
       + '</a>';
   });
   html += '</div>';
@@ -7432,7 +7476,7 @@ function buildRegDataWarnBannerHtml() {
   if (!warningsW.length) return '';
   var html2 = '<div id="regDataWarnBanner" class="reg-data-warn-banner' + (_regWarnBannerExpanded ? ' reg-data-warn-banner-expanded' : '') + '">'
     + '<div class="reg-data-warn-banner-summary" onclick="toggleRegWarnBanner()">'
-    + '&#9888; Some registry data could not be loaded (click for details)'
+    + svgIcon('', 13, '<path d="M8 2L1.5 13.5h13z M8 6.5v3.2M8 11.6v.1"/>') + ' Some registry data could not be loaded (click for details)'
     + '</div>'
     + '<ul class="reg-data-warn-banner-list">'
     + warningsW.map(function(w) { return '<li>' + esc(w) + '</li>'; }).join('')
@@ -7446,15 +7490,14 @@ function buildRegDataWarnBannerHtml() {
 // onVersionSelectChangeReal() (redraw when the "Version:" dropdown is
 // switched back to "Default") so both stay in sync. Always targets the
 // Default version's data (_dataEditData); deleteDisabled is only true at
-// depth 0 (Registry root), where deleting the whole registry has no
-// sensible "back to parent" destination in this UI. The Delete button is
+// depth 0 (Registry root), where the Delete button is omitted because
+// deleting the whole registry has no sensible "back to parent" destination. The Delete button is
 // labeled with the entity's own singular type name (e.g. "Delete File")
 // rather than a bare "Delete" — same wording deleteDataEntity()'s own
 // confirm() dialog already uses, computed the same way here for
 // consistency (see buildVersionActionBarHtml(), which adds this exact
 // same button alongside its own version-scoped "Delete Version (#)" one).
 function buildDataEditorActionBarHtml(deleteDisabled, showAddVersion) {
-  var deleteDisabledAttr = deleteDisabled ? ' disabled title="Deleting the registry itself is not supported here"' : '';
   var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || DEFAULT_SERVER_ORIGIN)], _state.path) || 'entity');
   // "+ Add Version" is duplicated here (Resource pages only, depth 4 — see
   // showAddVersion) so users can add a version without first switching to
@@ -7472,7 +7515,7 @@ function buildDataEditorActionBarHtml(deleteDisabled, showAddVersion) {
     + '<button class="editorBtn" id="dataSavePutBtn" onclick="saveDataEntity(\'PUT\')"' + (_dataDirty ? '' : ' disabled') + '>Save (full)</button>'
     + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="saveDataEntity(\'PATCH\')"' + (_dataDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="dataUndoBtn" onclick="undoDataEdit()"' + (_dataDirty ? '' : ' disabled') + '>Undo</button>'
-    + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()"' + deleteDisabledAttr + '>Delete ' + esc(singularLabel) + '</button>'
+    + (deleteDisabled ? '' : ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()">Delete ' + esc(singularLabel) + '</button>')
     + '</div>';
 }
 
@@ -19371,13 +19414,18 @@ function parseLinkHeader(headerVal) {
       params[kv[0]] = kv[1];
     });
     var rel = params.rel;
-    if (rel !== 'first' && rel !== 'prev' && rel !== 'next' && rel !== 'last') return;
+    if (rel !== 'self' && rel !== 'first' && rel !== 'prev' && rel !== 'next' && rel !== 'last') return;
     if (!result) result = {};
     var entryOut = {url: url};
     if (params.count !== undefined) {
       var n = parseInt(params.count, 10);
       if (!isNaN(n)) entryOut.count = n;
     }
+    ['offset', 'limit'].forEach(function(k) {
+      if (params[k] === undefined) return;
+      var v = parseInt(params[k], 10);
+      if (!isNaN(v)) entryOut[k] = v;
+    });
     result[rel] = entryOut;
   });
   return result;

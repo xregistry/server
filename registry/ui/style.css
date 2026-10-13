@@ -239,13 +239,8 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   clip-path: polygon(0 0, 100% 0, 58% 55%, 58% 100%, 42% 100%, 42% 55%);
 }
 .popup-icon-xreg { display: block; width: 10px; height: 12px; }
-.popup-icon-pencil {
-  display: inline-block;
-  font-size: 12px;
-  line-height: 1;
-  transform: scaleX(-1);
-}
-.popup-icon-gear { font-size: 19.5px; line-height: 1; }
+.popup-icon-pencil { display: block; }
+.popup-icon-gear { display: block; }
 .popup-icon-grid {
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
@@ -735,7 +730,8 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   padding: 4px 12px; text-decoration: none;
 }
 .reg-endpoint-pill:hover { background: #dce4f5; border-color: #a8c0e6; }
-.reg-endpoint-pill-edit { font-size: 11px; color: #666; display: inline-block; transform: scaleX(-1); }
+.reg-endpoint-pill-edit { font-size: 11px; color: #666; display: inline-block; }
+.reg-endpoint-pill-edit svg { vertical-align: -1px; }
 .xr-table th.sorted-asc::after { content: " ▲"; font-size: 10px; }
 .xr-table th.sorted-desc::after { content: " ▼"; font-size: 10px; }
 .xr-table td {
@@ -1638,9 +1634,8 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 }
 .server-card-menu-btn:hover { background: #eef2fa; border-color: #c8d6ec; color: #2060a0; }
 .popup-icon-refresh-svg { display: block; width: 14px; height: 14px; }
-.popup-icon-star    { font-size: 26px; line-height: 1; }
-.popup-icon-search  { font-size: 12px; line-height: 1; }
-.popup-icon-trash   { font-size: 12px; line-height: 1; }
+.popup-icon-star { display: inline-flex; line-height: 1; }
+.popup-icon-search, .popup-icon-trash { display: block; }
 .reg-data-warn-banner {
   background: #fff8e1;
   border: 1px solid #d99a00;
@@ -1791,6 +1786,8 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   line-height: 1;
   padding: 2px 4px;
   color: #bbb;
+  display: inline-flex;
+  align-items: center;
 }
 .cfg-fav-btn:hover { color: #d9a400; }
 .cfg-fav-btn.cfg-fav-on { color: #d9a400; }

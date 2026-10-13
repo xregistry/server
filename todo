@@ -115,3 +115,4 @@ TODOs:
    would expose lots of registries as a single one.
 - only check-in the generated files for xregistry.io, not hub.xreg.io
 - get rid of default writer if we can
+- new http header name/value processing (escaping both, list(,) support)

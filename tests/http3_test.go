@@ -5127,7 +5127,7 @@ func TestHTTPShortSelf(t *testing.T) {
 	// Again, this time make sure shortself is excluded from ?doc view
 	XHTTP(t, reg, "GET", ss+"$details?inline&doc", "", 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",

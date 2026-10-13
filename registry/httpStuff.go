@@ -1045,10 +1045,9 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 }
 
 // AddPaginationLinkHeaders adds the pagination spec's "Link" HTTP headers
-// (rel=first|prev|next|last, each with a "count" parameter giving the
-// total number of top-level entities across the *entire* filtered
-// collection - not just the current page) for a paginated "Coll"
-// response. Must be called before anything is written to the response
+// (rel=self|first|prev|next|last) for a paginated "Coll" response. Only
+// "self" carries the offset/limit/count parameters ("count" being the total
+// number of top-level entities across the *entire* filtered collection). Must be called before anything is written to the response
 // body, since HTTP headers can't be sent after the body has started.
 func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 	limit := info.Limit
@@ -1094,15 +1093,26 @@ func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 		return fmt.Sprintf("<%s%s?%s>", info.BaseURL, basePath, q.Encode())
 	}
 
-	addLink := func(rel string, off uint64, withCount bool) {
-		if withCount {
-			info.AddHeader("Link", fmt.Sprintf("%s;rel=%s;count=%d",
-				buildLink(off), rel, total))
-		} else {
-			info.AddHeader("Link", fmt.Sprintf("%s;rel=%s",
-				buildLink(off), rel))
-		}
+	addLink := func(rel string, off uint64) {
+		info.AddHeader("Link", fmt.Sprintf("%s;rel=%s", buildLink(off), rel))
 	}
+
+	// "self" is on every response and carries the pagination metadata. Per
+	// the spec "offset" MUST NOT appear when the page has no records, and
+	// "count" is only included when the total is actually known.
+	addSelf := func(withOffset bool, withCount bool) {
+		v := fmt.Sprintf("%s;rel=self", buildLink(offset))
+		if withOffset {
+			v += fmt.Sprintf(";offset=%d", offset)
+		}
+		v += fmt.Sprintf(";limit=%d", limit)
+		if withCount {
+			v += fmt.Sprintf(";count=%d", total)
+		}
+		info.AddHeader("Link", v)
+	}
+
+	hasRows := gotTotal
 
 	if !gotTotal && offset == 0 {
 		// We asked for the very first page (offset=0) and got zero rows
@@ -1118,33 +1128,24 @@ func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 		// is past the end of a result set whose true current size we
 		// don't know (and it's not worth an extra DB round-trip to find
 		// out - especially since any client can trigger this simply by
-		// passing a huge "offset="). This can happen either from a
-		// bad/stale client offset, or because the collection shrank
-		// between the client's paginated requests - a consistency gap
-		// the spec doesn't otherwise guarantee to solve.
-		//
-		// Don't guess: "prev" via naive "offset-limit" arithmetic could
-		// land on another out-of-range offset and mislead the client
-		// further, and "next"/"last" both require a known total. Only
-		// "first" is unambiguously correct regardless of the (unknown)
-		// true total, so emit just that - without a "count" - so the
-		// client has a safe way to restart iteration.
-		addLink("first", 0, false)
+		// passing a huge "offset="). Only "first" is unambiguously correct
+		// regardless of the (unknown) true total, so emit just that (plus
+		// "self" without offset/count) so the client can restart.
+		addSelf(false, false)
+		addLink("first", 0)
 		return
 	}
 
+	addSelf(hasRows, true)
+
 	// If the very first page already contains the entire (filtered) result
-	// set, there's nothing to actually paginate through - "first"/"last"
-	// would just be redundant links back to this same request, and "prev"/
-	// "next" are already ruled out below regardless. Skip emitting any
-	// Link headers (and their query params) at all in that case, since
-	// none of them would be needed by the client.
+	// set, there's nothing to paginate through, so only "self" is needed.
 	if offset == 0 && total <= limit {
 		return
 	}
 
 	// per spec: "first" MAY be included in any response.
-	addLink("first", 0, true)
+	addLink("first", 0)
 
 	// per spec: "prev" MUST NOT be present if this is the start of the set.
 	if offset > 0 {
@@ -1152,12 +1153,12 @@ func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 		if offset > limit {
 			prevOffset = offset - limit
 		}
-		addLink("prev", prevOffset, true)
+		addLink("prev", prevOffset)
 	}
 
 	// per spec: "next" MUST NOT be present if this is the end of the set.
 	if offset+limit < total {
-		addLink("next", offset+limit, true)
+		addLink("next", offset+limit)
 	}
 
 	// per spec: "last" MAY be included in any response.
@@ -1165,7 +1166,7 @@ func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 	if total > 0 {
 		lastOffset = ((total - 1) / limit) * limit
 	}
-	addLink("last", lastOffset, true)
+	addLink("last", lastOffset)
 }
 
 var specialAttrHeaders = map[string]*Attribute{}

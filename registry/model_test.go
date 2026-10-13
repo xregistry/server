@@ -1070,6 +1070,8 @@ func TestValidChars(t *testing.T) {
 	a57 := a50 + "1234567"
 	a58 := a50 + "12345678"
 	a60 := a50 + a10
+	a61 := a60 + "1"
+	a62 := a60 + "12"
 	a63 := a60 + "123"
 	a64 := a63 + "4"
 	a128 := a64 + a64
@@ -1162,13 +1164,29 @@ func TestValidChars(t *testing.T) {
 		{"a9", ``},
 		{a57, ``},
 	} {
-		xErr := IsValidModelName(test.input)
+		xErr := IsValidModelName(test.input, false, false)
 		got := ""
 		if xErr != nil {
 			got = xErr.ToJSON()
 		}
 		XEqual(t, test.input, got, test.result)
 	}
+
+	// Special case GM-singular
+	xErr := IsValidModelName(a60, true, false)
+	XNoErr(t, xErr)
+	xErr = IsValidModelName(a61, true, false)
+	XNoErr(t, xErr)
+	xErr = IsValidModelName(a62, true, false)
+	XEqual(t, "", xErr.ToJSON(), `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: model type name \"a234567890a234567890a234567890a234567890a234567890a23456789012\" must match: ^[a-z_][a-z_0-9]{0,60}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "model type name \"a234567890a234567890a234567890a234567890a234567890a23456789012\" must match: ^[a-z_][a-z_0-9]{0,60}$"
+  },
+  "source": "10d3ce1f2280:registry:shared_model:38,registry:model_test:1179"
+}`)
 
 	// Test attribute names
 	for _, test := range []struct {
