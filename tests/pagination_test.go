@@ -54,6 +54,7 @@ func TestPaginationBasic(t *testing.T) {
 	checkLink(t, res, "/dirs", "first", 0, 1, 20)
 	next := checkLink(t, res, "/dirs", "next", 1, 1, 20)
 	checkLink(t, res, "/dirs", "last", 19, 1, 20)
+	checkSelf(t, res, "/dirs?limit=1&offset=0", 0, 1, 20)
 	noMoreLinks(t, res)
 
 	// test "next"
@@ -64,6 +65,7 @@ func TestPaginationBasic(t *testing.T) {
 	checkLink(t, res, "/dirs", "prev", 0, 1, 20)
 	checkLink(t, res, "/dirs", "next", 2, 1, 20)
 	last := checkLink(t, res, "/dirs", "last", 19, 1, 20)
+	checkSelf(t, res, "/dirs?limit=1&offset=1", 1, 1, 20)
 	noMoreLinks(t, res)
 
 	// test "last"
@@ -73,6 +75,7 @@ func TestPaginationBasic(t *testing.T) {
 	checkLink(t, res, "/dirs", "first", 0, 1, 20)
 	checkLink(t, res, "/dirs", "prev", 18, 1, 20)
 	checkLink(t, res, "/dirs", "last", 19, 1, 20)
+	checkSelf(t, res, "/dirs?limit=1&offset=19", 19, 1, 20)
 	noMoreLinks(t, res)
 
 	// test bigger limit
@@ -82,6 +85,7 @@ func TestPaginationBasic(t *testing.T) {
 	checkLink(t, res, "/dirs", "first", 0, 5, 20)
 	next = checkLink(t, res, "/dirs", "next", 5, 5, 20)
 	checkLink(t, res, "/dirs", "last", 15, 5, 20)
+	checkSelf(t, res, "/dirs?limit=5&offset=0", 0, 5, 20)
 	noMoreLinks(t, res)
 
 	// test 5's next
@@ -92,6 +96,7 @@ func TestPaginationBasic(t *testing.T) {
 	next = checkLink(t, res, "/dirs", "next", 10, 5, 20)
 	next = checkLink(t, res, "/dirs", "prev", 0, 5, 20)
 	checkLink(t, res, "/dirs", "last", 15, 5, 20)
+	checkSelf(t, res, "/dirs?limit=5&offset=5", 5, 5, 20)
 	noMoreLinks(t, res)
 
 	// test huge limit - the whole (filtered) collection fits on this one
@@ -100,6 +105,7 @@ func TestPaginationBasic(t *testing.T) {
 	res = XHTTP(t, reg, "GET", "/dirs?limit=10000", "", 200, "*")
 	checkKeys(t, res.body, "d1,d10,d11,d12,d13,d14,d15,d16,d17,d18,d19,"+
 		"d2,d20,d3,d4,d5,d6,d7,d8,d9")
+	checkSelf(t, res, "/dirs?limit=10000&offset=0", 0, 10000, 20)
 	noMoreLinks(t, res)
 
 	// Test resource
@@ -110,6 +116,7 @@ func TestPaginationBasic(t *testing.T) {
 	checkLink(t, res, "/dirs/d1/files", "prev", 0, 3, 10)
 	checkLink(t, res, "/dirs/d1/files", "next", 6, 3, 10)
 	checkLink(t, res, "/dirs/d1/files", "last", 9, 3, 10)
+	checkSelf(t, res, "/dirs/d1/files?limit=3&offset=3", 3, 3, 10)
 	noMoreLinks(t, res)
 
 	// Test versions
@@ -121,12 +128,14 @@ func TestPaginationBasic(t *testing.T) {
 	checkLink(t, res, "/dirs/d1/files/f1/versions", "prev", 0, 3, 10)
 	checkLink(t, res, "/dirs/d1/files/f1/versions", "next", 6, 3, 10)
 	checkLink(t, res, "/dirs/d1/files/f1/versions", "last", 9, 3, 10)
+	checkSelf(t, res, "/dirs/d1/files/f1/versions?limit=3&offset=3", 3, 3, 10)
 	noMoreLinks(t, res)
 
 	// Test offset > count - results shrunk before I got to the end
 	res = XHTTP(t, reg, "GET", "/dirs?offset=25&limit=2", "", 200, "{}\n")
 	// path, rel, offset, limit, count
 	checkLink(t, res, "/dirs", "first", 0, 2, -1)
+	checkSelf(t, res, "/dirs?limit=2&offset=25", -1, 2, -1)
 	noMoreLinks(t, res)
 
 	// Test sorting
@@ -162,6 +171,7 @@ func TestPaginationBasic(t *testing.T) {
 		-1, -1, 20)
 	checkLink(t, res, "/dirs?limit=2&offset=18&sort=dirid%3Ddesc", "last",
 		-1, -1, 20)
+	checkSelf(t, res, "/dirs?limit=2&offset=0&sort=dirid%3Ddesc", 0, 2, 20)
 	noMoreLinks(t, res)
 
 	// Test filtering
@@ -179,6 +189,7 @@ func TestPaginationBasic(t *testing.T) {
   }
 }
 `)
+	checkSelf(t, res, "/dirs?filter=files.fileid&limit=2&offset=0&sort=dirid%3Dasc", 0, 2, 1)
 	noMoreLinks(t, res)
 }
 
@@ -394,9 +405,6 @@ func checkLink(t *testing.T, res *HTTPResult, path, rel string,
 	}
 
 	exp := "<http://localhost:8181" + daURL + ">;rel=" + rel
-	if count >= 0 {
-		exp += fmt.Sprintf(";count=%d", count)
-	}
 
 	links := res.Header.Values("Link")
 	for _, link := range links {
@@ -412,6 +420,39 @@ func checkLink(t *testing.T, res *HTTPResult, path, rel string,
 	t.Fatalf("Missing Link header: %s", exp)
 
 	return daURL
+}
+
+// checkSelf verifies the "self" Link header, which is the only one that
+// carries the offset/limit/count parameters. A negative value means the
+// parameter must be absent.
+func checkSelf(t *testing.T, res *HTTPResult, path string,
+	offset, limit, count int) {
+
+	t.Helper()
+
+	exp := "<http://localhost:8181" + path + ">;rel=self"
+	if offset >= 0 {
+		exp += fmt.Sprintf(";offset=%d", offset)
+	}
+	if limit >= 0 {
+		exp += fmt.Sprintf(";limit=%d", limit)
+	}
+	if count >= 0 {
+		exp += fmt.Sprintf(";count=%d", count)
+	}
+
+	links := res.Header.Values("Link")
+	for _, link := range links {
+		if link == exp {
+			res.Header["Link"] = slices.DeleteFunc(res.Header["Link"],
+				func(s string) bool {
+					return s == exp
+				})
+			return
+		}
+	}
+	t.Logf("Got headers:\n%s", strings.Join(links, "\n"))
+	t.Fatalf("Missing Link header: %s", exp)
 }
 
 func checkKeys(t *testing.T, body string, keys string) {

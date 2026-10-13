@@ -18,7 +18,10 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+// GroupModel Singular is slightly longer than the other 3 (GM-Plural + RM)
+var RegexpGMSingularName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,60}$")
 var RegexpModelName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,56}$")
+
 var RegexpPropName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,62}$")
 var RegexpMapKey = regexp.MustCompile("^[a-z0-9][a-z0-9_.:\\-]{0,62}$")
 var RegexpID = regexp.MustCompile("^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$")
@@ -27,10 +30,20 @@ type ModelSerializer func(*Model, string) ([]byte, *XRError)
 
 var ModelSerializers = map[string]ModelSerializer{}
 
-func IsValidModelName(name string) *XRError {
+func IsValidModelName(name string, isGroup bool, isPlural bool) *XRError {
+	if isGroup == true && isPlural == false {
+		if RegexpGMSingularName.MatchString(name) {
+			return nil
+		}
+		return NewXRError("model_error", "/model",
+			"error_detail="+fmt.Sprintf("model type name %q must match: %s",
+				name, RegexpGMSingularName.String())).AddSourceParent()
+	}
+
 	if RegexpModelName.MatchString(name) {
 		return nil
 	}
+
 	return NewXRError("model_error", "/model",
 		"error_detail="+fmt.Sprintf("model type name %q must match: %s", name,
 			RegexpModelName.String())).AddSourceParent()
@@ -725,11 +738,11 @@ func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, *XRE
 						"singular name"))
 	}
 
-	if xErr := IsValidModelName(plural); xErr != nil {
+	if xErr := IsValidModelName(plural, true, true); xErr != nil {
 		return nil, xErr
 	}
 
-	if xErr := IsValidModelName(singular); xErr != nil {
+	if xErr := IsValidModelName(singular, true, false); xErr != nil {
 		return nil, xErr
 	}
 
@@ -1195,10 +1208,10 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, *
 		}
 	}
 
-	if xErr := IsValidModelName(rm.Plural); xErr != nil {
+	if xErr := IsValidModelName(rm.Plural, false, true); xErr != nil {
 		return nil, xErr
 	}
-	if xErr := IsValidModelName(rm.Singular); xErr != nil {
+	if xErr := IsValidModelName(rm.Singular, false, false); xErr != nil {
 		return nil, xErr
 	}
 
@@ -2153,7 +2166,7 @@ func (gm *GroupModel) RemoveConditionalProps() {
 func (gm *GroupModel) Verify(gmName string) *XRError {
 	gm.ClearPropsOrdered()
 
-	if xErr := IsValidModelName(gmName); xErr != nil {
+	if xErr := IsValidModelName(gmName, true, true); xErr != nil {
 		return xErr
 	}
 
@@ -2193,7 +2206,7 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 					gmName, gm.Singular))
 	}
 
-	if xErr := IsValidModelName(gm.Singular); xErr != nil {
+	if xErr := IsValidModelName(gm.Singular, true, false); xErr != nil {
 		return xErr
 	}
 
@@ -2538,7 +2551,7 @@ func (rm *ResourceModel) RemoveConditionalProps() {
 func (rm *ResourceModel) Verify(rmName string) *XRError {
 	rm.ClearPropsOrdered()
 
-	if xErr := IsValidModelName(rmName); xErr != nil {
+	if xErr := IsValidModelName(rmName, false, false); xErr != nil {
 		return xErr
 	}
 
@@ -2579,7 +2592,7 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 					rmName, rm.Singular))
 	}
 
-	if xErr := IsValidModelName(rm.Singular); xErr != nil {
+	if xErr := IsValidModelName(rm.Singular, false, false); xErr != nil {
 		return xErr
 	}
 

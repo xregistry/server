@@ -2248,7 +2248,7 @@ func TestCapabilityAvailable(t *testing.T) {
 	XHTTP(t, reg, "GET", "/export", ``, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAPIs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 4,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",

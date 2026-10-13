@@ -214,7 +214,7 @@ func TestResourceSet(t *testing.T) {
 	// they shouldn't have (like version-only fields)
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline=meta", ``, 200, `{
   "fileid": "f1",
-  "self": "#/",
+  "self": "#",
   "xid": "/dirs/d1/files/f1",
 
   "metaurl": "#/meta",

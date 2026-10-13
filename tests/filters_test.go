@@ -1847,7 +1847,7 @@ func TestFiltersURLs(t *testing.T) {
 		``, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestFiltersURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2026-05-24T16:16:01.48254591Z",
@@ -1863,7 +1863,7 @@ func TestFiltersURLs(t *testing.T) {
 		``, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestFiltersURLs",
-  "self": "#/",
+  "self": "#",
   "xid": "/",
   "epoch": 3,
   "createdat": "2026-05-24T16:17:02.012652627Z",
