@@ -902,7 +902,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			}
 
 			// Delete all existing Versions too
-			vers, xErr := r.GetVersions()
+			vers, xErr := r.GetVersions(FOR_WRITE)
 			if xErr != nil {
 				return nil, false, xErr
 			}
@@ -1846,26 +1846,8 @@ func (m *Meta) Delete() *XRError {
 	return nil
 }
 
-func (r *Resource) GetVersions() ([]*Version, *XRError) {
-	list := []*Version{}
-
-	entities, xErr := RawEntitiesFromQuery(r.Tx, r.Registry.DbSID,
-		FOR_WRITE, `e.ParentSID=? AND e.Type=?`, r.DbSID, ENTITY_VERSION)
-	if xErr != nil {
-		return nil, xErr
-	}
-
-	for _, e := range entities {
-		v := r.Tx.GetVersion(r, e.UID)
-		if v == nil {
-			v = &Version{Entity: *e, Resource: r}
-			v.Self = v
-			v.Tx.AddVersion(v)
-		}
-		list = append(list, v)
-	}
-
-	return list, nil
+func (r *Resource) GetVersions(accessMode int) ([]*Version, *XRError) {
+	return r.Tx.Backend.GetVersions(r, accessMode)
 }
 
 func (r *Resource) GetHasDocument() bool {

@@ -96,3 +96,7 @@ func (g *Group) GetAttrConstraint(v *Version, attr *Attribute, path *PropPath) *
 
 	return constraints[key]
 }
+
+func (g *Group) GetResources(accessMode int) ([]*Resource, *XRError) {
+	return g.Tx.Backend.GetResources(g, accessMode)
+}

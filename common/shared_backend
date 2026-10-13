@@ -56,12 +56,15 @@ type Backend interface {
 	RegistryGetUsesXref(r *Registry) (bool, *XRError)
 	RegistrySetUsesXref(r *Registry, b bool) *XRError
 	RegistryRecalcUsesXref(r *Registry) *XRError
+	GetGroups(r *Registry, accessMode int) ([]*Group, *XRError)
+	IterateGroups(r *Registry, fn func(g *Group) (bool, *XRError)) *XRError //cont?, err
 
 	// Group stuff
 	DeleteGroup(g *Group) *XRError
 	HasReadOnlyResource(g *Group) (bool, *XRError)
 	FindBadEqualsVersions(g *Group, gPP *PropPath, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) // rID, vIDs, err
 	FindBadEnumVersions(g *Group, c *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError)   // rID, vIDs, err
+	GetResources(g *Group, accessMode int) ([]*Resource, *XRError)
 
 	// Resource stuff
 	DeleteResource(r *Resource) *XRError
@@ -82,6 +85,7 @@ type Backend interface {
 	GetProblematicVersions(r *Resource) ([]*VersionAncestor, *XRError)
 	GetChildVersionIDs(r *Resource, parentVID string) ([]string, *XRError)
 	GetNumberOfVersions(r *Resource) (int, *XRError)
+	GetVersions(r *Resource, accessMode int) ([]*Version, *XRError)
 
 	GetXrefSources(r *Resource) ([]string, *XRError)
 

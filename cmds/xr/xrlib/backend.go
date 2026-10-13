@@ -81,6 +81,11 @@ func (CLIBE *CLIBackend) FindBadEnumVersions(g *Group, c *Constraint, rm *Resour
 	return "", nil, nil
 }
 
+func (CLIBE *CLIBackend) GetResources(g *Group, accessMode int) ([]*Resource, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
 func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
 	panic("not yet")
 	return nil
@@ -186,6 +191,16 @@ func (CLIBE *CLIBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
 	return nil
 }
 
+func (CLIBE *CLIBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) IterateGroups(r *Registry, fn func(g *Group) (bool, *XRError)) *XRError {
+	panic("not yet")
+	return nil
+}
+
 func (CLIBE *CLIBackend) DeleteResource(r *Resource) *XRError {
 	panic("not yet")
 	return nil
@@ -263,6 +278,11 @@ func (CLIBE *CLIBackend) GetChildVersionIDs(r *Resource, parentVID string) ([]st
 func (CLIBE *CLIBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
 	panic("not yet")
 	return 0, nil
+}
+
+func (CLIBE *CLIBackend) GetVersions(r *Resource, accessMode int) ([]*Version, *XRError) {
+	panic("not yet")
+	return nil, nil
 }
 
 func (CLIBE *CLIBackend) GetXrefSources(r *Resource) ([]string, *XRError) {

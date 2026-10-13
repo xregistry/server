@@ -363,6 +363,58 @@ func (sqlBE *SQLBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
 	return nil
 }
 
+func (sqlBE *SQLBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XRError) {
+	entities, xErr := RawEntitiesFromQuery(r.Tx, r.DbSID, accessMode,
+		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	groups := make([]*Group, len(entities))
+	for i, e := range entities {
+		gType, _, _ := strings.Cut(e.XID, string(DB_IN))
+		g := r.Tx.GetGroup(r, gType, e.UID)
+		if g == nil {
+			g = &Group{
+				Entity:   *e,
+				Registry: r,
+			}
+			g.Self = g
+			g.Tx.AddGroup(g)
+		}
+		// TODO/WATCH - if it's already in the cache as R/O should we update
+		// e.Object?
+		groups[i] = g
+	}
+
+	return groups, nil
+}
+
+func (sqlBE *SQLBackend) IterateGroups(r *Registry, fn func(g *Group) (bool, *XRError)) *XRError {
+
+	entities, xErr := RawEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
+		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
+	if xErr != nil {
+		return xErr
+	}
+
+	for _, e := range entities {
+		group := &Group{Entity: *e, Registry: r}
+		group.Self = group
+		group.Tx.AddGroup(group)
+
+		cont, xErr := fn(group)
+		if xErr != nil {
+			return xErr
+		}
+		if cont == false {
+			return nil
+		}
+	}
+
+	return nil
+}
+
 func (sqlBE *SQLBackend) DeleteGroup(g *Group) *XRError {
 	DoOne(g.Tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
 
@@ -547,6 +599,33 @@ func (sqlBE *SQLBackend) FindBadEnumVersions(g *Group, constraint *Constraint, r
 	}
 
 	return rXID, vIDs, nil
+}
+
+func (sqlBE *SQLBackend) GetResources(g *Group, accessMode int) ([]*Resource, *XRError) {
+	entities, xErr := RawEntitiesFromQuery(g.Tx, g.Registry.DbSID, FOR_WRITE,
+		`e.ParentSID=?`, g.DbSID)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	resources := make([]*Resource, len(entities))
+	for i, e := range entities {
+		parts := strings.Split(e.XID, "/") // /gType/gID/rType/rID
+		r := g.Tx.GetResource(g, parts[3], e.UID)
+		if r == nil {
+			r = &Resource{
+				Entity: *e,
+				Group:  g,
+			}
+			r.Self = r
+			r.Tx.AddResource(r)
+		}
+		// TODO/WATCH - if it's already in the cache as R/O should we update
+		// e.Object?
+		resources[i] = r
+	}
+
+	return resources, nil
 }
 
 func (sqlBE *SQLBackend) RegisterEntity(e *Entity) *XRError {
@@ -1461,6 +1540,33 @@ func (sqlBE *SQLBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
 
 	row := results.NextRow()
 	return NotNilInt(row[0]), nil
+}
+
+func (sqlBE *SQLBackend) GetVersions(r *Resource, accessMode int) ([]*Version, *XRError) {
+	entities, xErr := RawEntitiesFromQuery(r.Tx, r.Registry.DbSID,
+		accessMode, `e.ParentSID=? AND e.Type=?`, r.DbSID, ENTITY_VERSION)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	versions := make([]*Version, len(entities))
+
+	for i, e := range entities {
+		v := r.Tx.GetVersion(r, e.UID)
+		if v == nil {
+			v = &Version{
+				Entity:   *e,
+				Resource: r,
+			}
+			v.Self = v
+			v.Tx.AddVersion(v)
+		}
+		// TODO/WATCH - if it's already in the cache as R/O should we update
+		// e.Object?
+		versions[i] = v
+	}
+
+	return versions, nil
 }
 
 func (sqlBE *SQLBackend) GetXrefSources(r *Resource) ([]string, *XRError) {

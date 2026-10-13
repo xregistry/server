@@ -322,7 +322,7 @@ CREATE TABLE Props (
   # e.g. Versions of an xref'd Resource.
 
 
-  # These flag WHY this row exists when it's not a direct write of the
+  # These flag explains WHY this row exists when it's not a direct write of the
   # entity's own user-set value (multiple booleans, one per reason, so
   # each can be independently identified/refreshed without disturbing
   # the others). All false means this row is a direct, currently-live

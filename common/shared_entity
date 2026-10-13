@@ -346,7 +346,9 @@ func InitOrderedSpecProps() {
 						if info.DoDocView() {
 							// remove GET's base path
 							xid = xid[1+len(info.Root):] // 1+ for leading /
-							if len(xid) == 0 || xid[0] != '/' {
+							// if len(xid) == 0 || xid[0] != '/' {
+							// Root returns "#" not "#/"
+							if len(xid) > 0 && xid[0] != '/' {
 								xid = "/" + xid
 							}
 							base = DOCVIEW_BASE

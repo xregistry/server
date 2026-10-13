@@ -1744,29 +1744,23 @@ func (r *Registry) VerifyData() *XRError {
 	}
 
 	// Now do all Groups
-	entities, xErr := RawEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
-		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
+	groups, xErr := r.GetGroups(FOR_WRITE)
 	if xErr != nil {
 		return xErr
 	}
 
-	for _, e := range entities {
-		group := &Group{Entity: *e, Registry: r}
-		group.Self = group
+	for _, group := range groups {
 		if xErr = group.ValidateAndSave(true); xErr != nil {
 			return xErr
 		}
 
 		// Now do all Resource in this Group and implicitly it's owning Meta
-		entities, xErr = RawEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
-			`e.ParentSID=?`, group.DbSID)
+		resources, xErr := group.GetResources(FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
 
-		for _, e := range entities {
-			resource := &Resource{Entity: *e, Group: group}
-			resource.Self = resource
+		for _, resource := range resources {
 			// onlyMetaChanged, forceVerify
 			//
 			// Deferred (not run synchronously here) so it goes through
@@ -1792,16 +1786,12 @@ func (r *Registry) VerifyData() *XRError {
 			// Resource's Meta shares the same ParentSID
 			// (resource.DbSID), so without this filter we'd also pick
 			// up the Meta row here and mis-process it as a Version.
-			entities, xErr := RawEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
-				fmt.Sprintf(`e.ParentSID=? AND e.Type=%d`, ENTITY_VERSION),
-				resource.DbSID)
+			versions, xErr := resource.GetVersions(FOR_WRITE)
 			if xErr != nil {
 				return xErr
 			}
 
-			for _, e := range entities {
-				version := &Version{Entity: *e, Resource: resource}
-				version.Self = version
+			for _, version := range versions {
 				if xErr = version.ValidateAndSave(true); xErr != nil {
 					return xErr
 				}

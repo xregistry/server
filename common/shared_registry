@@ -130,3 +130,7 @@ func (reg *Registry) SetSave(name string, val any) *XRError {
 	reg.Lock()
 	return reg.Entity.eSetSave(name, val)
 }
+
+func (reg *Registry) GetGroups(accessMode int) ([]*Group, *XRError) {
+	return reg.Tx.Backend.GetGroups(reg, accessMode)
+}
