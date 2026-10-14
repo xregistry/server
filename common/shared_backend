@@ -103,6 +103,9 @@ type Backend interface {
 	CopyXrefState(meta *Meta) *XRError                    // copy xref meta props & vers
 	CopyXrefDefaultVersionProps(r *Resource) *XRError     // copy xref def ver
 	CopyXrefVersions(r *Resource, tgtSID string) *XRError // copy xref vers
+
+	// Misc Entity stuff
+	GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool, children bool, anyCase bool, accessMode int) ([]*Entity, *XRError)
 }
 
 type BatchRow struct {

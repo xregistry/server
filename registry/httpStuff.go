@@ -558,54 +558,29 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 func HTTPGETContent(info *RequestInfo) *XRError {
 	defer log.Trace("tx: %s", info.uuid)()
 
-	query := `
-SELECT
-  RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,PropName,
-  PropValue,PropType,IsSystemProp
-FROM Props WHERE RegSID=? AND `
-	args := []any{info.Registry.DbSID}
-
+	isV := log.IsFuncVerbose()
 	XID := "/" + strings.Join(info.Parts, "/")
 
-	// TODO consider excluding the META object from the query instead of
-	// dropping it via the if-statement below in the versioncount logic
-	if info.VersionUID == "" {
-		query += `(XID=? OR XID LIKE ?)`
-		args = append(args, XID, XID+"/%")
-	} else {
-		query += `XID=?`
-		args = append(args, XID)
+	entities, xErr := GetEntitiesFromXID(info.tx, info.Registry.DbSID,
+		XID, true, true, false, FOR_READ)
+	if xErr != nil {
+		return NewXRError("server_error", XID).SetDetailf(
+			"error loading entity: %s.", xErr.GetTitle())
 	}
-	query += " ORDER BY XID"
-
-	isV := log.IsFuncVerbose()
-	if isV {
-		log.Printf("tx: %s Query:\n%s", info.uuid, SubQuery(query, args))
+	if len(entities) == 0 {
+		return NewXRError("not_found", XID)
 	}
 
-	results := Query(info.tx, query, args...)
-	defer results.Close()
-
-	entity, xErr := readNextEntity(info.tx, results, FOR_READ)
-	if isV {
-		log.Printf("tx: %s Entity: %#v", info.uuid, entity)
-	}
-	if entity == nil {
-		if xErr != nil {
-			log.Printf("tx: %s Error loading entity: %s", info.uuid, xErr)
-			return NewXRError("server_error", XID).SetDetailf(
-				"error loading entity: %s.", xErr.GetTitle())
-		} else {
-			return NewXRError("not_found", XID)
-		}
-	}
+	entity := entities[0]
+	// log.Printf("e: %s", ToJSON(entity.Object))
 
 	var version *Entity
 	versionsCount := 0
 	if info.VersionUID == "" {
 		// We're on a Resource, so go find the default Version and count
 		// how many versions there are for the VersionsCount attribute
-		group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
+		group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID,
+			false, FOR_READ)
 		if err != nil {
 			return NewXRError("server_error",
 				info.GetParts(2)).SetDetailf("Error finding Group: %s.", err)
@@ -626,8 +601,14 @@ FROM Props WHERE RegSID=? AND `
 		meta := resource.MustFindMeta(false)
 
 		vID := meta.GetAsString("defaultversionid")
+		i := 1
 		for {
-			v, err := readNextEntity(info.tx, results, FOR_READ)
+			// v, err := readNextEntity(info.tx, results, FOR_READ)
+			if i == len(entities) {
+				break
+			}
+			v := entities[i]
+			i++
 
 			if v != nil && v.Type == ENTITY_META {
 				// Skip the "meta" subobject, but first grab the
@@ -956,16 +937,16 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 					xid := "/" +
 						strings.Join(info.Parts[:len(info.Parts)-2], "/")
 					xid += "/meta"
-					entity, err := RawEntityFromXID(info.tx,
-						info.Registry.DbSID, xid, false, FOR_READ)
-					if err != nil {
-						return err
+					entities, xErr := GetEntitiesFromXID(info.tx,
+						info.Registry.DbSID, xid, false, false, false, FOR_READ)
+					if xErr != nil {
+						return xErr
 					}
 
-					// Assume that if we cant' find the Resource's meta object
+					// Assume that if we can't find the Resource's meta object
 					// then the Resource doesn't exist, so a 404 really is the
 					// best response in those cases, so skip the 400
-					if entity != nil && !IsNil(entity.Object["xref"]) {
+					if len(entities) > 0 && !IsNil(entities[0].Object["xref"]) {
 						return NewXRError("cannot_doc_xref",
 							"/"+info.OriginalPath)
 					}
@@ -981,12 +962,14 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		// XID
 		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
 			xid := "/" + strings.Join(info.Parts[:len(info.Parts)-1], "/")
-			entity, xErr := RawEntityFromXID(info.tx, info.Registry.DbSID,
-				xid, false, FOR_READ)
+
+			entities, xErr := GetEntitiesFromXID(info.tx, info.Registry.DbSID,
+				xid, false, false, false, FOR_READ)
 			if xErr != nil {
 				return xErr
 			}
-			if IsNil(entity) {
+
+			if len(entities) == 0 {
 				return NewXRError("not_found", xid)
 			}
 		}
@@ -999,7 +982,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			// Should be our case since "versions" can never be empty except
 			// when xref is set. If this is not longer true then we'll need to
 			// check this Resource's xref to see if it's set.
-			// Can copy the RawEntityFromXID... stuff above
+			// Can copy the Raw EntityFromXID... stuff above
 			return NewXRError("cannot_doc_xref", "/"+info.OriginalPath)
 		}
 

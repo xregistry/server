@@ -350,6 +350,7 @@ CREATE TABLE Props (
   IsCalcDynamic    BOOL NOT NULL DEFAULT false, # Version.isdefault
 
   PRIMARY KEY(RegSID, XID, PropName),
+  UNIQUE INDEX(RegSID, LowerXID, PropName),
   UNIQUE INDEX(eSID, PropName),
   INDEX(ParentSID) # for cascade-copy cleanup (e.g.
                    # fullSaveXrefCascadeDelete's ParentSID scan)

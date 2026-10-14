@@ -3087,7 +3087,7 @@ func (e *Entity) ShowStack() {
 }
 
 // Update the entity's Object - not the other props in Entity. Similar to
-// RawEntityFromXID
+// Raw EntityFromXID
 func (e *Entity) Refresh(accessMode int) *XRError {
 	defer log.Trace("tx: %s %s", e.Tx.uuid, e.XID)()
 

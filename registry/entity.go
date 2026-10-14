@@ -5,7 +5,6 @@ import (
 	"maps"
 	"reflect"
 	"strconv"
-	"strings"
 
 	log "github.com/duglin/dlog"
 	_ "github.com/go-sql-driver/mysql"
@@ -176,78 +175,6 @@ func lockResourceFamily(tx *Tx, resourceSID string) {
 	*/
 }
 
-func RawEntityFromXID(tx *Tx, regID string, xid string, anyCase bool, accessMode int) (*Entity, *XRError) {
-	defer log.Trace("tx: %s %s", tx.uuid, xid)()
-
-	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
-	// PropName,PropValue,PropType,IsSystemProp
-	//   0     1     2       3         4      5   6     7      8
-	//     9        10         11         12
-
-	XID := "XID"
-
-	if anyCase {
-		XID = "LowerXID"
-		xid = strings.ToLower(xid)
-	}
-
-	// If the caller already wants FOR_WRITE on this (not-yet-cached)
-	// entity, lock its rows as of THIS initial fetch rather than waiting
-	// for some later Entity.Lock()/Refresh(FOR_WRITE) call - without
-	// this, Entity.Lock() would see AccessMode already == FOR_WRITE
-	// (set below by readNextEntity()) and skip re-locking entirely,
-	// leaving the entity believed-locked in Go but never actually
-	// row-locked in the DB. Matches Entity.Refresh()'s own " FOR UPDATE"
-	// handling for its Props-only reload query.
-	lockExpr := ""
-	if accessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
-	}
-
-	queryString := `
-		SELECT
-            e.RegSID as RegSID,
-            e.Type as Type,
-            e.Plural as Plural,
-            e.Singular as Singular,
-            e.ParentSID as ParentSID,
-            e.eSID as eSID,
-            e.UID as UID,
-            e.Abstract as Abstract,
-            e.XID as XID,
-            p.PropName as PropName,
-            p.PropValue as PropValue,
-            p.PropType as PropType,
-            p.IsSystemProp as IsSystemProp
-        FROM Entities AS e
-        LEFT JOIN Props AS p ON (
-            e.eSID=p.eSID
-            AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
-            AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
-            AND p.IsCalcDynamic=false)
-        WHERE e.RegSID=? AND e.` + XID + `=?
-        ORDER BY XID` + lockExpr
-
-	results := Query(tx, queryString, regID, xid)
-	defer results.Close()
-
-	ent, xErr := readNextEntity(tx, results, accessMode)
-	if xErr != nil {
-		return nil, xErr
-	}
-
-	// See lockExpr's comment above: this initial fetch already FOR
-	// UPDATE-locked ent's own row (if accessMode==FOR_WRITE), but if
-	// ent is a Resource/Meta/Version it also needs its sibling
-	// Resource+Meta+Versions family locked - matches Entity.Lock()'s
-	// same handling for already-cached entities.
-	if accessMode == FOR_WRITE {
-		lockEntityFamily(tx, ent)
-	}
-
-	return ent, nil
-}
-
 // lockEntityFamily locks (FOR UPDATE) the full Resource+Meta+Versions
 // family that ent belongs to, if any - see lockResourceFamily()'s and
 // Entity.Lock()'s doc comments for why. Safe to call with a nil ent or
@@ -360,76 +287,6 @@ func (e *Entity) Query(query string, args ...any) [][]any {
 	}
 
 	return data
-}
-
-func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, args ...any) ([]*Entity, *XRError) {
-	defer log.Trace("tx: %s %s", tx.uuid, query)()
-
-	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
-	// PropName,PropValue,PropType,IsSystemProp
-	//   0     1     2       3         4      5   6     7      8
-	//     9        10         11         12
-
-	if query != "" {
-		query = "AND (" + query + ") "
-	}
-
-	args = append(append([]any{}, regID), args...)
-
-	// See RawEntityFromXID()'s matching comment - without this, a
-	// FOR_WRITE caller's very first (not-yet-cached) fetch would never
-	// actually lock these rows, yet Entity.Lock() would believe it's
-	// already locked (AccessMode == FOR_WRITE, stamped by
-	// readNextEntity() below) and silently skip re-locking.
-	lockExpr := ""
-	if accessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
-	}
-
-	results := Query(tx, `
-		SELECT
-            e.RegSID as RegSID,
-            e.Type as Type,
-            e.Plural as Plural,
-            e.Singular as Singular,
-            e.ParentSID as ParentSID,
-            e.eSID as eSID,
-            e.UID as UID,
-            e.Abstract as Abstract,
-            e.XID as XID,
-            p.PropName as PropName,
-            p.PropValue as PropValue,
-            p.PropType as PropType,
-            p.IsSystemProp as IsSystemProp
-        FROM Entities AS e
-        LEFT JOIN Props AS p ON (
-            e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
-            AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
-            AND p.IsCalcDynamic=false)
-        WHERE e.RegSID=? `+query+` ORDER BY XID`+lockExpr, args...)
-	defer results.Close()
-
-	entities := []*Entity{}
-	for {
-		e, xErr := readNextEntity(tx, results, accessMode)
-		if xErr != nil {
-			return nil, xErr
-		}
-		if e == nil {
-			break
-		}
-		entities = append(entities, e)
-	}
-
-	// See RawEntityFromXID()'s matching comment: lock each returned
-	// entity's Resource+Meta+Versions family too, if applicable.
-	if accessMode == FOR_WRITE {
-		for _, e := range entities {
-			lockEntityFamily(tx, e)
-		}
-	}
-
-	return entities, nil
 }
 
 // Set, Validate and Save to DB but not Commit
@@ -1735,4 +1592,11 @@ func (e *Entity) SaveSystemProps() *XRError {
 	}
 
 	return nil
+}
+
+func GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool, children bool, anyCase bool, accessMode int) ([]*Entity, *XRError) {
+	defer log.Trace("tx: %s xid:%q all:%v child:%v",
+		tx.uuid, xidStr, allAttrs, children)()
+
+	return tx.Backend.GetEntitiesFromXID(tx, regSID, xidStr, allAttrs, children, anyCase, accessMode)
 }

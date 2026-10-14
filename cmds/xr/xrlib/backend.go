@@ -326,3 +326,8 @@ func (CLIBE *CLIBackend) CopyXrefVersions(r *Resource, tgtSID string) *XRError {
 	panic("not yet")
 	return nil
 }
+
+func (CLIBE *CLIBackend) GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool, children bool, anyCase bool, accessMode int) ([]*Entity, *XRError) {
+	panic("not yet")
+	return nil, nil
+}

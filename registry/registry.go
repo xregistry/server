@@ -271,14 +271,18 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 		return tx.Registry, nil
 	}
 
-	ent, xErr := RawEntityFromXID(tx, sid, "/", false, accessMode)
+	entities, xErr := GetEntitiesFromXID(tx, sid, "/", false, false, false,
+		accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
 			"Error finding Registry %q: %s.", sid, xErr.GetTitle())
 	}
-	if ent == nil {
+	if len(entities) == 0 {
 		return nil, nil
 	}
+
+	PanicIf(len(entities) > 1, "Too many found")
+	ent := entities[0]
 
 	reg := &Registry{Entity: *ent}
 	reg.Tx = tx
@@ -350,7 +354,8 @@ func FindRegistryByUID(tx *Tx, xrsConfig *Config, uid string, accessMode int) (*
 		return nil, nil
 	}
 
-	ent, xErr := RawEntityFromXID(tx, regSID, "/", false, accessMode)
+	entities, xErr := GetEntitiesFromXID(tx, regSID, "/", false, false,
+		false, accessMode)
 
 	if xErr != nil {
 		if newTx {
@@ -360,9 +365,9 @@ func FindRegistryByUID(tx *Tx, xrsConfig *Config, uid string, accessMode int) (*
 			"Error finding Registry %q: %s.", uid, xErr.GetTitle())
 	}
 
-	PanicIf(ent == nil, "No entity but we found a reg")
+	PanicIf(len(entities) == 0, "No entity but we found a reg")
 
-	reg := &Registry{Entity: *ent}
+	reg := &Registry{Entity: *entities[0]}
 	reg.Self = reg
 
 	if tx.Registry == nil {
@@ -643,18 +648,19 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 		return g, nil
 	}
 
-	ent, xErr := RawEntityFromXID(reg.Tx, reg.DbSID, "/"+gType+"/"+id, anyCase,
-		accessMode)
+	entities, xErr := GetEntitiesFromXID(reg.Tx, reg.DbSID,
+		"/"+gType+"/"+id, false, false, anyCase, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
 			"Error finding Group %q(%s): %s.", id, gType, xErr.GetTitle())
 	}
-	if ent == nil {
+
+	if len(entities) == 0 {
 		log.FuncPrintf("tx: %s None found", reg.Tx.uuid)
 		return nil, nil
 	}
 
-	g := &Group{Entity: *ent, Registry: reg}
+	g := &Group{Entity: *entities[0], Registry: reg}
 	g.Self = g
 	g.Tx.AddGroup(g)
 	return g, nil
@@ -711,7 +717,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		// If the group doesn't exist yet then, if the Registry isn't already
 		// locked, lock it before we try to create the group.
 		// We don't lock it before this because if the group already
-		// exists then there should be no reason to touch the Regristry
+		// exists then there should be no reason to touch the Registry
 		reg.Lock()
 		g, xErr = reg.FindGroup(gType, id, true, FOR_WRITE)
 		if xErr != nil {

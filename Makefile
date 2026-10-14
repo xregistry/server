@@ -273,10 +273,12 @@ mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
 	(echo && echo "# Starting mysql" && \
 	docker run -q -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
-		-v $(PWD)/.mysql-data:/var/lib/mysql \
 		-p $(DBPORT):$(DBPORT) --name mysql $(MYSQL_IMAGE) \
 		--port $(DBPORT) > /dev/null )
+
 		@ # -e MYSQL_USER=$(DBUSER) \
+		# --tmpfs /var/lib/mysql \
+		# -v $(PWD)/.mysql-data:/var/lib/mysql \
 
 waitformysql:
 	@while ! docker run -q --network host $(MYSQL_IMAGE) mysqladmin \

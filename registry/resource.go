@@ -333,19 +333,21 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 		return m, nil
 	}
 
-	ent, xErr := RawEntityFromXID(r.Tx, r.Group.Registry.DbSID,
-		r.XID+"/meta", anyCase, r.AccessMode)
+	entities, xErr := GetEntitiesFromXID(r.Tx, r.Group.Registry.DbSID,
+		r.XID+"/meta", false, false, anyCase, r.AccessMode)
+
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/meta").
 			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s.",
 				r.XID, xErr.GetTitle()))
 	}
-	if ent == nil {
+
+	if len(entities) == 0 {
 		log.FuncPrintf("tx: %s None found", r.Tx.uuid)
 		return nil, nil
 	}
 
-	m := &Meta{Entity: *ent, Resource: r}
+	m := &Meta{Entity: *entities[0], Resource: r}
 	m.Self = m
 	r.Tx.AddMeta(m)
 	return m, nil
@@ -371,19 +373,32 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 		return v, nil
 	}
 
-	ent, xErr := RawEntityFromXID(r.Tx, r.Group.Registry.DbSID,
-		r.XID+"/versions/"+id, anyCase, r.AccessMode)
+	// This is a bit scary to have allProps=true but for some reason
+	// it doesn't hurt. We need it to make sure that xref'd versions
+	// are found. We used to be ok with it being 'false' because we used
+	// to query over Entities and then JOIN'd in the Props. I think we
+	// we just getting lucky that xref'd versions weren't hidden but
+	// xref'd versions props are. Seems inconsistent.
+	// Normally, we set allProps to false to avoid pulling in the
+	// system/non-user-set props. Maybe one day we should explore better
+	// options here - like find a way to force an entity (w/o any props)
+	// to show up here in cases where it's xref'd in.
+	// Keep an eye on this.
+	entities, xErr := GetEntitiesFromXID(r.Tx, r.Group.Registry.DbSID,
+		r.XID+"/versions/"+id, true, false, anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
 			SetDetail(fmt.Sprintf("Error finding Version %s: %s.",
 				r.XID+"/versions/"+id, xErr.GetTitle()))
 	}
-	if ent == nil {
+
+	if len(entities) == 0 {
 		log.FuncPrintf("tx: %s None found", r.Tx.uuid)
 		return nil, nil
 	}
 
-	v := &Version{Entity: *ent, Resource: r}
+	v := &Version{Entity: *entities[0], Resource: r}
+
 	v.Self = v
 	v.Tx.AddVersion(v)
 	return v, nil

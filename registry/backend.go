@@ -364,7 +364,7 @@ func (sqlBE *SQLBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
 }
 
 func (sqlBE *SQLBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XRError) {
-	entities, xErr := RawEntitiesFromQuery(r.Tx, r.DbSID, accessMode,
+	entities, xErr := sqlBE.GetEntitiesFromQuery(r.Tx, r.DbSID, accessMode,
 		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
 	if xErr != nil {
 		return nil, xErr
@@ -392,7 +392,7 @@ func (sqlBE *SQLBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XREr
 
 func (sqlBE *SQLBackend) IterateGroups(r *Registry, fn func(g *Group) (bool, *XRError)) *XRError {
 
-	entities, xErr := RawEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
+	entities, xErr := sqlBE.GetEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
 		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
 	if xErr != nil {
 		return xErr
@@ -602,7 +602,7 @@ func (sqlBE *SQLBackend) FindBadEnumVersions(g *Group, constraint *Constraint, r
 }
 
 func (sqlBE *SQLBackend) GetResources(g *Group, accessMode int) ([]*Resource, *XRError) {
-	entities, xErr := RawEntitiesFromQuery(g.Tx, g.Registry.DbSID, FOR_WRITE,
+	entities, xErr := sqlBE.GetEntitiesFromQuery(g.Tx, g.Registry.DbSID, FOR_WRITE,
 		`e.ParentSID=?`, g.DbSID)
 	if xErr != nil {
 		return nil, xErr
@@ -1543,7 +1543,7 @@ func (sqlBE *SQLBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
 }
 
 func (sqlBE *SQLBackend) GetVersions(r *Resource, accessMode int) ([]*Version, *XRError) {
-	entities, xErr := RawEntitiesFromQuery(r.Tx, r.Registry.DbSID,
+	entities, xErr := sqlBE.GetEntitiesFromQuery(r.Tx, r.Registry.DbSID,
 		accessMode, `e.ParentSID=? AND e.Type=?`, r.DbSID, ENTITY_VERSION)
 	if xErr != nil {
 		return nil, xErr
@@ -1950,4 +1950,163 @@ func (sqlBE *SQLBackend) CopyXrefVersions(r *Resource, targetSID string) *XRErro
 		"isdefault"+string(DB_IN), synthAbstract, targetResourceSID)
 
 	return nil
+}
+
+func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool, children bool, anyCase bool, accessMode int) ([]*Entity, *XRError) {
+
+	defer log.Trace("tx: %s xid:%q all:%v child:%v",
+		tx.uuid, xidStr, allAttrs, children)()
+
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
+	// PropName,PropValue,PropType,IsSystemProp
+	//   0     1     2       3         4      5   6     7      8
+	//     9        10         11         12
+
+	args := []any{regSID}
+
+	XID := "XID"
+	if anyCase {
+		XID = "LowerXID"
+		xidStr = strings.ToLower(xidStr)
+	}
+	XIDExpr := `(` + XID + `=?`
+	args = append(args, xidStr)
+
+	if children {
+		XIDExpr += ` OR ` + XID + ` LIKE ?`
+		args = append(args, xidStr+"/%")
+	}
+	XIDExpr += `)`
+
+	// If the caller already wants FOR_WRITE on this (not-yet-cached)
+	// entity, lock its rows as of THIS initial fetch rather than waiting
+	// for some later Entity.Lock()/Refresh(FOR_WRITE) call - without
+	// this, Entity.Lock() would see AccessMode already == FOR_WRITE
+	// (set below by readNextEntity()) and skip re-locking entirely,
+	// leaving the entity believed-locked in Go but never actually
+	// row-locked in the DB. Matches Entity.Refresh()'s own " FOR UPDATE"
+	// handling for its Props-only reload query.
+	lockExpr := ""
+	if accessMode == FOR_WRITE {
+		lockExpr = ` FOR UPDATE`
+	}
+
+	subsetProps := ""
+	if !allAttrs {
+		subsetProps = `
+            AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+            AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
+            AND p.IsCalcDynamic=false`
+	}
+
+	queryString := `SELECT
+            p.RegSID,
+            p.Type,
+            p.Plural,
+            p.Singular,
+            p.ParentSID,
+            p.eSID,
+            p.UID,
+            p.Abstract,
+            p.XID,
+            p.PropName,
+            p.PropValue,
+            p.PropType,
+            p.IsSystemProp
+        FROM Props AS p WHERE RegSID=? AND ` + XIDExpr + subsetProps + `
+        ORDER BY XID` + lockExpr
+
+	// log.Printf("Query:\n%s\nArgs: %v", queryString, args)
+
+	results := Query(tx, queryString, args...)
+	defer results.Close()
+
+	entities := []*Entity(nil)
+	for {
+		entity, xErr := readNextEntity(tx, results, accessMode)
+		if xErr != nil {
+			return nil, xErr
+		}
+		if entity == nil {
+			break
+		}
+
+		if accessMode == FOR_WRITE {
+			lockEntityFamily(tx, entity)
+		}
+
+		entities = append(entities, entity)
+	}
+
+	return entities, nil
+}
+
+func (sqlBE *SQLBackend) GetEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, args ...any) ([]*Entity, *XRError) {
+	defer log.Trace("tx: %s %s", tx.uuid, query)()
+
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
+	// PropName,PropValue,PropType,IsSystemProp
+	//   0     1     2       3         4      5   6     7      8
+	//     9        10         11         12
+
+	if query != "" {
+		query = "AND (" + query + ") "
+	}
+
+	args = append(append([]any{}, regID), args...)
+
+	// See GetEntitiesFromXID()'s matching comment - without this, a
+	// FOR_WRITE caller's very first (not-yet-cached) fetch would never
+	// actually lock these rows, yet Entity.Lock() would believe it's
+	// already locked (AccessMode == FOR_WRITE, stamped by
+	// readNextEntity() below) and silently skip re-locking.
+	lockExpr := ""
+	if accessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
+	results := Query(tx, `
+        SELECT
+            e.RegSID as RegSID,
+            e.Type as Type,
+            e.Plural as Plural,
+            e.Singular as Singular,
+            e.ParentSID as ParentSID,
+            e.eSID as eSID,
+            e.UID as UID,
+            e.Abstract as Abstract,
+            e.XID as XID,
+            p.PropName as PropName,
+            p.PropValue as PropValue,
+            p.PropType as PropType,
+            p.IsSystemProp as IsSystemProp
+        FROM Entities AS e
+        LEFT JOIN Props AS p ON (
+            e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+            AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
+            AND p.IsCalcDynamic=false)
+        WHERE e.RegSID=? `+query+` ORDER BY XID`+lockExpr, args...)
+	defer results.Close()
+
+	entities := []*Entity{}
+	for {
+		e, xErr := readNextEntity(tx, results, accessMode)
+		if xErr != nil {
+			return nil, xErr
+		}
+		if e == nil {
+			break
+		}
+		entities = append(entities, e)
+	}
+
+	// See GetEntitiesFromXID()'s matching comment: lock each returned
+	// entity's Resource+Meta+Versions family too, if applicable.
+	if accessMode == FOR_WRITE {
+		for _, e := range entities {
+			lockEntityFamily(tx, e)
+		}
+	}
+
+	return entities, nil
 }
