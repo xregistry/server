@@ -20,8 +20,8 @@ type JsonWriter struct {
 	collXIDs    map[int]string   // [eType] XID path+/ to the root of Colls
 	unusedColls map[int][]string // [eType][remaining coll names on this eType]
 
-	results *Result // results of DB query
-	Entity  *Entity // Current row in the DB results
+	iter    EntityIterator // results of DB query
+	Entity  *Entity        // Current row in the DB results
 	hasData bool
 
 	// Save the defaultVersionID as we serialize the Versions collection
@@ -34,13 +34,13 @@ type JsonWriter struct {
 	didCapModelSpace bool
 }
 
-func NewJsonWriter(info *RequestInfo, results *Result) *JsonWriter {
+func NewJsonWriter(info *RequestInfo, iter EntityIterator) *JsonWriter {
 	return &JsonWriter{
 		info:        info,
 		indent:      "",
 		collXIDs:    map[int]string{},
 		unusedColls: map[int][]string{},
-		results:     results,
+		iter:        iter,
 		hasData:     false,
 	}
 }
@@ -78,8 +78,8 @@ func (jw *JsonWriter) NextEntity() (*Entity, *XRError) {
 	var next *Entity
 	var xErr *XRError
 
-	if next = jw.Pop(); next == nil {
-		next, xErr = readNextEntity(jw.info.tx, jw.results, FOR_READ)
+	if next = jw.Pop(); next == nil && jw.iter != nil {
+		next, xErr = jw.iter.Next()
 	}
 	jw.Entity = next
 	return jw.Entity, xErr

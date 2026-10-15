@@ -136,4 +136,9 @@ type VersionAncestor struct {
 
 type EntityIterator interface {
 	Next() (*Entity, *XRError) // nil,nil if at ened, not nil, Error
+	Close()
+	Offset() uint64 // of next entity (zero before first Next(), -1 if unknown
+	Size() uint64   // total # of entities in iteration (-1 if unknown)
+	Total() uint64  // Size = this iter, Total = all pages(iters) in DB
+	// if not paging, then total=math.MaxUint64
 }

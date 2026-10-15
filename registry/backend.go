@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -2014,97 +2016,6 @@ func (sqlBE *SQLBackend) GetEntityFromXID(tx *Tx, regSID string, xidStr string,
 	return e, nil
 }
 
-func (sqlBE *SQLBackend) xxGetEntitiesFromXID(tx *Tx, regSID string,
-	xidStr string, allAttrs bool, children bool, anyCase bool,
-	accessMode int) ([]*Entity, *XRError) {
-
-	defer log.Trace("tx: %s xid:%q all:%v child:%v",
-		tx.uuid, xidStr, allAttrs, children)()
-
-	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
-	// PropName,PropValue,PropType,IsSystemProp
-	//   0     1     2       3         4      5   6     7      8
-	//     9        10         11         12
-
-	args := []any{regSID}
-
-	XID := "XID"
-	if anyCase {
-		XID = "LowerXID"
-		xidStr = strings.ToLower(xidStr)
-	}
-	XIDExpr := `(` + XID + `=?`
-	args = append(args, xidStr)
-
-	if children {
-		XIDExpr += ` OR ` + XID + ` LIKE ?`
-		args = append(args, xidStr+"/%")
-	}
-	XIDExpr += `)`
-
-	// If the caller already wants FOR_WRITE on this (not-yet-cached)
-	// entity, lock its rows as of THIS initial fetch rather than waiting
-	// for some later Entity.Lock()/Refresh(FOR_WRITE) call - without
-	// this, Entity.Lock() would see AccessMode already == FOR_WRITE
-	// (set below by readNextEntity()) and skip re-locking entirely,
-	// leaving the entity believed-locked in Go but never actually
-	// row-locked in the DB. Matches Entity.Refresh()'s own " FOR UPDATE"
-	// handling for its Props-only reload query.
-	lockExpr := ""
-	if accessMode == FOR_WRITE {
-		lockExpr = ` FOR UPDATE`
-	}
-
-	subsetProps := ""
-	if !allAttrs {
-		subsetProps = `
-            AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
-            AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
-            AND p.IsCalcDynamic=false`
-	}
-
-	queryString := `SELECT
-            p.RegSID,
-            p.Type,
-            p.Plural,
-            p.Singular,
-            p.ParentSID,
-            p.eSID,
-            p.UID,
-            p.Abstract,
-            p.XID,
-            p.PropName,
-            p.PropValue,
-            p.PropType,
-            p.IsSystemProp
-        FROM Props AS p WHERE RegSID=? AND ` + XIDExpr + subsetProps + `
-        ORDER BY XID` + lockExpr
-
-	// log.Printf("Query:\n%s\nArgs: %v", queryString, args)
-
-	results := Query(tx, queryString, args...)
-	defer results.Close()
-
-	entities := []*Entity(nil)
-	for {
-		entity, xErr := readNextEntity(tx, results, accessMode)
-		if xErr != nil {
-			return nil, xErr
-		}
-		if entity == nil {
-			break
-		}
-
-		if accessMode == FOR_WRITE {
-			lockEntityFamily(tx, entity)
-		}
-
-		entities = append(entities, entity)
-	}
-
-	return entities, nil
-}
-
 func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string,
 	xidStr string, allAttrs bool, children bool, anyCase bool,
 	accessMode int) (EntityIterator, *XRError) {
@@ -2180,6 +2091,9 @@ func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string,
 		Results:    results,
 		Tx:         tx,
 		AccessMode: accessMode,
+		offset:     0,
+		size:       uint64(len(results.AllRows)),
+		total:      math.MaxUint64, // unknown
 	}
 
 	return iterator, nil
@@ -2261,6 +2175,10 @@ type sqlEntityIterator struct {
 	Results    *Result
 	Tx         *Tx
 	AccessMode int
+
+	offset uint64
+	size   uint64
+	total  uint64
 }
 
 func (sei *sqlEntityIterator) Next() (*Entity, *XRError) {
@@ -2269,12 +2187,23 @@ func (sei *sqlEntityIterator) Next() (*Entity, *XRError) {
 		return nil, xErr
 	}
 
-	if sei.AccessMode == FOR_WRITE {
+	if e != nil && sei.AccessMode == FOR_WRITE {
 		lockEntityFamily(sei.Tx, e)
+	}
+
+	if e == nil {
+		sei.Close()
+	} else {
+		sei.offset++
 	}
 
 	return e, nil
 }
+
+func (sei *sqlEntityIterator) Close()         { sei.Results.Close() }
+func (sei *sqlEntityIterator) Offset() uint64 { return sei.offset }
+func (sei *sqlEntityIterator) Size() uint64   { return sei.size }
+func (sei *sqlEntityIterator) Total() uint64  { return sei.total }
 
 func (sqlBE *SQLBackend) Query(tx *Tx, query string, args ...any) [][]any {
 	results := Query(tx, query, args...)
@@ -2316,4 +2245,611 @@ func (sqlBE *SQLBackend) Query(tx *Tx, query string, args ...any) [][]any {
 	}
 
 	return data
+}
+
+// GENERATE QUERY STUFF
+
+// generateFilterCTE builds the "cte(...) AS (...), FilterMatches AS (...)"
+// portion (everything *after* the "WITH RECURSIVE " keyword) of the query
+// used to find entities matching the (OR'd, AND'd) filter expressions.
+//
+// Each top-level OR expression (arm) is tagged with a bit (1<<i). The seed
+// of the recursive CTE aggregates those bits per matching eSID with
+// BIT_OR, and the recursive (parent-walking) step carries the mask
+// forward unchanged. A node reached via more than one child (each
+// possibly carrying a different mask) is reconciled by the final
+// "FilterMatches" step, which does a BIT_OR(mask) GROUP BY eSID over the
+// whole (already small, since it's per-node not per-leaf) cte.
+//
+// This lets callers (see FiltersRelativeToAbstractMasked in info.go)
+// later determine, for any given entity in the result, exactly which top-
+// level OR expression(s) are responsible for it being there -- which is
+// required to compute a correct (neither too broad nor too narrow) nested
+// <COLLECTION>url filter for that entity.
+//
+// IMPORTANT (perf): the recursive member below must stay "UNION DISTINCT"
+// (not "UNION ALL"). MySQL materializes each iteration of a recursive CTE
+// as an (unindexed) temp table, and distinctness is what keeps the walk
+// bounded to ~one pass per tree node. Since "mask" is now part of the
+// tuple being compared, at most one row per (node, distinct-mask) survives
+// each iteration -- still bounded (a node can only be reached via a
+// handful of distinct arm combinations in practice) -- rather than one row
+// per *matching leaf* underneath that node, which is what plain "UNION
+// ALL" here would produce. The one-time, non-recursive arm-tagging seed
+// (built via "UNION ALL" below) doesn't have this concern since it's a
+// flat aggregation, not something that compounds across recursion depth.
+func generateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interface{}) {
+	query := ""
+	args := []interface{}{}
+
+	query += `cte(eSID,Type,ParentSID,XID,OrMask) AS (
+    -- The seed: entities that directly match one (or more) of the OR
+    -- expressions below, tagged with a bit-mask of which one(s).
+    SELECT e.eSID,e.Type,e.ParentSID,e.XID,matched.OrMask
+    FROM Entities AS e
+    JOIN (
+      SELECT tagged.eSID, BIT_OR(tagged.ArmMask) AS OrMask
+      FROM ( -- start of the OR Filter groupings`
+	firstOr := true
+	for orIndex, OrFilters := range filters {
+		if !firstOr {
+			query += `
+        UNION ALL -- Adding another OR`
+		}
+		firstOr = false
+		armBit := fmt.Sprintf("%d", uint64(1)<<uint(orIndex))
+		query += `
+      -- start of one Filter AND grouping (expr1 AND expr2).
+      -- Find all SIDs for the leaves for entities (SIDs) of interest,
+      -- tagged with this OR arm's bit (` + armBit + `).
+      SELECT list.eSID, ` + armBit + ` AS ArmMask FROM (
+        SELECT count(*) as cnt,e2.eSID,e2.XID FROM Entities AS e1
+        RIGHT JOIN (
+          -- start of expr1 - below finds SearchNodes/SIDs of interest`
+		firstAnd := true
+		andCount := 0
+		for _, filter := range OrFilters { // AndFilters
+			propNameSearch := "PropName=?"
+			filterPropName := filter.PropName
+
+			if filter.PP.HasWild {
+				// mysql format: column_name REGEXP 'pattern'
+				propNameSearch = "PropName REGEXP ?"
+				has := false
+
+				// Convert wildcards into appropriate regexp
+				if filter.Operator == FILTER_PRESENT ||
+					filter.Operator == FILTER_ABSENT {
+					// include .* at the end
+					filterPropName, has = filter.PP.DBFilterExists()
+				} else {
+					filterPropName, has = filter.PP.DBFilter()
+				}
+
+				PanicIf(!has, "Must have *") // Sanity check
+				// log.Printf("tx: %s fpn: %q", reg.Tx.uuid, filterPropName)
+				// log.Printf("tx: %s fpn: %s", reg.Tx.uuid, filter.PP.Debug())
+			} else {
+				if filter.Operator == FILTER_PRESENT ||
+					filter.Operator == FILTER_ABSENT {
+
+					// convert from "=" to "LIKE"
+					propNameSearch = "PropName LIKE ?"
+					// include % at the end
+					filterPropName = filter.PropName + "%"
+				}
+			}
+
+			andCount++
+			if !firstAnd {
+				query += `
+          UNION ALL`
+			}
+			firstAnd = false
+
+			if filter.Operator == FILTER_PRESENT { // ?filter=xxx
+				check := "(Abstract=? AND " + propNameSearch + " AND "
+
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+				check += "PropValue IS NOT NULL)"
+				// We may match lots of attrs, but we only want
+				// 1 to appear so the list.cnt check doesn't treat
+				// 2+ rows at matching more than one filter expression
+				check += " GROUP BY eSID" // " LIMIT 1"
+				query += `
+          (SELECT eSID,Type,XID,ParentSID FROM Props  -- FILTER_PRESENT
+           WHERE RegSID=? AND ` + check + ")" // Need () for groupBy/limit
+
+			} else if filter.Operator == FILTER_ABSENT { // ?filter=xxx=null
+				// Look for non-existing prop
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+
+				query += `
+          -- Entities that don't have the specified prop
+          SELECT e.eSID,e.Type,e.XID,ParentSID FROM Entities AS e
+          WHERE e.RegSID=? AND e.Abstract=? AND
+            NOT EXISTS (SELECT 1 FROM Props WHERE
+              RegSID=e.RegSID AND eSID=e.eSID AND ( ` +
+					propNameSearch + `))`
+
+			} else if filter.Operator == FILTER_EQUAL { // ?filter=xxx=zzz
+				check := "(Abstract=? AND " + propNameSearch + " AND "
+
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+				value, wildcard := LikeWildcardIt(filter.Value)
+				args = append(args, value)
+				if !wildcard {
+					// Strings:case-insensitive per spec; others:exact match
+					args = append(args, value)
+					check += "((PropType='string' AND PropValue " +
+						FILTER_CI_COLLATE + "=?)" +
+						" OR (PropType<>'string' AND PropValue=?))"
+				} else {
+					args = append(args, value)
+					check += "((PropType<>'string' AND PropValue=?) " +
+						" OR (PropType='string' AND PropValue " +
+						FILTER_CI_COLLATE + " LIKE ?))"
+				}
+				check += ")"
+				query += `
+          SELECT eSID,Type,XID,ParentSID FROM Props
+            WHERE RegSID=? AND ` + check
+
+			} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+				query += `
+          -- Entities that don't have the specified prop
+          SELECT e.eSID,e.Type,e.XID,e.ParentSID FROM Entities AS e
+          WHERE e.RegSID=? AND e.Abstract=? AND
+            NOT EXISTS (SELECT 1 FROM Props WHERE
+              RegSID=e.RegSID AND eSID=e.eSID AND (` +
+					propNameSearch + ` AND `
+
+				value, wildcard := LikeWildcardIt(filter.Value)
+				args = append(args, value)
+				if !wildcard {
+					// Strings:case-insensitive per spec;others:exact match
+					args = append(args, value)
+					query += "((PropType='string' AND PropValue " +
+						FILTER_CI_COLLATE + "=?)" +
+						" OR (PropType<>'string' AND PropValue=?))"
+				} else {
+					args = append(args, value)
+					query += "((PropType<>'string' AND PropValue=?) " +
+						" OR (PropType='string' AND PropValue " +
+						FILTER_CI_COLLATE + " LIKE ?))"
+				}
+				query += "))"
+
+			} else if filter.Operator == FILTER_LESS ||
+				filter.Operator == FILTER_LESS_EQUAL ||
+				filter.Operator == FILTER_GREATER ||
+				filter.Operator == FILTER_GREATER_EQUAL { // ?filter=x<z etc
+
+				var sqlOp string
+				switch filter.Operator {
+				case FILTER_LESS:
+					sqlOp = "<"
+				case FILTER_LESS_EQUAL:
+					sqlOp = "<="
+				case FILTER_GREATER:
+					sqlOp = ">"
+				case FILTER_GREATER_EQUAL:
+					sqlOp = ">="
+				}
+
+				check := "(Abstract=? AND " + propNameSearch + " AND "
+				args = append(args, reg.DbSID, filter.Abstract,
+					filterPropName)
+
+				// Numeric: numeric comparison
+				// String and others: case-insensitive string comparison
+				args = append(args, filter.Value, filter.Value)
+				check += "(CASE WHEN PropType IN ('integer','decimal','uinteger')" +
+					" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +
+					" ELSE PropValue " + FILTER_CI_COLLATE + " " + sqlOp + " ? END))"
+				query += `
+          SELECT eSID,Type,XID,ParentSID FROM Props
+            WHERE RegSID=? AND ` + check
+
+			} else {
+				PanicIf(true, "Bad filter.op: %#v", filter)
+			}
+		} // end of AndFilter
+		query += `
+          -- end of expr1
+        ) AS result ON ( result.eSID=e1.eSID )
+        -- For each result found, find all Leaves under the matching entity.
+        -- The Leaves that show up 'cnt' times, where cnt is the # of
+        -- expressions in each filter (the ANDs), are branches to return.
+        -- Note we return the XID of each Leaf, not the XID of the matching
+        -- entity. The entity that matches isn't important.
+        JOIN Entities AS e2 ON (
+          (
+            (
+              -- Non-meta objects, just compare the XID
+              result.Type<>` + StrTypes(ENTITY_META) + ` AND
+              ( result.XID = '/' OR
+                e2.XID=result.XID OR
+                e2.XID LIKE CONCAT(result.XID,'/%')
+              )
+            )
+            OR
+            (
+              -- For 'meta' objects, compare it's parent's XID
+              result.Type=` + StrTypes(ENTITY_META) + ` AND
+              (e2.eSID = result.ParentSID OR e2.ParentSID = result.ParentSID)
+              -- ( e2.XID=TRIM(TRAILING '/meta' FROM result.XID) OR
+                -- e2.XID LIKE CONCAT(TRIM(TRAILING 'meta' FROM result.XID),'%')
+              -- )
+            )
+          )
+          AND e2.eSID IN (SELECT * from Leaves)
+        ) GROUP BY e2.eSID
+        -- end of RIGHT JOIN
+      ) as list
+      WHERE list.cnt=?   -- cnt is the # of operands in the AND filter
+      -- end of one Filter AND grouping (expr1 AND expr2 ...)`
+		args = append(args, andCount)
+	} // end of OrFilter
+
+	query += `
+      ) AS tagged -- end of all OR Filter groupings
+      GROUP BY tagged.eSID
+    ) AS matched ON e.eSID = matched.eSID
+
+    -- This is the recursive part of the query.
+    -- Find all of the parents (and 'meta' sub-objects) of the found
+    -- entities, up to root of Reg, carrying the OrMask along the way.
+    -- NOTE: this must stay "UNION DISTINCT" (see the perf comment on
+    -- generateFilterCTE above) -- do not change to "UNION ALL".
+    UNION DISTINCT SELECT
+      e.eSID,e.Type,e.ParentSID,e.XID,cte.OrMask
+    FROM Entities AS e
+    INNER JOIN cte ON
+      (
+        -- Find its parent
+        e.eSID=cte.ParentSID
+        OR
+        -- If this is a Resource, grab its 'meta' sub-object
+        ( cte.Type=` + StrTypes(ENTITY_RESOURCE) + ` AND
+          e.Type=` + StrTypes(ENTITY_META) + ` AND
+          e.ParentSID=cte.eSID
+        )
+      )
+  ),
+  -- A node can be reached via multiple children, potentially carrying
+  -- different OrMask values; reconcile those here with one final BIT_OR.
+  FilterMatches AS (
+    SELECT eSID, BIT_OR(OrMask) AS OrMask FROM cte GROUP BY eSID
+  )`
+
+	return query, args
+}
+
+// topLevelSlashCount returns, as a string, the SUBSTRING_INDEX() count
+// needed to truncate any row's XID (top-level entity's own, or one of
+// its descendants') down to just its top-level parent's XID, given the
+// XIDs[0] prefix used for a "Coll" query. E.g. XIDs[0]=="/dirs" means
+// direct children look like "/dirs/d1" (3 "/"-delimited pieces), so
+// SUBSTRING_INDEX(anyDescendantXID, '/', 3) always yields "/dirs/d1" no
+// matter how deeply nested the descendant is.
+//
+// Shared by both the "?sort=" substring_index join and the pagination
+// DENSE_RANK() window function below - both need to identify, for any
+// row, its top-level parent's own XID.
+func topLevelSlashCount(xid string) string {
+	count := strings.Count(xid, "/")
+	if count == 1 { // e.g /dirs
+		return "3" // want substring below as: /dirs/d1
+	} else if count == 3 { // e.g. /dirs/d1/files
+		return "5" // want substring below as: /dirs/d1/files/f1
+	} else { // e.g. /dirs/d1/files/f1/versions
+		return "7" // want substring below as: /dirs/d1/files/f1/versions/v1
+	}
+}
+
+func GetEntitiesFromQuery(reg *Registry, what string, XIDs []string) (EntityIterator, *XRError) {
+	query, args, err := GenerateQuery(reg, what, XIDs)
+	if err != nil {
+		return nil, err
+	}
+	results := Query(reg.Tx, query, args...)
+	// defer results.Close()
+
+	iter := &sqlEntityIterator{
+		Results:    results,
+		Tx:         reg.Tx,
+		AccessMode: FOR_READ,
+		offset:     0,
+		size:       uint64(len(results.AllRows)),
+		total:      math.MaxUint64,
+	}
+
+	// Get "total", it's 14th column
+	// TotalCount (see GenerateQuery) rides along on every row of the
+	// (already fully in-memory - see Query()) paginated result, computed
+	// as a whole-partition aggregate *before* the page-range filter was
+	// applied - so it already reflects the entire result set, and we
+	// don't need a second query just to get it.
+	if results != nil && len(results.AllRows) > 0 {
+		row := results.AllRows[0]
+		if len(row) > 14 {
+			totalStr := NotNilString(row[14])
+			if totalStr != "" {
+				if v, err := strconv.ParseUint(totalStr, 10, 64); err == nil {
+					iter.total = v
+				}
+			}
+		}
+	}
+
+	return iter, nil
+}
+
+// sortKey = attribute name, -NAME means descending, no "-" means ascending
+func GenerateQuery(reg *Registry, what string, XIDs []string) (string, []interface{}, *XRError) {
+	query := ""
+	args := []any{}
+
+	info := reg.GetRequestInfo()
+	filters := info.Filters
+	docView := info.DoDocView()
+	sortKey := info.SortKey
+	limit := info.Limit
+	offset := info.Offset
+
+	// ?filter=excludeall returns nothing
+	if len(filters) == 1 && filters[0][0].Path == "excludeall"+string(DB_IN) {
+		if what != "Coll" {
+			return "", nil, NewXRError("bad_filter",
+				info.OriginalRequest.URL.RequestURI(),
+				"value=excludeall",
+				"error_detail=\"excludeall\" must only be used "+
+					"on collections")
+		}
+		return "", nil, nil
+	}
+
+	if sortKey != "" && what != "Coll" {
+		return "", nil, NewXRError("bad_sort", "",
+			"value="+sortKey,
+			"error_detail=can't sort on a non-collection results")
+	}
+
+	if limit != 0 && what != "Coll" {
+		return "", nil, NewXRError("pagination_noncollection", "")
+	}
+
+	ascDesc := "ASC"
+	sortJoin := ""
+	sortOrder := ""
+
+	if sortKey != "" {
+		if sortKey[0] == '-' {
+			ascDesc = "DESC"
+			sortKey = sortKey[1:]
+		}
+
+		// We only need to look at the first XID because if there's more
+		// than one then they should all be for the same level
+		slashCount := topLevelSlashCount(XIDs[0])
+
+		/*
+					sortOrder = `
+			    sj.PropValue IS NOT NULL,
+			    CASE WHEN sj.PropType IN ('integer','decimal','uinteger')
+			      THEN CAST(sj.PropValue AS DECIMAL) END ` + ascDesc + `,
+			    CASE WHEN sj.PropType NOT IN ('integer','decimal','uinteger')
+			      THEN sj.PropValue END ` + ascDesc + `,
+			`
+		*/
+
+		sortOrder = `
+    sj.PropValue IS NOT NULL ` + ascDesc + `,
+    CASE
+      WHEN sj.PropType IN ('integer','decimal','uinteger') THEN
+        IFNULL(CAST(sj.PropValue AS DECIMAL), 0)
+      WHEN sj.PropType NOT IN ('integer','decimal','uinteger') THEN
+        sj.PropValue
+      ELSE NULL
+    END COLLATE utf8mb4_general_ci ` + ascDesc + `,
+`
+
+		sortJoin = `
+  LEFT JOIN Props AS sj ON (
+    sj.RegSID = ft.RegSID AND
+    sj.XID = substring_index(ft.XID, '/', ` + slashCount + `) AND
+    sj.PropName = '` + sortKey + `')
+`
+	}
+
+	// A cap of 64 is imposed because each top-level OR expression is
+	// tagged with a bit (1<<i) so we can BIT_OR them together while
+	// walking the tree, and track (per entity) which OR expression(s)
+	// actually caused it to be included in the result set. This is what
+	// lets us compute an accurate (not overly-broad, not overly-narrow)
+	// nested <COLLECTION>url filter for each entity in the result.
+	if len(filters) > 64 {
+		return "", nil, NewXRError("bad_filter",
+			info.OriginalRequest.URL.RequestURI(),
+			"value=filter",
+			"error_detail=too many OR'd filter expressions "+
+				fmt.Sprintf("(%d), the max supported is 64", len(filters)))
+	}
+
+	// filterCTE/filterArgs hold the "WITH RECURSIVE cte(...) AS (...),
+	// FilterMatches AS (...)" definition (sans the leading "WITH
+	// RECURSIVE" keyword) that's prepended to the whole query when
+	// filters are in use. FilterMatches maps each matching eSID (and all
+	// of its ancestors, and the eSID's the 'meta' sub-objects) to a
+	// bit-mask (BIT_OR'd) of which top-level OR expression(s) are
+	// responsible for it being in the result. See FiltersRelativeToAbstractMasked
+	// in info.go for how this mask is later used to compute the correct
+	// nested <COLLECTION>url filter for each entity.
+	filterCTE, filterArgs := "", []interface{}(nil)
+	if len(filters) != 0 {
+		filterCTE, filterArgs = generateFilterCTE(reg, filters)
+	}
+
+	maskCol := "'0' AS FilterMask"
+	filterJoin := ""
+	if len(filters) != 0 {
+		// CAST to CHAR so the Go driver always hands us a consistent,
+		// full-range (up to 64-bit) string regardless of how it would
+		// otherwise represent a BIGINT UNSIGNED.
+		maskCol = "CAST(IFNULL(fm.OrMask,0) AS CHAR) AS FilterMask"
+		filterJoin = " LEFT JOIN FilterMatches AS fm ON fm.eSID=ft.eSID"
+	}
+
+	// When pagination is active (limit != 0, only ever true when
+	// what=="Coll") we need two extra columns computed directly
+	// alongside the rest of this SELECT's other per-row columns (same
+	// level as the "ft"/"sj" aliases, so they can reference them):
+	//   - LowerXID: re-exposed so the wrapping queries below (which no
+	//     longer have access to the "ft" alias) can re-apply the same
+	//     tiebreak ordering used today.
+	//   - TopIdx: a DENSE_RANK() window function that assigns every row
+	//     (top-level entity or descendant) its top-level ancestor's
+	//     page index, all in one pass with no extra join needed to
+	//     "propagate" the index down to child rows. This works because
+	//     rows are ordered (both here and via the existing non-paginated
+	//     ORDER BY below) such that every entity's descendant rows are
+	//     always physically contiguous with it - true even when ?sort=
+	//     is in play, since every row in a subtree resolves to the same
+	//     sort value (that of its top-level ancestor, via "sj" above).
+	//     DENSE_RANK() ties rows sharing the same (sort value, ancestor
+	//     XID) tuple to the same rank, and gives the next *distinct*
+	//     tuple (i.e. entity) the next rank - exactly the page index we
+	//     want, computed using the exact same ORDER BY terms (sortOrder)
+	//     as the plain, non-paginated query below, just replacing the
+	//     final "ft.LowerXID ASC" per-row tiebreak with the coarser
+	//     "top-level ancestor's XID" tiebreak so ties are ancestor-wide.
+	paginate := limit != 0
+	rankCol := "" // used for ordering results
+	totalCountCol := ""
+	if paginate {
+		slashCount := topLevelSlashCount(XIDs[0])
+		rankOrder := sortOrder +
+			`    SUBSTRING_INDEX(ft.XID, '/', ` + slashCount + `) ASC`
+		rankCol = `,ft.LowerXID AS LowerXID,
+  DENSE_RANK() OVER (ORDER BY ` + rankOrder + `) AS TopIdx`
+	} else {
+		// Not paginating - "TotalCount" is computed for real (via the
+		// win1/win2 wrapping below) only when paginate==true. Project a
+		// cheap literal here instead of just omitting the column, so
+		// GenerateQuery() always returns the same column shape either
+		// way - this avoids the column count ever silently drifting out
+		// of sync between the "paginate" and "!paginate" code paths as
+		// more columns get added over time. This is a constant literal,
+		// not a computed aggregate, so it costs nothing extra to compute
+		// (no extra join/derived table/window function). Use '-' rather
+		// than '0' so any accidental future attempt to read/parse this
+		// column as an int when !paginate fails loudly instead of
+		// silently looking like a valid (zero) count.
+		totalCountCol = `,'-' AS TotalCount`
+	}
+
+	args = []interface{}{}
+	if len(filters) != 0 {
+		query = "WITH RECURSIVE " + filterCTE + "\n"
+		args = append(args, filterArgs...)
+	}
+	args = append(args, reg.DbSID)
+	query += `
+SELECT
+  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.XID,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp,` + maskCol + rankCol + totalCountCol + `
+  FROM Props AS ft` + filterJoin + sortJoin + `
+  WHERE ft.RegSID=?
+`
+
+	// Exclude generated attributes/entities if 'doc view' is turned on.
+	// Meaning, only grab Props that have 'DocView' set to 'true'. These
+	// should be (mainly) just the ones we set explicitly.
+	if docView {
+		query += `  AND ft.DocView=true
+`
+	}
+
+	// Remove entities that are higher than the GET PATH specified
+	if what != "Registry" && len(XIDs) > 0 {
+		query += "  AND ("
+		for i, p := range XIDs {
+			if i > 0 {
+				query += " OR "
+			}
+			query += "ft.XID=? OR ft.XID LIKE ?"
+			args = append(args, p, p+"/%")
+		}
+		query += ")\n"
+
+	}
+
+	if len(filters) != 0 {
+		// The actual eSID-matching/tree-walking logic lives in the
+		// "FilterMatches" CTE built by generateFilterCTE() above (joined
+		// in via "fm" in the FROM clause). All we need here is to
+		// restrict the result to entities that showed up in it.
+		query += `  AND fm.eSID IS NOT NULL
+`
+	}
+
+	if !paginate {
+		query += `  ORDER BY ` + sortOrder +
+			`    ft.LowerXID ASC;`
+	} else {
+		// Wrap the query above (which already computed TopIdx for
+		// every row) twice more:
+		//   - win1 (inner wrap): adds TotalCount, a whole-partition
+		//     (no ORDER BY, no WHERE yet applied) aggregate of the
+		//     highest TopIdx seen - i.e. the total number of top-level
+		//     entities in the *entire* (filtered, but not paginated)
+		//     result set. This MUST happen in its own layer, before the
+		//     page-range WHERE below is applied, otherwise it would
+		//     only reflect the count within the current page.
+		//   - outermost: restricts to the requested page
+		//     (TopIdx BETWEEN offset+1 AND offset+limit) and re-applies
+		//     the original per-row tiebreak order (now via the plain
+		//     TopIdx/LowerXID columns, since the "ft"/"sj" aliases are
+		//     no longer in scope this far out).
+		innerQuery := query
+		query = `SELECT RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,PropName,PropValue,PropType,IsSystemProp,FilterMask,TotalCount
+  FROM (
+    SELECT win1.*, CAST(MAX(win1.TopIdx) OVER () AS CHAR) AS TotalCount
+    FROM (
+` + innerQuery + `
+    ) AS win1
+  ) AS win2
+  WHERE win2.TopIdx BETWEEN ? AND ?
+  ORDER BY win2.TopIdx ASC, win2.LowerXID ASC;`
+		args = append(args, offset+1, offset+limit)
+	}
+
+	if log.GetLevel() > 3 || log.HasVerbose("genq") {
+		log.Printf("tx: %s Query:\n%s\n\n", reg.Tx.uuid, SubQuery(query, args))
+	}
+	return query, args, nil
+}
+
+// Convert each non-escaped * into SQL % for LIKE queries
+func LikeWildcardIt(str string) (string, bool) {
+	wild := false
+	res := strings.Builder{}
+
+	prevch := '\000'
+	for _, ch := range str {
+		if ch == '*' && prevch != '\\' {
+			res.WriteRune('%')
+			wild = true
+		} else {
+			res.WriteRune(ch)
+		}
+		prevch = ch
+	}
+
+	return res.String(), wild
 }

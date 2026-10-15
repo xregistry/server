@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	// "os"
@@ -903,32 +904,23 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		PanicIf(!ok, "can't find %q", key)
 
 		var xErr *XRError
-		var results *Result
+		var iter EntityIterator
 
 		// "!" is special - it means skip the query and just produce: {}
 		if len(XIDs) != 1 || XIDs[0] != "!" {
-			query, args, err := GenerateQuery(info.Registry, what, XIDs)
-			if err != nil {
-				return err
-			}
-			results = Query(info.tx, query, args...)
-			defer results.Close()
-
-			if log.IsFuncVerbose() {
-				log.Printf("tx: %s Query: %s", info.uuid,
-					SubQuery(query, args))
-				log.Printf("tx: %s # results: %d", info.uuid,
-					len(results.AllRows))
+			iter, xErr = GetEntitiesFromQuery(info.Registry, what, XIDs)
+			if xErr != nil {
+				return xErr
 			}
 		}
 
 		// Pagination Link headers MUST be added before any part of the
 		// body is written
 		if what == "Coll" && info.Limit != 0 {
-			AddPaginationLinkHeaders(info, results)
+			AddPaginationLinkHeaders(info, iter)
 		}
 
-		jw = NewJsonWriter(info, results)
+		jw = NewJsonWriter(info, iter)
 
 		jw.NextEntity()
 
@@ -1039,29 +1031,16 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 // "self" carries the offset/limit/count parameters ("count" being the total
 // number of top-level entities across the *entire* filtered collection). Must be called before anything is written to the response
 // body, since HTTP headers can't be sent after the body has started.
-func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
+func AddPaginationLinkHeaders(info *RequestInfo, iter EntityIterator) {
 	limit := info.Limit
 	offset := info.Offset
 
 	total := uint64(0)
 	gotTotal := false
 
-	// TotalCount (see GenerateQuery) rides along on every row of the
-	// (already fully in-memory - see Query()) paginated result, computed
-	// as a whole-partition aggregate *before* the page-range filter was
-	// applied - so it already reflects the entire result set, and we
-	// don't need a second query just to get it.
-	if results != nil && len(results.AllRows) > 0 {
-		row := results.AllRows[0]
-		if len(row) > 14 {
-			totalStr := NotNilString(row[14])
-			if totalStr != "" {
-				if v, err := strconv.ParseUint(totalStr, 10, 64); err == nil {
-					total = v
-					gotTotal = true
-				}
-			}
-		}
+	if iter.Total() != math.MaxUint64 {
+		total = iter.Total()
+		gotTotal = true
 	}
 
 	basePath := "/" + info.OriginalPath

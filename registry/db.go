@@ -64,7 +64,8 @@ func prepare(tx *Tx, query string) (*sql.Stmt, *XRError) {
 
 	ps, err := tx.tx.(*sql.Tx).Prepare(query)
 	if err != nil {
-		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
+		return nil,
+			NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 
 	return ps, nil
@@ -438,7 +439,8 @@ func OpenDB(xrsConfig *Config, name string) (*sql.DB, *XRError) {
 		xrsConfig.GetAsString("db.user")+":"+
 			xrsConfig.GetAsString("db.password")+"@tcp("+
 			xrsConfig.GetAsString("db.host")+":"+
-			xrsConfig.GetAsString("db.port")+")/"+name)
+			xrsConfig.GetAsString("db.port")+")/"+name+
+			"?interpolateParams=true")
 
 	if err != nil {
 		return nil, NewXRError("server_error", "/",

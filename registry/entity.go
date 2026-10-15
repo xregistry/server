@@ -155,7 +155,7 @@ func lockResourceFamily(tx *Tx, resourceSID string) *XRError {
 
 	/*
 		lock := func(query string) {
-			results := Query(tx, query, resourceSID)
+			results := Q uery(tx, query, resourceSID)
 			results.Close()
 		}
 
