@@ -86,6 +86,13 @@ func (CLIBE *CLIBackend) GetResources(g *Group, accessMode int) ([]*Resource, *X
 	return nil, nil
 }
 
+func (CLIBE *CLIBackend) GetResourceIDsByType(r *Registry, gType, rType string,
+	accessMode int) ([]string, *XRError) {
+
+	panic("not yet")
+	return nil, nil
+}
+
 func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
 	panic("not yet")
 	return nil
@@ -194,6 +201,24 @@ func (CLIBE *CLIBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
 func (CLIBE *CLIBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XRError) {
 	panic("not yet")
 	return nil, nil
+}
+
+func (CLIBE *CLIBackend) GetGroupIDsByType(r *Registry, gType string,
+	accessMode int) ([]string, *XRError) {
+
+	panic("not yet")
+	return nil, nil
+}
+
+// regUID, entityXID, err
+func (CLIBE *CLIBackend) MapShortSelf(tx *Tx, ss string) (string, string, *XRError) {
+	panic("not yet")
+	return "", "", nil
+}
+
+func (CLIBE *CLIBackend) LockResourceBySID(tx *Tx, sid string) *XRError {
+	panic("not yet")
+	return nil
 }
 
 func (CLIBE *CLIBackend) DeleteResource(r *Resource) *XRError {

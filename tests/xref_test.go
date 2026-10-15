@@ -20,9 +20,8 @@ func TestXrefBasic(t *testing.T) {
 	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/", FOR_READ)
 	XNoErr(t, err)
 
-	rows := reg.Query("select * from Versions where ResourceSID=?",
-		f1.DbSID)
-	XEqual(t, "", len(rows), 1) // Just to be sure Query works ok
+	vers, _ := f1.GetVersionIDs()
+	XEqual(t, "", len(vers), 1) // Just to be sure Query works ok
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"dirs/d1/files/f1"}`, 400, // missing leading /
@@ -66,9 +65,8 @@ func TestXrefBasic(t *testing.T) {
 
 	// Make sure the Resource doesn't have any versions in the DB.
 	// Use fx.GetVersions() will grab from xref target so don't use that
-	rows = reg.Query("select * from Versions where ResourceSID=?",
-		fx.DbSID)
-	XEqual(t, "", len(rows), 0)
+	vers, _ = fx.GetVersionIDs()
+	XEqual(t, "", len(vers), 0)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files?inline=meta", "", 200, `{
   "f1": {
@@ -291,9 +289,8 @@ func TestXrefBasic(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":null}`, 200, `*`)
 
-	rows = reg.Query("select * from Versions where ResourceSID=?",
-		fx.DbSID)
-	XEqual(t, "", len(rows), 1)
+	vers, _ = fx.GetVersionIDs()
+	XEqual(t, "", len(vers), 1)
 
 	meta, err = reg.FindXIDMeta("/dirs/d1/files/fx/meta", "/")
 	XNoErr(t, err)
@@ -400,9 +397,8 @@ func TestXrefBasic(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 200, `*`)
 
-	rows = reg.Query("select * from Versions where ResourceSID=?",
-		fx.DbSID)
-	XEqual(t, "", len(rows), 0)
+	vers, _ = fx.GetVersionIDs()
+	XEqual(t, "", len(vers), 0)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
   "f1": {
@@ -3494,14 +3490,11 @@ func TestXrefOrderTargetDeletedViaGroupBulkDelete(t *testing.T) {
 func getUsesXref(t *testing.T, reg *registry.Registry) bool {
 	t.Helper()
 	tx := reg.GetTx()
-	results := registry.Query(tx, `SELECT UsesXref FROM Registries WHERE SID=?`,
-		reg.DbSID)
-	defer results.Close()
-	row := results.NextRow()
-	if row == nil {
-		t.Fatalf("no Registries row found for %q", reg.UID)
+	usesXref, xErr := tx.Backend.RegistryGetUsesXref(reg)
+	if xErr != nil {
+		t.Fatalf("error checking usesXref: %s", xErr)
 	}
-	return NotNilBoolDef(row[0], false)
+	return usesXref
 }
 
 // A fresh Registry that has never used xref must have UsesXref=false.

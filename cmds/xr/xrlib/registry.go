@@ -370,7 +370,7 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 
 // PLACEHOLDERS
 
-func lockEntityFamily(tx *Tx, ent *Entity) {
+func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
 	panic("not yet")
 }
 

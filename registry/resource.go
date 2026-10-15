@@ -2221,10 +2221,10 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	// need to clear it here.
 	if IsNil(newCompat) {
 		// clear compatvalidated attr for all versions
-		r.ClearResourceSystemDBProperty(
+		xErr := r.ClearResourceSystemDBProperty(
 			NewPPP("compatibilityvalidated"),
 			NewPPP("compatibilityvalidatedreason"))
-		return nil
+		return xErr
 	}
 
 	// compat is case-insensitive

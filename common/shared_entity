@@ -3049,12 +3049,12 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 	*/
 }
 
-func (e *Entity) Lock() bool { // did we lock it?
+func (e *Entity) Lock() (bool, *XRError) { // did we lock it?
 	defer log.Trace("tx: %s %s:%s", e.Tx.uuid, e.XID, e.DbSID)()
 
 	if e.AccessMode == FOR_WRITE {
 		// Already locked
-		return false
+		return false, nil
 	}
 
 	log.FuncPrintf("tx: %s Requesting lock for %q eSID=%s connID=%d",
@@ -3074,9 +3074,11 @@ func (e *Entity) Lock() bool { // did we lock it?
 	// whole Resource+Meta+Versions family together here, in one place,
 	// so callers never need to remember to do this themselves at each
 	// call site.
-	lockEntityFamily(e.Tx, e)
+	if xErr := lockEntityFamily(e.Tx, e); xErr != nil {
+		return false, xErr
+	}
 
-	return true
+	return true, nil
 }
 
 func (e *Entity) ShowStack() {

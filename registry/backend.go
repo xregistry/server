@@ -389,6 +389,43 @@ func (sqlBE *SQLBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XREr
 
 	return groups, nil
 }
+func (sqlBE *SQLBackend) GetGroupIDsByType(r *Registry, gType string,
+	accessMode int) ([]string, *XRError) {
+
+	results := Query(r.Tx, `
+            SELECT UID
+            FROM Entities
+            WHERE RegSID=? AND Abstract=?`,
+		r.DbSID, gType)
+	defer results.Close()
+
+	list := make([]string, 0, len(results.AllRows))
+	for row := results.NextRow(); row != nil; row = results.NextRow() {
+		list = append(list, NotNilString(row[0]))
+	}
+
+	return list, nil
+}
+
+// regUID, entityXID, err
+func (sqlBE *SQLBackend) MapShortSelf(tx *Tx, ss string) (string, string, *XRError) {
+
+	query := fmt.Sprintf(`
+        SELECT r.UID, e.XID
+        FROM Entities AS e
+        JOIN Registries AS r ON (r.SID = e.RegSID)
+        WHERE e.eSID = ?`)
+
+	results := Query(tx, query, ss)
+	defer results.Close()
+
+	row := results.NextRow()
+	if row != nil {
+		return NotNilString(row[0]), NotNilString(row[1]), nil
+	}
+
+	return "", "", nil
+}
 
 func (sqlBE *SQLBackend) DeleteGroup(g *Group) *XRError {
 	DoOne(g.Tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
@@ -601,6 +638,24 @@ func (sqlBE *SQLBackend) GetResources(g *Group, accessMode int) ([]*Resource, *X
 	}
 
 	return resources, nil
+}
+
+func (sqlBE *SQLBackend) GetResourceIDsByType(r *Registry,
+	gType, rType string, accessMode int) ([]string, *XRError) {
+
+	results := Query(r.Tx, `
+            SELECT UID
+            FROM Entities
+            WHERE RegSID=? AND Abstract=?`,
+		r.DbSID, NewPPP(gType).P(rType).Abstract())
+	defer results.Close()
+
+	list := make([]string, 0, len(results.AllRows))
+	for row := results.NextRow(); row != nil; row = results.NextRow() {
+		list = append(list, NotNilString(row[0]))
+	}
+
+	return list, nil
 }
 
 func (sqlBE *SQLBackend) RegisterEntity(e *Entity) *XRError {
@@ -1074,6 +1129,14 @@ func (sqlBE *SQLBackend) BatchDeleteProps(e *Entity, args []any) *XRError {
         WHERE eSID=? AND PropName IN (`+holders+`)
             AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
             AND IsXrefVerCopy=false`, newArgs...)
+
+	return nil
+}
+
+func (sqlBE *SQLBackend) LockResourceBySID(tx *Tx, sid string) *XRError {
+	results := Query(tx, "SELECT SID FROM Resources WHERE SID=? FOR UPDATE",
+		sid)
+	results.Close()
 
 	return nil
 }
@@ -2211,4 +2274,46 @@ func (sei *sqlEntityIterator) Next() (*Entity, *XRError) {
 	}
 
 	return e, nil
+}
+
+func (sqlBE *SQLBackend) Query(tx *Tx, query string, args ...any) [][]any {
+	results := Query(tx, query, args...)
+	defer results.Close()
+
+	data := ([][]any)(nil)
+	/*
+	   Ks := make([]string, len(results.colTypes))
+
+	   for i, t := range results.colTypes {
+	           Ks[i] = t.Kind().String()
+	   }
+	*/
+
+	for row := results.NextRow(); row != nil; row = results.NextRow() {
+		if data == nil {
+			data = [][]any{}
+		}
+		// row == []*any
+		r := make([]any, len(row))
+		for i, d := range row {
+			r[i] = d
+			/*
+			   k := Ks[i]
+			   if k == "slice" {
+			           r[i] = NotNilString(d)
+			   } else if k == "int64" || k == "uint64" {
+			           r[i] = NotNilInt(d)
+			   } else {
+			           log.Printf("%v", reflect.ValueOf(*d).Type().String())
+			           log.Printf("%v", reflect.ValueOf(*d).Type().Kind().String())
+			           log.Printf("Ks: %v", Ks)
+			           log.Printf("i: %d", i)
+			           panic("help")
+			   }
+			*/
+		}
+		data = append(data, r)
+	}
+
+	return data
 }

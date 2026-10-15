@@ -111,7 +111,10 @@ func (e *Entity) Touch() bool {
 		return false
 	}
 
-	e.Lock()
+	if _, xErr := e.Lock(); xErr != nil {
+		panic("err: " + xErr.String())
+	}
+
 	e.EnsureNewObject()
 	return true
 }
@@ -147,13 +150,17 @@ func (e *Entity) Touch() bool {
 // The old code below locked the whole family (Metas/Versions/Entities
 // rows too) - left here, commented out, as a reminder/fallback in case
 // concurrency issues resurface and we need to revisit this narrowing.
-func lockResourceFamily(tx *Tx, resourceSID string) {
-	lock := func(query string) {
-		results := Query(tx, query, resourceSID)
-		results.Close()
-	}
+func lockResourceFamily(tx *Tx, resourceSID string) *XRError {
+	return tx.Backend.LockResourceBySID(tx, resourceSID)
 
-	lock(`SELECT SID FROM Resources WHERE SID=? FOR UPDATE`)
+	/*
+		lock := func(query string) {
+			results := Query(tx, query, resourceSID)
+			results.Close()
+		}
+
+		lock(`SELECT SID FROM Resources WHERE SID=? FOR UPDATE`)
+	*/
 
 	/*
 		lock(`SELECT SID FROM Metas WHERE ResourceSID=? FOR UPDATE`)
@@ -173,6 +180,8 @@ func lockResourceFamily(tx *Tx, resourceSID string) {
 		lock(`SELECT eSID FROM Entities WHERE eSID=? FOR UPDATE`)
 		lock(`SELECT eSID FROM Entities WHERE ParentSID=? FOR UPDATE`)
 	*/
+
+	return nil
 }
 
 // lockEntityFamily locks (FOR UPDATE) the full Resource+Meta+Versions
@@ -198,9 +207,9 @@ func lockResourceFamily(tx *Tx, resourceSID string) {
 // AccessMode) can silently keep using stale FOR_READ data even though
 // the DB row underneath was just real-locked. This was the root cause
 // of a recurring "<attr> is nil" panic under TestMiscConcurrency.
-func lockEntityFamily(tx *Tx, ent *Entity) {
+func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
 	if ent == nil {
-		return
+		return nil
 	}
 	resourceSID := ""
 	switch ent.Type {
@@ -210,9 +219,11 @@ func lockEntityFamily(tx *Tx, ent *Entity) {
 		resourceSID = ent.ParentSID
 	}
 	if resourceSID == "" {
-		return
+		return nil
 	}
-	lockResourceFamily(tx, resourceSID)
+	if xErr := lockResourceFamily(tx, resourceSID); xErr != nil {
+		return xErr
+	}
 
 	// Now upgrade any other cached family member (Resource itself, its
 	// Meta, or any of its Versions) that isn't already FOR_WRITE, so the
@@ -245,48 +256,8 @@ func lockEntityFamily(tx *Tx, ent *Entity) {
 			tx.uuid, cached.XID, cached.DbSID)
 		Must(cached.Refresh(FOR_WRITE))
 	}
-}
 
-func (e *Entity) Query(query string, args ...any) [][]any {
-	results := Query(e.Tx, query, args...)
-	defer results.Close()
-
-	data := ([][]any)(nil)
-	/*
-	   Ks := make([]string, len(results.colTypes))
-
-	   for i, t := range results.colTypes {
-	           Ks[i] = t.Kind().String()
-	   }
-	*/
-
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		if data == nil {
-			data = [][]any{}
-		}
-		// row == []*any
-		r := make([]any, len(row))
-		for i, d := range row {
-			r[i] = d
-			/*
-			   k := Ks[i]
-			   if k == "slice" {
-			           r[i] = NotNilString(d)
-			   } else if k == "int64" || k == "uint64" {
-			           r[i] = NotNilInt(d)
-			   } else {
-			           log.Printf("%v", reflect.ValueOf(*d).Type().String())
-			           log.Printf("%v", reflect.ValueOf(*d).Type().Kind().String())
-			           log.Printf("Ks: %v", Ks)
-			           log.Printf("i: %d", i)
-			           panic("help")
-			   }
-			*/
-		}
-		data = append(data, r)
-	}
-
-	return data
+	return nil
 }
 
 // Set, Validate and Save to DB but not Commit
@@ -548,42 +519,28 @@ func (e *Entity) DoDBPropertyBatch() *XRError {
 // this same request correctly composes with (and can override) that
 // earlier buffered value, rather than racing an immediate DB DELETE
 // against a later flush.
-func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
+func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) *XRError {
 	defer log.Trace("tx: %s %d props", e.Tx.uuid, len(pps))()
 
 	if len(pps) == 0 {
-		return
+		return nil
 	}
 
 	r, ok := e.Self.(*Resource)
 	PanicIf(!ok, "%s isn't a Resource", e.XID)
 
-	// FOR UPDATE to make sure we grab the latest stuff, and lock it
-	lockExpr := ""
-	if meta := e.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
-		lockExpr = " FOR UPDATE"
+	vers, xErr := r.GetVersions(FOR_WRITE)
+	if xErr != nil {
+		return xErr
 	}
 
-	// Query the real Versions table directly (not r.GetVersions(),
-	// which reads from Entities and would also pick up synthetic
-	// xref-copied version rows sharing this Resource's ParentSID).
-	results := Query(e.Tx,
-		`SELECT UID FROM Versions WHERE ResourceSID=?`+lockExpr,
-		r.DbSID)
-	defer results.Close()
-
-	uids := []string{}
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		uids = append(uids, NotNilString(row[0]))
-	}
-
-	for _, uid := range uids {
-		v, xErr := r.FindVersion(uid, false)
-		PanicIf(xErr != nil || v == nil, "%s/versions/%s: %s", r.XID, uid, xErr)
+	for _, v := range vers {
 		for _, pp := range pps {
 			v.SetSystemDBProperty(pp, nil)
 		}
 	}
+
+	return nil
 }
 
 // SetSystemDBProperty buffers a system-prop change into e.NewSystem -
@@ -1182,7 +1139,9 @@ func (e *Entity) Save() *XRError {
 						"itself failed for %s: %v", e.Tx.uuid, e.XID, r)
 				}
 			}()
-			rows := Query(e.Tx, `
+			be := NewSQLBackend(e.Registry.GetXRServerConfig()).(*SQLBackend)
+
+			rows := be.Query(e.Tx, `
             SELECT ent.eSID, ent.XID, p.PropName
             FROM Entities AS ent
             LEFT JOIN Props AS p ON (
@@ -1190,19 +1149,14 @@ func (e *Entity) Save() *XRError {
                 p.IsXrefPropCopy=false AND p.IsXrefVerCopy=false AND
                 p.IsCalcStatic=false AND p.IsCalcDynamic=false)
             WHERE ent.eSID=? FOR UPDATE`, e.DbSID)
-			defer rows.Close()
 
 			sawNullProp := false
-			for {
-				row := rows.NextRow()
-				if row == nil {
-					break
-				}
+			for _, row := range rows {
 				if row[2] == nil {
 					sawNullProp = true
 					log.Printf("tx: %s DIAG POST-SAVE empty-Props: eSID=%v "+
 						"XID=%v has NO Props row",
-						e.Tx.uuid, NotNilString(row[0]), NotNilString(row[1]))
+						e.Tx.uuid, NotNilString(&row[0]), NotNilString(&row[1]))
 				}
 			}
 			if sawNullProp {

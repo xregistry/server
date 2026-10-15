@@ -2164,21 +2164,21 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		results := Query(info.tx, `
-			SELECT UID
-			FROM Entities
-			WHERE RegSID=? AND Abstract=?`,
-			info.Registry.DbSID, info.GroupType)
-
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			list[NotNilString(row[0])] = EpochEntry{}
+		IDs, xErr := info.tx.Backend.GetGroupIDsByType(info.Registry,
+			info.GroupType, FOR_WRITE)
+		if xErr != nil {
+			return xErr
 		}
-		defer results.Close()
+
+		for _, gID := range IDs {
+			list[gID] = EpochEntry{}
+		}
 	}
 
 	// Delete each Group, checking epoch first if provided
 	for id, entry := range list {
-		group, xErr := info.Registry.FindGroup(info.GroupType, id, false, FOR_WRITE)
+		group, xErr := info.Registry.FindGroup(info.GroupType, id, false,
+			FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
@@ -2229,20 +2229,19 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		results := Query(info.tx, `
-			SELECT UID
-			FROM Entities
-			WHERE RegSID=? AND Abstract=?`,
-			info.Registry.DbSID,
-			NewPPP(info.GroupType).P(info.ResourceType).Abstract())
-
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			list[NotNilString(row[0])] = EpochEntry{}
+		IDs, xErr := info.tx.Backend.GetResourceIDsByType(info.Registry,
+			info.GroupType, info.ResourceType, FOR_WRITE)
+		if xErr != nil {
+			return xErr
 		}
-		defer results.Close()
+
+		for _, gID := range IDs {
+			list[gID] = EpochEntry{}
+		}
 	}
 
-	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
+		false, FOR_WRITE)
 	if xErr != nil {
 		return xErr
 	}
@@ -2779,23 +2778,17 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		suffix = "$" + suffix
 	}
 
-	query := fmt.Sprintf(`
-        SELECT r.UID, e.XID
-        FROM Entities AS e
-        JOIN Registries AS r ON (r.SID = e.RegSID)
-        WHERE e.eSID = ?`)
-
-	results := Query(tx, query, ss)
-	defer results.Close()
+	regUID, eXID, xErr := tx.Backend.MapShortSelf(tx, ss)
+	if xErr != nil {
+		return xErr
+	}
 
 	regCollectionSegment := tx.Config.GetAsString("path.regcollection")
 
-	row := results.NextRow()
-	if row != nil {
+	if regUID != "" && eXID != "" {
 		// found it!
-		regName := string((*(row[0])).([]byte))
-		newPath := "/" + regCollectionSegment + "/" + regName +
-			string((*(row[1])).([]byte)) + suffix
+		// Note that eXID will always have a leading "/"
+		newPath := "/" + regCollectionSegment + "/" + regUID + eXID + suffix
 
 		log.FuncPrintf("tx: %s Redirect: %q -> %q", tx.uuid, path, newPath)
 

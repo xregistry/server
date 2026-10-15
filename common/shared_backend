@@ -57,6 +57,10 @@ type Backend interface {
 	RegistrySetUsesXref(r *Registry, b bool) *XRError
 	RegistryRecalcUsesXref(r *Registry) *XRError
 	GetGroups(r *Registry, accessMode int) ([]*Group, *XRError)
+	GetGroupIDsByType(r *Registry, gType string,
+		accessMode int) ([]string, *XRError)
+	// regUID, entityXID, err
+	MapShortSelf(tx *Tx, ss string) (string, string, *XRError)
 
 	// Group stuff
 	DeleteGroup(g *Group) *XRError
@@ -64,8 +68,11 @@ type Backend interface {
 	FindBadEqualsVersions(g *Group, gPP *PropPath, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) // rID, vIDs, err
 	FindBadEnumVersions(g *Group, c *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError)   // rID, vIDs, err
 	GetResources(g *Group, accessMode int) ([]*Resource, *XRError)
+	GetResourceIDsByType(r *Registry, gType, rType string,
+		accessMode int) ([]string, *XRError)
 
 	// Resource stuff
+	LockResourceBySID(tx *Tx, sid string) *XRError
 	DeleteResource(r *Resource) *XRError
 	GetResourceContents(e *Entity) ([]byte, *XRError)
 	SetResourceContents(e *Entity, val []byte) *XRError

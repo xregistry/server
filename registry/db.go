@@ -303,11 +303,9 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 		colTypes: []reflect.Type{},
 	}
 
-	for _, col := range colTypes {
-		result.colTypes = append(result.colTypes, col.ScanType())
-		result.Data = append(result.Data, new(any))
-		result.TempData = append(result.TempData, new(any))
-	}
+	result.colTypes = make([]reflect.Type, len(colTypes))
+	result.Data = make([]*any, len(colTypes))
+	result.TempData = make([]any, len(colTypes))
 
 	// Download all data. We used to pull from DB on each PullNextRow
 	// but mysql doesn't support multiple queries being active in the same Tx
