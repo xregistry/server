@@ -57,7 +57,6 @@ type Backend interface {
 	RegistrySetUsesXref(r *Registry, b bool) *XRError
 	RegistryRecalcUsesXref(r *Registry) *XRError
 	GetGroups(r *Registry, accessMode int) ([]*Group, *XRError)
-	IterateGroups(r *Registry, fn func(g *Group) (bool, *XRError)) *XRError //cont?, err
 
 	// Group stuff
 	DeleteGroup(g *Group) *XRError
@@ -105,7 +104,10 @@ type Backend interface {
 	CopyXrefVersions(r *Resource, tgtSID string) *XRError // copy xref vers
 
 	// Misc Entity stuff
-	GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool, children bool, anyCase bool, accessMode int) ([]*Entity, *XRError)
+	GetEntityFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool,
+		anyCase bool, accessMode int) (*Entity, *XRError)
+	GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool,
+		children bool, anyCase bool, accessMode int) (EntityIterator, *XRError)
 }
 
 type BatchRow struct {
@@ -123,4 +125,8 @@ type VersionAncestor struct {
 	VID        string
 	AncestorID string
 	CreatedAt  string
+}
+
+type EntityIterator interface {
+	Next() (*Entity, *XRError) // nil,nil if at ened, not nil, Error
 }

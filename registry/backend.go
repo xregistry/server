@@ -390,31 +390,6 @@ func (sqlBE *SQLBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XREr
 	return groups, nil
 }
 
-func (sqlBE *SQLBackend) IterateGroups(r *Registry, fn func(g *Group) (bool, *XRError)) *XRError {
-
-	entities, xErr := sqlBE.GetEntitiesFromQuery(r.Tx, r.DbSID, FOR_WRITE,
-		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
-	if xErr != nil {
-		return xErr
-	}
-
-	for _, e := range entities {
-		group := &Group{Entity: *e, Registry: r}
-		group.Self = group
-		group.Tx.AddGroup(group)
-
-		cont, xErr := fn(group)
-		if xErr != nil {
-			return xErr
-		}
-		if cont == false {
-			return nil
-		}
-	}
-
-	return nil
-}
-
 func (sqlBE *SQLBackend) DeleteGroup(g *Group) *XRError {
 	DoOne(g.Tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
 
@@ -1952,7 +1927,33 @@ func (sqlBE *SQLBackend) CopyXrefVersions(r *Resource, targetSID string) *XRErro
 	return nil
 }
 
-func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool, children bool, anyCase bool, accessMode int) ([]*Entity, *XRError) {
+func (sqlBE *SQLBackend) GetEntityFromXID(tx *Tx, regSID string, xidStr string,
+	allAttrs bool, anyCase bool, accessMode int) (*Entity, *XRError) {
+
+	defer log.Trace("tx: %s xid:%q all:%v",
+		tx.uuid, xidStr, allAttrs)()
+
+	iter, xErr := sqlBE.GetEntitiesFromXID(tx, regSID, xidStr, allAttrs,
+		false, anyCase, accessMode)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	e, xErr := iter.Next()
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	// Make sure there was only one
+	e2, _ := iter.Next()
+	PanicIf(e2 != nil, "too many entities: %v", e2)
+
+	return e, nil
+}
+
+func (sqlBE *SQLBackend) xxGetEntitiesFromXID(tx *Tx, regSID string,
+	xidStr string, allAttrs bool, children bool, anyCase bool,
+	accessMode int) ([]*Entity, *XRError) {
 
 	defer log.Trace("tx: %s xid:%q all:%v child:%v",
 		tx.uuid, xidStr, allAttrs, children)()
@@ -2041,7 +2042,89 @@ func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string, xidStr string
 	return entities, nil
 }
 
-func (sqlBE *SQLBackend) GetEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, args ...any) ([]*Entity, *XRError) {
+func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string,
+	xidStr string, allAttrs bool, children bool, anyCase bool,
+	accessMode int) (EntityIterator, *XRError) {
+
+	defer log.Trace("tx: %s xid:%q all:%v child:%v",
+		tx.uuid, xidStr, allAttrs, children)()
+
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
+	// PropName,PropValue,PropType,IsSystemProp
+	//   0     1     2       3         4      5   6     7      8
+	//     9        10         11         12
+
+	args := []any{regSID}
+
+	XID := "XID"
+	if anyCase {
+		XID = "LowerXID"
+		xidStr = strings.ToLower(xidStr)
+	}
+	XIDExpr := `(` + XID + `=?`
+	args = append(args, xidStr)
+
+	if children {
+		XIDExpr += ` OR ` + XID + ` LIKE ?`
+		args = append(args, xidStr+"/%")
+	}
+	XIDExpr += `)`
+
+	// If the caller already wants FOR_WRITE on this (not-yet-cached)
+	// entity, lock its rows as of THIS initial fetch rather than waiting
+	// for some later Entity.Lock()/Refresh(FOR_WRITE) call - without
+	// this, Entity.Lock() would see AccessMode already == FOR_WRITE
+	// (set below by readNextEntity()) and skip re-locking entirely,
+	// leaving the entity believed-locked in Go but never actually
+	// row-locked in the DB. Matches Entity.Refresh()'s own " FOR UPDATE"
+	// handling for its Props-only reload query.
+	lockExpr := ""
+	if accessMode == FOR_WRITE {
+		lockExpr = ` FOR UPDATE`
+	}
+
+	subsetProps := ""
+	if !allAttrs {
+		subsetProps = `
+            AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+            AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
+            AND p.IsCalcDynamic=false`
+	}
+
+	queryString := `SELECT
+            p.RegSID,
+            p.Type,
+            p.Plural,
+            p.Singular,
+            p.ParentSID,
+            p.eSID,
+            p.UID,
+            p.Abstract,
+            p.XID,
+            p.PropName,
+            p.PropValue,
+            p.PropType,
+            p.IsSystemProp
+        FROM Props AS p WHERE RegSID=? AND ` + XIDExpr + subsetProps + `
+        ORDER BY XID` + lockExpr
+
+	// log.Printf("Query:\n%s\nArgs: %v", queryString, args)
+
+	results := Query(tx, queryString, args...)
+	// defer results.Close()
+
+	iterator := &sqlEntityIterator{
+		Results:    results,
+		Tx:         tx,
+		AccessMode: accessMode,
+	}
+
+	return iterator, nil
+}
+
+func (sqlBE *SQLBackend) GetEntitiesFromQuery(tx *Tx, regID string,
+	accessMode int, query string, args ...any) ([]*Entity, *XRError) {
+
 	defer log.Trace("tx: %s %s", tx.uuid, query)()
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
@@ -2109,4 +2192,23 @@ func (sqlBE *SQLBackend) GetEntitiesFromQuery(tx *Tx, regID string, accessMode i
 	}
 
 	return entities, nil
+}
+
+type sqlEntityIterator struct {
+	Results    *Result
+	Tx         *Tx
+	AccessMode int
+}
+
+func (sei *sqlEntityIterator) Next() (*Entity, *XRError) {
+	e, xErr := readNextEntity(sei.Tx, sei.Results, sei.AccessMode)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	if sei.AccessMode == FOR_WRITE {
+		lockEntityFamily(sei.Tx, e)
+	}
+
+	return e, nil
 }

@@ -1593,10 +1593,3 @@ func (e *Entity) SaveSystemProps() *XRError {
 
 	return nil
 }
-
-func GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool, children bool, anyCase bool, accessMode int) ([]*Entity, *XRError) {
-	defer log.Trace("tx: %s xid:%q all:%v child:%v",
-		tx.uuid, xidStr, allAttrs, children)()
-
-	return tx.Backend.GetEntitiesFromXID(tx, regSID, xidStr, allAttrs, children, anyCase, accessMode)
-}

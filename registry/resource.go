@@ -333,8 +333,8 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 		return m, nil
 	}
 
-	entities, xErr := GetEntitiesFromXID(r.Tx, r.Group.Registry.DbSID,
-		r.XID+"/meta", false, false, anyCase, r.AccessMode)
+	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.DbSID,
+		r.XID+"/meta", false, anyCase, r.AccessMode)
 
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/meta").
@@ -342,12 +342,12 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 				r.XID, xErr.GetTitle()))
 	}
 
-	if len(entities) == 0 {
+	if entity == nil {
 		log.FuncPrintf("tx: %s None found", r.Tx.uuid)
 		return nil, nil
 	}
 
-	m := &Meta{Entity: *entities[0], Resource: r}
+	m := &Meta{Entity: *entity, Resource: r}
 	m.Self = m
 	r.Tx.AddMeta(m)
 	return m, nil
@@ -384,20 +384,20 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 	// options here - like find a way to force an entity (w/o any props)
 	// to show up here in cases where it's xref'd in.
 	// Keep an eye on this.
-	entities, xErr := GetEntitiesFromXID(r.Tx, r.Group.Registry.DbSID,
-		r.XID+"/versions/"+id, true, false, anyCase, r.AccessMode)
+	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.DbSID,
+		r.XID+"/versions/"+id, true, anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
 			SetDetail(fmt.Sprintf("Error finding Version %s: %s.",
 				r.XID+"/versions/"+id, xErr.GetTitle()))
 	}
 
-	if len(entities) == 0 {
+	if entity == nil {
 		log.FuncPrintf("tx: %s None found", r.Tx.uuid)
 		return nil, nil
 	}
 
-	v := &Version{Entity: *entities[0], Resource: r}
+	v := &Version{Entity: *entity, Resource: r}
 
 	v.Self = v
 	v.Tx.AddVersion(v)

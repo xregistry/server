@@ -561,18 +561,22 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	isV := log.IsFuncVerbose()
 	XID := "/" + strings.Join(info.Parts, "/")
 
-	entities, xErr := GetEntitiesFromXID(info.tx, info.Registry.DbSID,
-		XID, true, true, false, FOR_READ)
+	iter, xErr := info.tx.Backend.GetEntitiesFromXID(info.tx,
+		info.Registry.DbSID, XID, true, true, false, FOR_READ)
 	if xErr != nil {
 		return NewXRError("server_error", XID).SetDetailf(
 			"error loading entity: %s.", xErr.GetTitle())
 	}
-	if len(entities) == 0 {
-		return NewXRError("not_found", XID)
+
+	entity, xErr := iter.Next()
+	if xErr != nil {
+		return NewXRError("server_error", XID).SetDetailf(
+			"error loading entity: %s.", xErr.GetTitle())
 	}
 
-	entity := entities[0]
-	// log.Printf("e: %s", ToJSON(entity.Object))
+	if entity == nil {
+		return NewXRError("not_found", XID)
+	}
 
 	var version *Entity
 	versionsCount := 0
@@ -601,14 +605,15 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 		meta := resource.MustFindMeta(false)
 
 		vID := meta.GetAsString("defaultversionid")
-		i := 1
 		for {
-			// v, err := readNextEntity(info.tx, results, FOR_READ)
-			if i == len(entities) {
+			v, err := iter.Next()
+			if err != nil {
+				return NewXRError("server_error", info.GetParts(4)).
+					SetDetailf("Error finding Version: %s.", err)
+			}
+			if v == nil {
 				break
 			}
-			v := entities[i]
-			i++
 
 			if v != nil && v.Type == ENTITY_META {
 				// Skip the "meta" subobject, but first grab the
@@ -937,8 +942,9 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 					xid := "/" +
 						strings.Join(info.Parts[:len(info.Parts)-2], "/")
 					xid += "/meta"
-					entities, xErr := GetEntitiesFromXID(info.tx,
-						info.Registry.DbSID, xid, false, false, false, FOR_READ)
+					entity, xErr := info.tx.Backend.GetEntityFromXID(
+						info.tx, info.Registry.DbSID, xid, false, false,
+						FOR_READ)
 					if xErr != nil {
 						return xErr
 					}
@@ -946,7 +952,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 					// Assume that if we can't find the Resource's meta object
 					// then the Resource doesn't exist, so a 404 really is the
 					// best response in those cases, so skip the 400
-					if len(entities) > 0 && !IsNil(entities[0].Object["xref"]) {
+					if entity != nil && !IsNil(entity.Object["xref"]) {
 						return NewXRError("cannot_doc_xref",
 							"/"+info.OriginalPath)
 					}
@@ -963,13 +969,13 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
 			xid := "/" + strings.Join(info.Parts[:len(info.Parts)-1], "/")
 
-			entities, xErr := GetEntitiesFromXID(info.tx, info.Registry.DbSID,
-				xid, false, false, false, FOR_READ)
+			entity, xErr := info.tx.Backend.GetEntityFromXID(info.tx,
+				info.Registry.DbSID, xid, false, false, FOR_READ)
 			if xErr != nil {
 				return xErr
 			}
 
-			if len(entities) == 0 {
+			if entity == nil {
 				return NewXRError("not_found", xid)
 			}
 		}

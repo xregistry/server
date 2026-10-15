@@ -271,18 +271,15 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 		return tx.Registry, nil
 	}
 
-	entities, xErr := GetEntitiesFromXID(tx, sid, "/", false, false, false,
+	ent, xErr := tx.Backend.GetEntityFromXID(tx, sid, "/", false, false,
 		accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
 			"Error finding Registry %q: %s.", sid, xErr.GetTitle())
 	}
-	if len(entities) == 0 {
+	if ent == nil {
 		return nil, nil
 	}
-
-	PanicIf(len(entities) > 1, "Too many found")
-	ent := entities[0]
 
 	reg := &Registry{Entity: *ent}
 	reg.Tx = tx
@@ -354,7 +351,7 @@ func FindRegistryByUID(tx *Tx, xrsConfig *Config, uid string, accessMode int) (*
 		return nil, nil
 	}
 
-	entities, xErr := GetEntitiesFromXID(tx, regSID, "/", false, false,
+	entity, xErr := tx.Backend.GetEntityFromXID(tx, regSID, "/", false,
 		false, accessMode)
 
 	if xErr != nil {
@@ -365,9 +362,7 @@ func FindRegistryByUID(tx *Tx, xrsConfig *Config, uid string, accessMode int) (*
 			"Error finding Registry %q: %s.", uid, xErr.GetTitle())
 	}
 
-	PanicIf(len(entities) == 0, "No entity but we found a reg")
-
-	reg := &Registry{Entity: *entities[0]}
+	reg := &Registry{Entity: *entity}
 	reg.Self = reg
 
 	if tx.Registry == nil {
@@ -648,19 +643,19 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 		return g, nil
 	}
 
-	entities, xErr := GetEntitiesFromXID(reg.Tx, reg.DbSID,
-		"/"+gType+"/"+id, false, false, anyCase, accessMode)
+	entity, xErr := reg.Tx.Backend.GetEntityFromXID(reg.Tx, reg.DbSID,
+		"/"+gType+"/"+id, false, anyCase, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
 			"Error finding Group %q(%s): %s.", id, gType, xErr.GetTitle())
 	}
 
-	if len(entities) == 0 {
+	if entity == nil {
 		log.FuncPrintf("tx: %s None found", reg.Tx.uuid)
 		return nil, nil
 	}
 
-	g := &Group{Entity: *entities[0], Registry: reg}
+	g := &Group{Entity: *entity, Registry: reg}
 	g.Self = g
 	g.Tx.AddGroup(g)
 	return g, nil

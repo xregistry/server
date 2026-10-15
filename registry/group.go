@@ -75,19 +75,19 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 		return r, nil
 	}
 
-	entities, xErr := GetEntitiesFromXID(g.Tx, g.Registry.DbSID,
-		g.XID+"/"+rType+"/"+id, false, false, anyCase, accessMode)
+	entity, xErr := g.Tx.Backend.GetEntityFromXID(g.Tx, g.Registry.DbSID,
+		g.XID+"/"+rType+"/"+id, false, anyCase, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", g.XID+"/"+rType+"/"+id).
 			SetDetail(fmt.Sprintf("Error finding Resource %q(%s): %s",
 				id, rType, xErr.GetTitle()))
 	}
-	if len(entities) == 0 {
+	if entity == nil {
 		log.FuncPrintf("tx: %s None found", g.Tx.uuid)
 		return nil, nil
 	}
 
-	r := &Resource{Entity: *entities[0], Group: g}
+	r := &Resource{Entity: *entity, Group: g}
 	r.Self = r
 	r.Tx.AddResource(r)
 	return r, nil

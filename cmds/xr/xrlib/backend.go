@@ -196,11 +196,6 @@ func (CLIBE *CLIBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XREr
 	return nil, nil
 }
 
-func (CLIBE *CLIBackend) IterateGroups(r *Registry, fn func(g *Group) (bool, *XRError)) *XRError {
-	panic("not yet")
-	return nil
-}
-
 func (CLIBE *CLIBackend) DeleteResource(r *Resource) *XRError {
 	panic("not yet")
 	return nil
@@ -270,7 +265,9 @@ func (CLIBE *CLIBackend) GetProblematicVersions(r *Resource) ([]*VersionAncestor
 	return nil, nil
 }
 
-func (CLIBE *CLIBackend) GetChildVersionIDs(r *Resource, parentVID string) ([]string, *XRError) {
+func (CLIBE *CLIBackend) GetChildVersionIDs(r *Resource,
+	parentVID string) ([]string, *XRError) {
+
 	panic("not yet")
 	return nil, nil
 }
@@ -280,7 +277,8 @@ func (CLIBE *CLIBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
 	return 0, nil
 }
 
-func (CLIBE *CLIBackend) GetVersions(r *Resource, accessMode int) ([]*Version, *XRError) {
+func (CLIBE *CLIBackend) GetVersions(r *Resource,
+	accessMode int) ([]*Version, *XRError) {
 	panic("not yet")
 	return nil, nil
 }
@@ -291,7 +289,9 @@ func (CLIBE *CLIBackend) GetXrefSources(r *Resource) ([]string, *XRError) {
 }
 
 // numValues, numNonEmptyUnique, numEmpty, error
-func (CLIBE *CLIBackend) CountNonMatchingVersions(r *Resource, vAttrPath *PropPath) (int, int, int, *XRError) {
+func (CLIBE *CLIBackend) CountNonMatchingVersions(r *Resource,
+	vAttrPath *PropPath) (int, int, int, *XRError) {
+
 	panic("not yet")
 	return 0, 0, 0, nil
 }
@@ -327,7 +327,17 @@ func (CLIBE *CLIBackend) CopyXrefVersions(r *Resource, tgtSID string) *XRError {
 	return nil
 }
 
-func (CLIBE *CLIBackend) GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool, children bool, anyCase bool, accessMode int) ([]*Entity, *XRError) {
+func (CLIBE *CLIBackend) GetEntityFromXID(tx *Tx, regSID string, xidStr string,
+	allAttrs bool, anyCase bool, accessMode int) (*Entity, *XRError) {
+
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) GetEntitiesFromXID(tx *Tx, regSID string,
+	xidStr string, allAttrs bool, children bool, anyCase bool,
+	accessMode int) (EntityIterator, *XRError) {
+
 	panic("not yet")
 	return nil, nil
 }
