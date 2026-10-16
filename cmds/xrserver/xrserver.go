@@ -269,9 +269,9 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if RecreateDB {
-		if registry.DBExists(XRSConfig, registry.NewSQLBackend, DBName) {
+		if registry.DBExists(XRSConfig, DBName) {
 			Verbose("Deleting DB: %s", DBName)
-			err := registry.DBDelete(XRSConfig, registry.NewSQLBackend, DBName)
+			err := registry.DBDelete(XRSConfig, DBName)
 			ErrStop(err, "Error deleting DB(%s): %s", DBName, err)
 		}
 
@@ -279,10 +279,10 @@ func runFunc(cmd *cobra.Command, args []string) {
 		// cmd.Flags().Set("createreg", "true")
 	}
 
-	if !registry.DBExists(XRSConfig, registry.NewSQLBackend, DBName) {
+	if !registry.DBExists(XRSConfig, DBName) {
 		if !DontCreate || RecreateDB {
 			Verbose("Creating DB: %s", DBName)
-			err := registry.DBCreate(XRSConfig, registry.NewSQLBackend, DBName)
+			err := registry.DBCreate(XRSConfig, DBName)
 			ErrStop(err, "Error creating DB(%s): %s", DBName, err)
 		} else {
 			Stop("DB %q does not exist", DBName)
@@ -330,8 +330,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	if reg == nil && (!DontCreate || RecreateReg) {
 		Verbose("Creating: %s/%s", XRSConfig.Get("path.regcollection"), regName)
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, regName)
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, regName)
 		if IsNil(xErr) {
 			xErr = reg.Commit()
 		}

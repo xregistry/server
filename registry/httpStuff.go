@@ -73,9 +73,10 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	uuid := NewUUID()
 	var info *RequestInfo
 	var tx *Tx
+
+	uuid := NewUUID()
 
 	defer func() {
 		// If we haven't written anything, this will force the HTTP status code
@@ -100,26 +101,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			HTTPWriteError(info, xErr)
 		}
 
-		// As of now we should never have more than one active Tx during
-		// testing
-		/*
-			if (os.Getenv("TESTING") != "") && tx != nil {
-				l := len(TXs)
-				if (tx.tx == nil && l > 0) || (tx.tx != nil && l > 1) {
-					log.Printf(">End of HTTP Request")
-					log.Printf("len(TXs): %d", l)
-					log.Printf("tx.tx: %p", tx.tx)
-					DumpTXs()
-
-					log.Printf("Info: %s", ToJSON(info))
-					log.Printf("<Exit http req")
-
-					panic("nested Txs")
-				}
-			}
-		*/
-
-		// Explicit Commit() is required, else we'll always rollback
+		// Unless an explicit Commit() is done, we'll always rollback. In
+		// which case this rollback is a no-op
 		tx.Rollback()
 	}()
 
@@ -281,7 +264,12 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 		panic(rec)
 	}()
 
-	tx, xErr := NewTx(uuid, s.XRSConfig, NewSQLBackend)
+	be, xErr := NewDefaultBackend(s.XRSConfig)
+	if xErr != nil {
+		panic(xErr)
+	}
+
+	tx, xErr := NewTx(uuid, s.XRSConfig, be)
 	*txPtr = tx
 	if xErr != nil {
 		log.Printf("tx: %s Error talking to the DB creating new Tx: %s",
@@ -503,7 +491,7 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 	defRegSegment := info.XRSConfig.GetAsString("path.defaultreg")
 	regCollectionSegment := info.XRSConfig.GetAsString("path.regcollection")
 
-	// Recover the plain host base (scheme://host, no /xregs/<name> suffix)
+	// Get the plain host base (scheme://host, no /xregs/<name> suffix)
 	// regardless of whether THIS request itself came in via a /xregs/<name>
 	// prefixed URL - every sibling registry's URL below is built from this
 	// same host base, not from whatever prefix this particular request
@@ -562,8 +550,8 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	isV := log.IsFuncVerbose()
 	XID := "/" + strings.Join(info.Parts, "/")
 
-	iter, xErr := info.tx.Backend.GetEntitiesFromXID(info.tx,
-		info.Registry.DbSID, XID, true, true, false, FOR_READ)
+	iter, xErr := info.Registry.GetEntitiesFromXID(XID, true, true, false,
+		FOR_READ)
 	if xErr != nil {
 		return NewXRError("server_error", XID).SetDetailf(
 			"error loading entity: %s.", xErr.GetTitle())
@@ -908,7 +896,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 
 		// "!" is special - it means skip the query and just produce: {}
 		if len(XIDs) != 1 || XIDs[0] != "!" {
-			iter, xErr = GetEntitiesFromQuery(info.Registry, what, XIDs)
+			iter, xErr = info.Registry.GenerateResultEntities(what, XIDs)
 			if xErr != nil {
 				return xErr
 			}
@@ -934,9 +922,8 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 					xid := "/" +
 						strings.Join(info.Parts[:len(info.Parts)-2], "/")
 					xid += "/meta"
-					entity, xErr := info.tx.Backend.GetEntityFromXID(
-						info.tx, info.Registry.DbSID, xid, false, false,
-						FOR_READ)
+					entity, xErr := info.Registry.GetEntityFromXID(xid, false,
+						false, FOR_READ)
 					if xErr != nil {
 						return xErr
 					}
@@ -961,8 +948,8 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
 			xid := "/" + strings.Join(info.Parts[:len(info.Parts)-1], "/")
 
-			entity, xErr := info.tx.Backend.GetEntityFromXID(info.tx,
-				info.Registry.DbSID, xid, false, false, FOR_READ)
+			entity, xErr := info.Registry.GetEntityFromXID(xid, false, false,
+				FOR_READ)
 			if xErr != nil {
 				return xErr
 			}
@@ -2143,8 +2130,7 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		IDs, xErr := info.tx.Backend.GetGroupIDsByType(info.Registry,
-			info.GroupType, FOR_WRITE)
+		IDs, xErr := info.Registry.GetGroupIDsByType(info.GroupType, FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
@@ -2204,12 +2190,17 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 		return xErr
 	}
 
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
+		false, FOR_WRITE)
+	if xErr != nil {
+		return xErr
+	}
+
 	// No list provided so get list of Resources so we can delete them all
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		IDs, xErr := info.tx.Backend.GetResourceIDsByType(info.Registry,
-			info.GroupType, info.ResourceType, FOR_WRITE)
+		IDs, xErr := group.GetResourceIDsByType(info.ResourceType, FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
@@ -2217,12 +2208,6 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 		for _, gID := range IDs {
 			list[gID] = EpochEntry{}
 		}
-	}
-
-	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
-		false, FOR_WRITE)
-	if xErr != nil {
-		return xErr
 	}
 
 	// Delete each Resource, checking epoch first if provided
@@ -2302,7 +2287,8 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 		return xErr
 	}
 
-	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
+		false, FOR_READ)
 	if xErr != nil {
 		return xErr
 	}
@@ -2757,7 +2743,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		suffix = "$" + suffix
 	}
 
-	regUID, eXID, xErr := tx.Backend.MapShortSelf(tx, ss)
+	regUID, eXID, xErr := MapShortSelf(tx, ss)
 	if xErr != nil {
 		return xErr
 	}

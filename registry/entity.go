@@ -7,30 +7,10 @@ import (
 	"strconv"
 
 	log "github.com/duglin/dlog"
-	_ "github.com/go-sql-driver/mysql"
 	. "github.com/xregistry/server/common"
 )
 
-// dbPropRow holds the per-property info needed to write (or delete) an
-// own-property Props row - see prepDBProperty()/
-// SetDBProperty()/SetDBPropertyBatch()/DoDBPropertyBatch() below. Kept
-// as a struct (rather than individual values) so it's easy to add more
-// per-row info later without reshuffling every call site. Value==nil
-// means "delete this row".
-type dbPropRow struct {
-	Name    string  // DB PropName (includes trailing DB_IN)
-	Value   *string // nil = delete
-	Type    string  // PropType (string, boolean, int, ...)
-	DocView bool
-}
-
-type EntityExtensions struct {
-	// dbPropBatch buffers own-property Props row info during
-	// Save()'s traversal (see SetDBPropertyBatch()/DoDBPropertyBatch()
-	// below) so they can be written as a single multi-row REPLACE INTO
-	// instead of one round trip per property.
-	dbPropBatch []dbPropRow
-}
+type EntityExtensions struct{}
 
 func (e *Entity) GetRequestInfo() *RequestInfo {
 	if e.Tx == nil {
@@ -308,206 +288,6 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 	return xErr
 }
 
-// This will save a single property/value in the DB. This assumes
-// the caller is traversing the Object and splitting it into individual props
-// prepDBProperty validates and converts val into the form needed to
-// write (or delete) an own-property Props row for pp, shared by
-// SetDBProperty() (immediate single-row write) and
-// SetDBPropertyBatch() (buffered, for Save()'s traversal loop - see
-// DoDBPropertyBatch()). Returns skip=true if nothing further needs to
-// be written (e.g. dontStore props, or the RESOURCE-content special
-// case, which is written directly to ResourceContents here and never
-// touches Props).
-func (e *Entity) prepDBProperty(pp *PropPath, val any) (row dbPropRow,
-	skip bool, xErr *XRError) {
-
-	PanicIf(pp.UI() == "", "pp is empty")
-
-	row.Name = pp.DB()
-	row.DocView = true
-
-	if len(row.Name) > MAX_PROPNAME {
-		return dbPropRow{}, false, NewXRError("invalid_attribute",
-			e.XID, "name="+row.Name,
-			"error_detail="+
-				fmt.Sprintf("attribute names must not exceed %d chars",
-					MAX_PROPNAME))
-	}
-
-	_, propsMap := e.GetPropsOrdered()
-	specProp, ok := propsMap[pp.Top()]
-	if ok && specProp.internals != nil {
-		// Any prop with "dontStore"=true we skip
-		if specProp.internals.dontStore {
-			return dbPropRow{}, true, nil
-		}
-		if specProp.internals.noDocView {
-			row.DocView = false
-		}
-	}
-
-	PanicIf(e.DbSID == "", "DbSID should not be empty")
-	PanicIf(e.Registry == nil, "Registry should not be nil")
-
-	// "RESOURCE" is special and is saved in it's own table
-	// Need to explicitly set "RESOURCE" to nil to delete it.
-	if (e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION) && pp.Len() == 1 {
-		rm := e.GetResourceModel()
-		if rm.GetHasDocument() && pp.Top() == rm.Singular {
-			if IsNil(val) {
-				// Remove the content
-				xErr := e.Tx.Backend.SetResourceContents(e, nil)
-				if xErr != nil {
-					return dbPropRow{}, false, xErr
-				}
-			} else {
-				// Update the content
-				var buf []byte
-
-				if by, ok := val.([]byte); ok {
-					buf = by
-				} else if str, ok := val.(string); ok {
-					buf = []byte(str)
-				} else {
-					buf = []byte(fmt.Sprintf("%v", val))
-				}
-
-				xErr := e.Tx.Backend.SetResourceContents(e, buf)
-				if xErr != nil {
-					return dbPropRow{}, false, xErr
-				}
-
-				PanicIf(IsNil(e.NewObject["#contentid"]), "Missing cid")
-
-				// Don't save "RESOURCE" in the DB, #contentid is good enough
-				return dbPropRow{}, true, nil
-			}
-		}
-	}
-
-	// Convert specDefined BOOLEAN value "false" to "nil" so it doesn't
-	// appear in the DB at all. If this is too broad then just do it for
-	// "defaultversionsticky" in resources.go as we're copying attributes.
-	if !IsNil(specProp) && val == false && GoToOurType(val) == BOOLEAN {
-		// val = nil
-	}
-
-	if IsNil(val) {
-		// Should never need this but keeping it just in case
-		return row, false, nil
-	}
-
-	row.Type = GoToOurType(val)
-
-	// Convert booleans to true/false instead of 1/0 so filter works
-	// ...=true and not ...=1
-	dbVal := val
-	if row.Type == BOOLEAN {
-		if val == true {
-			dbVal = "true"
-		} else {
-			dbVal = "false"
-		}
-	}
-
-	// row.Type already came from GoToOurType(val) above, which panics on
-	// any type outside its known set - so val's concrete type here is
-	// guaranteed and we can type-assert directly instead of using reflect.
-	switch row.Type {
-	case STRING:
-		if s := val.(string); len(s) > MAX_VARCHAR {
-			return dbPropRow{}, false, NewXRError("invalid_attribute",
-				e.XID, "name="+pp.UI(),
-				"error_detail="+
-					fmt.Sprintf("must be less than %d chars",
-						MAX_VARCHAR+1))
-		}
-	case ARRAY:
-		if a := val.([]any); len(a) > 0 {
-			return dbPropRow{}, false, NewXRError("invalid_attribute",
-				e.XID, "name="+pp.UI(),
-				"error_detail=can't set non-empty arrays")
-		}
-		dbVal = ""
-	case MAP:
-		if m := val.(map[string]any); len(m) > 0 {
-			return dbPropRow{}, false, NewXRError("invalid_attribute",
-				e.XID, "name= "+pp.UI(),
-				"error_detail=can't set non-empty maps")
-		}
-		dbVal = ""
-	case OBJECT:
-		// GoToOurType() only ever maps OBJECT from the literal struct{}{}
-		// sentinel (never a populated struct), so this is always empty.
-		dbVal = ""
-	}
-
-	dbValStr := fmt.Sprintf("%v", dbVal)
-	row.Value = &dbValStr
-	return row, false, nil
-}
-
-// EnumValueToDBString encodes a single constraint "enum" value the
-// same way prepDBProperty() (above) encodes a real attribute value
-// before writing it to Props.PropValue (booleans as
-// "true"/"false", everything else via fmt.Sprintf("%v", v)) - used by
-// Group.validateEnum() to build a SQL-comparable string for each enum
-// entry.
-func EnumValueToDBString(v any) string {
-	if b, ok := v.(bool); ok {
-		if b {
-			return "true"
-		}
-		return "false"
-	}
-	return fmt.Sprintf("%v", v)
-}
-
-// SetDBPropertyBatch is like SetDBProperty() but, instead of writing
-// the property's Props row immediately, buffers it into
-// e.dbPropBatch for a later single multi-row REPLACE INTO via
-// DoDBPropertyBatch() - see Save()'s traversal loop, the only caller.
-// The nil/delete case is a no-op here: Save() already issues one
-// blanket DELETE for all of this entity's own-prop rows before
-// traversal starts, so there's never a per-prop delete to buffer.
-func (e *Entity) SetDBPropertyBatch(pp *PropPath, val any) *XRError {
-	defer log.Trace("tx: %s %s=%v", e.Tx.uuid, pp, val)()
-
-	row, skip, xErr := e.prepDBProperty(pp, val)
-	if xErr != nil {
-		return xErr
-	}
-	if skip || row.Value == nil {
-		return nil
-	}
-
-	e.dbPropBatch = append(e.dbPropBatch, row)
-
-	return nil
-}
-
-// dbPropBatchChunkSize caps how many rows go into a single REPLACE
-// INTO statement in DoDBPropertyBatch(), purely as a max_allowed_packet
-// safety net - not expected to matter for realistic per-entity
-// attribute counts.
-const dbPropBatchChunkSize = 200
-
-// DoDBPropertyBatch flushes whatever SetDBPropertyBatch() has buffered
-// into e.dbPropBatch (if anything) as one or more multi-row
-// REPLACE INTO Props statements (see DBWritePropsBatch()
-// in fulltree.go), then clears the buffer. Called once by Save(),
-// right after its traversal loop finishes.
-func (e *Entity) DoDBPropertyBatch() *XRError {
-	if len(e.dbPropBatch) == 0 {
-		return nil
-	}
-
-	rows := e.dbPropBatch
-	e.dbPropBatch = nil
-
-	return e.DBWritePropsBatch(rows, false)
-}
-
 // Clears system prop(s) for all versions of this resource. Accepts
 // multiple PropPaths so callers that need to clear several system
 // props at once (e.g. EnsureCompat's format/compat validated+reason
@@ -716,110 +496,6 @@ func (e *Entity) setFromDBNameInto(dest *map[string]any, name string, val *strin
 	return nil
 }
 
-// Create a new Entity based on what's in the DB. Similar to Refresh()
-func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError) {
-	entity := (*Entity)(nil)
-
-	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
-	// PropName,PropValue,PropType,IsSystemProp,FilterMask
-	//   0     1     2       3         4      5   6     7      8
-	//     9        10         11         12        13
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		// log.Printf("tx: %s Row(%d): %#v", tx.uuid, len(row), row)
-		if log.HasVerbose("readNextEntity") {
-			str := "("
-			for _, c := range row {
-				if IsNil(c) || IsNil(*c) {
-					str += "nil,"
-				} else {
-					str += fmt.Sprintf("%s,", *c)
-				}
-			}
-			log.Printf("tx: %s Row: %s)", tx.uuid, str)
-		}
-		eType := int((*row[1]).(int64))
-		plural := NotNilString(row[2])
-		uid := NotNilString(row[6])
-
-		if entity == nil {
-			entity = &Entity{
-				EntityExtensions: EntityExtensions{},
-
-				Tx:         tx,
-				AccessMode: accessMode,
-				Registry:   tx.Registry,
-				DbSID:      NotNilString(row[5]),
-				ParentSID:  NotNilString(row[4]),
-				Plural:     plural,
-				Singular:   NotNilString(row[3]),
-				UID:        uid,
-
-				Type:     eType,
-				XID:      NotNilString(row[8]),
-				Abstract: NotNilString(row[7]),
-			}
-
-			entity.GroupModel, entity.ResourceModel =
-				AbstractToModels(tx.Registry, entity.Abstract)
-
-			// FilterMask is only meaningful/present when the query
-			// applied a ?filter=. It tells us which top-level OR
-			// filter expression(s) actually caused this entity to be
-			// in the result set, which is needed to compute a correct
-			// nested <COLLECTION>url filter for it. Stored as generic
-			// "stuff" rather than a dedicated struct field.
-			if len(row) > 13 {
-				if maskStr := NotNilString(row[13]); maskStr != "" {
-					mask, err := strconv.ParseUint(maskStr, 10, 64)
-					if err != nil {
-						// FilterMask is always the result of
-						// CAST(...AS CHAR) on a BIGINT UNSIGNED (or
-						// the literal '0') on the SQL side, so this
-						// should never fail - if it does, something
-						// is seriously wrong
-						panic(fmt.Sprintf(
-							"error parsing FilterMask: %q: %s",
-							maskStr, err))
-					}
-					if mask != 0 {
-						entity.SetStuff("filterMask", mask)
-					}
-				}
-			}
-		} else {
-			// If the next row isn't part of the current Entity then
-			// push it back into the result set so we'll grab it the next time
-			// we're called. And exit.
-			if entity.Type != eType || entity.Plural != plural || entity.UID != uid {
-				results.Push()
-				break
-			}
-		}
-
-		propName := NotNilString(row[9])
-		propVal := NotNilString(row[10])
-		propType := NotNilString(row[11])
-		isSystemProp := NotNilBoolDef(row[12], false)
-
-		// Edge case - no props but entity is there
-		if propName == "" && propVal == "" && propType == "" {
-			continue
-		}
-
-		var xErr *XRError
-		if isSystemProp {
-			xErr = entity.SetSystemFromDBName(propName, &propVal, propType)
-		} else {
-			xErr = entity.SetFromDBName(propName, &propVal, propType)
-		}
-		if xErr != nil {
-			return nil, xErr
-		}
-	}
-
-	return entity, nil
-}
-
 func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 	switch e.Type {
 	case ENTITY_REGISTRY:
@@ -973,200 +649,33 @@ func (e *Entity) Save() *XRError {
 
 	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 
-	// TODO remove at some point when we're sure it's safe
-	if SpecProps["epoch"].InType(e.Type) && IsNil(e.NewObject["epoch"]) {
-		// Only an xref'd "meta" is allowed to not have an 'epoch'
-		if e.Type != ENTITY_META || IsNil(e.NewObject["xref"]) {
-			PanicIf(true, "Epoch is nil(%s):%s", e.XID, ToJSON(e.NewObject))
-		}
-	}
-
 	if log.IsFuncVerbose() {
 		log.Printf("tx: %s NewObject:\n%s", e.Tx.uuid, ToJSON(e.NewObject))
 		// ShowStack()
 	}
 
-	// If we're saving a Group then something must have changed, so
-	// we need to add it to our "validate" list (e.g. check its constraints).
-	// And at the end of the tx we'll validate all of them at once.
-	if e.Type == ENTITY_GROUP {
-		e.Tx.AddGroupToValidate(e.Self.(*Group))
-	}
-
-	// make a dup so we can delete some attributes
-	newObj := maps.Clone(e.NewObject)
-
-	// Delete all user props for this entity, we assume that NewObject
-	// contains everything we want going forward
-	xErr := e.Tx.Backend.ClearUserProps(e)
-
-	resSingular := ""
-	resHasDoc := false
-	if rm := e.GetResourceModel(); rm != nil {
-		resSingular = rm.Singular
-		resHasDoc = rm.GetHasDocument()
-	}
-
-	var traverse func(pp *PropPath, val any, obj map[string]any) *XRError
-	traverse = func(pp *PropPath, val any, obj map[string]any) *XRError {
-		if IsNil(val) { // Skip empty attributes
-			return nil
-		}
-
-		valValue := reflect.ValueOf(val)
-
-		switch valValue.Kind() {
-		case reflect.Map:
-			keys := valValue.MapKeys()
-			count := 0
-			for _, keyValue := range keys {
-				if keyValue.Kind() != reflect.String {
-					return NewXRError("invalid_attribute", e.XID,
-						"name="+pp.RemoveLast().UI(),
-						"error_detail="+
-							fmt.Sprintf("map key (%s) needs to be a string, "+
-								"not %s", pp.Last().Text, keyValue.Kind().String()))
-				}
-
-				k := keyValue.Interface().(string)
-				v := valValue.MapIndex(keyValue).Interface()
-				// "RESOURCE" is special - call SetDBProp if it's present
-				if resHasDoc && pp.Len() == 0 && k == resSingular {
-					if xErr := e.SetDBPropertyBatch(pp.P(k), v); xErr != nil {
-						return xErr
-					}
-				} else if k[0] == '#' {
-					if xErr := e.SetDBPropertyBatch(pp.P(k), v); xErr != nil {
-						return xErr
-					}
-				} else {
-					if IsNil(v) {
-						continue
-					}
-					if xErr := traverse(pp.P(k), v, obj); xErr != nil {
-						return xErr
-					}
-				}
-				count++
-			}
-			if count == 0 && pp.Len() != 0 {
-				return e.SetDBPropertyBatch(pp, map[string]any{})
-			}
-
-		case reflect.Slice:
-			if valValue.Len() == 0 {
-				valValue = reflect.MakeSlice(reflect.TypeOf(val), 0, 0)
-				return e.SetDBPropertyBatch(pp, valValue.Interface())
-			}
-			for i := 0; i < valValue.Len(); i++ {
-				v := valValue.Index(i).Interface()
-				if xErr := traverse(pp.I(i), v, obj); xErr != nil {
-					return xErr
-				}
-			}
-
-		case reflect.Struct:
-			panic("a struct")
-			// If this is ever needed, use reflect to traverse into val
-			// like we do for map & slice above. The stuff below is old/wrong
-			vMap := val.(map[string]any)
-			count := 0
-			for k, v := range vMap {
-				if IsNil(v) {
-					continue
-				}
-				if xErr := traverse(pp.P(k), v, obj); xErr != nil {
-					return xErr
-				}
-				count++
-			}
-			if count == 0 {
-				return e.SetDBPropertyBatch(pp, struct{}{})
-			}
-
-		default:
-			// must be scalar so add it
-			return e.SetDBPropertyBatch(pp, val)
-		}
-		return nil
-	}
-
-	xErr = traverse(NewPP(), newObj, e.NewObject)
+	xErr := e.Tx.Backend.SaveEntity(e)
 	if xErr != nil {
 		return xErr
 	}
 
-	// Flush all buffered own-property rows from the traversal above as
-	// one (or a few, if chunked) multi-row REPLACE INTO, instead of the
-	// one-row-per-property writes SetDBProperty() would have done.
-	xErr = e.DoDBPropertyBatch()
-	if xErr != nil {
-		return xErr
-	}
-
-	// Copy 'newObj', removing all 'nil' attributes
+	// Set e.Object to e.NewObject, skipping all 'nil' attributes
 	e.Object = map[string]any{}
-	for k, v := range newObj {
+	for k, v := range e.NewObject {
 		if !IsNil(v) {
 			e.Object[k] = v
 		}
 	}
 	e.NewObject = nil
 
-	// Make sure the Resource is validated when Version or Meta is changed.
-	if e.Type == ENTITY_VERSION {
-		// onlyMetaChanged=false because we need the full validation code.
-		v := e.Self.(*Version)
-		e.Tx.AddResourceToValidate(v.Resource, false, false)
+	// Update tx-wide Validate lists based on e.Type - processed at end of tx
+	if e.Type == ENTITY_GROUP {
+		e.Tx.AddGroupToValidate(e.Self.(*Group))
+	} else if e.Type == ENTITY_VERSION {
+		// onlyMetaChanged=false because we need the full validation code
+		e.Tx.AddResourceToValidate(e.Self.(*Version).Resource, false, false)
 	} else if e.Type == ENTITY_META {
-		meta := e.Self.(*Meta)
-		e.Tx.AddResourceToValidate(meta.Resource, true, false)
-	}
-
-	// Right after we just finished writing this entity's Props
-	// (DELETE-then-INSERT, above), do a locking self-check (FOR UPDATE,
-	// so we see the true just-committed-by-us state, not a stale
-	// snapshot) that this eSID's Entities row actually has at least one
-	// matching Props row. A LEFT JOIN row with PropName IS NULL means
-	// the Entities row exists but has NO Props at all - panic
-	// immediately so we catch the exact Tx/stack responsible instead of
-	// some later, unrelated code path.
-	if log.HasVerbose("DebugSave") {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("tx: %s DIAG post-Save empty-Props query "+
-						"itself failed for %s: %v", e.Tx.uuid, e.XID, r)
-				}
-			}()
-			be := NewSQLBackend(e.Registry.GetXRServerConfig()).(*SQLBackend)
-
-			rows := be.Query(e.Tx, `
-            SELECT ent.eSID, ent.XID, p.PropName
-            FROM Entities AS ent
-            LEFT JOIN Props AS p ON (
-                ent.eSID=p.eSID AND p.IsDefaultVerCopy=false AND
-                p.IsXrefPropCopy=false AND p.IsXrefVerCopy=false AND
-                p.IsCalcStatic=false AND p.IsCalcDynamic=false)
-            WHERE ent.eSID=? FOR UPDATE`, e.DbSID)
-
-			sawNullProp := false
-			for _, row := range rows {
-				if row[2] == nil {
-					sawNullProp = true
-					log.Printf("tx: %s DIAG POST-SAVE empty-Props: eSID=%v "+
-						"XID=%v has NO Props row",
-						e.Tx.uuid, NotNilString(&row[0]), NotNilString(&row[1]))
-				}
-			}
-			if sawNullProp {
-				ShowStack()
-				panic(fmt.Sprintf(
-					"tx: %s Save() just finished for %s (eSID=%s) but it has "+
-						"NO Props rows at all - fix it!", e.Tx.uuid,
-					e.XID, e.DbSID))
-			}
-		}()
+		e.Tx.AddResourceToValidate(e.Self.(*Meta).Resource, true, false)
 	}
 
 	return nil
@@ -1347,112 +856,6 @@ func CheckAttrs(obj map[string]any, source string) *XRError {
 	return nil
 }
 
-// DBWritePropsBatch writes multiple own/system Props rows
-// for e in as few REPLACE INTO statements as possible, chunked at
-// dbPropBatchChunkSize rows/statement as a max_allowed_packet safety
-// net. isSystem marks whether these rows are system-managed
-// (SaveSystemProps) or plain user-set (SetDBPropertyBatch/
-// DoDBPropertyBatch) - same meaning as DBWriteProp's isSystem
-// param, just batched across multiple rows in one statement instead of
-// one statement per row.
-func (e *Entity) DBWritePropsBatch(rows []dbPropRow, isSystem bool) *XRError {
-	if len(rows) == 0 {
-		return nil
-	}
-
-	var parentArg any
-	if e.ParentSID != "" {
-		parentArg = e.ParentSID
-	}
-
-	if true {
-		pos := 0
-		size := len(rows)
-		args := make([]any, 0, 13*max(size, dbPropBatchChunkSize))
-
-		for pos < size {
-			end := min(pos+dbPropBatchChunkSize, size)
-			args = args[:0]
-
-			for ; pos < end; pos++ {
-				row := rows[pos]
-				args = append(args,
-					e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
-					e.DbSID, e.UID, e.XID,
-					row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
-			}
-
-			xErr := e.Tx.Backend.BatchUpdateProps(e, isSystem, args)
-			if xErr != nil {
-				panic("handle xErr")
-				// return xErr
-			}
-		}
-
-		return nil
-	}
-
-	for len(rows) > 0 {
-		n := len(rows)
-		if n > dbPropBatchChunkSize {
-			n = dbPropBatchChunkSize
-		}
-		chunk := rows[:n]
-		rows = rows[n:]
-
-		args := make([]any, 0, len(chunk)*13)
-
-		for _, row := range chunk {
-			args = append(args,
-				e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
-				e.DbSID, e.UID, e.XID,
-				row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
-		}
-
-		xErr := e.Tx.Backend.BatchUpdateProps(e, isSystem, args)
-		if xErr != nil {
-			panic("handle xErr")
-			// return xErr
-		}
-	}
-
-	return nil
-}
-
-// DBDeletePropsBatch deletes multiple own/system Props
-// rows for e (identified by DB PropName) in as few
-// "DELETE ... WHERE PropName IN (...)" statements as possible, chunked
-// the same way as DBWritePropsBatch. Matches DBWriteProp's
-// single-row delete filter (own rows only - never cascaded/copied
-// ones), regardless of isSystem, since own vs. system PropNames never
-// collide.
-func (e *Entity) DBDeletePropsBatch(names []string) *XRError {
-	if len(names) == 0 {
-		return nil
-	}
-
-	pos := 0
-	size := len(names)
-	args := make([]any, 0, size)
-
-	for pos < size {
-		end := min(pos+dbPropBatchChunkSize, size)
-		args = args[:0]
-
-		for ; pos < end; pos++ {
-			args = append(args, names[pos])
-		}
-
-		xErr := e.Tx.Backend.BatchDeleteProps(e, args)
-		if xErr != nil {
-			panic("handle xErr")
-			// return xErr
-		}
-	}
-
-	return nil
-}
-
 // SaveSystemProps flushes any system-prop changes buffered by
 // SetSystemDBProperty() (into e.NewSystem) since the last flush. It's
 // called once per cached entity at Tx-commit time (see
@@ -1487,54 +890,8 @@ func (e *Entity) SaveSystemProps() *XRError {
 		return nil
 	}
 
-	_, propsMap := e.GetPropsOrdered()
-
-	// "name" here is the plain top-level attribute name (matching the
-	// key scheme used in e.System/e.NewSystem) - convert to the
-	// trailing-DB_IN-terminated DB PropName via pp.DB() before writing.
-	insertRows := make([]dbPropRow, 0, len(changed))
-	deleteNames := make([]string, 0, len(changed))
-
-	for name, val := range changed {
-		docView := true
-		if specProp, ok := propsMap[name]; ok && specProp.internals != nil &&
-			specProp.internals.noDocView {
-			docView = false
-		}
-		dbName := NewPPP(name).DB()
-
-		if IsNil(val) {
-			deleteNames = append(deleteNames, dbName)
-			continue
-		}
-
-		propType := GoToOurType(val)
-		dbVal := val
-		if propType == BOOLEAN {
-			if val == true {
-				dbVal = "true"
-			} else {
-				dbVal = "false"
-			}
-		}
-
-		// propType came from GoToOurType(val), so no need to re-derive
-		// the Go kind via reflect - just check our own type constant.
-		if propType == ARRAY || propType == MAP || propType == OBJECT {
-			dbVal = ""
-		}
-
-		dbValStr := fmt.Sprintf("%v", dbVal)
-		insertRows = append(insertRows, dbPropRow{
-			Name: dbName, Value: &dbValStr, Type: propType, DocView: docView,
-		})
-	}
-
-	if xErr := e.DBDeletePropsBatch(deleteNames); xErr != nil {
-		return xErr
-	}
-
-	if xErr := e.DBWritePropsBatch(insertRows, true); xErr != nil {
+	xErr := e.Tx.Backend.SaveChangedSystemProps(e, changed)
+	if xErr != nil {
 		return xErr
 	}
 

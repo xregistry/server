@@ -109,8 +109,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, "APIs-Guru")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "APIs-Guru")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		// Verbose( "New registry:\n%#v", reg)
 		defer reg.Rollback()
@@ -247,8 +246,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, "TestRegistry")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "TestRegistry")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 	}
@@ -270,8 +268,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, "Endpoints")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Endpoints")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -342,8 +339,7 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, "Messages")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Messages")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -378,8 +374,7 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, "Schemas")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Schemas")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -415,8 +410,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, "Large")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Large")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -480,8 +474,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, "DocStore")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "DocStore")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
@@ -574,8 +567,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 			return reg
 		}
 
-		reg, xErr = registry.NewRegistry(nil, XRSConfig,
-			registry.NewSQLBackend, "CloudEvents")
+		reg, xErr = registry.NewRegistry(nil, XRSConfig, "CloudEvents")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 

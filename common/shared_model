@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/duglin/dlog"
@@ -294,6 +295,112 @@ type ResourceModel struct {
 	// EffectiveProps are all attrs than can appear on a Res(so Res+Ver attrs)
 	effectivePropsOrdered []*Attribute
 	effectivePropsMap     map[string]*Attribute
+}
+
+func LoadModel(reg *Registry) (*Model, *XRError) {
+	defer log.Trace("tx: %s %s", reg.Tx.uuid, reg.UID)()
+
+	model, xErr := loadModelFromDB(reg, true)
+	if xErr != nil {
+		return nil, xErr
+	}
+	if model != nil {
+		reg.Model = model
+	}
+	return model, nil
+}
+
+// loadModelFromDB reads and parses whatever Model is CURRENTLY persisted
+// in the DB for reg, with no side-effects on reg.Model. This is safe to
+// call from the middle of Model.Save() (e.g. to diff the about-to-be-
+// overwritten "old" state against the new in-memory one) since - unlike
+// LoadModel() - it never clobbers reg.Model out from under the caller.
+// If loud is false, a missing row is treated as "nothing persisted yet"
+// (e.g. the very first model save for a brand new Registry) instead of
+// being logged as an error.
+func loadModelFromDB(reg *Registry, loud bool) (*Model, *XRError) {
+	PanicIf(reg == nil, "nil")
+
+	modelStr, changed, xErr := reg.Tx.Backend.LoadModelJSON(reg)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	if modelStr == "" {
+		// no model there yet.
+		// Not sure we we log it w/o panicing... TODO investigate
+		if loud {
+			ShowStack()
+			log.Printf("tx: %s Can't find registry: %s", reg.Tx.uuid, reg.UID)
+		}
+		return nil, nil
+	}
+
+	if model := getCachedModel(reg.DbSID, changed); model != nil {
+		model.Registry = reg
+		return model, nil
+	}
+
+	model, xErr := ParseModel([]byte(modelStr), reg)
+	if xErr != nil {
+		return nil, xErr
+	}
+	model.Registry = reg
+
+	setCachedModel(reg.DbSID, changed, model)
+
+	return model, nil
+}
+
+// modelCache is an in-process cache of the last-seen parsed *Model per
+// Registry (keyed by RegistrySID), so that loadModelFromDB() - called on
+// pretty much every HTTP request via FindRegistry()/FindRegistryBySID() -
+// doesn't have to re-parse the (potentially large) Model JSON blob when
+// nothing has changed since the last time we loaded it. Models.Changed
+// (see init.sql) is the cheap signal we compare against: it's a fresh
+// NewUUID() written by Model.Save() every time the Model row actually
+// changes, whether that happened via this process or another xrserver
+// replica sharing the same DB.
+//
+// The cached *Model is never handed out directly - see Model.Clone() -
+// since it's shared/read by concurrent requests and Model/GroupModel/
+// ResourceModel/Attribute all get mutated in place by callers (e.g.
+// ApplyNewModel(), Model.Save()'s own diffing).
+var modelCacheMutex = sync.Mutex{}
+var modelCache = map[string]*modelCacheEntry{} // RegistrySID -> entry
+
+type modelCacheEntry struct {
+	changed string // last known Models.Changed value for this RegistrySID
+	model   *Model // parsed as of that Changed value - Clone() before use
+}
+
+func getCachedModel(regSID string, changed string) *Model {
+	modelCacheMutex.Lock()
+	entry := modelCache[regSID]
+	modelCacheMutex.Unlock()
+
+	if entry == nil || entry.changed != changed {
+		return nil
+	}
+	return entry.model.Clone()
+}
+
+func setCachedModel(regSID string, changed string, model *Model) {
+	// Store our own private clone - never the caller's live *Model - so
+	// later in-place mutations by the caller (e.g. ApplyNewModel()) can't
+	// corrupt what we hand out to other requests later.
+	cached := model.Clone()
+	cached.Registry = nil
+
+	modelCacheMutex.Lock()
+	modelCache[regSID] = &modelCacheEntry{changed: changed, model: cached}
+	modelCacheMutex.Unlock()
+}
+
+func evictCachedModel(regSID string) {
+	modelCacheMutex.Lock()
+	delete(modelCache, regSID)
+	modelCacheMutex.Unlock()
 }
 
 func ParseModel(buf []byte, reg *Registry) (*Model, *XRError) {

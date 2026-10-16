@@ -86,7 +86,7 @@ func (CLIBE *CLIBackend) GetResources(g *Group, accessMode int) ([]*Resource, *X
 	return nil, nil
 }
 
-func (CLIBE *CLIBackend) GetResourceIDsByType(r *Registry, gType, rType string,
+func (CLIBE *CLIBackend) GetResourceIDsByType(g *Group, rType string,
 	accessMode int) ([]string, *XRError) {
 
 	panic("not yet")
@@ -162,12 +162,6 @@ func (CLIEBE *CLIBackend) BatchUpdateProps(e *Entity, isSystem bool, args []any)
 	return nil
 }
 
-// args is chunks of any's (names) per row/entity
-func (CLIEBE *CLIBackend) BatchDeleteProps(e *Entity, args []any) *XRError {
-	panic("not yet")
-	return nil
-}
-
 func (CLIBE *CLIBackend) ListRegistries(tx *Tx) ([]string, *XRError) {
 	panic("not yet")
 	return nil, nil
@@ -214,6 +208,11 @@ func (CLIBE *CLIBackend) GetGroupIDsByType(r *Registry, gType string,
 func (CLIBE *CLIBackend) MapShortSelf(tx *Tx, ss string) (string, string, *XRError) {
 	panic("not yet")
 	return "", "", nil
+}
+
+func (CLIBE *CLIBackend) GenerateResultEntities(reg *Registry, what string, XIDs []string) (EntityIterator, *XRError) {
+	panic("not yet")
+	return nil, nil
 }
 
 func (CLIBE *CLIBackend) LockResourceBySID(tx *Tx, sid string) *XRError {
@@ -365,4 +364,14 @@ func (CLIBE *CLIBackend) GetEntitiesFromXID(tx *Tx, regSID string,
 
 	panic("not yet")
 	return nil, nil
+}
+
+func (CLIBE *CLIBackend) SaveEntity(e *Entity) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) SaveChangedSystemProps(e *Entity, changed map[string]any) *XRError {
+	panic("not yet")
+	return nil
 }

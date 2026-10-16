@@ -80,6 +80,7 @@ func (e *Entity) GetStuff(key string) (any, bool) {
 	if e.stuff == nil {
 		return nil, false
 	}
+
 	val, ok := e.stuff[key]
 	return val, ok
 }
@@ -93,10 +94,19 @@ func (e *Entity) GetStuffAsString(key string) string {
 }
 
 func (e *Entity) SetStuff(key string, val any) {
+	if IsNil(val) && e.stuff == nil {
+		return
+	}
+
 	if e.stuff == nil {
 		e.stuff = map[string]any{}
 	}
-	e.stuff[key] = val
+
+	if IsNil(val) {
+		delete(e.stuff, key)
+	} else {
+		e.stuff[key] = val
+	}
 }
 
 type Registry struct {

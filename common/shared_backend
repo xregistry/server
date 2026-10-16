@@ -6,6 +6,44 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+type BackendInfo struct {
+	Name    string
+	NewFunc func(c *Config) (Backend, *XRError)
+}
+
+var RegisteredBackends = map[string]*BackendInfo{}
+
+func RegisterBackend(name string, fn func(c *Config) (Backend, *XRError)) *XRError {
+	if RegisteredBackends[name] != nil {
+		return NewXRError("server_error", "/").
+			SetDetailf("Duplicate backend registered: %s", name)
+	}
+
+	RegisteredBackends[name] = &BackendInfo{
+		Name:    name,
+		NewFunc: fn,
+	}
+
+	return nil
+}
+
+func NewDefaultBackend(c *Config) (Backend, *XRError) {
+	for _, rbe := range RegisteredBackends {
+		return rbe.NewFunc(c)
+	}
+
+	return nil, NewXRError("server_error", "/").
+		SetDetailf("No backends registered")
+}
+
+func MustNewDefaultBackend(c *Config) Backend {
+	be, xErr := NewDefaultBackend(c)
+	if xErr != nil {
+		panic(xErr)
+	}
+	return be
+}
+
 type Backend interface {
 	// DB related stuff
 	DBExists(c *Config, name string) bool
@@ -47,7 +85,6 @@ type Backend interface {
 
 	// args is chunks of 13 any's per row/entity
 	BatchUpdateProps(e *Entity, isSystem bool, args []any) *XRError
-	BatchDeleteProps(e *Entity, args []any) *XRError
 
 	// Registry stuff
 	ListRegistries(tx *Tx) ([]string, *XRError) // Order by UID,ASC case-insen.
@@ -61,6 +98,7 @@ type Backend interface {
 		accessMode int) ([]string, *XRError)
 	// regUID, entityXID, err
 	MapShortSelf(tx *Tx, ss string) (string, string, *XRError)
+	GenerateResultEntities(reg *Registry, what string, XIDs []string) (EntityIterator, *XRError)
 
 	// Group stuff
 	DeleteGroup(g *Group) *XRError
@@ -68,7 +106,7 @@ type Backend interface {
 	FindBadEqualsVersions(g *Group, gPP *PropPath, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) // rID, vIDs, err
 	FindBadEnumVersions(g *Group, c *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError)   // rID, vIDs, err
 	GetResources(g *Group, accessMode int) ([]*Resource, *XRError)
-	GetResourceIDsByType(r *Registry, gType, rType string,
+	GetResourceIDsByType(g *Group, rType string,
 		accessMode int) ([]string, *XRError)
 
 	// Resource stuff
@@ -115,6 +153,8 @@ type Backend interface {
 		anyCase bool, accessMode int) (*Entity, *XRError)
 	GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool,
 		children bool, anyCase bool, accessMode int) (EntityIterator, *XRError)
+	SaveEntity(e *Entity) *XRError
+	SaveChangedSystemProps(e *Entity, changed map[string]any) *XRError
 }
 
 type BatchRow struct {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,16 +16,23 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+func init() {
+	xErr := RegisterBackend("mysql", NewSQLBackend)
+	if xErr != nil {
+		panic(xErr.String() + xErr.Detail)
+	}
+}
+
 type SQLBackend struct {
 	XRSConfig *Config
 }
 
 var _ Backend = &SQLBackend{}
 
-func NewSQLBackend(c *Config) Backend {
+func NewSQLBackend(c *Config) (Backend, *XRError) {
 	return &SQLBackend{
 		XRSConfig: c,
-	}
+	}, nil
 }
 
 // DB Actions
@@ -366,7 +374,7 @@ func (sqlBE *SQLBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
 }
 
 func (sqlBE *SQLBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XRError) {
-	entities, xErr := sqlBE.GetEntitiesFromQuery(r.Tx, r.DbSID, accessMode,
+	entities, xErr := sqlBE.getEntitiesFromQuery(r.Tx, r.DbSID, accessMode,
 		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
 	if xErr != nil {
 		return nil, xErr
@@ -395,9 +403,8 @@ func (sqlBE *SQLBackend) GetGroupIDsByType(r *Registry, gType string,
 	accessMode int) ([]string, *XRError) {
 
 	results := Query(r.Tx, `
-            SELECT UID
-            FROM Entities
-            WHERE RegSID=? AND Abstract=?`,
+            SELECT UID FROM Entities
+            WHERE ParentSID=? AND Plural=?`,
 		r.DbSID, gType)
 	defer results.Close()
 
@@ -427,6 +434,45 @@ func (sqlBE *SQLBackend) MapShortSelf(tx *Tx, ss string) (string, string, *XRErr
 	}
 
 	return "", "", nil
+}
+func (sqlBE *SQLBackend) GenerateResultEntities(reg *Registry, what string,
+	XIDs []string) (EntityIterator, *XRError) {
+
+	query, args, err := GenerateQuery(reg, what, XIDs)
+	if err != nil {
+		return nil, err
+	}
+	results := Query(reg.Tx, query, args...)
+	// defer results.Close()
+
+	iter := &sqlEntityIterator{
+		Results:    results,
+		Tx:         reg.Tx,
+		AccessMode: FOR_READ,
+		offset:     0,
+		size:       uint64(len(results.AllRows)),
+		total:      math.MaxUint64,
+	}
+
+	// Get "total", it's 14th column
+	// TotalCount (see GenerateQuery) rides along on every row of the
+	// (already fully in-memory - see Query()) paginated result, computed
+	// as a whole-partition aggregate *before* the page-range filter was
+	// applied - so it already reflects the entire result set, and we
+	// don't need a second query just to get it.
+	if results != nil && len(results.AllRows) > 0 {
+		row := results.AllRows[0]
+		if len(row) > 14 {
+			totalStr := NotNilString(row[14])
+			if totalStr != "" {
+				if v, err := strconv.ParseUint(totalStr, 10, 64); err == nil {
+					iter.total = v
+				}
+			}
+		}
+	}
+
+	return iter, nil
 }
 
 func (sqlBE *SQLBackend) DeleteGroup(g *Group) *XRError {
@@ -564,7 +610,20 @@ func (sqlBE *SQLBackend) FindBadEnumVersions(g *Group, constraint *Constraint, r
 	enumArgs := make([]any, 0, len(constraint.Enum))
 
 	for _, v := range constraint.Enum {
-		enumArgs = append(enumArgs, EnumValueToDBString(v))
+		/*
+			// encode v for proper mysql value (bool is special)
+			if b, ok := v.(bool); ok {
+				if b {
+					v = "true"
+				} else {
+					v = "false"
+				}
+			} else {
+				v = fmt.Sprintf("%v", v)
+			}
+		*/
+		v = fmt.Sprintf("%v", v)
+		enumArgs = append(enumArgs, v)
 		placeholders = append(placeholders, "?")
 	}
 	args = append(args, enumArgs...)
@@ -616,7 +675,7 @@ func (sqlBE *SQLBackend) FindBadEnumVersions(g *Group, constraint *Constraint, r
 }
 
 func (sqlBE *SQLBackend) GetResources(g *Group, accessMode int) ([]*Resource, *XRError) {
-	entities, xErr := sqlBE.GetEntitiesFromQuery(g.Tx, g.Registry.DbSID, FOR_WRITE,
+	entities, xErr := sqlBE.getEntitiesFromQuery(g.Tx, g.Registry.DbSID, FOR_WRITE,
 		`e.ParentSID=?`, g.DbSID)
 	if xErr != nil {
 		return nil, xErr
@@ -642,14 +701,13 @@ func (sqlBE *SQLBackend) GetResources(g *Group, accessMode int) ([]*Resource, *X
 	return resources, nil
 }
 
-func (sqlBE *SQLBackend) GetResourceIDsByType(r *Registry,
-	gType, rType string, accessMode int) ([]string, *XRError) {
+func (sqlBE *SQLBackend) GetResourceIDsByType(g *Group, rType string,
+	accessMode int) ([]string, *XRError) {
 
-	results := Query(r.Tx, `
-            SELECT UID
-            FROM Entities
-            WHERE RegSID=? AND Abstract=?`,
-		r.DbSID, NewPPP(gType).P(rType).Abstract())
+	results := Query(g.Tx, `
+            SELECT UID FROM Entities
+            WHERE ParentSID=? AND Plural=?`,
+		g.DbSID, rType)
 	defer results.Close()
 
 	list := make([]string, 0, len(results.AllRows))
@@ -1119,18 +1177,45 @@ func (sqlBE *SQLBackend) BatchUpdateProps(e *Entity, isSystem bool, args []any) 
 	return nil
 }
 
-func (sqlBE *SQLBackend) BatchDeleteProps(e *Entity, args []any) *XRError {
-	size := len(args)
-	holders := strings.Repeat("?,", size-1)
-	holders += "?"
+// BatchDeleteProps deletes multiple own/system Props
+// rows for e (identified by DB PropName) in as few
+// "DELETE ... WHERE PropName IN (...)" statements as possible, chunked
+// the same way as DBWritePropsBatch. Matches DBWriteProp's
+// single-row delete filter (own rows only - never cascaded/copied
+// ones), regardless of isSystem, since own vs. system PropNames never
+// collide.
+func batchDeleteProps(e *Entity, names []string) *XRError {
+	if len(names) == 0 {
+		return nil
+	}
 
-	newArgs := append([]any{e.DbSID}, args...)
+	size := len(names)
+	batchSize := min(size, dbPropBatchChunkSize)
+	args := make([]any, 1, batchSize+1) // +1 for e.DbSID
+	holders := strings.Repeat("?,", batchSize)
 
-	Do(e.Tx, `
-        DELETE FROM Props
-        WHERE eSID=? AND PropName IN (`+holders+`)
-            AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
-            AND IsXrefVerCopy=false`, newArgs...)
+	pos := 0
+	argsSize := 0
+	args[0] = e.DbSID
+	for {
+		if pos == size || argsSize == batchSize {
+			if argsSize == 0 {
+				break
+			}
+
+			Do(e.Tx, `
+                    DELETE FROM Props
+                    WHERE eSID=? AND PropName IN (`+holders[:argsSize*2-1]+`)
+                        AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
+                        AND IsXrefVerCopy=false`, args...)
+			args = args[:1] // save e.DbSID
+			argsSize = 0
+		} else {
+			args = append(args, names[pos])
+			argsSize++
+			pos++
+		}
+	}
 
 	return nil
 }
@@ -1583,7 +1668,7 @@ func (sqlBE *SQLBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
 }
 
 func (sqlBE *SQLBackend) GetVersions(r *Resource, accessMode int) ([]*Version, *XRError) {
-	entities, xErr := sqlBE.GetEntitiesFromQuery(r.Tx, r.Registry.DbSID,
+	entities, xErr := sqlBE.getEntitiesFromQuery(r.Tx, r.Registry.DbSID,
 		accessMode, `e.ParentSID=? AND e.Type=?`, r.DbSID, ENTITY_VERSION)
 	if xErr != nil {
 		return nil, xErr
@@ -2099,7 +2184,7 @@ func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string,
 	return iterator, nil
 }
 
-func (sqlBE *SQLBackend) GetEntitiesFromQuery(tx *Tx, regID string,
+func (sqlBE *SQLBackend) getEntitiesFromQuery(tx *Tx, regID string,
 	accessMode int, query string, args ...any) ([]*Entity, *XRError) {
 
 	defer log.Trace("tx: %s %s", tx.uuid, query)()
@@ -2553,44 +2638,6 @@ func topLevelSlashCount(xid string) string {
 	}
 }
 
-func GetEntitiesFromQuery(reg *Registry, what string, XIDs []string) (EntityIterator, *XRError) {
-	query, args, err := GenerateQuery(reg, what, XIDs)
-	if err != nil {
-		return nil, err
-	}
-	results := Query(reg.Tx, query, args...)
-	// defer results.Close()
-
-	iter := &sqlEntityIterator{
-		Results:    results,
-		Tx:         reg.Tx,
-		AccessMode: FOR_READ,
-		offset:     0,
-		size:       uint64(len(results.AllRows)),
-		total:      math.MaxUint64,
-	}
-
-	// Get "total", it's 14th column
-	// TotalCount (see GenerateQuery) rides along on every row of the
-	// (already fully in-memory - see Query()) paginated result, computed
-	// as a whole-partition aggregate *before* the page-range filter was
-	// applied - so it already reflects the entire result set, and we
-	// don't need a second query just to get it.
-	if results != nil && len(results.AllRows) > 0 {
-		row := results.AllRows[0]
-		if len(row) > 14 {
-			totalStr := NotNilString(row[14])
-			if totalStr != "" {
-				if v, err := strconv.ParseUint(totalStr, 10, 64); err == nil {
-					iter.total = v
-				}
-			}
-		}
-	}
-
-	return iter, nil
-}
-
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
 func GenerateQuery(reg *Registry, what string, XIDs []string) (string, []interface{}, *XRError) {
 	query := ""
@@ -2852,4 +2899,569 @@ func LikeWildcardIt(str string) (string, bool) {
 	}
 
 	return res.String(), wild
+}
+
+// Create a new Entity based on what's in the DB. Similar to Refresh()
+func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError) {
+	entity := (*Entity)(nil)
+
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
+	// PropName,PropValue,PropType,IsSystemProp,FilterMask
+	//   0     1     2       3         4      5   6     7      8
+	//     9        10         11         12        13
+	for row := results.NextRow(); row != nil; row = results.NextRow() {
+		// log.Printf("tx: %s Row(%d): %#v", tx.uuid, len(row), row)
+		if log.HasVerbose("readNextEntity") {
+			str := "("
+			for _, c := range row {
+				if IsNil(c) || IsNil(*c) {
+					str += "nil,"
+				} else {
+					str += fmt.Sprintf("%s,", *c)
+				}
+			}
+			log.Printf("tx: %s Row: %s)", tx.uuid, str)
+		}
+		eType := int((*row[1]).(int64))
+		plural := NotNilString(row[2])
+		uid := NotNilString(row[6])
+
+		if entity == nil {
+			entity = &Entity{
+				EntityExtensions: EntityExtensions{},
+
+				Tx:         tx,
+				AccessMode: accessMode,
+				Registry:   tx.Registry,
+				DbSID:      NotNilString(row[5]),
+				ParentSID:  NotNilString(row[4]),
+				Plural:     plural,
+				Singular:   NotNilString(row[3]),
+				UID:        uid,
+
+				Type:     eType,
+				XID:      NotNilString(row[8]),
+				Abstract: NotNilString(row[7]),
+			}
+
+			entity.GroupModel, entity.ResourceModel =
+				AbstractToModels(tx.Registry, entity.Abstract)
+
+			// FilterMask is only meaningful/present when the query
+			// applied a ?filter=. It tells us which top-level OR
+			// filter expression(s) actually caused this entity to be
+			// in the result set, which is needed to compute a correct
+			// nested <COLLECTION>url filter for it. Stored as generic
+			// "stuff" rather than a dedicated struct field.
+			if len(row) > 13 {
+				if maskStr := NotNilString(row[13]); maskStr != "" {
+					mask, err := strconv.ParseUint(maskStr, 10, 64)
+					if err != nil {
+						// FilterMask is always the result of
+						// CAST(...AS CHAR) on a BIGINT UNSIGNED (or
+						// the literal '0') on the SQL side, so this
+						// should never fail - if it does, something
+						// is seriously wrong
+						panic(fmt.Sprintf(
+							"error parsing FilterMask: %q: %s",
+							maskStr, err))
+					}
+					if mask != 0 {
+						entity.SetStuff("filterMask", mask)
+					}
+				}
+			}
+		} else {
+			// If the next row isn't part of the current Entity then
+			// push it back into the result set so we'll grab it the next time
+			// we're called. And exit.
+			if entity.Type != eType || entity.Plural != plural || entity.UID != uid {
+				results.Push()
+				break
+			}
+		}
+
+		propName := NotNilString(row[9])
+		propVal := NotNilString(row[10])
+		propType := NotNilString(row[11])
+		isSystemProp := NotNilBoolDef(row[12], false)
+
+		// Edge case - no props but entity is there
+		if propName == "" && propVal == "" && propType == "" {
+			continue
+		}
+
+		var xErr *XRError
+		if isSystemProp {
+			xErr = entity.SetSystemFromDBName(propName, &propVal, propType)
+		} else {
+			xErr = entity.SetFromDBName(propName, &propVal, propType)
+		}
+		if xErr != nil {
+			return nil, xErr
+		}
+	}
+
+	return entity, nil
+}
+
+func (sqlBE *SQLBackend) SaveEntity(e *Entity) *XRError {
+	// old - make a dup so we can delete some attributes
+	newObj := e.NewObject // maps.Clone(e.NewObject)
+
+	// Delete all user props for this entity, we assume that NewObject
+	// contains everything we want going forward
+	xErr := sqlBE.ClearUserProps(e)
+	if xErr != nil {
+		return xErr
+	}
+
+	resSingular := ""
+	resHasDoc := false
+	if rm := e.GetResourceModel(); rm != nil {
+		resSingular = rm.Singular
+		resHasDoc = rm.GetHasDocument()
+	}
+
+	var traverse func(pp *PropPath, val any) *XRError
+	traverse = func(pp *PropPath, val any) *XRError {
+		if IsNil(val) { // Skip empty attributes
+			return nil
+		}
+
+		valValue := reflect.ValueOf(val)
+
+		switch valValue.Kind() {
+		case reflect.Map:
+			keys := valValue.MapKeys()
+			count := 0
+			for _, keyValue := range keys {
+				if keyValue.Kind() != reflect.String {
+					return NewXRError("invalid_attribute", e.XID,
+						"name="+pp.RemoveLast().UI(),
+						"error_detail="+
+							fmt.Sprintf("map key (%s) needs to be a string, "+
+								"not %s", pp.Last().Text,
+								keyValue.Kind().String()))
+				}
+
+				k := keyValue.Interface().(string)
+				v := valValue.MapIndex(keyValue).Interface()
+				// "RESOURCE" is special - call SetDBProp if it's present
+				if resHasDoc && pp.Len() == 0 && k == resSingular {
+					if xErr := setDBPropertyBatch(e, pp.P(k), v); xErr != nil {
+						return xErr
+					}
+				} else if k[0] == '#' {
+					if xErr := setDBPropertyBatch(e, pp.P(k), v); xErr != nil {
+						return xErr
+					}
+				} else {
+					if IsNil(v) {
+						continue
+					}
+					if xErr := traverse(pp.P(k), v); xErr != nil {
+						return xErr
+					}
+				}
+				count++
+			}
+			if count == 0 && pp.Len() != 0 {
+				return setDBPropertyBatch(e, pp, map[string]any{})
+			}
+
+		case reflect.Slice:
+			if valValue.Len() == 0 {
+				valValue = reflect.MakeSlice(reflect.TypeOf(val), 0, 0)
+				return setDBPropertyBatch(e, pp, valValue.Interface())
+			}
+			for i := 0; i < valValue.Len(); i++ {
+				v := valValue.Index(i).Interface()
+				if xErr := traverse(pp.I(i), v); xErr != nil {
+					return xErr
+				}
+			}
+
+		case reflect.Struct:
+			panic("a struct")
+			// If this is ever needed, use reflect to traverse into val
+			// like we do for map & slice above. The stuff below is old/wrong
+			vMap := val.(map[string]any)
+			count := 0
+			for k, v := range vMap {
+				if IsNil(v) {
+					continue
+				}
+				if xErr := traverse(pp.P(k), v); xErr != nil {
+					return xErr
+				}
+				count++
+			}
+			if count == 0 {
+				return setDBPropertyBatch(e, pp, struct{}{})
+			}
+
+		default:
+			// must be scalar so add it
+			return setDBPropertyBatch(e, pp, val)
+		}
+		return nil
+	}
+
+	xErr = traverse(NewPP(), newObj)
+	if xErr != nil {
+		return xErr
+	}
+
+	// Flush all buffered own-property rows from the traversal above as
+	// one (or a few, if chunked) multi-row REPLACE INTO, instead of the
+	// one-row-per-property writes SetDBProperty() would have done.
+	xErr = doDBPropertyBatch(e)
+	if xErr != nil {
+		return xErr
+	}
+
+	return nil
+}
+
+// dbPropBatchChunkSize caps how many rows go into a single REPLACE
+// INTO statement in DoDBPropertyBatch(), purely as a max_allowed_packet
+// safety net - not expected to matter for realistic per-entity
+// attribute counts.
+const dbPropBatchChunkSize = 200
+
+// dbPropRow holds the per-property info needed to write (or delete) an
+// own-property Props row - see prepDBProperty()/
+// SetDBProperty()/SetDBPropertyBatch()/DoDBPropertyBatch() below. Kept
+// as a struct (rather than individual values) so it's easy to add more
+// per-row info later without reshuffling every call site. Value==nil
+// means "delete this row".
+type dbPropRow struct {
+	Name    string  // DB PropName (includes trailing DB_IN)
+	Value   *string // nil = delete
+	Type    string  // PropType (string, boolean, int, ...)
+	DocView bool
+}
+
+// SetDBPropertyBatch is like SetDBProperty() but, instead of writing
+// the property's Props row immediately, buffers it into
+// e.dbPropBatch for a later single multi-row REPLACE INTO via
+// DoDBPropertyBatch() - see Save()'s traversal loop, the only caller.
+// The nil/delete case is a no-op here: Save() already issues one
+// blanket DELETE for all of this entity's own-prop rows before
+// traversal starts, so there's never a per-prop delete to buffer.
+func setDBPropertyBatch(e *Entity, pp *PropPath, val any) *XRError {
+	defer log.Trace("tx: %s %s=%v", e.Tx.uuid, pp, val)()
+
+	row, skip, xErr := prepDBProperty(e, pp, val)
+	if xErr != nil {
+		return xErr
+	}
+	if skip || row.Value == nil {
+		return nil
+	}
+
+	// dbPropBatch buffers own-property Props row info during
+	// Save()'s traversal (see SetDBPropertyBatch()/DoDBPropertyBatch()
+	// below) so they can be written as a single multi-row REPLACE INTO
+	// instead of one round trip per property.
+	dbPropBatch := []dbPropRow(nil)
+
+	tmp, ok := e.GetStuff("dbPropBatch")
+	if !ok || IsNil(tmp) {
+		dbPropBatch = []dbPropRow{}
+	} else {
+		dbPropBatch = tmp.([]dbPropRow)
+	}
+
+	dbPropBatch = append(dbPropBatch, row)
+	e.SetStuff("dbPropBatch", dbPropBatch)
+
+	return nil
+}
+
+// This will save a single property/value in the DB. This assumes
+// the caller is traversing the Object and splitting it into individual props
+// prepDBProperty validates and converts val into the form needed to
+// write (or delete) an own-property Props row for pp, shared by
+// SetDBProperty() (immediate single-row write) and
+// SetDBPropertyBatch() (buffered, for Save()'s traversal loop - see
+// DoDBPropertyBatch()). Returns skip=true if nothing further needs to
+// be written (e.g. dontStore props, or the RESOURCE-content special
+// case, which is written directly to ResourceContents here and never
+// touches Props).
+func prepDBProperty(e *Entity, pp *PropPath, val any) (row dbPropRow,
+	skip bool, xErr *XRError) {
+
+	PanicIf(pp.UI() == "", "pp is empty")
+
+	row.Name = pp.DB()
+	row.DocView = true
+
+	if len(row.Name) > MAX_PROPNAME {
+		return dbPropRow{}, false, NewXRError("invalid_attribute",
+			e.XID, "name="+row.Name,
+			"error_detail="+
+				fmt.Sprintf("attribute names must not exceed %d chars",
+					MAX_PROPNAME))
+	}
+
+	_, propsMap := e.GetPropsOrdered()
+	specProp, ok := propsMap[pp.Top()]
+	if ok && specProp.internals != nil {
+		// Any prop with "dontStore"=true we skip
+		if specProp.internals.dontStore {
+			return dbPropRow{}, true, nil
+		}
+		if specProp.internals.noDocView {
+			row.DocView = false
+		}
+	}
+
+	PanicIf(e.DbSID == "", "DbSID should not be empty")
+	PanicIf(e.Registry == nil, "Registry should not be nil")
+
+	// "RESOURCE" is special and is saved in it's own table
+	// Need to explicitly set "RESOURCE" to nil to delete it.
+	if (e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION) && pp.Len() == 1 {
+		rm := e.GetResourceModel()
+		if rm.GetHasDocument() && pp.Top() == rm.Singular {
+			if IsNil(val) {
+				// Remove the content
+				xErr := e.Tx.Backend.SetResourceContents(e, nil)
+				if xErr != nil {
+					return dbPropRow{}, false, xErr
+				}
+			} else {
+				// Update the content
+				var buf []byte
+
+				if by, ok := val.([]byte); ok {
+					buf = by
+				} else if str, ok := val.(string); ok {
+					buf = []byte(str)
+				} else {
+					buf = []byte(fmt.Sprintf("%v", val))
+				}
+
+				xErr := e.Tx.Backend.SetResourceContents(e, buf)
+				if xErr != nil {
+					return dbPropRow{}, false, xErr
+				}
+
+				PanicIf(IsNil(e.NewObject["#contentid"]), "Missing cid")
+
+				// Don't save "RESOURCE" in the DB, #contentid is good enough
+				return dbPropRow{}, true, nil
+			}
+		}
+	}
+
+	// Convert specDefined BOOLEAN value "false" to "nil" so it doesn't
+	// appear in the DB at all. If this is too broad then just do it for
+	// "defaultversionsticky" in resources.go as we're copying attributes.
+	if !IsNil(specProp) && val == false && GoToOurType(val) == BOOLEAN {
+		// val = nil
+	}
+
+	if IsNil(val) {
+		// Should never need this but keeping it just in case
+		return row, false, nil
+	}
+
+	row.Type = GoToOurType(val)
+	// Convert booleans to true/false instead of 1/0 so filter works
+	// ...=true and not ...=1
+	dbVal := val
+	if row.Type == BOOLEAN {
+		if val == true {
+			dbVal = "true"
+		} else {
+			dbVal = "false"
+		}
+	}
+
+	// row.Type already came from GoToOurType(val) above, which panics on
+	// any type outside its known set - so val's concrete type here is
+	// guaranteed and we can type-assert directly instead of using reflect.
+	switch row.Type {
+	case STRING:
+		if s := val.(string); len(s) > MAX_VARCHAR {
+			return dbPropRow{}, false, NewXRError("invalid_attribute",
+				e.XID, "name="+pp.UI(),
+				"error_detail="+
+					fmt.Sprintf("must be less than %d chars",
+						MAX_VARCHAR+1))
+		}
+	case ARRAY:
+		if a := val.([]any); len(a) > 0 {
+			return dbPropRow{}, false, NewXRError("invalid_attribute",
+				e.XID, "name="+pp.UI(),
+				"error_detail=can't set non-empty arrays")
+		}
+		dbVal = ""
+	case MAP:
+		if m := val.(map[string]any); len(m) > 0 {
+			return dbPropRow{}, false, NewXRError("invalid_attribute",
+				e.XID, "name= "+pp.UI(),
+				"error_detail=can't set non-empty maps")
+		}
+		dbVal = ""
+	case OBJECT:
+		// GoToOurType() only ever maps OBJECT from the literal struct{}{}
+		// sentinel (never a populated struct), so this is always empty.
+		dbVal = ""
+	}
+
+	dbValStr := fmt.Sprintf("%v", dbVal)
+	row.Value = &dbValStr
+	return row, false, nil
+}
+
+// DoDBPropertyBatch flushes whatever SetDBPropertyBatch() has buffered
+// into e.dbPropBatch (if anything) as one or more multi-row
+// REPLACE INTO Props statements (see DBWritePropsBatch()
+// in fulltree.go), then clears the buffer. Called once by Save(),
+// right after its traversal loop finishes.
+func doDBPropertyBatch(e *Entity) *XRError {
+	tmp, ok := e.GetStuff("dbPropBatch")
+	if !ok || IsNil(tmp) {
+		return nil
+	}
+	rows := tmp.([]dbPropRow)
+
+	if len(rows) == 0 {
+		return nil
+	}
+	e.SetStuff("dbPropBatch", nil)
+
+	return dbWritePropsBatch(e, rows, false)
+}
+
+// DBWritePropsBatch writes multiple own/system Props rows
+// for e in as few REPLACE INTO statements as possible, chunked at
+// dbPropBatchChunkSize rows/statement as a max_allowed_packet safety
+// net. isSystem marks whether these rows are system-managed
+// (SaveSystemProps) or plain user-set (SetDBPropertyBatch/
+// DoDBPropertyBatch) - same meaning as DBWriteProp's isSystem
+// param, just batched across multiple rows in one statement instead of
+// one statement per row.
+func dbWritePropsBatch(e *Entity, rows []dbPropRow, isSystem bool) *XRError {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	var parentArg any
+	if e.ParentSID != "" {
+		parentArg = e.ParentSID
+	}
+
+	if true {
+		pos := 0
+		size := len(rows)
+		args := make([]any, 0, 13*max(size, dbPropBatchChunkSize))
+
+		for pos < size {
+			end := min(pos+dbPropBatchChunkSize, size)
+			args = args[:0]
+
+			for ; pos < end; pos++ {
+				row := rows[pos]
+				args = append(args,
+					e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
+					e.DbSID, e.UID, e.XID,
+					row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
+			}
+
+			xErr := e.Tx.Backend.BatchUpdateProps(e, isSystem, args)
+			if xErr != nil {
+				panic("handle xErr")
+				// return xErr
+			}
+		}
+
+		return nil
+	}
+
+	for len(rows) > 0 {
+		n := len(rows)
+		if n > dbPropBatchChunkSize {
+			n = dbPropBatchChunkSize
+		}
+		chunk := rows[:n]
+		rows = rows[n:]
+
+		args := make([]any, 0, len(chunk)*13)
+
+		for _, row := range chunk {
+			args = append(args,
+				e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
+				e.DbSID, e.UID, e.XID,
+				row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
+		}
+
+		xErr := e.Tx.Backend.BatchUpdateProps(e, isSystem, args)
+		if xErr != nil {
+			panic("handle xErr")
+			// return xErr
+		}
+	}
+
+	return nil
+}
+
+func (sqlBE *SQLBackend) SaveChangedSystemProps(e *Entity, changed map[string]any) *XRError {
+
+	_, propsMap := e.GetPropsOrdered()
+
+	// "name" here is the plain top-level attribute name (matching the
+	// key scheme used in e.System/e.NewSystem) - convert to the
+	// trailing-DB_IN-terminated DB PropName via pp.DB() before writing.
+	insertRows := make([]dbPropRow, 0, len(changed))
+	deleteNames := make([]string, 0, len(changed))
+
+	for name, val := range changed {
+		docView := true
+		if specProp, ok := propsMap[name]; ok && specProp.internals != nil &&
+			specProp.internals.noDocView {
+			docView = false
+		}
+		dbName := NewPPP(name).DB()
+
+		if IsNil(val) {
+			deleteNames = append(deleteNames, dbName)
+			continue
+		}
+
+		propType := GoToOurType(val)
+		dbVal := val
+		if propType == BOOLEAN {
+			if val == true {
+				dbVal = "true"
+			} else {
+				dbVal = "false"
+			}
+		}
+
+		// propType came from GoToOurType(val), so no need to re-derive
+		// the Go kind via reflect - just check our own type constant.
+		if propType == ARRAY || propType == MAP || propType == OBJECT {
+			dbVal = ""
+		}
+
+		dbValStr := fmt.Sprintf("%v", dbVal)
+		insertRows = append(insertRows, dbPropRow{
+			Name: dbName, Value: &dbValStr, Type: propType, DocView: docView,
+		})
+	}
+
+	if xErr := batchDeleteProps(e, deleteNames); xErr != nil {
+		return xErr
+	}
+
+	if xErr := dbWritePropsBatch(e, insertRows, true); xErr != nil {
+		return xErr
+	}
+
+	return nil
 }

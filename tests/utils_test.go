@@ -76,13 +76,13 @@ func TestMain(m *testing.M) {
 	registry.SetXRServerConfigFromEnvVars(XRServerConfig)
 
 	// call flag.Parse() here if TestMain uses flags
-	registry.DBDelete(XRServerConfig, registry.NewSQLBackend, TestRegName)
-	registry.DBCreate(XRServerConfig, registry.NewSQLBackend, TestRegName)
+	registry.DBDelete(XRServerConfig, TestRegName)
+	registry.DBCreate(XRServerConfig, TestRegName)
 	XRServerConfig.Set("db.name", TestRegName)
 
 	// DBName := "registry"
-	// if !registry.DBExists(XRServerConfig,registry.NewSQLBackend,DBName) {
-	// registry.DBCreate(XRServerConfig,registry.NewSQLBackend,DBName)
+	// if !registry.DBExists(XRServerConfig,DBName) {
+	// registry.DBCreate(XRServerConfig,DBName)
 	// }
 	// XRServerConfig.Set("db.name", DBName)
 
@@ -220,8 +220,7 @@ func NewRegistry(name string) *registry.Registry {
 		reg.SaveAllAndCommit()
 	}
 
-	reg, xErr := registry.NewRegistry(nil, XRServerConfig,
-		registry.NewSQLBackend, name)
+	reg, xErr := registry.NewRegistry(nil, XRServerConfig, name)
 	if xErr != nil {
 		fmt.Fprintf(os.Stderr, "Error creating registry %q: %s\n", name, xErr)
 		ShowStack()

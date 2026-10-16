@@ -119,7 +119,6 @@ TODOs:
 - checkin the generated js files so people can easily download it
 
 - Backend
-  - move Do* calls
-  - move Query() calls
   - move mysql triggers to be go initiated
   - create static prepare statements to avoid reparsing sql each time
+- move #attrs into system props if we can

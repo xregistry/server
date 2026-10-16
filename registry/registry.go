@@ -209,10 +209,16 @@ func (r *Registry) Validate() *XRError {
 }
 
 func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
-	tx, xErr := NewTx(NewUUID(), xrsConfig, NewSQLBackend)
+	be, xErr := NewDefaultBackend(xrsConfig)
 	if xErr != nil {
 		return nil, xErr
 	}
+
+	tx, xErr := NewTx(NewUUID(), xrsConfig, be)
+	if xErr != nil {
+		return nil, xErr
+	}
+
 	defer tx.Rollback()
 
 	return tx.Backend.ListRegistries(tx)
@@ -259,164 +265,6 @@ func (reg *Registry) Delete() *XRError {
 	reg.Tx.Registry = nil
 
 	return nil
-}
-
-func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError) {
-	defer log.Trace("tx: %s %s", tx.uuid, sid)()
-
-	if tx.Registry != nil && tx.Registry.DbSID == sid {
-		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
-			tx.Registry.Lock()
-		}
-		return tx.Registry, nil
-	}
-
-	ent, xErr := tx.Backend.GetEntityFromXID(tx, sid, "/", false, false,
-		accessMode)
-	if xErr != nil {
-		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", sid, xErr.GetTitle())
-	}
-	if ent == nil {
-		return nil, nil
-	}
-
-	reg := &Registry{Entity: *ent}
-	reg.Tx = tx
-	reg.Self = reg
-	reg.Entity.Registry = reg
-
-	tx.Registry = reg
-	tx.AddRegistry(reg)
-
-	if reg.UsesXref, xErr = tx.Backend.RegistryGetUsesXref(reg); xErr != nil {
-		return nil, xErr
-	}
-
-	reg.LoadCapabilities()
-	reg.LoadModel()
-
-	reg.oldCapabilities = reg.Capabilities.Clone()
-
-	return reg, nil
-}
-
-// BY UID
-func FindRegistryByUID(tx *Tx, xrsConfig *Config, uid string, accessMode int) (*Registry, *XRError) {
-	if tx == nil {
-		defer log.Trace("%s", uid)()
-	} else {
-		defer log.Trace("tx: %s %s", tx.uuid, uid)()
-	}
-
-	if tx != nil && tx.Registry != nil && tx.Registry.UID == uid {
-		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
-			tx.Registry.Lock()
-		}
-		return tx.Registry, nil
-	}
-
-	newTx := false
-	if tx == nil {
-		var xErr *XRError
-		tx, xErr = NewTx(NewUUID(), xrsConfig, NewSQLBackend)
-		if xErr != nil {
-			return nil, xErr
-		}
-		newTx = true
-
-		defer func() {
-			// If we created a new Tx then assume someone is just looking
-			// for the Registry and may not actually want to edit stuff, so
-			// go ahead and close the Tx. It'll be reopened later if needed.
-			// If a Tx was passed in then don't close it, the caller will
-			if newTx { // not needed?
-				tx.Rollback()
-			}
-		}()
-	}
-
-	defer func() {
-		if newTx {
-			tx.Rollback()
-		}
-	}()
-
-	regSID, xErr := tx.Backend.MapRegistryUID2SID(tx, uid)
-	if xErr != nil {
-		return nil, xErr
-	}
-	if regSID == "" {
-		log.FuncPrintf("tx: %s None found", tx.uuid)
-		return nil, nil
-	}
-
-	entity, xErr := tx.Backend.GetEntityFromXID(tx, regSID, "/", false,
-		false, accessMode)
-
-	if xErr != nil {
-		if newTx {
-			tx.Rollback()
-		}
-		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", uid, xErr.GetTitle())
-	}
-
-	reg := &Registry{Entity: *entity}
-	reg.Self = reg
-
-	if tx.Registry == nil {
-		tx.Registry = reg
-	}
-
-	reg.Entity.Registry = reg
-	reg.Tx = tx
-
-	reg.Tx.AddRegistry(reg)
-
-	reg.LoadCapabilities()
-	reg.LoadModel()
-
-	reg.oldCapabilities = reg.Capabilities.Clone()
-
-	return reg, nil
-}
-
-func (reg *Registry) SaveCapabilities() *XRError {
-	xErr := reg.Capabilities.Validate()
-	if xErr != nil {
-		return xErr
-	}
-
-	if xErr = reg.Model.Verify(); xErr != nil {
-		return xErr
-	}
-
-	return reg.SetSave("#capabilities", ToJSON(reg.Capabilities))
-}
-
-func (reg *Registry) LoadCapabilities() *Capabilities {
-	capVal, ok := reg.Object["#capabilities"]
-	if !ok {
-		// No custom capabilities, use the default one
-		reg.Capabilities = DefaultCapabilities.Clone()
-	} else {
-		// Custom capabilities
-		capStr, ok := capVal.(string)
-		PanicIf(!ok, "not a byte array: %T", capVal)
-		cap, xErr := ParseCapabilities([]byte(capStr))
-		Must(xErr)
-		reg.Capabilities = cap
-	}
-	return reg.Capabilities
-}
-
-func (reg *Registry) LoadModel() (*Model, *XRError) {
-	return LoadModel(reg)
-}
-
-func (reg *Registry) SaveModel(verifyData bool) *XRError {
-	return reg.Model.VerifyAndSave(verifyData)
 }
 
 func (reg *Registry) LoadModelFromFile(file string) *XRError {
@@ -1249,4 +1097,34 @@ func (r *Registry) VerifyData() *XRError {
 	}
 
 	return nil
+}
+
+func (r *Registry) GenerateResultEntities(what string,
+	XIDs []string) (EntityIterator, *XRError) {
+
+	return r.Tx.Backend.GenerateResultEntities(r, what, XIDs)
+}
+
+func (r *Registry) GetEntitiesFromXID(xidStr string, allAttrs bool,
+	children bool, anyCase bool, accessMode int) (EntityIterator, *XRError) {
+
+	return r.Tx.Backend.GetEntitiesFromXID(r.Tx, r.DbSID, xidStr, allAttrs,
+		children, anyCase, accessMode)
+}
+
+func (r *Registry) GetEntityFromXID(xidStr string, allAttrs bool, anyCase bool,
+	accessMode int) (*Entity, *XRError) {
+
+	return r.Tx.Backend.GetEntityFromXID(r.Tx, r.DbSID, xidStr, allAttrs,
+		anyCase, accessMode)
+}
+
+func (r *Registry) GetGroupIDsByType(gType string,
+	accessMode int) ([]string, *XRError) {
+
+	return r.Tx.Backend.GetGroupIDsByType(r, gType, accessMode)
+}
+
+func MapShortSelf(tx *Tx, ss string) (string, string, *XRError) {
+	return tx.Backend.MapShortSelf(tx, ss)
 }

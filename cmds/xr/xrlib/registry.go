@@ -392,8 +392,3 @@ func (e *Entity) Save() *XRError {
 	panic("not yet")
 	return nil
 }
-
-func FindRegistryByUID(tx *Tx, c *Config, uid string, accessMode int) (*Registry, *XRError) {
-	panic("not yet")
-	return nil, nil
-}

@@ -71,7 +71,7 @@ func TestMiscDBRows(t *testing.T) {
 		return NotNilString(vp)
 	}
 
-	be := registry.NewSQLBackend(reg.GetXRServerConfig()).(*registry.SQLBackend)
+	be := registry.MustNewDefaultBackend(reg.GetXRServerConfig()).(*registry.SQLBackend)
 
 	rows := be.Query(reg.GetTx(), "SELECT XID,PropName,PropValue "+
 		"FROM Props WHERE RegSID=? AND IsDefaultVerCopy=false AND "+

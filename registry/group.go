@@ -776,3 +776,9 @@ func (g *Group) validateEnum(c *Constraint, rm *ResourceModel,
 
 	return nil
 }
+
+func (g *Group) GetResourceIDsByType(rType string,
+	accessMode int) ([]string, *XRError) {
+
+	return g.Tx.Backend.GetResourceIDsByType(g, rType, accessMode)
+}

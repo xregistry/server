@@ -389,6 +389,8 @@ CREATE TABLE Entities (
   INDEX(ParentSID),
   UNIQUE INDEX (RegSID, XID ),
   UNIQUE INDEX (RegSID, LowerXID )
+
+  # Consider adding "Plural" to INDEX(ParentSID)
 );
 
 # These maintain Versions.AncestorID/CreatedAt/ModifiedAt and Metas.xRefXID /

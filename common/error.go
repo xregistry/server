@@ -23,7 +23,10 @@ type XRError struct {
 	Detail   string            `json:"detail,omitempty"`
 	Instance string            `json:"instance,omitempty"`
 	Source   string            `json:"source,omitempty"`
-	Headers  map[string]string `json:"-"` // HTTP response headers - internal
+
+	// Internal use
+	Headers     map[string]string `json:"-"` // HTTP response headers
+	ShouldRetry bool              // Should we try the op after rollback?
 }
 
 func NewXRError(daType string, subject string, args ...string) *XRError {

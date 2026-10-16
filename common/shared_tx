@@ -92,11 +92,8 @@ type resourceValidation struct {
 var TXs = map[string]*Tx{}
 var TXsMutex = sync.RWMutex{}
 
-func NewTx(uuid string, c *Config, fn func(*Config) Backend) (*Tx, *XRError) {
+func NewTx(uuid string, c *Config, backend Backend) (*Tx, *XRError) {
 	defer log.Trace("tx: %s NewTx", uuid)()
-
-	// fn is the NewXXXBackend() func
-	backend := fn(c)
 
 	PanicIf(uuid == "", "missing uuid")
 	tx := &Tx{
