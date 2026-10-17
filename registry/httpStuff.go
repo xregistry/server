@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
 	"net/http"
 	"net/url"
 	// "os"
@@ -73,53 +75,31 @@ func (s *Server) Serve() {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	uuid := NewUUID()
-	var info *RequestInfo
-	var tx *Tx
+	info := NewRequestInfo(uuid, s.XRSConfig, w, r)
 
 	defer func() {
 		// If we haven't written anything, this will force the HTTP status code
 		// to be written and not default to 200
-		if info != nil {
-			info.Done()
-		}
+		info.Done()
 	}()
 
 	defer func() {
+		// Unless an explicit Commit() is done, we'll always rollback. In
+		// which case this rollback is a no-op
+		if info.tx != nil {
+			info.tx.Rollback()
+			info.tx = nil
+		}
+
 		if rec := recover(); rec != nil {
 			log.Printf("tx: %s panic: %s", uuid, rec)
 			// ShowStack() // Down via NewXRError below now
 
-			// If info isn't defined yet
-			if info == nil {
-				info = NewRequestInfo(uuid, s.XRSConfig, w, r)
-			}
-
 			xErr := NewXRError("server_error", "/"+info.OriginalPath).
 				SetDetail("An internal error occurred, contact the admin.")
+			xErr.Instance = uuid
 			HTTPWriteError(info, xErr)
 		}
-
-		// As of now we should never have more than one active Tx during
-		// testing
-		/*
-			if (os.Getenv("TESTING") != "") && tx != nil {
-				l := len(TXs)
-				if (tx.tx == nil && l > 0) || (tx.tx != nil && l > 1) {
-					log.Printf(">End of HTTP Request")
-					log.Printf("len(TXs): %d", l)
-					log.Printf("tx.tx: %p", tx.tx)
-					DumpTXs()
-
-					log.Printf("Info: %s", ToJSON(info))
-					log.Printf("<Exit http req")
-
-					panic("nested Txs")
-				}
-			}
-		*/
-
-		// Explicit Commit() is required, else we'll always rollback
-		tx.Rollback()
 	}()
 
 	saveVerbose := log.Clone()
@@ -139,18 +119,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasPrefix(r.URL.Path, XRPROXY_PREFIX) {
+		info.SentStatus = true // to avoid a dup w.Write() in defer
 		HTTPXRProxy(uuid, w, r)
 		return
 	}
 
 	rootApp := s.XRSConfig.GetAsString("rootapp")
 	if rootApp != "ui" && rootApp != "xreg" {
-		// info isn't set up yet this early (ParseRequest() hasn't run),
-		// so build a minimal one here rather than dereferencing the nil
-		// "info" - otherwise this misconfiguration panics (masked by the
-		// generic panic recover() above into an unhelpful 500, instead of
-		// this specific error message).
-		info = NewRequestInfo(uuid, s.XRSConfig, w, r)
 		xErr := NewXRError("server_error", "/"+info.OriginalPath).
 			SetDetailf("Unknown rootapp: %s.", rootApp)
 		HTTPWriteError(info, xErr)
@@ -179,138 +154,112 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Serve the new SPA UI for /ui and /ui/...
 	if serveUI {
+		info.SentStatus = true // to avoid a dup w.Write() in defer
 		ServeUIStatic(s, uuid, w, r)
 		return
 	}
 
 	// Buffer the raw request body ONCE, up front, so it can be replayed
-	// (see r.Body reset below) if the retry loop needs to redo the
-	// whole request - ParseRequest() below fully drains r.Body via
-	// io.ReadAll into info.Body, and an http.Request's Body can't be
-	// rewound on its own once read.
+	// if the retry loop needs to redo the whole request
 	var savedBody []byte
 	if r.Body != nil {
 		savedBody, _ = io.ReadAll(r.Body)
 		r.Body.Close()
 	}
 
-	// Bounded retry loop for a genuine MySQL deadlock/lock-wait-timeout
-	// (see isRetryableDBErr()) discovered while acquiring a FOR_WRITE row
-	// lock (see entity.go's FOR_WRITE "FOR UPDATE" fetches) - now that
-	// those locks are real (as of this change), transient conflicts
-	// between two concurrent Txs are expected occasionally and should be
-	// retried transparently on a fresh Tx rather than surfaced as a
-	// client-visible 500. Only retried when NOTHING has been written to
-	// the response yet (info.SentStatus == false) - GET/PUT/POST/PATCH
-	// responses are streamed incrementally (see jsonWriter.go), so once
-	// real bytes reach the client a clean retry is no longer possible.
 	const maxAttempts = 5
-	const retryBackoff = 40 * time.Millisecond
 
+	var xErr *XRError
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		r.Body = io.NopCloser(bytes.NewReader(savedBody))
 
-		retry := s.serveOneAttempt(uuid, w, r, &info, &tx, attempt,
-			attempt == maxAttempts)
-		if !retry {
-			return
+		xErr = s.serveOneAttempt(info)
+
+		// no error, or not retryable, or we've already start to send data
+		// then just exit and don't retry
+		if xErr == nil || !xErr.Retryable || info.SentStatus {
+			break
 		}
 
-		time.Sleep(retryBackoff)
+		if attempt == maxAttempts {
+			// Too many retries, send 503 instead of the the DB error
+			xErr = NewXRError("server_busy", "/"+info.OriginalPath)
+			xErr.Instance = info.uuid
+			break
+		}
+
+		if log.GetLevel() == 1 && !log.IsVerbose() {
+			log.Printf("Retrying %s %s after DB lock conflict "+
+				"(attempt %d)", r.Method, r.URL, attempt)
+		} else if log.GetLevel() > 1 {
+			log.VPrintf(3, "tx: %s Retrying %s %s after DB lock "+
+				"conflict (attempt %d)", uuid, r.Method, r.URL,
+				attempt)
+		}
+
+		// Sleep a random multiplier of 40ms
+		delay := time.Duration(40*attempt+rand.Int()%40) * time.Millisecond
+		time.Sleep(delay)
+		info.Reset()
+
+		// If client connection is close, then don't bother to try again
+		if info.OriginalRequest.Context().Err() != nil {
+			break
+		}
 	}
+
+	if xErr != nil {
+		HTTPWriteError(info, xErr)
+	}
+
 }
 
 // serveOneAttempt runs one full "new Tx -> parse -> dispatch by method ->
 // commit/rollback" pass for a single attempt of ServeHTTP's retry loop.
-// info/txPtr are pointers into ServeHTTP's own locals so its outer defers
-// (info.Done()/tx.Rollback()/the generic panic recover()) keep
-// working exactly as before, whichever attempt ends up being the last one.
-// Returns true only when this attempt hit a retryable DB conflict (see
-// isRetryableDBErr()) before any response bytes were sent AND lastAttempt
-// is false - in every other case (success, non-retryable error/panic, or a
-// retryable conflict on the final allowed attempt) it fully handles the
-// response itself (or re-panics, for a genuine bug, so the outer recover()
-// still produces today's generic 500) and returns false.
-func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
-	r *http.Request, infoPtr **RequestInfo, txPtr **Tx,
-	attempt int, lastAttempt bool) (retry bool) {
+// It's the caller's job to determine if we should retry on XRError
+func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
 
 	defer func() {
-		uuid := "n/a"
-		log.VPrintf(3, "tx: %s Done with serveOneAttempt", uuid)
-		rec := recover()
-		if rec == nil {
-			return
+		if info.tx != nil {
+			// Make sure we don't leave any dangling TXs on something bad
+			info.tx.Rollback()
+			info.tx = nil
 		}
 
-		info := *infoPtr
-		if isRetryableDBErr(rec) && (info == nil || !info.SentStatus) {
-			if *txPtr != nil {
-				(*txPtr).Rollback()
+		// Converts an panicked XRError into a returned XRError insted so the
+		// retry loop can handle it.
+		// Shouldn't happen but there's one case (the Get() func) where we
+		// don't return an xErr due to the big code impact. Maybe later
+		if rec := recover(); rec != nil {
+			if xErr, ok := rec.(*XRError); ok {
+				retErr = xErr
+			} else {
+				panic(rec)
 			}
-
-			if !lastAttempt {
-				if log.GetLevel() == 1 && !log.IsVerbose() {
-					log.Printf("Retrying %s %s after DB lock conflict "+
-						"(attempt %d)", r.Method, r.URL, attempt)
-				} else if log.GetLevel() > 1 {
-					log.VPrintf(3, "tx: %s Retrying %s %s after DB lock "+
-						"conflict (attempt %d)", uuid, r.Method, r.URL,
-						attempt)
-				}
-
-				retry = true
-				return
-			}
-
-			// Out of attempts - tell the client plainly instead of a
-			// generic 500, rather than letting this re-panic.
-			if info == nil {
-				info = NewRequestInfo(uuid, s.XRSConfig, w, r)
-				*infoPtr = info
-			}
-			xErr := NewXRError("server_busy", "/"+info.OriginalPath)
-			HTTPWriteError(info, xErr)
-			return
 		}
-
-		// Not retryable (or a response was already sent) - preserve
-		// today's exact behavior by letting ServeHTTP's outer recover()
-		// handle it.
-		panic(rec)
 	}()
 
-	tx, xErr := NewTx(uuid, s.XRSConfig)
-	*txPtr = tx
+	be, xErr := NewDefaultBackend(s.XRSConfig)
 	if xErr != nil {
-		log.Printf("tx: %s Error talking to the DB creating new Tx: %s",
-			uuid, xErr.GetTitle())
-	} else {
-		xErr = ProcessShortSelf(tx, r)
+		return xErr
 	}
 
+	tx, xErr := NewTx(info.uuid, s.XRSConfig, be)
 	if xErr != nil {
-		// Special one off - info isn't defined yet
-		info := *infoPtr
-		if info == nil {
-			info = NewRequestInfo(uuid, s.XRSConfig, w, r)
-			*infoPtr = info
-		}
-
-		HTTPWriteError(info, xErr)
-
-		return false
+		return xErr
 	}
 
-	info, xErr := ParseRequest(tx, w, r)
-	*infoPtr = info
-	// tx.RequestInfo = info
-	// log.VPrintf(3, "tx: %s Request: %s %s", info.uuid,
-	// info.OriginalRequest.Method, info.OriginalPath)
+	info.tx = tx
+	tx.RequestInfo = info
 
+	xErr = ProcessShortSelf(info)
 	if xErr != nil {
-		HTTPWriteError(info, xErr)
-		return false
+		return xErr
+	}
+
+	xErr = info.ParseRequest(tx)
+	if xErr != nil {
+		return xErr
 	}
 
 	/*
@@ -328,7 +277,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 	if xErr == nil {
 		// These should only return an error if they didn't already
 		// send a response back to the client.
-		switch r.Method {
+		switch info.OriginalRequest.Method {
 		case "GET":
 			tx.Lock()
 			xErr = HTTPGet(info)
@@ -345,22 +294,25 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 			xErr = HTTPOptions(info)
 		default:
 			xErr = NewXRError("action_not_supported", "/"+info.OriginalPath,
-				"action="+r.Method)
+				"action="+info.OriginalRequest.Method)
 		}
 	}
 
 	// Add our tx uuid to the error for debugging
 	if xErr != nil && xErr.Instance == "" {
-		xErr.Instance = uuid
+		xErr.Instance = info.uuid
 	}
-
-	Must(tx.Conditional(xErr))
 
 	if xErr != nil {
-		HTTPWriteError(info, xErr)
+		// Ignore possible error since we'r already in error state
+		tx.Rollback()
+	} else {
+		xErr = tx.Commit()
 	}
 
-	return false
+	info.tx = nil
+
+	return xErr
 }
 
 func HTTPGETCapabilities(info *RequestInfo) *XRError {
@@ -376,7 +328,9 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	if capStr != "" {
 		var xErr *XRError
 		cap, xErr = ParseCapabilities([]byte(capStr))
-		Must(xErr)
+		if xErr != nil {
+			return xErr
+		}
 	}
 
 	buf, err = json.MarshalIndent(cap, "", "  ")
@@ -429,8 +383,7 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 
 	buf, xErr := model.SerializeForUser()
 	if xErr != nil {
-		return NewXRError("server_error", "/"+info.OriginalPath).
-			SetDetail(xErr.GetTitle())
+		return xErr
 	}
 
 	info.SetHeader("Content-Type", "application/json")
@@ -495,14 +448,13 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 
 	names, xErr := GetRegistryNames(info.XRSConfig)
 	if xErr != nil {
-		return NewXRError("server_error", "/.xregistry").
-			SetDetail(xErr.GetTitle())
+		return xErr
 	}
 
 	defRegSegment := info.XRSConfig.GetAsString("path.defaultreg")
 	regCollectionSegment := info.XRSConfig.GetAsString("path.regcollection")
 
-	// Recover the plain host base (scheme://host, no /xregs/<name> suffix)
+	// Get the plain host base (scheme://host, no /xregs/<name> suffix)
 	// regardless of whether THIS request itself came in via a /xregs/<name>
 	// prefixed URL - every sibling registry's URL below is built from this
 	// same host base, not from whatever prefix this particular request
@@ -556,48 +508,24 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 }
 
 func HTTPGETContent(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s", info.tx.uuid)()
-
-	query := `
-SELECT
-  RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,PropName,
-  PropValue,PropType,IsSystemProp
-FROM Props WHERE RegSID=? AND `
-	args := []any{info.Registry.DbSID}
-
-	XID := "/" + strings.Join(info.Parts, "/")
-
-	// TODO consider excluding the META object from the query instead of
-	// dropping it via the if-statement below in the versioncount logic
-	if info.VersionUID == "" {
-		query += `(XID=? OR XID LIKE ?)`
-		args = append(args, XID, XID+"/%")
-	} else {
-		query += `XID=?`
-		args = append(args, XID)
-	}
-	query += " ORDER BY XID"
+	defer log.Trace("tx: %s", info.uuid)()
 
 	isV := log.IsFuncVerbose()
-	if isV {
-		log.Printf("tx: %s Query:\n%s", info.tx.uuid, SubQuery(query, args))
+	XID := "/" + strings.Join(info.Parts, "/")
+
+	iter, xErr := info.Registry.GetEntitiesFromXID(XID, true, true, false,
+		FOR_READ)
+	if xErr != nil {
+		return xErr
 	}
 
-	results := Query(info.tx, query, args...)
-	defer results.Close()
-
-	entity, xErr := readNextEntity(info.tx, results, FOR_READ)
-	if isV {
-		log.Printf("tx: %s Entity: %#v", info.tx.uuid, entity)
+	entity, xErr := iter.Next()
+	if xErr != nil {
+		return xErr
 	}
+
 	if entity == nil {
-		if xErr != nil {
-			log.Printf("tx: %s Error loading entity: %s", info.tx.uuid, xErr)
-			return NewXRError("server_error", XID).SetDetailf(
-				"error loading entity: %s.", xErr.GetTitle())
-		} else {
-			return NewXRError("not_found", XID)
-		}
+		return NewXRError("not_found", XID)
 	}
 
 	var version *Entity
@@ -605,31 +533,37 @@ FROM Props WHERE RegSID=? AND `
 	if info.VersionUID == "" {
 		// We're on a Resource, so go find the default Version and count
 		// how many versions there are for the VersionsCount attribute
-		group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
-		if err != nil {
-			return NewXRError("server_error",
-				info.GetParts(2)).SetDetailf("Error finding Group: %s.", err)
+		group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
+			false, FOR_READ)
+		if xErr != nil {
+			return xErr
 		}
 		if group == nil {
 			return NewXRError("not_found", info.GetParts(2))
 		}
 
-		resource, err := group.FindResource(info.ResourceType,
+		resource, xErr := group.FindResource(info.ResourceType,
 			info.ResourceUID, false, FOR_READ)
-		if err != nil {
-			return NewXRError("server_error", info.GetParts(4)).
-				SetDetailf("Error finding Resource: %s.", err)
+		if xErr != nil {
+			return xErr
 		}
 		if resource == nil {
 			return NewXRError("not_found", info.GetParts(4))
 		}
 		meta := resource.MustFindMeta(false)
 
+		// Count the versions and find the default one
 		vID := meta.GetAsString("defaultversionid")
 		for {
-			v, err := readNextEntity(info.tx, results, FOR_READ)
+			v, xErr := iter.Next()
+			if xErr != nil {
+				return xErr
+			}
+			if v == nil {
+				break
+			}
 
-			if v != nil && v.Type == ENTITY_META {
+			if v.Type == ENTITY_META {
 				// Skip the "meta" subobject, but first grab the
 				// "defaultversionid if we don't already have it,
 				// which should only be true in the xref case
@@ -639,13 +573,6 @@ FROM Props WHERE RegSID=? AND `
 				continue
 			}
 
-			if v == nil && version == nil {
-				return NewXRError("server_error", resource.XID+"/versions/"+vID).
-					SetDetailf("Error finding Version: %s.", err)
-			}
-			if v == nil {
-				break
-			}
 			versionsCount++
 			if v.UID == vID {
 				version = v
@@ -656,10 +583,10 @@ FROM Props WHERE RegSID=? AND `
 	}
 
 	if isV {
-		log.Printf("tx: %s Version: %#v", info.tx.uuid, version)
+		log.Printf("tx: %s Version: %#v", info.uuid, version)
 	}
 
-	headerIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
+	headerIt := func(e *Entity, key string, val any, attr *Attribute) *XRError {
 		if key[0] == '#' {
 			return nil
 		}
@@ -667,6 +594,8 @@ FROM Props WHERE RegSID=? AND `
 		if attr.internals != nil && attr.internals.neverSerialize {
 			return nil
 		}
+
+		info := e.GetRequestInfo()
 
 		if attr.Type == MAP && IsScalar(attr.Item.Type) {
 			for name, value := range val.(map[string]any) {
@@ -695,9 +624,9 @@ FROM Props WHERE RegSID=? AND `
 		return nil
 	}
 
-	xErr = entity.SerializeProps(info, headerIt)
+	xErr = entity.SerializeProps(headerIt)
 	if xErr != nil {
-		panic(xErr)
+		return (xErr)
 	}
 
 	if info.VersionUID == "" {
@@ -731,7 +660,7 @@ FROM Props WHERE RegSID=? AND `
 	url = entity.GetAsString(singular + "proxyurl")
 
 	if isV {
-		log.Printf("tx: %s %sproxyurl: %s", info.tx.uuid, singular, url)
+		log.Printf("tx: %s %sproxyurl: %s", info.uuid, singular, url)
 	}
 	if url != "" {
 		// Just act as a proxy and copy the remote resource as our response
@@ -777,7 +706,7 @@ FROM Props WHERE RegSID=? AND `
 }
 
 func HTTPOptions(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s %s", info.tx.uuid, info.OriginalPath)()
+	defer log.Trace("tx: %s %s", info.uuid, info.OriginalPath)()
 
 	// Headers will be set automatically by info.Write()
 	info.StatusCode = 200
@@ -786,7 +715,7 @@ func HTTPOptions(info *RequestInfo) *XRError {
 }
 
 func HTTPGet(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s %s", info.tx.uuid, info.What)()
+	defer log.Trace("tx: %s %s", info.uuid, info.What)()
 
 	info.Root = strings.Trim(info.Root, "/")
 
@@ -808,7 +737,7 @@ func HTTPGet(info *RequestInfo) *XRError {
 		if !info.IsAvailable("export") {
 			return NewXRError("not_available", "/export")
 		}
-		return SerializeQuery(info, nil, "Registry", info.Filters)
+		return SerializeQuery(info, nil, "Registry")
 	}
 
 	if info.RootPath == "model" {
@@ -848,16 +777,16 @@ func HTTPGet(info *RequestInfo) *XRError {
 	resXIDs := map[string][]string{
 		"": []string{"/" + strings.Join(info.Parts, "/")},
 	}
-	return SerializeQuery(info, resXIDs, info.What, info.Filters)
+	return SerializeQuery(info, resXIDs, info.What)
 }
 
 func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
-	what string, filters [][]*FilterExpr) *XRError {
+	what string) *XRError {
 
-	defer log.Trace("tx: %s", info.tx.uuid)()
+	defer log.Trace("tx: %s", info.uuid)()
 
 	// Make sure everything is ok before we send back the results
-	if xErr := info.tx.Validate(info); xErr != nil {
+	if xErr := info.tx.Validate(); xErr != nil {
 		return xErr
 	}
 
@@ -889,7 +818,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		defer func() {
 			if log.GetLevel() > 3 {
 				diff := time.Now().Sub(start).Truncate(time.Millisecond)
-				log.Printf("tx: %s Total Time: %s", info.tx.uuid, diff)
+				log.Printf("tx: %s Total Time: %s", info.uuid, diff)
 			}
 		}()
 	*/
@@ -915,35 +844,28 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		PanicIf(!ok, "can't find %q", key)
 
 		var xErr *XRError
-		var results *Result
+		var iter EntityIterator
 
 		// "!" is special - it means skip the query and just produce: {}
 		if len(XIDs) != 1 || XIDs[0] != "!" {
-			query, args, err := GenerateQuery(info.Registry, what, XIDs,
-				filters, info.DoDocView(), info.SortKey, info.Limit, info.Offset)
-			if err != nil {
-				return err
-			}
-			results = Query(info.tx, query, args...)
-			defer results.Close()
-
-			if log.IsFuncVerbose() {
-				log.Printf("tx: %s Query: %s", info.tx.uuid,
-					SubQuery(query, args))
-				log.Printf("tx: %s # results: %d", info.tx.uuid,
-					len(results.AllRows))
+			iter, xErr = info.Registry.GenerateResultEntities(what, XIDs)
+			if xErr != nil {
+				return xErr
 			}
 		}
 
 		// Pagination Link headers MUST be added before any part of the
 		// body is written
 		if what == "Coll" && info.Limit != 0 {
-			AddPaginationLinkHeaders(info, results)
+			AddPaginationLinkHeaders(info, iter)
 		}
 
-		jw = NewJsonWriter(info, results)
+		jw = NewJsonWriter(info, iter)
 
-		jw.NextEntity()
+		_, xErr = jw.NextEntity()
+		if xErr != nil {
+			return xErr
+		}
 
 		// Collections will need to print the {}, so don't error for them
 		if what != "Coll" {
@@ -955,13 +877,13 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 					xid := "/" +
 						strings.Join(info.Parts[:len(info.Parts)-2], "/")
 					xid += "/meta"
-					entity, err := RawEntityFromXID(info.tx,
-						info.Registry.DbSID, xid, false, FOR_READ)
-					if err != nil {
-						return err
+					entity, xErr := info.Registry.GetEntityFromXID(xid, false,
+						false, FOR_READ)
+					if xErr != nil {
+						return xErr
 					}
 
-					// Assume that if we cant' find the Resource's meta object
+					// Assume that if we can't find the Resource's meta object
 					// then the Resource doesn't exist, so a 404 really is the
 					// best response in those cases, so skip the 400
 					if entity != nil && !IsNil(entity.Object["xref"]) {
@@ -980,12 +902,14 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		// XID
 		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
 			xid := "/" + strings.Join(info.Parts[:len(info.Parts)-1], "/")
-			entity, xErr := RawEntityFromXID(info.tx, info.Registry.DbSID,
-				xid, false, FOR_READ)
+
+			entity, xErr := info.Registry.GetEntityFromXID(xid, false, false,
+				FOR_READ)
 			if xErr != nil {
 				return xErr
 			}
-			if IsNil(entity) {
+
+			if entity == nil {
 				return NewXRError("not_found", xid)
 			}
 		}
@@ -998,7 +922,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			// Should be our case since "versions" can never be empty except
 			// when xref is set. If this is not longer true then we'll need to
 			// check this Resource's xref to see if it's set.
-			// Can copy the RawEntityFromXID... stuff above
+			// Can copy the Raw EntityFromXID... stuff above
 			return NewXRError("cannot_doc_xref", "/"+info.OriginalPath)
 		}
 
@@ -1049,29 +973,16 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 // "self" carries the offset/limit/count parameters ("count" being the total
 // number of top-level entities across the *entire* filtered collection). Must be called before anything is written to the response
 // body, since HTTP headers can't be sent after the body has started.
-func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
+func AddPaginationLinkHeaders(info *RequestInfo, iter EntityIterator) {
 	limit := info.Limit
 	offset := info.Offset
 
 	total := uint64(0)
 	gotTotal := false
 
-	// TotalCount (see GenerateQuery) rides along on every row of the
-	// (already fully in-memory - see Query()) paginated result, computed
-	// as a whole-partition aggregate *before* the page-range filter was
-	// applied - so it already reflects the entire result set, and we
-	// don't need a second query just to get it.
-	if results != nil && len(results.AllRows) > 0 {
-		row := results.AllRows[0]
-		if len(row) > 14 {
-			totalStr := NotNilString(row[14])
-			if totalStr != "" {
-				if v, err := strconv.ParseUint(totalStr, 10, 64); err == nil {
-					total = v
-					gotTotal = true
-				}
-			}
-		}
+	if iter.Total() != math.MaxUint64 {
+		total = iter.Total()
+		gotTotal = true
 	}
 
 	basePath := "/" + info.OriginalPath
@@ -1169,22 +1080,10 @@ func AddPaginationLinkHeaders(info *RequestInfo, results *Result) {
 	addLink("last", lastOffset)
 }
 
-var specialAttrHeaders = map[string]*Attribute{}
-
-func init() {
-	// Load-up the attributes that have custom http header names
-	for _, attr := range OrderedSpecProps {
-		if attr.internals != nil && attr.internals.httpHeader != "" {
-			specialAttrHeaders[strings.ToLower(attr.internals.httpHeader)] =
-				attr
-		}
-	}
-}
-
 func HTTPPutPost(info *RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
 
-	defer log.Trace("tx: %s %s %s", info.tx.uuid, method, info.OriginalPath)()
+	defer log.Trace("tx: %s %s %s", info.uuid, method, info.OriginalPath)()
 
 	isNew := false
 	XIDs := ([]string)(nil)
@@ -1282,7 +1181,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 			// Return HTTP GET of Registry root
 			resXIDs := map[string][]string{"": []string{""}}
-			return SerializeQuery(info, resXIDs, "Registry", info.Filters)
+			return SerializeQuery(info, resXIDs, "Registry")
 		}
 
 		// Must be POST /    + body:map[GROUPS]map[id]Group
@@ -1310,7 +1209,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		// Return HTTP GET of Groups created or updated
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	// URL: /GROUPs[/gID]...
@@ -1347,7 +1246,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Return HTTP GET of Groups created or updated
 		resXIDs := map[string][]string{"": XIDs}
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	if numParts == 2 {
@@ -1374,7 +1273,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 			// Return HTTP GET of Group
 			resXIDs := map[string][]string{"": []string{group.XID}}
-			return SerializeQuery(info, resXIDs, "Entity", info.Filters)
+			return SerializeQuery(info, resXIDs, "Entity")
 		}
 
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
@@ -1416,7 +1315,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		// Return HTTP GET of Resources created or updated
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	// Must be PUT/POST /GROUPs/gID/...
@@ -1500,7 +1399,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Return HTTP GET of Resources created or modified
 		resXIDs := map[string][]string{"": XIDs}
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	if numParts > 3 {
@@ -1664,12 +1563,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		resXIDs := map[string][]string{"": []string{meta.XID}}
-		return SerializeQuery(info, resXIDs, "Entity", info.Filters)
+		return SerializeQuery(info, resXIDs, "Entity")
 	}
 
 	// Just double-check
 	if numParts > 4 {
-		PanicIf(info.Parts[4] != "versions", "Not 'versions': %s", info.Parts[4])
+		PanicIf(info.Parts[4] != "versions", "Not 'versions': %s",
+			info.Parts[4])
 	}
 
 	// GROUPs/gID/RESOURCEs/rID/versions...
@@ -1746,12 +1646,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			meta := resource.MustFindMeta(false)
 
 			if meta.Get("readonly") == true {
-				if resource.tx.RequestInfo.HasIgnore("readonly") {
+				if resource.GetRequestInfo().HasIgnore("readonly") {
 					// ?ignore=readonly so just stop w/o error
 					// Force an empty collection to be returned
 					XIDs = []string{"!"}
 					resXIDs := map[string][]string{"": XIDs}
-					return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+					return SerializeQuery(info, resXIDs, "Coll")
 				} else {
 					return NewXRError("readonly", resource.XID)
 				}
@@ -1792,7 +1692,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			XIDs = []string{"!"} // Force an empty collection to be returned
 		}
 		resXIDs := map[string][]string{"": XIDs}
-		return SerializeQuery(info, resXIDs, "Coll", info.Filters)
+		return SerializeQuery(info, resXIDs, "Coll")
 	}
 
 	if numParts == 6 {
@@ -1844,7 +1744,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	PanicIf(xErr != nil, "err should be nil")
 
 	// Make sure everything is ok before we send back the results
-	if xErr := info.tx.Validate(info); xErr != nil {
+	if xErr := info.tx.Validate(); xErr != nil {
 		return xErr
 	}
 
@@ -1892,7 +1792,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	resXIDs := map[string][]string{"": XIDs}
-	return SerializeQuery(info, resXIDs, what, info.Filters)
+	return SerializeQuery(info, resXIDs, what)
 }
 
 func HTTPPUTCapabilities(info *RequestInfo) *XRError {
@@ -1969,7 +1869,9 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 	// via the /modelsource entry point instead.
 	// DUG - do we need to lock everything in Entities too?
 	// I wonder if a PUT to a version would be let thru and missed??
-	info.Registry.Lock()
+	if _, xErr := info.Registry.Lock(); xErr != nil {
+		return xErr
+	}
 
 	xErr := info.Registry.Model.ApplyNewModelFromJSON(body, true)
 	if xErr != nil {
@@ -2020,7 +1922,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		return info.tx.Validate(info)
+		return info.tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID...
@@ -2045,7 +1947,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(info); xErr != nil {
+		if xErr := info.tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -2064,7 +1966,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		return info.tx.Validate(info)
+		return info.tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID...
@@ -2094,7 +1996,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(info); xErr != nil {
+		if xErr := info.tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -2115,7 +2017,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		return info.tx.Validate(info)
+		return info.tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
@@ -2143,7 +2045,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(info); xErr != nil {
+		if xErr := info.tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -2186,21 +2088,20 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		results := Query(info.tx, `
-			SELECT UID
-			FROM Entities
-			WHERE RegSID=? AND Abstract=?`,
-			info.Registry.DbSID, info.GroupType)
-
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			list[NotNilString(row[0])] = EpochEntry{}
+		IDs, xErr := info.Registry.GetGroupIDsByType(info.GroupType, FOR_WRITE)
+		if xErr != nil {
+			return xErr
 		}
-		defer results.Close()
+
+		for _, gID := range IDs {
+			list[gID] = EpochEntry{}
+		}
 	}
 
 	// Delete each Group, checking epoch first if provided
 	for id, entry := range list {
-		group, xErr := info.Registry.FindGroup(info.GroupType, id, false, FOR_WRITE)
+		group, xErr := info.Registry.FindGroup(info.GroupType, id, false,
+			FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
@@ -2247,26 +2148,24 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 		return xErr
 	}
 
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
+		false, FOR_WRITE)
+	if xErr != nil {
+		return xErr
+	}
+
 	// No list provided so get list of Resources so we can delete them all
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		results := Query(info.tx, `
-			SELECT UID
-			FROM Entities
-			WHERE RegSID=? AND Abstract=?`,
-			info.Registry.DbSID,
-			NewPPP(info.GroupType).P(info.ResourceType).Abstract())
-
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			list[NotNilString(row[0])] = EpochEntry{}
+		IDs, xErr := group.GetResourceIDsByType(info.ResourceType, FOR_WRITE)
+		if xErr != nil {
+			return xErr
 		}
-		defer results.Close()
-	}
 
-	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
-	if xErr != nil {
-		return xErr
+		for _, gID := range IDs {
+			list[gID] = EpochEntry{}
+		}
 	}
 
 	// Delete each Resource, checking epoch first if provided
@@ -2346,7 +2245,8 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 		return xErr
 	}
 
-	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
+		false, FOR_READ)
 	if xErr != nil {
 		return xErr
 	}
@@ -2361,12 +2261,13 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		vIDs, xErr := resource.GetVersionIDs()
+
+		VAs, xErr := resource.GetVersionIDs()
 		if xErr != nil {
 			return xErr
 		}
-		for _, vID := range vIDs {
-			list[vID] = EpochEntry{}
+		for _, va := range VAs {
+			list[va.VID] = EpochEntry{}
 		}
 	}
 
@@ -2530,7 +2431,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 		seenMaps := map[string]bool{}
 		seenMetaMaps := map[string]bool{}
 
-		for name, attr := range specialAttrHeaders {
+		for name, attr := range SpecialAttrHeaders {
 			// TODO we may need some kind of "delete if missing" flag on
 			// each HttpHeader attribute since some may want to have an
 			// explicit 'null' to be erased instead of just missing (eg patch)
@@ -2756,7 +2657,7 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	info.StatusCode = xErr.Code
 	// If header not already set, set it. This will likely only happen
 	// when the error happens very very very early in our processing
-	if info.GetHeader("Content-Type") == "" {
+	if info.GetResponseHeader("Content-Type") == "" {
 		info.SetHeader("Content-Type", "application/json; charset=utf-8")
 	}
 
@@ -2771,7 +2672,7 @@ func AddRegistryRootHeader(info *RequestInfo) {
 
 	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
 
-	existingLinks := info.GetHeaderValues("Link")
+	existingLinks := info.GetResponseHeaderValues("Link")
 	for _, v := range existingLinks {
 		// Check if this Link header has rel=xregistry-root
 		if strings.Contains(v, "rel=xregistry-root") ||
@@ -2789,8 +2690,8 @@ func AddRegistryRootHeader(info *RequestInfo) {
 	}
 }
 
-func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
-	path := req.URL.Path
+func ProcessShortSelf(info *RequestInfo) *XRError {
+	path := info.OriginalRequest.URL.Path
 	if !strings.HasPrefix(path, "/r/") {
 		return nil
 	}
@@ -2800,27 +2701,21 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		suffix = "$" + suffix
 	}
 
-	query := fmt.Sprintf(`
-        SELECT r.UID, e.XID
-        FROM Entities AS e
-        JOIN Registries AS r ON (r.SID = e.RegSID)
-        WHERE e.eSID = ?`)
+	regUID, eXID, xErr := MapShortSelf(info.tx, ss)
+	if xErr != nil {
+		return xErr
+	}
 
-	results := Query(tx, query, ss)
-	defer results.Close()
+	regCollectionSegment := info.tx.Config.GetAsString("path.regcollection")
 
-	regCollectionSegment := tx.XRSConfig.GetAsString("path.regcollection")
-
-	row := results.NextRow()
-	if row != nil {
+	if regUID != "" && eXID != "" {
 		// found it!
-		regName := string((*(row[0])).([]byte))
-		newPath := "/" + regCollectionSegment + "/" + regName +
-			string((*(row[1])).([]byte)) + suffix
+		// Note that eXID will always have a leading "/"
+		newPath := "/" + regCollectionSegment + "/" + regUID + eXID + suffix
 
-		log.FuncPrintf("tx: %s Redirect: %q -> %q", tx.uuid, path, newPath)
+		log.FuncPrintf("tx: %s Redirect: %q -> %q", info.tx.uuid, path, newPath)
 
-		req.URL.Path = newPath
+		info.OriginalRequest.URL.Path = newPath
 		return nil
 	}
 

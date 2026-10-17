@@ -1,4 +1,4 @@
-package registry
+package formats
 
 // Unit tests for IsValid (via IsValidJson) and IsCompatible (via
 // checkCompat) covering all supported JSON Schema features listed at

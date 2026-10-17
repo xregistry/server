@@ -124,7 +124,7 @@ CREATE TABLE "Groups" (
     SID             VARCHAR(64) NOT NULL,   # System ID
     UID             VARCHAR(64) NOT NULL,   # User defined
     RegistrySID     VARCHAR(64) NOT NULL,
-    ModelSID        VARCHAR(64) NOT NULL,
+    ModelSID        VARCHAR(64) NOT NULL,   # gm.SID
     XID             VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Plural          VARCHAR(64) NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE Resources (
     UID             VARCHAR(64) NOT NULL,   # User defined
     RegistrySID     VARCHAR(64) NOT NULL,
     GroupSID        VARCHAR(64) NOT NULL,   # System ID
-    ModelSID        VARCHAR(64) NOT NULL,
+    ModelSID        VARCHAR(64) NOT NULL,   # rm.SID
     XID             VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Plural          VARCHAR(64) NOT NULL,
@@ -322,7 +322,7 @@ CREATE TABLE Props (
   # e.g. Versions of an xref'd Resource.
 
 
-  # These flag WHY this row exists when it's not a direct write of the
+  # These flag explains WHY this row exists when it's not a direct write of the
   # entity's own user-set value (multiple booleans, one per reason, so
   # each can be independently identified/refreshed without disturbing
   # the others). All false means this row is a direct, currently-live
@@ -350,6 +350,7 @@ CREATE TABLE Props (
   IsCalcDynamic    BOOL NOT NULL DEFAULT false, # Version.isdefault
 
   PRIMARY KEY(RegSID, XID, PropName),
+  UNIQUE INDEX(RegSID, LowerXID, PropName),
   UNIQUE INDEX(eSID, PropName),
   INDEX(ParentSID) # for cascade-copy cleanup (e.g.
                    # fullSaveXrefCascadeDelete's ParentSID scan)
@@ -388,6 +389,8 @@ CREATE TABLE Entities (
   INDEX(ParentSID),
   UNIQUE INDEX (RegSID, XID ),
   UNIQUE INDEX (RegSID, LowerXID )
+
+  # Consider adding "Plural" to INDEX(ParentSID)
 );
 
 # These maintain Versions.AncestorID/CreatedAt/ModifiedAt and Metas.xRefXID /

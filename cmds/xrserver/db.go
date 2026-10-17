@@ -29,7 +29,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 				Stop("--output must be one of: json, table")
 			}
 
-			dbs, err := registry.ListDBs(XRSConfig)
+			dbs, err := registry.DBList(XRSConfig)
 			ErrStop(err, "Error talking to mysql: %s", err)
 
 			sort.Strings(dbs)
@@ -75,12 +75,12 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 				}
 
 				Verbose("Deleting DB: %s", DBName)
-				err := registry.DeleteDB(XRSConfig, DBName)
+				err := registry.DBDelete(XRSConfig, DBName)
 				ErrStop(err, "Error deleting DB %q: %s", DBName, err)
 			}
 
 			Verbose("Creating DB: %s", DBName)
-			err := registry.CreateDB(XRSConfig, DBName)
+			err := registry.DBCreate(XRSConfig, DBName)
 			ErrStop(err, "Error creating DB %q: %s", DBName, err)
 		},
 	}
@@ -107,7 +107,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			Verbose("Deleting DB: %s", DBName)
-			err := registry.DeleteDB(XRSConfig, DBName)
+			err := registry.DBDelete(XRSConfig, DBName)
 			ErrStop(err, "Error deleting DB %q: %s", DBName, err)
 		},
 	}

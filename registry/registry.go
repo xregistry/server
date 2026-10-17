@@ -69,37 +69,39 @@ func SetXRServerConfigFromEnvVars(xrsConfig *Config) *Config {
 }
 
 func (r *Registry) GetTx() *Tx {
-	return r.tx
+	return r.Tx
 }
 
 func (r *Registry) GetXRServerConfig() *Config {
-	PanicIf(r.tx == nil, "Shouldn't be nil")
-	return r.tx.XRSConfig
+	PanicIf(r.Tx == nil, "Shouldn't be nil")
+	return r.Tx.Config
 }
 
-func GetDefaultReg(tx *Tx) *Registry {
+func GetDefaultReg(tx *Tx) (*Registry, *XRError) {
 	PanicIf(tx == nil, "Check me")
 
-	regDbSID := tx.XRSConfig.GetAsString("DefaultRegDbSID")
+	regDbSID := tx.Config.GetAsString("DefaultRegDbSID")
 
 	if regDbSID == "" {
 		panic("No registry specified")
 	}
 
-	reg, err := FindRegistryBySID(tx, regDbSID, FOR_READ)
-	Must(err)
+	reg, xErr := FindRegistryBySID(tx, regDbSID, FOR_READ)
+	if xErr != nil {
+		return nil, xErr
+	}
+	PanicIf(reg == nil, "No default registry")
 
 	if reg != nil {
 		tx.Registry = reg
 	}
-	PanicIf(reg == nil, "No default registry")
 
-	return reg
+	return reg, nil
 }
 
 func (r *Registry) Rollback() *XRError {
 	if r != nil {
-		return r.tx.Rollback()
+		return r.Tx.Rollback()
 	}
 	return nil
 }
@@ -111,7 +113,7 @@ func (r *Registry) SaveAll() *XRError {
 				return xErr
 			}
 		}
-		return r.tx.SaveAll()
+		return r.Tx.SaveAll()
 	}
 	return nil
 }
@@ -123,7 +125,7 @@ func (r *Registry) SaveAllAndCommit() *XRError {
 				return xErr
 			}
 		}
-		return r.tx.SaveAllAndCommit()
+		return r.Tx.SaveAllAndCommit()
 	}
 	return nil
 }
@@ -133,27 +135,32 @@ func (r *Registry) Refresh(accessMode int) *XRError {
 	if xErr != nil {
 		return xErr
 	}
+
 	r.LoadCapabilities()
-	r.LoadModel()
+
+	if _, xErr := r.LoadModel(); xErr != nil {
+		return xErr
+	}
+
 	return nil
 }
 
 // ONLY CALL FROM TESTS - NEVER IN PROD
 func (r *Registry) SaveCommitRefresh() *XRError {
 	if r != nil {
-		return r.tx.SaveCommitRefresh()
+		return r.Tx.SaveCommitRefresh()
 	}
 	return nil
 }
 
 // ONLY CALL FROM TESTS - NEVER IN PROD
 func (r *Registry) AddToCache(e *Entity) {
-	r.tx.AddToCache(e)
+	r.Tx.AddToCache(e)
 }
 
 func (r *Registry) Commit() *XRError {
 	if r != nil {
-		return r.tx.Commit()
+		return r.Tx.Commit()
 	}
 	return nil
 }
@@ -165,8 +172,8 @@ func (r *Registry) Commit() *XRError {
 // are Tx-scoped bookkeeping (see those fields' doc comments in db.go).
 // Called from Tx.Validate() once the Tx's own bookkeeping/sanity-checks
 // are done.
-func (r *Registry) Validate(info *RequestInfo) *XRError {
-	tx := r.tx
+func (r *Registry) Validate() *XRError {
+	tx := r.Tx
 
 	// Drain any Resources marked for (re-)validation - possibly marked
 	// several times each (see AddResourceToValidate()'s doc comment).
@@ -208,132 +215,20 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 	return nil
 }
 
-type RegOpt string
-
-func NewRegistry(tx *Tx, xrsConfig *Config, id string, regOpts ...RegOpt) (*Registry, *XRError) {
-
-	if tx == nil {
-		defer log.Trace("%s", id)()
-	} else {
-		defer log.Trace("tx: %s %s", tx.uuid, id)()
-	}
-
-	var xErr *XRError // must be used for all error checking due to defer
-	newTx := false
-
-	defer func() {
-		if newTx {
-			// If created just for us, close it
-			tx.Conditional(xErr)
-		}
-	}()
-
-	if tx == nil {
-		tx, xErr = NewTx(NewUUID(), xrsConfig)
-		if xErr != nil {
-			return nil, xErr
-		}
-		newTx = true
-	}
-
-	if id == "" {
-		id = NewUUID()
-	}
-
-	r, xErr := FindRegistry(tx, xrsConfig, id, FOR_READ)
-	if xErr != nil {
-		return nil, xErr
-	}
-	if r != nil {
-		return nil, NewXRError("bad_request", "/",
-			"error_detail="+
-				fmt.Sprintf("A registry with ID %q already exists", id))
-	}
-
-	dbSID := NewUUID()
-	DoOne(tx, `
-		INSERT INTO Registries(SID, UID)
-		VALUES(?,?)`, dbSID, id)
-
-	reg := &Registry{
-		Entity: Entity{
-			EntityExtensions: EntityExtensions{
-				tx:         tx,
-				AccessMode: FOR_WRITE,
-			},
-
-			DbSID:    dbSID,
-			Plural:   "registries",
-			Singular: "registry",
-			UID:      id,
-
-			Type:     ENTITY_REGISTRY,
-			XID:      "/",
-			Abstract: "",
-		},
-	}
-
-	reg.Self = reg
-	reg.Entity.Registry = reg
-	reg.EntityInsert()
-	reg.Capabilities = DefaultCapabilities.Clone()
-	reg.Model = &Model{
-		Registry: reg,
-		Groups:   map[string]*GroupModel{},
-	}
-
-	tx.Registry = reg
-	tx.AddRegistry(reg)
-
-	xErr = reg.Model.Verify()
-	if xErr != nil {
-		return nil, xErr
-	}
-
-	DoOne(tx, `
-		INSERT INTO Models(RegistrySID)
-		VALUES(?)`, dbSID)
-
-	if xErr = reg.JustSet("specversion", SPECVERSION); xErr != nil {
-		return nil, xErr
-	}
-	if xErr = reg.JustSet("registryid", reg.UID); xErr != nil {
-		return nil, xErr
-	}
-
-	/*
-		for _, regOpt := range regOpts {
-			// if regOpts == RegOpt_STRING { ... }
-		}
-	*/
-
-	if xErr = reg.SetSave("epoch", 1); xErr != nil {
-		return nil, xErr
-	}
-
-	if xErr = reg.Model.VerifyAndSave(true); xErr != nil {
-		return nil, xErr
-	}
-
-	return reg, nil
-}
-
 func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
-	tx, xErr := NewTx(NewUUID(), xrsConfig)
+	be, xErr := NewDefaultBackend(xrsConfig)
 	if xErr != nil {
 		return nil, xErr
 	}
+
+	tx, xErr := NewTx(NewUUID(), xrsConfig, be)
+	if xErr != nil {
+		return nil, xErr
+	}
+
 	defer tx.Rollback()
 
-	results := Query(tx, `SELECT UID FROM Registries ORDER BY UID`)
-	defer results.Close()
-
-	res := []string{}
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		res = append(res, NotNilString(row[0]))
-	}
-
-	return res, nil
+	return tx.Backend.ListRegistries(tx)
 }
 
 var _ EntitySetter = &Registry{}
@@ -348,30 +243,27 @@ func (reg *Registry) JustSet(name string, val any) *XRError {
 	// for writing until later in the process. So instead of forcing the
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update' will just lock it automatically
-	reg.Lock()
+	if _, xErr := reg.Lock(); xErr != nil {
+		return xErr
+	}
 	return reg.Entity.eJustSetPath(name, val)
 }
 
-func (reg *Registry) SetSave(name string, val any) *XRError {
-	// Normally we should never call Lock() directly, however Registry is
-	// kind of special because we rarely know if we want to "Find" the Registry
-	// for writing until later in the process. So instead of forcing the
-	// code to re-Find with FOR_WRITE, we'll just make it easy and these
-	// variants of 'update' will just lock it automatically
-	reg.Lock()
-	return reg.Entity.eSetSave(name, val)
-}
-
 func (reg *Registry) Delete() *XRError {
-	defer log.Trace("tx: %s %s", reg.tx.uuid, reg.UID)()
+	defer log.Trace("tx: %s %s", reg.Tx.uuid, reg.UID)()
 
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
 	// for writing until later in the process. So instead of forcing the
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
-	reg.Lock()
-	DoOne(reg.tx, `DELETE FROM Registries WHERE SID=?`, reg.DbSID)
+	if _, xErr := reg.Lock(); xErr != nil {
+		return xErr
+	}
+
+	if xErr := reg.Tx.Backend.DeleteRegistry(reg); xErr != nil {
+		return xErr
+	}
 
 	// Avoid an unbounded leak of dead entries in the in-process Model
 	// cache (see registry/model.go) - the DbSID is never reused, but
@@ -380,186 +272,14 @@ func (reg *Registry) Delete() *XRError {
 
 	// Delete any pending changes so dirty check doesn't fail
 	reg.NewObject = nil
-	reg.tx.EraseCache()
-	reg.tx.Registry = nil
+	reg.Tx.EraseCache()
+	reg.Tx.Registry = nil
 
 	return nil
 }
 
-func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError) {
-	defer log.Trace("tx: %s %s", tx.uuid, sid)()
-
-	if tx.Registry != nil && tx.Registry.DbSID == sid {
-		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
-			tx.Registry.Lock()
-		}
-		return tx.Registry, nil
-	}
-
-	ent, xErr := RawEntityFromXID(tx, sid, "/", false, accessMode)
-	if xErr != nil {
-		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", sid, xErr.GetTitle())
-	}
-	if ent == nil {
-		return nil, nil
-	}
-
-	reg := &Registry{Entity: *ent}
-	reg.tx = tx
-	reg.Self = reg
-	reg.Entity.Registry = reg
-
-	tx.Registry = reg
-	tx.AddRegistry(reg)
-
-	// UsesXref lives on the raw Registries table (not Entities/
-	// Props, since it's a plain internal flag, not a real
-	// attribute), so it needs its own tiny supplemental lookup here -
-	// a single indexed PK read, once per Tx.
-	results := Query(tx, `SELECT UsesXref FROM Registries WHERE SID=?`, sid)
-	if row := results.NextRow(); row != nil {
-		reg.UsesXref = NotNilBoolDef(row[0], false)
-	}
-	results.Close()
-
-	reg.LoadCapabilities()
-	reg.LoadModel()
-
-	reg.oldCapabilities = reg.Capabilities.Clone()
-
-	return reg, nil
-}
-
-// BY UID
-func FindRegistry(tx *Tx, xrsConfig *Config, id string, accessMode int) (*Registry, *XRError) {
-	if tx == nil {
-		defer log.Trace("%s", id)()
-	} else {
-		defer log.Trace("tx: %s %s", tx.uuid, id)()
-	}
-
-	if tx != nil && tx.Registry != nil && tx.Registry.UID == id {
-		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
-			tx.Registry.Lock()
-		}
-		return tx.Registry, nil
-	}
-
-	newTx := false
-	if tx == nil {
-		var xErr *XRError
-		tx, xErr = NewTx(NewUUID(), xrsConfig)
-		if xErr != nil {
-			return nil, xErr
-		}
-		newTx = true
-
-		defer func() {
-			// If we created a new Tx then assume someone is just looking
-			// for the Registry and may not actually want to edit stuff, so
-			// go ahead and close the Tx. It'll be reopened later if needed.
-			// If a Tx was passed in then don't close it, the caller will
-			if newTx { // not needed?
-				tx.Rollback()
-			}
-		}()
-	}
-
-	defer func() {
-		if newTx {
-			tx.Rollback()
-		}
-	}()
-
-	results := Query(tx, `
-	   	SELECT SID
-	   	FROM Registries
-	   	WHERE UID=?`, id)
-
-	defer results.Close()
-
-	row := results.NextRow()
-
-	if row == nil {
-		log.FuncPrintf("tx: %s None found", tx.uuid)
-		return nil, nil
-	}
-
-	id = NotNilString(row[0])
-	results.Close()
-
-	ent, xErr := RawEntityFromXID(tx, id, "/", false, accessMode)
-
-	if xErr != nil {
-		if newTx {
-			tx.Rollback()
-		}
-		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", id, xErr.GetTitle())
-	}
-
-	PanicIf(ent == nil, "No entity but we found a reg")
-
-	reg := &Registry{Entity: *ent}
-	reg.Self = reg
-
-	if tx.Registry == nil {
-		tx.Registry = reg
-	}
-
-	reg.Entity.Registry = reg
-	reg.tx = tx
-
-	reg.tx.AddRegistry(reg)
-
-	reg.LoadCapabilities()
-	reg.LoadModel()
-
-	reg.oldCapabilities = reg.Capabilities.Clone()
-
-	return reg, nil
-}
-
-func (reg *Registry) SaveCapabilities() *XRError {
-	xErr := reg.Capabilities.Validate()
-	if xErr != nil {
-		return xErr
-	}
-
-	if xErr = reg.Model.Verify(); xErr != nil {
-		return xErr
-	}
-
-	return reg.SetSave("#capabilities", ToJSON(reg.Capabilities))
-}
-
-func (reg *Registry) LoadCapabilities() *Capabilities {
-	capVal, ok := reg.Object["#capabilities"]
-	if !ok {
-		// No custom capabilities, use the default one
-		reg.Capabilities = DefaultCapabilities.Clone()
-	} else {
-		// Custom capabilities
-		capStr, ok := capVal.(string)
-		PanicIf(!ok, "not a byte array: %T", capVal)
-		cap, xErr := ParseCapabilities([]byte(capStr))
-		Must(xErr)
-		reg.Capabilities = cap
-	}
-	return reg.Capabilities
-}
-
-func (reg *Registry) LoadModel() *Model {
-	return LoadModel(reg)
-}
-
-func (reg *Registry) SaveModel(verifyData bool) *XRError {
-	return reg.Model.VerifyAndSave(verifyData)
-}
-
 func (reg *Registry) LoadModelFromFile(file string) *XRError {
-	defer log.Trace("tx: %s %s", reg.tx.uuid, file)()
+	defer log.Trace("tx: %s %s", reg.Tx.uuid, file)()
 
 	var xErr *XRError
 	var err error
@@ -613,7 +333,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 }
 
 func (reg *Registry) Update(obj Object, addType AddType) *XRError {
-	defer log.Trace("tx: %s", reg.tx.uuid)()
+	defer log.Trace("tx: %s", reg.Tx.uuid)()
 
 	if xErr := CheckAttrs(obj, reg.XID); xErr != nil {
 		return xErr
@@ -626,18 +346,22 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	// for writing until later in the process. So instead of forcing the
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
-	reg.Lock()
+	if _, xErr := reg.Lock(); xErr != nil {
+		return xErr
+	}
 
 	reg.SetNewObject(obj)
 
 	// Ignore any incoming "model" attribute
 	delete(reg.NewObject, "model")
 
-	if reg.tx.RequestInfo.HasIgnore("capabilities") && !IsNil(reg.NewObject) {
+	info := reg.GetRequestInfo()
+
+	if info.HasIgnore("capabilities") && !IsNil(reg.NewObject) {
 		delete(reg.NewObject, "capabilities")
 	}
 
-	if reg.tx.RequestInfo.HasIgnore("modelsource") && !IsNil(reg.NewObject) {
+	if info.HasIgnore("modelsource") && !IsNil(reg.NewObject) {
 		delete(reg.NewObject, "modelsource")
 	}
 
@@ -769,31 +493,33 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 // prevent, where a decision (e.g. "does this Resource already exist?")
 // computed from an unlocked read could go stale before the write.
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
-	defer log.Trace("tx: %s %s,%s,%v", reg.tx.uuid, gType, id, anyCase)()
+	defer log.Trace("tx: %s %s,%s,%v", reg.Tx.uuid, gType, id, anyCase)()
 
-	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
+	if g := reg.Tx.GetGroup(reg, gType, id); g != nil {
 		log.FuncPrintf("tx: %s FindGroup %s,%s from cache",
-			reg.tx.uuid, gType, id)
+			reg.Tx.uuid, gType, id)
 		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
-			g.Lock()
+			if _, xErr := g.Lock(); xErr != nil {
+				return nil, xErr
+			}
 		}
 		return g, nil
 	}
 
-	ent, xErr := RawEntityFromXID(reg.tx, reg.DbSID, "/"+gType+"/"+id, anyCase,
-		accessMode)
+	entity, xErr := reg.Tx.Backend.GetEntityFromXID(reg.Tx, reg.DbSID,
+		"/"+gType+"/"+id, false, anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Group %q(%s): %s.", id, gType, xErr.GetTitle())
+		return nil, xErr
 	}
-	if ent == nil {
-		log.FuncPrintf("tx: %s None found", reg.tx.uuid)
+
+	if entity == nil {
+		log.FuncPrintf("tx: %s None found", reg.Tx.uuid)
 		return nil, nil
 	}
 
-	g := &Group{Entity: *ent, Registry: reg}
+	g := &Group{Entity: *entity, Registry: reg}
 	g.Self = g
-	g.tx.AddGroup(g)
+	g.Tx.AddGroup(g)
 	return g, nil
 }
 
@@ -813,11 +539,11 @@ func (reg *Registry) UpsertGroup(gType string, id string) (*Group, bool, *XRErro
 }
 
 func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, addType AddType) (*Group, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%s", reg.tx.uuid, gType, id)()
+	defer log.Trace("tx: %s %s,%s", reg.Tx.uuid, gType, id)()
 
 	// Move to below, after the "findGroup". Is SaveModel needs it then
 	// it'll lock it.
-	// reg.Lock()
+	// _, xErr := reg.Lock()
 
 	if xErr := reg.SaveModel(false); xErr != nil {
 		return nil, false, xErr
@@ -848,8 +574,11 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		// If the group doesn't exist yet then, if the Registry isn't already
 		// locked, lock it before we try to create the group.
 		// We don't lock it before this because if the group already
-		// exists then there should be no reason to touch the Regristry
-		reg.Lock()
+		// exists then there should be no reason to touch the Registry
+		if _, xErr := reg.Lock(); xErr != nil {
+			return nil, false, xErr
+		}
+
 		g, xErr = reg.FindGroup(gType, id, true, FOR_WRITE)
 		if xErr != nil {
 			return nil, false, xErr
@@ -857,7 +586,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	}
 
 	log.FuncPrintf("tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
-		reg.tx.uuid, gType, id, g != nil)
+		reg.Tx.uuid, gType, id, g != nil)
 
 	if g != nil && g.UID != id {
 		return nil, false,
@@ -880,17 +609,14 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		// Not found, so create a new one
 		g = &Group{
 			Entity: Entity{
-				EntityExtensions: EntityExtensions{
-					tx:         reg.tx,
-					AccessMode: FOR_WRITE,
-				},
-
-				Registry:  reg,
-				DbSID:     NewUUID(),
-				ParentSID: reg.DbSID,
-				Plural:    gType,
-				Singular:  gm.Singular,
-				UID:       id,
+				Tx:         reg.Tx,
+				AccessMode: FOR_WRITE,
+				Registry:   reg,
+				DbSID:      NewUUID(),
+				ParentSID:  reg.DbSID,
+				Plural:     gType,
+				Singular:   gm.Singular,
+				UID:        id,
 
 				Type:     ENTITY_GROUP,
 				XID:      "/" + gType + "/" + id,
@@ -902,17 +628,9 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		g.Self = g
 
-		DoOne(reg.tx, `
-			INSERT INTO "Groups"(
-                SID, RegistrySID, UID,
-                ModelSID, XID, Abstract,
-                Plural, Singular)
-			SELECT ?,?,?,?,?,?,?,?`,
-			g.DbSID, g.Registry.DbSID, g.UID,
-			gm.SID, g.XID, g.Abstract,
-			g.Plural, g.Singular)
-
-		g.EntityInsert()
+		if xErr = g.Tx.Backend.RegisterEntity(&g.Entity); xErr != nil {
+			return nil, false, xErr
+		}
 
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
@@ -920,8 +638,10 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			return nil, false, xErr
 		}
 		isNew = true
-		g.Registry.Touch()
-		g.tx.AddGroup(g)
+		if _, xErr := g.Registry.Touch(); xErr != nil {
+			return nil, false, xErr
+		}
+		g.Tx.AddGroup(g)
 	}
 
 	g.RemoveReadOnlyImmutable(obj)
@@ -1017,7 +737,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 // Returns a map of groupType->*Group
 func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[string][]*Group, *XRError) {
-	defer log.Trace("tx: %s", reg.tx.uuid)()
+	defer log.Trace("tx: %s", reg.Tx.uuid)()
 
 	groups := map[string][]*Group{}
 
@@ -1061,566 +781,6 @@ func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[stri
 	}
 
 	return groups, nil
-}
-
-// GenerateFilterCTE builds the "cte(...) AS (...), FilterMatches AS (...)"
-// portion (everything *after* the "WITH RECURSIVE " keyword) of the query
-// used to find entities matching the (OR'd, AND'd) filter expressions.
-//
-// Each top-level OR expression (arm) is tagged with a bit (1<<i). The seed
-// of the recursive CTE aggregates those bits per matching eSID with
-// BIT_OR, and the recursive (parent-walking) step carries the mask
-// forward unchanged. A node reached via more than one child (each
-// possibly carrying a different mask) is reconciled by the final
-// "FilterMatches" step, which does a BIT_OR(mask) GROUP BY eSID over the
-// whole (already small, since it's per-node not per-leaf) cte.
-//
-// This lets callers (see FiltersRelativeToAbstractMasked in info.go)
-// later determine, for any given entity in the result, exactly which top-
-// level OR expression(s) are responsible for it being there -- which is
-// required to compute a correct (neither too broad nor too narrow) nested
-// <COLLECTION>url filter for that entity.
-//
-// IMPORTANT (perf): the recursive member below must stay "UNION DISTINCT"
-// (not "UNION ALL"). MySQL materializes each iteration of a recursive CTE
-// as an (unindexed) temp table, and distinctness is what keeps the walk
-// bounded to ~one pass per tree node. Since "mask" is now part of the
-// tuple being compared, at most one row per (node, distinct-mask) survives
-// each iteration -- still bounded (a node can only be reached via a
-// handful of distinct arm combinations in practice) -- rather than one row
-// per *matching leaf* underneath that node, which is what plain "UNION
-// ALL" here would produce. The one-time, non-recursive arm-tagging seed
-// (built via "UNION ALL" below) doesn't have this concern since it's a
-// flat aggregation, not something that compounds across recursion depth.
-func GenerateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interface{}) {
-	query := ""
-	args := []interface{}{}
-
-	query += `cte(eSID,Type,ParentSID,XID,OrMask) AS (
-    -- The seed: entities that directly match one (or more) of the OR
-    -- expressions below, tagged with a bit-mask of which one(s).
-    SELECT e.eSID,e.Type,e.ParentSID,e.XID,matched.OrMask
-    FROM Entities AS e
-    JOIN (
-      SELECT tagged.eSID, BIT_OR(tagged.ArmMask) AS OrMask
-      FROM ( -- start of the OR Filter groupings`
-	firstOr := true
-	for orIndex, OrFilters := range filters {
-		if !firstOr {
-			query += `
-        UNION ALL -- Adding another OR`
-		}
-		firstOr = false
-		armBit := fmt.Sprintf("%d", uint64(1)<<uint(orIndex))
-		query += `
-      -- start of one Filter AND grouping (expr1 AND expr2).
-      -- Find all SIDs for the leaves for entities (SIDs) of interest,
-      -- tagged with this OR arm's bit (` + armBit + `).
-      SELECT list.eSID, ` + armBit + ` AS ArmMask FROM (
-        SELECT count(*) as cnt,e2.eSID,e2.XID FROM Entities AS e1
-        RIGHT JOIN (
-          -- start of expr1 - below finds SearchNodes/SIDs of interest`
-		firstAnd := true
-		andCount := 0
-		for _, filter := range OrFilters { // AndFilters
-			propNameSearch := "PropName=?"
-			filterPropName := filter.PropName
-
-			if filter.PP.HasWild {
-				// mysql format: column_name REGEXP 'pattern'
-				propNameSearch = "PropName REGEXP ?"
-				has := false
-
-				// Convert wildcards into appropriate regexp
-				if filter.Operator == FILTER_PRESENT ||
-					filter.Operator == FILTER_ABSENT {
-					// include .* at the end
-					filterPropName, has = filter.PP.DBFilterExists()
-				} else {
-					filterPropName, has = filter.PP.DBFilter()
-				}
-
-				PanicIf(!has, "Must have *") // Sanity check
-				// log.Printf("tx: %s fpn: %q", reg.tx.uuid, filterPropName)
-				// log.Printf("tx: %s fpn: %s", reg.tx.uuid, filter.PP.Debug())
-			} else {
-				if filter.Operator == FILTER_PRESENT ||
-					filter.Operator == FILTER_ABSENT {
-
-					// convert from "=" to "LIKE"
-					propNameSearch = "PropName LIKE ?"
-					// include % at the end
-					filterPropName = filter.PropName + "%"
-				}
-			}
-
-			andCount++
-			if !firstAnd {
-				query += `
-          UNION ALL`
-			}
-			firstAnd = false
-
-			if filter.Operator == FILTER_PRESENT { // ?filter=xxx
-				check := "(Abstract=? AND " + propNameSearch + " AND "
-
-				args = append(args, reg.DbSID, filter.Abstract,
-					filterPropName)
-				check += "PropValue IS NOT NULL)"
-				// We may match lots of attrs, but we only want
-				// 1 to appear so the list.cnt check doesn't treat
-				// 2+ rows at matching more than one filter expression
-				check += " GROUP BY eSID" // " LIMIT 1"
-				query += `
-          (SELECT eSID,Type,XID,ParentSID FROM Props  -- FILTER_PRESENT
-           WHERE RegSID=? AND ` + check + ")" // Need () for groupBy/limit
-
-			} else if filter.Operator == FILTER_ABSENT { // ?filter=xxx=null
-				// Look for non-existing prop
-				args = append(args, reg.DbSID, filter.Abstract,
-					filterPropName)
-
-				query += `
-          -- Entities that don't have the specified prop
-          SELECT e.eSID,e.Type,e.XID,ParentSID FROM Entities AS e
-          WHERE e.RegSID=? AND e.Abstract=? AND
-            NOT EXISTS (SELECT 1 FROM Props WHERE
-              RegSID=e.RegSID AND eSID=e.eSID AND ( ` +
-					propNameSearch + `))`
-
-			} else if filter.Operator == FILTER_EQUAL { // ?filter=xxx=zzz
-				check := "(Abstract=? AND " + propNameSearch + " AND "
-
-				args = append(args, reg.DbSID, filter.Abstract,
-					filterPropName)
-				value, wildcard := LikeWildcardIt(filter.Value)
-				args = append(args, value)
-				if !wildcard {
-					// Strings:case-insensitive per spec; others:exact match
-					args = append(args, value)
-					check += "((PropType='string' AND PropValue " +
-						FILTER_CI_COLLATE + "=?)" +
-						" OR (PropType<>'string' AND PropValue=?))"
-				} else {
-					args = append(args, value)
-					check += "((PropType<>'string' AND PropValue=?) " +
-						" OR (PropType='string' AND PropValue " +
-						FILTER_CI_COLLATE + " LIKE ?))"
-				}
-				check += ")"
-				query += `
-          SELECT eSID,Type,XID,ParentSID FROM Props
-            WHERE RegSID=? AND ` + check
-
-			} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
-				args = append(args, reg.DbSID, filter.Abstract,
-					filterPropName)
-				query += `
-          -- Entities that don't have the specified prop
-          SELECT e.eSID,e.Type,e.XID,e.ParentSID FROM Entities AS e
-          WHERE e.RegSID=? AND e.Abstract=? AND
-            NOT EXISTS (SELECT 1 FROM Props WHERE
-              RegSID=e.RegSID AND eSID=e.eSID AND (` +
-					propNameSearch + ` AND `
-
-				value, wildcard := LikeWildcardIt(filter.Value)
-				args = append(args, value)
-				if !wildcard {
-					// Strings:case-insensitive per spec;others:exact match
-					args = append(args, value)
-					query += "((PropType='string' AND PropValue " +
-						FILTER_CI_COLLATE + "=?)" +
-						" OR (PropType<>'string' AND PropValue=?))"
-				} else {
-					args = append(args, value)
-					query += "((PropType<>'string' AND PropValue=?) " +
-						" OR (PropType='string' AND PropValue " +
-						FILTER_CI_COLLATE + " LIKE ?))"
-				}
-				query += "))"
-
-			} else if filter.Operator == FILTER_LESS ||
-				filter.Operator == FILTER_LESS_EQUAL ||
-				filter.Operator == FILTER_GREATER ||
-				filter.Operator == FILTER_GREATER_EQUAL { // ?filter=x<z etc
-
-				var sqlOp string
-				switch filter.Operator {
-				case FILTER_LESS:
-					sqlOp = "<"
-				case FILTER_LESS_EQUAL:
-					sqlOp = "<="
-				case FILTER_GREATER:
-					sqlOp = ">"
-				case FILTER_GREATER_EQUAL:
-					sqlOp = ">="
-				}
-
-				check := "(Abstract=? AND " + propNameSearch + " AND "
-				args = append(args, reg.DbSID, filter.Abstract,
-					filterPropName)
-
-				// Numeric: numeric comparison
-				// String and others: case-insensitive string comparison
-				args = append(args, filter.Value, filter.Value)
-				check += "(CASE WHEN PropType IN ('integer','decimal','uinteger')" +
-					" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +
-					" ELSE PropValue " + FILTER_CI_COLLATE + " " + sqlOp + " ? END))"
-				query += `
-          SELECT eSID,Type,XID,ParentSID FROM Props
-            WHERE RegSID=? AND ` + check
-
-			} else {
-				PanicIf(true, "Bad filter.op: %#v", filter)
-			}
-		} // end of AndFilter
-		query += `
-          -- end of expr1
-        ) AS result ON ( result.eSID=e1.eSID )
-        -- For each result found, find all Leaves under the matching entity.
-        -- The Leaves that show up 'cnt' times, where cnt is the # of
-        -- expressions in each filter (the ANDs), are branches to return.
-        -- Note we return the XID of each Leaf, not the XID of the matching
-        -- entity. The entity that matches isn't important.
-        JOIN Entities AS e2 ON (
-          (
-            (
-              -- Non-meta objects, just compare the XID
-              result.Type<>` + StrTypes(ENTITY_META) + ` AND
-              ( result.XID = '/' OR
-                e2.XID=result.XID OR
-                e2.XID LIKE CONCAT(result.XID,'/%')
-              )
-            )
-            OR
-            (
-              -- For 'meta' objects, compare it's parent's XID
-              result.Type=` + StrTypes(ENTITY_META) + ` AND
-              (e2.eSID = result.ParentSID OR e2.ParentSID = result.ParentSID)
-              -- ( e2.XID=TRIM(TRAILING '/meta' FROM result.XID) OR
-                -- e2.XID LIKE CONCAT(TRIM(TRAILING 'meta' FROM result.XID),'%')
-              -- )
-            )
-          )
-          AND e2.eSID IN (SELECT * from Leaves)
-        ) GROUP BY e2.eSID
-        -- end of RIGHT JOIN
-      ) as list
-      WHERE list.cnt=?   -- cnt is the # of operands in the AND filter
-      -- end of one Filter AND grouping (expr1 AND expr2 ...)`
-		args = append(args, andCount)
-	} // end of OrFilter
-
-	query += `
-      ) AS tagged -- end of all OR Filter groupings
-      GROUP BY tagged.eSID
-    ) AS matched ON e.eSID = matched.eSID
-
-    -- This is the recursive part of the query.
-    -- Find all of the parents (and 'meta' sub-objects) of the found
-    -- entities, up to root of Reg, carrying the OrMask along the way.
-    -- NOTE: this must stay "UNION DISTINCT" (see the perf comment on
-    -- GenerateFilterCTE above) -- do not change to "UNION ALL".
-    UNION DISTINCT SELECT
-      e.eSID,e.Type,e.ParentSID,e.XID,cte.OrMask
-    FROM Entities AS e
-    INNER JOIN cte ON
-      (
-        -- Find its parent
-        e.eSID=cte.ParentSID
-        OR
-        -- If this is a Resource, grab its 'meta' sub-object
-        ( cte.Type=` + StrTypes(ENTITY_RESOURCE) + ` AND
-          e.Type=` + StrTypes(ENTITY_META) + ` AND
-          e.ParentSID=cte.eSID
-        )
-      )
-  ),
-  -- A node can be reached via multiple children, potentially carrying
-  -- different OrMask values; reconcile those here with one final BIT_OR.
-  FilterMatches AS (
-    SELECT eSID, BIT_OR(OrMask) AS OrMask FROM cte GROUP BY eSID
-  )`
-
-	return query, args
-}
-
-// topLevelSlashCount returns, as a string, the SUBSTRING_INDEX() count
-// needed to truncate any row's XID (top-level entity's own, or one of
-// its descendants') down to just its top-level parent's XID, given the
-// XIDs[0] prefix used for a "Coll" query. E.g. XIDs[0]=="/dirs" means
-// direct children look like "/dirs/d1" (3 "/"-delimited pieces), so
-// SUBSTRING_INDEX(anyDescendantXID, '/', 3) always yields "/dirs/d1" no
-// matter how deeply nested the descendant is.
-//
-// Shared by both the "?sort=" substring_index join and the pagination
-// DENSE_RANK() window function below - both need to identify, for any
-// row, its top-level parent's own XID.
-func topLevelSlashCount(xid string) string {
-	count := strings.Count(xid, "/")
-	if count == 1 { // e.g /dirs
-		return "3" // want substring below as: /dirs/d1
-	} else if count == 3 { // e.g. /dirs/d1/files
-		return "5" // want substring below as: /dirs/d1/files/f1
-	} else { // e.g. /dirs/d1/files/f1/versions
-		return "7" // want substring below as: /dirs/d1/files/f1/versions/v1
-	}
-}
-
-// sortKey = attribute name, -NAME means descending, no "-" means ascending
-func GenerateQuery(reg *Registry, what string, XIDs []string, filters [][]*FilterExpr, docView bool, sortKey string, limit uint64, offset uint64) (string, []interface{}, *XRError) {
-	query := ""
-	args := []any{}
-
-	// ?filter=excludeall returns nothing
-	if len(filters) == 1 && filters[0][0].Path == "excludeall"+string(DB_IN) {
-		if what != "Coll" {
-			return "", nil, NewXRError("bad_filter",
-				reg.tx.RequestInfo.OriginalRequest.URL.RequestURI(),
-				"value=excludeall",
-				"error_detail=\"excludeall\" must only be used "+
-					"on collections")
-		}
-		return "", nil, nil
-	}
-
-	if sortKey != "" && what != "Coll" {
-		return "", nil, NewXRError("bad_sort", "",
-			"value="+sortKey,
-			"error_detail=can't sort on a non-collection results")
-	}
-
-	if limit != 0 && what != "Coll" {
-		return "", nil, NewXRError("pagination_noncollection", "")
-	}
-
-	ascDesc := "ASC"
-	sortJoin := ""
-	sortOrder := ""
-
-	if sortKey != "" {
-		if sortKey[0] == '-' {
-			ascDesc = "DESC"
-			sortKey = sortKey[1:]
-		}
-
-		// We only need to look at the first XID because if there's more
-		// than one then they should all be for the same level
-		slashCount := topLevelSlashCount(XIDs[0])
-
-		/*
-					sortOrder = `
-			    sj.PropValue IS NOT NULL,
-			    CASE WHEN sj.PropType IN ('integer','decimal','uinteger')
-			      THEN CAST(sj.PropValue AS DECIMAL) END ` + ascDesc + `,
-			    CASE WHEN sj.PropType NOT IN ('integer','decimal','uinteger')
-			      THEN sj.PropValue END ` + ascDesc + `,
-			`
-		*/
-
-		sortOrder = `
-    sj.PropValue IS NOT NULL ` + ascDesc + `,
-    CASE
-      WHEN sj.PropType IN ('integer','decimal','uinteger') THEN
-        IFNULL(CAST(sj.PropValue AS DECIMAL), 0)
-      WHEN sj.PropType NOT IN ('integer','decimal','uinteger') THEN
-        sj.PropValue
-      ELSE NULL
-    END COLLATE utf8mb4_general_ci ` + ascDesc + `,
-`
-
-		sortJoin = `
-  LEFT JOIN Props AS sj ON (
-    sj.RegSID = ft.RegSID AND
-    sj.XID = substring_index(ft.XID, '/', ` + slashCount + `) AND
-    sj.PropName = '` + sortKey + `')
-`
-	}
-
-	// A cap of 64 is imposed because each top-level OR expression is
-	// tagged with a bit (1<<i) so we can BIT_OR them together while
-	// walking the tree, and track (per entity) which OR expression(s)
-	// actually caused it to be included in the result set. This is what
-	// lets us compute an accurate (not overly-broad, not overly-narrow)
-	// nested <COLLECTION>url filter for each entity in the result.
-	if len(filters) > 64 {
-		return "", nil, NewXRError("bad_filter",
-			reg.tx.RequestInfo.OriginalRequest.URL.RequestURI(),
-			"value=filter",
-			"error_detail=too many OR'd filter expressions "+
-				fmt.Sprintf("(%d), the max supported is 64", len(filters)))
-	}
-
-	// filterCTE/filterArgs hold the "WITH RECURSIVE cte(...) AS (...),
-	// FilterMatches AS (...)" definition (sans the leading "WITH
-	// RECURSIVE" keyword) that's prepended to the whole query when
-	// filters are in use. FilterMatches maps each matching eSID (and all
-	// of its ancestors, and the eSID's the 'meta' sub-objects) to a
-	// bit-mask (BIT_OR'd) of which top-level OR expression(s) are
-	// responsible for it being in the result. See FiltersRelativeToAbstractMasked
-	// in info.go for how this mask is later used to compute the correct
-	// nested <COLLECTION>url filter for each entity.
-	filterCTE, filterArgs := "", []interface{}(nil)
-	if len(filters) != 0 {
-		filterCTE, filterArgs = GenerateFilterCTE(reg, filters)
-	}
-
-	maskCol := "'0' AS FilterMask"
-	filterJoin := ""
-	if len(filters) != 0 {
-		// CAST to CHAR so the Go driver always hands us a consistent,
-		// full-range (up to 64-bit) string regardless of how it would
-		// otherwise represent a BIGINT UNSIGNED.
-		maskCol = "CAST(IFNULL(fm.OrMask,0) AS CHAR) AS FilterMask"
-		filterJoin = " LEFT JOIN FilterMatches AS fm ON fm.eSID=ft.eSID"
-	}
-
-	// When pagination is active (limit != 0, only ever true when
-	// what=="Coll") we need two extra columns computed directly
-	// alongside the rest of this SELECT's other per-row columns (same
-	// level as the "ft"/"sj" aliases, so they can reference them):
-	//   - LowerXID: re-exposed so the wrapping queries below (which no
-	//     longer have access to the "ft" alias) can re-apply the same
-	//     tiebreak ordering used today.
-	//   - TopIdx: a DENSE_RANK() window function that assigns every row
-	//     (top-level entity or descendant) its top-level ancestor's
-	//     page index, all in one pass with no extra join needed to
-	//     "propagate" the index down to child rows. This works because
-	//     rows are ordered (both here and via the existing non-paginated
-	//     ORDER BY below) such that every entity's descendant rows are
-	//     always physically contiguous with it - true even when ?sort=
-	//     is in play, since every row in a subtree resolves to the same
-	//     sort value (that of its top-level ancestor, via "sj" above).
-	//     DENSE_RANK() ties rows sharing the same (sort value, ancestor
-	//     XID) tuple to the same rank, and gives the next *distinct*
-	//     tuple (i.e. entity) the next rank - exactly the page index we
-	//     want, computed using the exact same ORDER BY terms (sortOrder)
-	//     as the plain, non-paginated query below, just replacing the
-	//     final "ft.LowerXID ASC" per-row tiebreak with the coarser
-	//     "top-level ancestor's XID" tiebreak so ties are ancestor-wide.
-	paginate := limit != 0
-	rankCol := "" // used for ordering results
-	totalCountCol := ""
-	if paginate {
-		slashCount := topLevelSlashCount(XIDs[0])
-		rankOrder := sortOrder +
-			`    SUBSTRING_INDEX(ft.XID, '/', ` + slashCount + `) ASC`
-		rankCol = `,ft.LowerXID AS LowerXID,
-  DENSE_RANK() OVER (ORDER BY ` + rankOrder + `) AS TopIdx`
-	} else {
-		// Not paginating - "TotalCount" is computed for real (via the
-		// win1/win2 wrapping below) only when paginate==true. Project a
-		// cheap literal here instead of just omitting the column, so
-		// GenerateQuery() always returns the same column shape either
-		// way - this avoids the column count ever silently drifting out
-		// of sync between the "paginate" and "!paginate" code paths as
-		// more columns get added over time. This is a constant literal,
-		// not a computed aggregate, so it costs nothing extra to compute
-		// (no extra join/derived table/window function). Use '-' rather
-		// than '0' so any accidental future attempt to read/parse this
-		// column as an int when !paginate fails loudly instead of
-		// silently looking like a valid (zero) count.
-		totalCountCol = `,'-' AS TotalCount`
-	}
-
-	args = []interface{}{}
-	if len(filters) != 0 {
-		query = "WITH RECURSIVE " + filterCTE + "\n"
-		args = append(args, filterArgs...)
-	}
-	args = append(args, reg.DbSID)
-	query += `
-SELECT
-  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.XID,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp,` + maskCol + rankCol + totalCountCol + `
-  FROM Props AS ft` + filterJoin + sortJoin + `
-  WHERE ft.RegSID=?
-`
-
-	// Exclude generated attributes/entities if 'doc view' is turned on.
-	// Meaning, only grab Props that have 'DocView' set to 'true'. These
-	// should be (mainly) just the ones we set explicitly.
-	if docView {
-		query += `  AND ft.DocView=true
-`
-	}
-
-	// Remove entities that are higher than the GET PATH specified
-	if what != "Registry" && len(XIDs) > 0 {
-		query += "  AND ("
-		for i, p := range XIDs {
-			if i > 0 {
-				query += " OR "
-			}
-			query += "ft.XID=? OR ft.XID LIKE ?"
-			args = append(args, p, p+"/%")
-		}
-		query += ")\n"
-
-	}
-
-	if len(filters) != 0 {
-		// The actual eSID-matching/tree-walking logic lives in the
-		// "FilterMatches" CTE built by GenerateFilterCTE() above (joined
-		// in via "fm" in the FROM clause). All we need here is to
-		// restrict the result to entities that showed up in it.
-		query += `  AND fm.eSID IS NOT NULL
-`
-	}
-
-	if !paginate {
-		query += `  ORDER BY ` + sortOrder +
-			`    ft.LowerXID ASC;`
-	} else {
-		// Wrap the query above (which already computed TopIdx for
-		// every row) twice more:
-		//   - win1 (inner wrap): adds TotalCount, a whole-partition
-		//     (no ORDER BY, no WHERE yet applied) aggregate of the
-		//     highest TopIdx seen - i.e. the total number of top-level
-		//     entities in the *entire* (filtered, but not paginated)
-		//     result set. This MUST happen in its own layer, before the
-		//     page-range WHERE below is applied, otherwise it would
-		//     only reflect the count within the current page.
-		//   - outermost: restricts to the requested page
-		//     (TopIdx BETWEEN offset+1 AND offset+limit) and re-applies
-		//     the original per-row tiebreak order (now via the plain
-		//     TopIdx/LowerXID columns, since the "ft"/"sj" aliases are
-		//     no longer in scope this far out).
-		innerQuery := query
-		query = `SELECT RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,PropName,PropValue,PropType,IsSystemProp,FilterMask,TotalCount
-  FROM (
-    SELECT win1.*, CAST(MAX(win1.TopIdx) OVER () AS CHAR) AS TotalCount
-    FROM (
-` + innerQuery + `
-    ) AS win1
-  ) AS win2
-  WHERE win2.TopIdx BETWEEN ? AND ?
-  ORDER BY win2.TopIdx ASC, win2.LowerXID ASC;`
-		args = append(args, offset+1, offset+limit)
-	}
-
-	if log.GetLevel() > 3 || log.HasVerbose("genq") {
-		log.Printf("tx: %s Query:\n%s\n\n", reg.tx.uuid, SubQuery(query, args))
-	}
-	return query, args, nil
-}
-
-// Convert each non-escaped * into SQL % for LIKE queries
-func LikeWildcardIt(str string) (string, bool) {
-	wild := false
-	res := strings.Builder{}
-
-	prevch := '\000'
-	for _, ch := range str {
-		if ch == '*' && prevch != '\\' {
-			res.WriteRune('%')
-			wild = true
-		} else {
-			res.WriteRune(ch)
-		}
-		prevch = ch
-	}
-
-	return res.String(), wild
 }
 
 func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
@@ -1885,29 +1045,23 @@ func (r *Registry) VerifyData() *XRError {
 	}
 
 	// Now do all Groups
-	entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
+	groups, xErr := r.GetGroups(FOR_WRITE)
 	if xErr != nil {
 		return xErr
 	}
 
-	for _, e := range entities {
-		group := &Group{Entity: *e, Registry: r}
-		group.Self = group
+	for _, group := range groups {
 		if xErr = group.ValidateAndSave(true); xErr != nil {
 			return xErr
 		}
 
 		// Now do all Resource in this Group and implicitly it's owning Meta
-		entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-			`e.ParentSID=?`, group.DbSID)
+		resources, xErr := group.GetResources(FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
 
-		for _, e := range entities {
-			resource := &Resource{Entity: *e, Group: group}
-			resource.Self = resource
+		for _, resource := range resources {
 			// onlyMetaChanged, forceVerify
 			//
 			// Deferred (not run synchronously here) so it goes through
@@ -1915,7 +1069,7 @@ func (r *Registry) VerifyData() *XRError {
 			// AddResourceToValidate() call site - r.Validate(nil) below
 			// drains it (along with GroupsToValidate) once all Resources
 			// and Versions in this loop have been marked/processed.
-			r.tx.AddResourceToValidate(resource, false, true)
+			r.Tx.AddResourceToValidate(resource, false, true)
 
 			// Skip xref'd resources, the real owner will do it.
 			// Note that we're assuming we're just skipping data validation.
@@ -1933,16 +1087,12 @@ func (r *Registry) VerifyData() *XRError {
 			// Resource's Meta shares the same ParentSID
 			// (resource.DbSID), so without this filter we'd also pick
 			// up the Meta row here and mis-process it as a Version.
-			entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-				fmt.Sprintf(`e.ParentSID=? AND e.Type=%d`, ENTITY_VERSION),
-				resource.DbSID)
+			versions, xErr := resource.GetVersions(FOR_WRITE)
 			if xErr != nil {
 				return xErr
 			}
 
-			for _, e := range entities {
-				version := &Version{Entity: *e, Resource: resource}
-				version.Self = version
+			for _, version := range versions {
 				if xErr = version.ValidateAndSave(true); xErr != nil {
 					return xErr
 				}
@@ -1961,9 +1111,39 @@ func (r *Registry) VerifyData() *XRError {
 	// all per-Version attribute validation above, so a more specific
 	// per-attribute error isn't masked by a more generic one for the
 	// same violation.
-	if xErr := r.Validate(nil); xErr != nil {
+	if xErr := r.Validate(); xErr != nil {
 		return xErr
 	}
 
 	return nil
+}
+
+func (r *Registry) GenerateResultEntities(what string,
+	XIDs []string) (EntityIterator, *XRError) {
+
+	return r.Tx.Backend.GenerateResultEntities(r, what, XIDs)
+}
+
+func (r *Registry) GetEntitiesFromXID(xidStr string, allAttrs bool,
+	children bool, anyCase bool, accessMode int) (EntityIterator, *XRError) {
+
+	return r.Tx.Backend.GetEntitiesFromXID(r.Tx, r.DbSID, xidStr, allAttrs,
+		children, anyCase, accessMode)
+}
+
+func (r *Registry) GetEntityFromXID(xidStr string, allAttrs bool, anyCase bool,
+	accessMode int) (*Entity, *XRError) {
+
+	return r.Tx.Backend.GetEntityFromXID(r.Tx, r.DbSID, xidStr, allAttrs,
+		anyCase, accessMode)
+}
+
+func (r *Registry) GetGroupIDsByType(gType string,
+	accessMode int) ([]string, *XRError) {
+
+	return r.Tx.Backend.GetGroupIDsByType(r, gType, accessMode)
+}
+
+func MapShortSelf(tx *Tx, ss string) (string, string, *XRError) {
+	return tx.Backend.MapShortSelf(tx, ss)
 }

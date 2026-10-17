@@ -1,4 +1,4 @@
-package registry
+package formats
 
 // Unit tests for Protobuf IsValid (via IsValidProto) and
 // IsCompatible (via checkFileCompat / direction dispatch).

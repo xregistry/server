@@ -5,7 +5,6 @@ package common
 // the error checks, we should delete them from here.
 
 func dummy_errors() {
-	NewXRError("compatibility_violation", "/")
 	NewXRError("data_retrieval_error", "/")
 	NewXRError("model_compliance_error", "/")
 	NewXRError("too_large", "/")

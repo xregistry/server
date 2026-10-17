@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	. "github.com/xregistry/server/common"
-	"github.com/xregistry/server/registry"
 )
 
 func TestSetAttributeNames(t *testing.T) {
@@ -315,7 +314,7 @@ func TestSetDots(t *testing.T) {
 	labels := NewPP().P("labels")
 
 	XNoErr(t, reg.SaveAllAndCommit())
-	dir.Refresh(registry.FOR_WRITE)
+	dir.Refresh(FOR_WRITE)
 
 	xErr := dir.SetSave(labels.UI(), "xxx")
 	XCheck(t, xErr != nil, "labels=xxx should fail")
@@ -354,7 +353,7 @@ func TestSetDots(t *testing.T) {
 }
 `)
 
-	dir.Refresh(registry.FOR_WRITE)
+	dir.Refresh(FOR_WRITE)
 
 	xErr = dir.SetSave("labels", nil)
 	XJSONCheck(t, xErr, nil)
@@ -427,7 +426,7 @@ func TestSetLabels(t *testing.T) {
 	reg := NewRegistry("TestSetLabels")
 	defer PassDeleteReg(t, reg)
 	reg.SaveAllAndCommit()
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true)
@@ -438,60 +437,60 @@ func TestSetLabels(t *testing.T) {
 	ver2, _ := file.AddVersion("v2")
 
 	reg.SaveAllAndCommit()
-	reg.Refresh(registry.FOR_WRITE)
-	dir.Refresh(registry.FOR_WRITE)
-	file.Refresh(registry.FOR_WRITE)
-	ver.Refresh(registry.FOR_WRITE)
-	ver2.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
+	dir.Refresh(FOR_WRITE)
+	file.Refresh(FOR_WRITE)
+	ver.Refresh(FOR_WRITE)
+	ver2.Refresh(FOR_WRITE)
 
 	// /dirs/d1/f1/v1
 	labels := NewPP().P("labels")
 	err := reg.SetSave(labels.P("r2").UI(), "123.234")
 	XNoErr(t, err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	// But it's a string here because labels is a map[string]string
 	XEqual(t, "", reg.Get(labels.P("r2").UI()), "123.234")
 	err = reg.SetSave("labels.r1", "foo")
 	XNoErr(t, err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	XEqual(t, "", reg.Get(labels.P("r1").UI()), "foo")
 	err = reg.SetSave(labels.P("r1").UI(), nil)
 	XNoErr(t, err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	XEqual(t, "", reg.Get(labels.P("r1").UI()), nil)
 
 	err = dir.SetSave(labels.P("d1").UI(), "bar")
 	XNoErr(t, err)
-	dir.Refresh(registry.FOR_WRITE)
+	dir.Refresh(FOR_WRITE)
 	XEqual(t, "", dir.Get(labels.P("d1").UI()), "bar")
 	// test override
 	err = dir.SetSave(labels.P("d1").UI(), "foo")
 	XNoErr(t, err)
-	dir.Refresh(registry.FOR_WRITE)
+	dir.Refresh(FOR_WRITE)
 	XEqual(t, "", dir.Get(labels.P("d1").UI()), "foo")
 	err = dir.SetSave(labels.P("d1").UI(), nil)
 	XNoErr(t, err)
-	dir.Refresh(registry.FOR_WRITE)
+	dir.Refresh(FOR_WRITE)
 	XEqual(t, "", dir.Get(labels.P("d1").UI()), nil)
 
 	err = file.SetSaveDefault(labels.P("f1").UI(), "foo")
 	XNoErr(t, err)
-	file.Refresh(registry.FOR_WRITE)
+	file.Refresh(FOR_WRITE)
 	XEqual(t, "", file.Get(labels.P("f1").UI()), "foo")
 	err = file.SetSaveDefault(labels.P("f1").UI(), nil)
 	XNoErr(t, err)
-	file.Refresh(registry.FOR_WRITE)
+	file.Refresh(FOR_WRITE)
 	XEqual(t, "", file.Get(labels.P("f1").UI()), nil)
 
 	// Set before we refresh to see if creating v2 causes issues
 	// see comment below too
 	err = ver.SetSave(labels.P("v1").UI(), "foo")
 	XNoErr(t, err)
-	ver.Refresh(registry.FOR_WRITE)
+	ver.Refresh(FOR_WRITE)
 	XEqual(t, "", ver.Get(labels.P("v1").UI()), "foo")
 	err = ver.SetSave(labels.P("v1").UI(), nil)
 	XNoErr(t, err)
-	ver.Refresh(registry.FOR_WRITE)
+	ver.Refresh(FOR_WRITE)
 	XEqual(t, "", ver.Get(labels.P("v1").UI()), nil)
 
 	dir.SetSave(labels.P("dd").UI(), "dd.foo")
@@ -502,7 +501,7 @@ func TestSetLabels(t *testing.T) {
 	file.SetSaveDefault(labels.P("dd_ff").UI(), "under")
 	file.SetSaveDefault(labels.P("dd.ff").UI(), "dot")
 
-	ver2.Refresh(registry.FOR_WRITE) // very important since ver2 is not stale
+	ver2.Refresh(FOR_WRITE) // very important since ver2 is not stale
 	err = ver.SetSave(labels.P("vv").UI(), 987.234)
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -514,7 +513,7 @@ func TestSetLabels(t *testing.T) {
   },
   "source": "e4e59b8a76c4:registry:entity:2522"
 }`)
-	// ver.Refresh(registry.FOR_WRITE) // undo the change, otherwise next Set() will fail
+	// ver.Refresh(FOR_WRITE) // undo the change, otherwise next Set() will fail
 
 	// Important test
 	// We update v1(ver) after we created v2(ver2). At one point in time

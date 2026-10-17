@@ -70,6 +70,7 @@ func TestInfoIgnore(t *testing.T) {
 			OriginalRequest: &http.Request{},
 		}
 		info.OriginalRequest.URL, _ = url.Parse(test.URL)
+		info.ParseFlags()
 		xErr := info.ParseRequestURL()
 
 		// Allow "*" to mean ANY error, but not "no error"

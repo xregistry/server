@@ -12,12 +12,17 @@ import (
 	log "github.com/duglin/dlog"
 
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func TestMiscDBRows(t *testing.T) {
 	// Make sure we don't create extra extra stuff in the DB.
 	reg := NewRegistry("TestMiscDBRows")
 	defer PassDeleteReg(t, reg)
+
+	if fmt.Sprintf("%T", reg.GetTx().Backend) != "*registry.SQLBackend" {
+		t.Fatalf("Unknown backend: %T", reg.GetTx().Backend)
+	}
 
 	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
 	XNoErr(t, err)
@@ -66,12 +71,15 @@ func TestMiscDBRows(t *testing.T) {
 		return NotNilString(vp)
 	}
 
-	rows := reg.Query("SELECT XID,PropName,PropValue "+
+	be := registry.MustNewDefaultBackend(reg.GetXRServerConfig()).(*registry.SQLBackend)
+
+	rows, xErr := be.Query(reg.GetTx(), "SELECT XID,PropName,PropValue "+
 		"FROM Props WHERE RegSID=? AND IsDefaultVerCopy=false AND "+
 		"IsXrefPropCopy=false AND IsXrefVerCopy=false AND "+
 		"IsCalcStatic=false AND IsCalcDynamic=false "+
 		"ORDER BY XID, PropName ",
 		reg.DbSID)
+	XNoErr(t, xErr)
 
 	result := ""
 	for _, row := range rows {
@@ -126,9 +134,10 @@ func TestMiscDBRows(t *testing.T) {
 
 	// Same query but don't exclude the calculated attributes.
 	// We want to check EVERYTHING!
-	rows = reg.Query("SELECT XID,PropName,PropValue "+
+	rows, xErr = be.Query(reg.GetTx(), "SELECT XID,PropName,PropValue "+
 		"FROM Props WHERE RegSID=? ORDER BY XID, PropName ",
 		reg.DbSID)
+	XNoErr(t, xErr)
 
 	result = ""
 	for _, row := range rows {

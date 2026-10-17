@@ -111,25 +111,25 @@ func TestResourceCreate(t *testing.T) {
 }
 `)
 
-	ft, err = d1.FindResource("files", "f1", false, registry.FOR_WRITE)
+	ft, err = d1.FindResource("files", "f1", false, FOR_WRITE)
 	XNoErr(t, err)
 	XCheck(t, ft != nil && err == nil, "Finding f1 failed")
 	ft.AccessMode = f1.AccessMode // little cheat
 	XJSONCheck(t, ft, f1)
 
-	ft, err = d1.FindResource("files", "xxx", false, registry.FOR_WRITE)
+	ft, err = d1.FindResource("files", "xxx", false, FOR_WRITE)
 	XCheck(t, ft == nil && err == nil, "Find files/xxx should have failed")
 
-	ft, err = d1.FindResource("xxx", "xxx", false, registry.FOR_WRITE)
+	ft, err = d1.FindResource("xxx", "xxx", false, FOR_WRITE)
 	XCheck(t, ft == nil && err == nil, "Find xxx/xxx should have failed")
 
-	ft, err = d1.FindResource("xxx", "f1", false, registry.FOR_WRITE)
+	ft, err = d1.FindResource("xxx", "f1", false, FOR_WRITE)
 	XCheck(t, ft == nil && err == nil, "Find xxx/f1 should have failed")
 
 	err = f1.Delete()
 	XNoErr(t, err)
 
-	ft, err = d1.FindResource("files", "f1", false, registry.FOR_WRITE)
+	ft, err = d1.FindResource("files", "f1", false, FOR_WRITE)
 	XCheck(t, err == nil && ft == nil, "Finding delete resource failed")
 }
 
@@ -266,14 +266,14 @@ func TestResourceRequiredFields(t *testing.T) {
   "source": "e4e59b8a76c4:registry:entity:2149"
 }`)
 	reg.Rollback()
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 
 	f1, err := group.AddResourceWithObject("files", "f1", "v1",
 		Object{"req": "test"}, false)
 	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
-	f1.Refresh(registry.FOR_WRITE)
+	f1.Refresh(FOR_WRITE)
 	err = f1.SetSaveDefault("req", nil)
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#required_attribute_missing",

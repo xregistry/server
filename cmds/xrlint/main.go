@@ -22,6 +22,14 @@
 //   - "tderror" (--tderror): finds process-exiting Error() calls in
 //     functions and methods that operate on *TD conformance test data.
 //
+//   - "xrerror" (--xrerror): finds calls to funcs that return a
+//     *common.XRError where that error is never processed: the call is a
+//     bare statement (or defer/go), the XRError slot is assigned to "_",
+//     or it's assigned to a variable that's never read / is overwritten
+//     before being read. Fluent *XRError setters (methods whose receiver
+//     and result are both *XRError, e.g. SetDetail) are ignored, and a
+//     trailing "//xrlint:ignore" comment on the line opts a call out.
+//
 // More checks are expected to be added here over time.
 //
 // # nilcheck details
@@ -102,7 +110,7 @@
 // Usage:
 //
 //	go run ./cmds/xrlint [--nilcheck] [--unused] [--gofmt]
-//	    [--defertrace] [--tderror] [packages...]
+//	    [--defertrace] [--tderror] [--xrerror] [packages...]
 //
 // With no package args it checks ./registry/... ./common/... ./cmds/...
 // ./tests/... (the tmp/ directory is intentionally excluded - it's a
@@ -133,16 +141,16 @@ func isEmptyInterface(t types.Type) bool {
 
 func main() {
 	var nilcheckEnabled, unusedEnabled, gofmtEnabled bool
-	var defertraceEnabled, tderrorEnabled bool
+	var defertraceEnabled, tderrorEnabled, xrerrorEnabled bool
 
 	rootCmd := &cobra.Command{
 		Use: "xrlint [packages...]",
 		Short: "Repo-specific static checks (nilcheck, unused funcs," +
-			" gofmt, defertrace, tderror)",
+			" gofmt, defertrace, tderror, xrerror)",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(args, nilcheckEnabled, unusedEnabled, gofmtEnabled,
-				defertraceEnabled, tderrorEnabled)
+				defertraceEnabled, tderrorEnabled, xrerrorEnabled)
 		},
 	}
 	rootCmd.Flags().BoolVar(&nilcheckEnabled, "nilcheck", true,
@@ -155,6 +163,8 @@ func main() {
 		"check for 'defer log.Trace(...)' missing the trailing '()'")
 	rootCmd.Flags().BoolVar(&tderrorEnabled, "tderror", true,
 		"check for process-exiting Error() calls in TD functions")
+	rootCmd.Flags().BoolVar(&xrerrorEnabled, "xrerror", true,
+		"check for *XRError results that are ignored/never checked")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -169,6 +179,7 @@ func run(
 	gofmtEnabled bool,
 	defertraceEnabled bool,
 	tderrorEnabled bool,
+	xrerrorEnabled bool,
 ) error {
 	if len(patterns) == 0 {
 		patterns = []string{
@@ -216,6 +227,9 @@ func run(
 	}
 	if tderrorEnabled {
 		hits += runTDErrorCheck(pkgs, fset)
+	}
+	if xrerrorEnabled {
+		hits += runXRErrorCheck(pkgs, fset)
 	}
 
 	if hits > 0 {
@@ -872,4 +886,206 @@ func lineText(fset *token.FileSet, pos token.Pos) string {
 		return strings.TrimSpace(lines[p.Line-1])
 	}
 	return ""
+}
+
+const xrErrorType = "github.com/xregistry/server/common.XRError"
+
+func isXRErrorType(t types.Type) bool {
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = ptr.Elem()
+	}
+	named, ok := t.(*types.Named)
+	if !ok || named.Obj().Pkg() == nil {
+		return false
+	}
+	return named.Obj().Pkg().Path()+"."+named.Obj().Name() == xrErrorType
+}
+
+// Returns the call's signature if it has at least one *XRError result
+// and isn't a fluent *XRError setter (receiver and result both *XRError).
+func xrErrorSig(info *types.Info, call *ast.CallExpr) *types.Signature {
+	tv, ok := info.Types[call.Fun]
+	if !ok || tv.IsType() {
+		return nil
+	}
+	sig, ok := tv.Type.Underlying().(*types.Signature)
+	if !ok {
+		return nil
+	}
+	found := false
+	for i := 0; i < sig.Results().Len(); i++ {
+		if isXRErrorType(sig.Results().At(i).Type()) {
+			found = true
+		}
+	}
+	if !found {
+		return nil
+	}
+	if fn, ok := calleeObj(info, call).(*types.Func); ok {
+		if recv := fn.Type().(*types.Signature).Recv(); recv != nil &&
+			isXRErrorType(recv.Type()) {
+			return nil
+		}
+	}
+	return sig
+}
+
+func xrErrorVarOf(info *types.Info, id *ast.Ident) *types.Var {
+	if v, ok := info.Defs[id].(*types.Var); ok {
+		return v
+	}
+	v, _ := info.Uses[id].(*types.Var)
+	return v
+}
+
+func nodeReadsVar(info *types.Info, n ast.Node, v *types.Var) bool {
+	found := false
+	ast.Inspect(n, func(x ast.Node) bool {
+		if id, ok := x.(*ast.Ident); ok && info.Uses[id] == v {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+// checkAssignedXRErrors looks, within one statement list, for
+// "xErr = f()" assignments whose XRError variable is overwritten before
+// being read, or (when declared right there) never read at all.
+func checkAssignedXRErrors(
+	info *types.Info,
+	list []ast.Stmt,
+	report func(pos token.Pos, why string),
+) {
+	for i, st := range list {
+		as, ok := st.(*ast.AssignStmt)
+		if !ok || len(as.Rhs) != 1 {
+			continue
+		}
+		call, ok := as.Rhs[0].(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		sig := xrErrorSig(info, call)
+		if sig == nil {
+			continue
+		}
+		for idx, l := range as.Lhs {
+			id, ok := l.(*ast.Ident)
+			if !ok || id.Name == "_" || idx >= sig.Results().Len() ||
+				!isXRErrorType(sig.Results().At(idx).Type()) {
+				continue
+			}
+			v := xrErrorVarOf(info, id)
+			if v == nil {
+				continue
+			}
+			used, overwritten := false, false
+			for _, nx := range list[i+1:] {
+				if a2, ok := nx.(*ast.AssignStmt); ok {
+					lhs, rhs := false, false
+					for _, l2 := range a2.Lhs {
+						if i2, ok := l2.(*ast.Ident); ok && info.Uses[i2] == v {
+							lhs = true
+						}
+					}
+					for _, r2 := range a2.Rhs {
+						if nodeReadsVar(info, r2, v) {
+							rhs = true
+						}
+					}
+					if lhs && !rhs {
+						overwritten = true
+						break
+					}
+				}
+				if nodeReadsVar(info, nx, v) {
+					used = true
+					break
+				}
+			}
+			if used {
+				continue
+			}
+			if overwritten {
+				report(call.Pos(), "overwritten before being checked")
+			} else if info.Defs[id] != nil {
+				report(call.Pos(), "never checked")
+			}
+		}
+	}
+}
+
+// runXRErrorCheck finds *XRError results that are never processed.
+func runXRErrorCheck(pkgs []*packages.Package, fset *token.FileSet) int {
+	fmt.Println("\n=== Unprocessed *XRError results ===")
+	hits := 0
+	seen := map[string]bool{}
+
+	for _, pkg := range pkgs {
+		info := pkg.TypesInfo
+		for _, file := range pkg.Syntax {
+			report := func(pos token.Pos, why string) {
+				p := fset.Position(pos)
+				key := fmt.Sprintf("%s:%d:%s", p.Filename, p.Line, why)
+				if seen[key] {
+					return
+				}
+				seen[key] = true
+				text := lineText(fset, pos)
+				if strings.Contains(text, "//xrlint:ignore") {
+					return
+				}
+				fmt.Printf("%s:%d: %s: %s\n", p.Filename, p.Line, why, text)
+				hits++
+			}
+			ast.Inspect(file, func(n ast.Node) bool {
+				switch s := n.(type) {
+				case *ast.ExprStmt:
+					if c, ok := s.X.(*ast.CallExpr); ok &&
+						xrErrorSig(info, c) != nil {
+						report(c.Pos(), "result ignored")
+					}
+				case *ast.DeferStmt:
+					if xrErrorSig(info, s.Call) != nil {
+						report(s.Pos(), "result ignored (defer)")
+					}
+				case *ast.GoStmt:
+					if xrErrorSig(info, s.Call) != nil {
+						report(s.Pos(), "result ignored (go)")
+					}
+				case *ast.AssignStmt:
+					if len(s.Rhs) == 1 {
+						if c, ok := s.Rhs[0].(*ast.CallExpr); ok {
+							if sig := xrErrorSig(info, c); sig != nil {
+								for i, l := range s.Lhs {
+									if id, ok := l.(*ast.Ident); ok &&
+										id.Name == "_" &&
+										i < sig.Results().Len() &&
+										isXRErrorType(sig.Results().At(i).Type()) {
+										report(c.Pos(), "assigned to _")
+									}
+								}
+							}
+						}
+					}
+				case *ast.BlockStmt:
+					checkAssignedXRErrors(info, s.List, report)
+				case *ast.CaseClause:
+					checkAssignedXRErrors(info, s.Body, report)
+				case *ast.CommClause:
+					checkAssignedXRErrors(info, s.Body, report)
+				}
+				return true
+			})
+		}
+	}
+
+	if hits > 0 {
+		fmt.Fprintf(os.Stderr, "\nxrerror: found %d unprocessed *XRError "+
+			"result(s)\n", hits)
+	} else {
+		fmt.Println("\nxrerror: no unprocessed *XRError results found")
+	}
+	return hits
 }

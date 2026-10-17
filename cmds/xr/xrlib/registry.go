@@ -38,11 +38,6 @@ type CollectionDefined struct {
 */
 
 type EntityExtensions struct {
-	tx *Tx
-}
-
-type Tx struct {
-	uuid string // not used by the cli but some logging looks for it
 }
 
 var Registries = map[string]*Registry{}
@@ -361,5 +356,40 @@ func (rm *ResourceModel) HasDoc() bool {
 var PropsFuncs = []*Attribute{}
 
 func (rm *ResourceModel) VerifyData() *XRError {
+	return nil
+}
+
+func (e *Entity) GetRequestInfo() *RequestInfo {
+	return e.Tx.RequestInfo
+}
+
+func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
+	panic("Find Version not implemented yet")
+	return nil, nil
+}
+
+// PLACEHOLDERS
+
+func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
+	panic("not yet")
+}
+
+func (e *Entity) SaveSystemProps() *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (m *Model) VerifyAndSave(verifyData bool) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (e *Entity) eSetSave(path string, val any) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (e *Entity) Save() *XRError {
+	panic("not yet")
 	return nil
 }

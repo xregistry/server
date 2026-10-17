@@ -13,214 +13,6 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-type RequestInfo struct {
-	tx               *Tx
-	XRSConfig        *Config
-	uuid             string
-	Registry         *Registry
-	BaseURL          string              // host+path to root of registry
-	OriginalPath     string              // GROUPs/gID... (no leading /,query)
-	OriginalRequest  *http.Request       `json:"-"`
-	OriginalResponse http.ResponseWriter `json:"-"`
-	Body             []byte              `json:"-"`
-	ParsedBody       map[string]any      `jsom:"-"`
-	RootPath         string              // "", "model", "export", ...
-	Parts            []string            // Split /GROUPS/gID of OriginalPath
-
-	// Original path components before any modifications during request processing.
-	// Some operations (e.g., POST creating a resource/version) may modify Parts
-	// and RootPath to point to the created entity for response generation, but
-	// CORS headers need to reflect the original request path.
-	OriginalRootPath string
-	OriginalParts    []string
-	OriginalBaseURL  string // host+path to root of original request (pre xreg/xxx)
-
-	Root          string // GROUPS/gID/..
-	Abstract      string // /GROUPS/RESOUCES (no IDs)
-	GroupType     string
-	GroupUID      string
-	GroupModel    *GroupModel
-	ResourceType  string
-	ResourceUID   string
-	ResourceModel *ResourceModel
-	VersionUID    string
-	What          string            // Registry, Coll, Entity
-	Flags         map[string]string // Query params (and str value, if there)
-	Ignores       map[string]bool   // key=ignore-value
-	Inlines       []*Inline
-	Filters       [][]*FilterExpr // [OR][AND] filter=e,e(and) &(or) filter=e
-	ShowDetails   bool            //	is $details present
-	SortKey       string          // [-]AttrName  - => descending
-	Limit         uint64          // ?limit= (0 == not specified)
-	Offset        uint64          // ?offset= (only meaningful if Limit != 0)
-
-	StatusCode int
-	SentStatus bool
-
-	// extra stuff if we ever need to pass around data while processing
-	extras map[string]any
-}
-
-var explicitInlines = []string{"capabilities", "model", "modelsource"}
-var nonModelInlines = append([]string{"*"}, explicitInlines...)
-var rootPaths = []string{"capabilities", "capabilitiesoffered", "export",
-	"model", "modelsource", "proxy", ".xregistry"}
-
-type Inline struct {
-	Path    string    // value from ?inline query param
-	PP      *PropPath // PP for 'value'
-	NonWild *PropPath // PP for value w/o .* if present, else nil
-}
-
-func (info *RequestInfo) AddInline(path string) *XRError {
-	// use "*" to inline all
-	// path = strings.TrimLeft(path, "/.") // To be nice
-	originalPath := path
-
-	if ArrayContains(nonModelInlines, path) {
-		if path != "*" && !info.IsAvailable(path) {
-			return NewXRError("not_available", "/"+path)
-		}
-
-		info.Inlines = append(info.Inlines, &Inline{
-			Path:    NewPPP(path).DB(),
-			PP:      NewPPP(path),
-			NonWild: nil,
-		})
-		return nil
-	}
-
-	pp, err := PropPathFromUI(path)
-	if err != nil {
-		return NewXRError("bad_inline", info.OriginalRequest.URL.RequestURI(),
-			"value="+path,
-			"error_detail="+err.Error())
-	}
-
-	storeInline := &Inline{
-		Path:    pp.DB(),
-		PP:      pp,
-		NonWild: nil,
-	}
-
-	if pp.Bottom() == "*" {
-		pp = pp.RemoveLast()
-		storeInline.NonWild = pp
-	}
-
-	// Check to make sure the requested inline attribute exists, else error
-
-	hasErr := false
-	for _, group := range info.Registry.Model.Groups {
-		gPPP := NewPPP(group.Plural)
-
-		if pp.Equals(gPPP) {
-			info.Inlines = append(info.Inlines, storeInline)
-			return nil
-		}
-
-		for _, res := range group.Resources {
-			// Check for wildcard available ones first
-			rPPP := gPPP.P(res.Plural)
-			vPPP := rPPP.P("versions")
-
-			// Check for ones that allow * at the end, first
-			if pp.Equals(rPPP) || pp.Equals(vPPP) {
-				info.Inlines = append(info.Inlines, storeInline)
-				return nil
-			}
-
-			// Now look for ones that don't allow wildcards
-			if pp.Equals(rPPP.P(res.Singular)) ||
-				pp.Equals(rPPP.P("meta")) ||
-				pp.Equals(vPPP.P(res.Singular)) {
-
-				// We have a match, but these don't allow wildcards, so err
-				// if * was in ?inline value
-				if storeInline.NonWild != nil {
-					hasErr = true
-					break
-				}
-
-				info.Inlines = append(info.Inlines, storeInline)
-				return nil
-			}
-		}
-		if hasErr {
-			break
-		}
-	}
-
-	// // Convert back to UI version for the error message
-	// path = pp.UI()
-	path = originalPath
-
-	// Remove Abstract value just to print a nicer error message
-	if info.Abstract != "" && strings.HasPrefix(path, info.Abstract) {
-		path = path[len(info.Abstract)+1:]
-	}
-
-	return NewXRError("bad_inline", info.OriginalRequest.URL.RequestURI(),
-		"value="+path,
-		"error_detail=unknown or non-inlineable attribute specified")
-}
-
-func (info *RequestInfo) IsInlineSet(entityPath string) bool {
-	if entityPath == "" {
-		entityPath = "*"
-	}
-	for _, inline := range info.Inlines {
-		if inline.Path == entityPath {
-			return true
-		}
-	}
-	return false
-}
-
-func (info *RequestInfo) ShouldInline(entityPath string) bool {
-	// ePP is the abstract path to the prop we're checking/serializing
-	// iPP is the ?inline value the the client provided
-	// Note that iPP will likely end with ","
-	// e.g. Inline cmp: "dirs,datas" in "dirs,files,"
-
-	ePP, _ := PropPathFromDB(entityPath) // entity-PP
-
-	for _, inline := range info.Inlines {
-		iPP := inline.PP
-		if log.IsFuncVerbose() {
-			log.Printf("tx: %s Inline cmp: %q in %q", info.uuid,
-				ePP.DB(), inline.PP.DB())
-		}
-
-		// * doesn't include "model"... because they're special, they need to
-		// be explicit if they want to include those
-		// ||
-		// prop == ?inline-value
-		// ||
-		// inline-value has prop as a prefix. Inline parents of requested value
-		//     e.g. inline=endpoints.message has endpoints as prefix
-		// ||
-		// inline-value ends with "*", prop has inline-value as prefix
-		if (iPP.Top() == "*" && !ArrayContains(explicitInlines, ePP.UI())) ||
-			ePP.Equals(iPP) ||
-			iPP.HasPrefix(ePP) ||
-			(inline.NonWild != nil && ePP.HasPrefix(inline.NonWild)) {
-			// (iPP.Len() > 1 && iPP.Bottom() == "*" && ePP.HasPrefix(iPP.RemoveLast())) {
-
-			if log.IsFuncVerbose() {
-				log.Printf("tx: %s match: %q in %q", info.uuid,
-					ePP.DB(), inline.PP.DB())
-			}
-			return true
-		}
-	}
-	return false
-}
-
-func (info *RequestInfo) GetInfo() *RequestInfo {
-	return info
-}
-
 func (info *RequestInfo) Write(b []byte) (int, error) {
 	if !info.SentStatus {
 		// Set all response headers before writing status
@@ -256,7 +48,7 @@ func (info *RequestInfo) Write(b []byte) (int, error) {
 		}
 
 		// If the user never set one, don't let golang add one
-		if info.GetHeader("Content-Type") == "" {
+		if info.GetResponseHeader("Content-Type") == "" {
 			info.OriginalResponse.Header()["Content-Type"] = nil
 		}
 
@@ -288,11 +80,11 @@ func (info *RequestInfo) AddHeader(name, value string) {
 	info.OriginalResponse.Header().Add(name, value)
 }
 
-func (info *RequestInfo) GetHeader(name string) string {
+func (info *RequestInfo) GetResponseHeader(name string) string {
 	return info.OriginalResponse.Header().Get(name)
 }
 
-func (info *RequestInfo) GetHeaderValues(name string) []string {
+func (info *RequestInfo) GetResponseHeaderValues(name string) []string {
 	return info.OriginalResponse.Header()[name]
 }
 
@@ -300,129 +92,6 @@ func (info *RequestInfo) Done() {
 	// If we haven't written anything, this will force the HTTP status code
 	// to be written and not default to 200
 	info.Write(nil)
-}
-
-type FilterExpr struct {
-	// User provided
-	PP       *PropPath // endpoints.id as PP
-	Path     string    // endpoints.id  as string TODO store a PropPath?
-	Value    string    // myEndpoint
-	Operator int       // FILTER_PRESENT, ...
-
-	// helpers
-	Abstract string
-	PropName string // PP.DB()
-}
-
-func (fe *FilterExpr) OpValue() string {
-	switch fe.Operator {
-	case FILTER_PRESENT:
-		return ""
-	case FILTER_ABSENT:
-		return "=null"
-	case FILTER_EQUAL:
-		return "=" + fe.Value
-	case FILTER_NOT_EQUAL:
-		return "!=" + fe.Value
-	case FILTER_LESS:
-		return "<" + fe.Value
-	case FILTER_LESS_EQUAL:
-		return "<=" + fe.Value
-	case FILTER_GREATER:
-		return ">" + fe.Value
-	case FILTER_GREATER_EQUAL:
-		return ">=" + fe.Value
-	}
-	panic(fmt.Sprintf("unknown op: %v", fe.Operator))
-}
-
-func (fe *FilterExpr) StringRelativeToAbstract(abs string) string {
-	// only grab filters that start with the Entity's abstract
-	if !strings.HasPrefix(fe.Path, abs) {
-		return ""
-	}
-
-	// remove entity's abstract from the filter
-	rest := fe.Path[len(abs):]
-	if rest[0] == ',' {
-		// Remove any leading ,
-		rest = rest[1:]
-	}
-	if len(rest) > 0 {
-		if rest[len(rest)-1] == ',' {
-			// remove any trailing ,
-			rest = rest[:len(rest)-1]
-		}
-		// Convert , into .
-		rest = strings.ReplaceAll(rest, string(DB_IN), ".")
-
-		return rest + fe.OpValue()
-	}
-
-	return ""
-}
-
-func (info *RequestInfo) FiltersRelativeToAbstract(abs string) string {
-	return info.FiltersRelativeToAbstractMasked(abs, 0, false)
-}
-
-// FiltersRelativeToAbstractMasked is like FiltersRelativeToAbstract but
-// mask-aware: "mask" is the per-entity bit-mask (see GenerateFilterCTE in
-// registry.go) telling us exactly which top-level OR expression(s) in
-// info.Filters actually caused this specific entity to appear in the
-// result set. "maskOK" is false when no mask is available (e.g. no
-// filter was applied at all), in which case every OR arm is treated as
-// active, matching the old (unmasked) behavior.
-//
-// Without the mask, this can't tell "this OR arm didn't match this
-// entity at all" apart from "this OR arm matched, but has nothing to do
-// with the nested abstract" -- and those two cases need very different
-// treatment: the former should be dropped, the latter means the arm
-// matched *unconditionally* for the whole nested subtree, so the nested
-// <COLLECTION>url must have NO filter at all (an OR'd with "always true"
-// is "always true").
-func (info *RequestInfo) FiltersRelativeToAbstractMasked(abs string, mask uint64, maskOK bool) string {
-	filterString := ""
-	for i, orFilters := range info.Filters { // [][]*Filter OR/AND
-		if maskOK && mask&(uint64(1)<<uint(i)) == 0 {
-			// This OR expression had nothing to do with this entity
-			// showing up in the result set - ignore it.
-			continue
-		}
-
-		armString := ""
-		armHasScopedClause := false
-		firstAnd := true
-		for _, filterExpr := range orFilters {
-			str := filterExpr.StringRelativeToAbstract(abs)
-			if str != "" {
-				armHasScopedClause = true
-				if !firstAnd {
-					armString += ","
-				}
-				firstAnd = false
-				armString += str
-			}
-		}
-
-		if !armHasScopedClause {
-			// This OR arm is active (or we have no mask info to say
-			// otherwise) but none of its AND clauses fall under this
-			// abstract, meaning it matches unconditionally for the
-			// whole nested subtree. ORed with "always true" collapses
-			// the entire expression to "no filter at all".
-			return ""
-		}
-
-		if filterString == "" {
-			filterString += "?filter="
-		} else {
-			filterString += "&filter="
-		}
-		filterString += armString
-	}
-
-	return filterString
 }
 
 func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
@@ -436,6 +105,18 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 		OriginalResponse: w,
 		BaseURL:          "http://" + r.Host,
 		extras:           map[string]any{},
+	}
+
+	// Probably an empty list, but if not, save it so that if we need to
+	// reset() info we'll also reset the list of out-bound headers
+	hdr := w.Header()
+	if hdr != nil {
+		copyHdr := map[string][]string{}
+		for k, v := range hdr {
+			copyHdr[k] = append([]string{}, v...)
+		}
+
+		info.extras["savedHeaders"] = copyHdr
 	}
 
 	if r.TLS != nil {
@@ -453,23 +134,46 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 	return info
 }
 
-func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo, *XRError) {
+// Clear everything except the stuff that should never change on a retry
+func (info *RequestInfo) Reset() {
+	if info.tx != nil {
+		// Should never happen, but just incase
+		info.tx.Rollback()
+		info.tx = nil
+	}
 
-	info := NewRequestInfo(tx.uuid, tx.XRSConfig, w, r)
-	info.tx = tx
-	tx.RequestInfo = info
+	// Clear and reset outbound headers to the original list
+	clear(info.OriginalResponse.Header())
+	savedHeaders := info.extras["savedHeaders"]
+	if !IsNil(savedHeaders) {
+		for k, v := range savedHeaders.(map[string][]string) {
+			info.OriginalResponse.Header()[k] = v
+		}
+	}
+
+	newInfo := NewRequestInfo(info.uuid, info.XRSConfig,
+		info.OriginalResponse, info.OriginalRequest)
+
+	*info = *newInfo
+
+}
+
+func (info *RequestInfo) ParseRequest(tx *Tx) *XRError {
+
+	// Incase it changed due to shortSelf
+	info.OriginalPath = strings.Trim(info.OriginalRequest.URL.Path, " /")
 
 	// See which registry to use and twiddle some stuff in info if needed
 	xErr := info.ParseRegistryURL()
 	if xErr != nil {
-		return info, xErr
+		return xErr
 	}
 
 	// Load the request's body
 	var err error
 	info.Body, err = io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		return info, NewXRError("parsing_data", "request JSON",
+		return NewXRError("parsing_data", "request JSON",
 			"error_detail="+err.Error())
 	}
 	if len(info.Body) == 0 {
@@ -483,19 +187,22 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		}()
 	}
 
+	// Save HTTP Header as flags before anyone asks to check them.
+	info.ParseFlags()
+
 	xErr = info.ProcessCapabilitiesModelSource()
 	if xErr != nil {
-		return info, xErr
+		return xErr
 	}
 
-	if tmp := r.Header.Get("xRegistry~User"); tmp != "" {
+	if tmp := info.OriginalRequest.Header.Get("xRegistry~User"); tmp != "" {
 		info.tx.User = tmp
 	}
 
 	// Parse the incoming URL and setup more stuff in info, like Groups...
 	xErr = info.ParseRequestURL()
 	if xErr != nil {
-		return info, xErr
+		return xErr
 	}
 
 	// Save the original Parts and RootPath for operations that need them
@@ -505,14 +212,14 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	info.OriginalRootPath = info.RootPath
 
 	// Get root of the overall server - before any xreg/xxx processing
-	root := "http://" + r.Host
-	if r.TLS != nil {
+	root := "http://" + info.OriginalRequest.Host
+	if info.OriginalRequest.TLS != nil {
 		root = "https" + info.BaseURL[4:]
-	} else if tmp := r.Header.Get("Referer"); tmp != "" {
+	} else if tmp := info.OriginalRequest.Header.Get("Referer"); tmp != "" {
 		if strings.HasPrefix(tmp, "https:") {
 			root = "https" + info.BaseURL[4:]
 		}
-	} else if tmp := r.Header.Get("Forwarded"); tmp != "" {
+	} else if tmp := info.OriginalRequest.Header.Get("Forwarded"); tmp != "" {
 		if strings.Contains(tmp, "https") {
 			root = "https" + info.BaseURL[4:]
 		}
@@ -523,7 +230,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		log.Printf("tx: %s Info: %s", info.uuid, ToJSON(info))
 	}
 
-	return info, nil
+	return nil
 }
 
 func (info *RequestInfo) ParseFilters() *XRError {
@@ -723,6 +430,8 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 	defRegSegment := info.XRSConfig.GetAsString("path.defaultreg")
 	regCollectionSegment := info.XRSConfig.GetAsString("path.regcollection")
 
+	var xErr *XRError
+
 	// e.g. localhost:8080/xreg/...
 	// e.g. localhost:8080/xregs/XXX/...
 	parts := strings.Split(path, "/")
@@ -736,11 +445,10 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		info.BaseURL += "/" + parts[0] + "/" + parts[1]
 		info.OriginalPath = strings.Join(parts[2:], "/")
 
-		reg, xErr := FindRegistry(info.tx, info.XRSConfig, parts[1], FOR_READ)
+		reg, xErr := FindRegistryByUID(info.tx, info.XRSConfig, parts[1],
+			FOR_READ)
 		if xErr != nil {
-			return NewXRError("server_error",
-				info.OriginalRequest.URL.RequestURI()).
-				SetDetail(xErr.GetTitle())
+			return xErr
 		}
 		if reg == nil {
 			return NewXRError("not_found", info.BaseURL).
@@ -752,9 +460,13 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		info.BaseURL += "/" + parts[0]
 		info.OriginalPath = strings.Join(parts[1:], "/")
 
-		info.Registry = GetDefaultReg(info.tx)
+		info.Registry, xErr = GetDefaultReg(info.tx)
 	} else {
-		info.Registry = GetDefaultReg(info.tx)
+		info.Registry, xErr = GetDefaultReg(info.tx)
+	}
+
+	if xErr != nil {
+		return xErr
 	}
 
 	info.tx.Registry = info.Registry
@@ -762,22 +474,23 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 	return nil
 }
 
-func (info *RequestInfo) ParseRequestURL() *XRError {
-	if log.IsFuncVerbose() {
-		log.Printf("tx: %s ParseRequestURL:\n%s", info.uuid, ToJSON(info))
-		log.Printf("tx: %s Req: %#v", info.uuid, info.OriginalRequest.URL)
-	}
-
-	// Notice boolean flags end up with "" as a value.
-	// Flags has just ONE of the query param values. To get all of them
-	// use GetFlagValues instead of GetFlag
-	info.Flags = map[string]string{}
+func (info *RequestInfo) ParseFlags() {
+	// Save HTTP Header as flags before anyone asks to check them.
+	// Notice boolean flags end up with [] as a value.
+	info.Flags = map[string][]string{}
 	params := info.OriginalRequest.URL.Query()
 	for _, flag := range SupportedFlags {
 		val, ok := params[flag]
 		if ok {
-			info.Flags[flag] = val[0]
+			info.Flags[flag] = val
 		}
+	}
+}
+
+func (info *RequestInfo) ParseRequestURL() *XRError {
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s ParseRequestURL:\n%s", info.uuid, ToJSON(info))
+		log.Printf("tx: %s Req: %#v", info.uuid, info.OriginalRequest.URL)
 	}
 
 	if xErr := info.ParseRequestPath(); xErr != nil {
@@ -1157,88 +870,6 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 	return NewXRError("not_found", info.GetParts(0))
 }
 
-// Get query parameter value
-func (info *RequestInfo) GetFlag(name string) string {
-	if info.Registry == nil || info.Registry.Capabilities == nil ||
-		!info.Registry.Capabilities.FlagEnabled(name) {
-		return ""
-	}
-	return info.Flags[name]
-}
-
-func (info *RequestInfo) GetFlagValues(name string) []string {
-	if info.Registry == nil || info.Registry.Capabilities == nil ||
-		!info.Registry.Capabilities.FlagEnabled(name) {
-		return nil
-	}
-	return info.OriginalRequest.URL.Query()[name]
-}
-
-func (info *RequestInfo) HasIgnore(name string) bool {
-	return info != nil && info.Ignores != nil &&
-		(info.Ignores[name] || info.Ignores["*"])
-}
-
-func (info *RequestInfo) HasFlag(name string) bool {
-	if info.Registry == nil || info.Registry.Capabilities == nil ||
-		!info.Registry.Capabilities.FlagEnabled(name) {
-
-		return false
-	}
-
-	_, ok := info.Flags[name]
-	return ok
-}
-
-func (info *RequestInfo) FlagEnabled(name string) bool {
-	if info.Registry == nil || info.Registry.Capabilities == nil ||
-		!info.Registry.Capabilities.FlagEnabled(name) {
-
-		return false
-	}
-	return true
-}
-
-// When checking for "availablity" (visibility to a client) of the follow
-// data, use the capabilities.available values as seen prior to the current tx
-var oldAvails = map[string]bool{
-	"capabilities": true,
-	"model":        true,
-	"modelsource":  true,
-}
-
-func (info *RequestInfo) IsAvailable(name string) bool {
-	if info.Registry == nil || info.Registry.Capabilities == nil {
-		return false
-	}
-
-	cap := info.Registry.Capabilities
-
-	if oldAvails[name] {
-		cap = info.Registry.oldCapabilities
-	}
-
-	return cap.IsAvailable(name)
-}
-
-func (info *RequestInfo) IsAvailableMutable(name string) bool {
-	if info.Registry == nil || info.Registry.Capabilities == nil {
-		return false
-	}
-
-	cap := info.Registry.Capabilities
-
-	if oldAvails[name] {
-		cap = info.Registry.oldCapabilities
-	}
-
-	return cap.IsAvailableMutable(name)
-}
-
-func (info *RequestInfo) DoDocView() bool {
-	return info.HasFlag("doc") || info.RootPath == "export"
-}
-
 // GetAllowedMethods returns the list of HTTP methods allowed for the current
 // request path based on capabilities
 func (info *RequestInfo) GetAllowedMethods() []string {
@@ -1328,16 +959,6 @@ func (info *RequestInfo) GetAllowedMethods() []string {
 	return methods
 }
 
-func (info *RequestInfo) GetParts(num int) string {
-	PanicIf(num < 0, "Can't be %d", num)
-	if num == 0 {
-		return "/" + strings.TrimLeft(info.OriginalPath, "/")
-	}
-	PanicIf(num > len(info.Parts), "Asking for too many (%d): %s", num,
-		info.OriginalPath)
-	return "/" + strings.Join(info.Parts[:num], "/")
-}
-
 // This is called prior to partsing any of the URL bits (path,query params)
 // because we may need to change what features are available based on how
 // the capabilities or model is changed. This is only true when we're doing
@@ -1372,7 +993,7 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 
 	// Grab the ?ignore query parameter from THIS request to know if we
 	// should ignore the caps/modelSrc attributes or not.
-	ignores := info.OriginalRequest.URL.Query()["ignore"]
+	ignores := info.GetFlagValues("ignore")
 	ignores = strings.Split(strings.Join(ignores, ","), ",")
 
 	// Note this will always be the capabilities before any possible
@@ -1491,7 +1112,9 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 				// for the model-changing reason instead.
 				// DUG do we need to lock everything in Entities too?
 				// Could a lower-level entity update get thru?
-				info.Registry.Lock()
+				if _, xErr := info.Registry.Lock(); xErr != nil {
+					return xErr
+				}
 
 				xErr := info.Registry.Model.ApplyNewModelFromJSON(
 					rawJson, false)

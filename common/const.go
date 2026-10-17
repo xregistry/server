@@ -51,3 +51,24 @@ const DB_INDEX = '#'
 
 // Entity.Stuff keys
 const STUFF_COMPAT_ALL_VERSIONS = "compat_all_versions"
+
+const DOCVIEW_BASE = "#"
+
+const (
+	FILTER_PRESENT = iota + 1
+	FILTER_ABSENT
+	FILTER_EQUAL
+	FILTER_NOT_EQUAL
+	FILTER_LESS
+	FILTER_LESS_EQUAL
+	FILTER_GREATER
+	FILTER_GREATER_EQUAL
+)
+
+const ANCESTORID_TBD = "$TBD"
+
+// For entity.AccessMode
+const (
+	FOR_READ = iota + 1
+	FOR_WRITE
+)

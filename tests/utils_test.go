@@ -21,6 +21,7 @@ import (
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
+	_ "github.com/xregistry/server/registry/formats"
 )
 
 const TestDBName = "registry"
@@ -75,15 +76,15 @@ func TestMain(m *testing.M) {
 	registry.SetXRServerConfigFromEnvVars(XRServerConfig)
 
 	// call flag.Parse() here if TestMain uses flags
-	registry.DeleteDB(XRServerConfig, TestRegName)
-	registry.CreateDB(XRServerConfig, TestRegName)
-	registry.OpenDB(XRServerConfig, TestRegName)
+	registry.DBDelete(XRServerConfig, TestRegName)
+	registry.DBCreate(XRServerConfig, TestRegName)
+	XRServerConfig.Set("db.name", TestRegName)
 
 	// DBName := "registry"
 	// if !registry.DBExists(XRServerConfig,DBName) {
-	// registry.CreateDB(XRServerConfig,DBName)
+	// registry.DBCreate(XRServerConfig,DBName)
 	// }
-	// registry.OpenDB(XRServerConfig,DBName)
+	// XRServerConfig.Set("db.name", DBName)
 
 	if IsPortInUse(8181) {
 		panic("Port 8181 is already in use - kill it")
@@ -212,14 +213,14 @@ func (s *TestFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // testing utils outside of the "testing" dir, so that's why they're split
 // across the 2 dirs this way. Kind of weird I know, but I'll clean it later
 
-func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
-	reg, _ := registry.FindRegistry(nil, XRServerConfig, name, registry.FOR_WRITE)
+func NewRegistry(name string) *registry.Registry {
+	reg, _ := registry.FindRegistryByUID(nil, XRServerConfig, name, FOR_WRITE)
 	if reg != nil {
 		reg.Delete()
 		reg.SaveAllAndCommit()
 	}
 
-	reg, xErr := registry.NewRegistry(nil, XRServerConfig, name, opts...)
+	reg, xErr := registry.NewRegistry(nil, XRServerConfig, name)
 	if xErr != nil {
 		fmt.Fprintf(os.Stderr, "Error creating registry %q: %s\n", name, xErr)
 		ShowStack()
@@ -232,7 +233,7 @@ func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
 
 	/*
 		// Now find it again and start a new Tx
-		reg, xErr = registry.FindRegistry(nil, XRServerConfig, name, registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRServerConfig, name, FOR_WRITE)
 		if xErr != nil {
 			panic(xErr.String())
 		}
@@ -256,7 +257,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 		// Resource/Meta legitimately pending (by design) at this
 		// point, which isn't actually a bug.
 		if tx != nil && tx.IsOpen() {
-			if xErr := reg.Validate(nil); xErr != nil {
+			if xErr := reg.Validate(); xErr != nil {
 				panic(xErr.String())
 			}
 		}

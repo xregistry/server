@@ -116,3 +116,9 @@ TODOs:
 - only check-in the generated files for xregistry.io, not hub.xreg.io
 - get rid of default writer if we can
 - new http header name/value processing (escaping both, list(,) support)
+- checkin the generated js files so people can easily download it
+
+- Backend
+  - move mysql triggers to be go initiated
+  - create static prepare statements to avoid reparsing sql each time
+- move #attrs into system props if we can

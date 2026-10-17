@@ -69,8 +69,8 @@ xrlint: .xrlint
 .xrlint: cmds/xrlint/* cmds/xr/* cmds/xrserver/*  registry/* common/* tests/*
 	@echo
 	@echo "# Running xrlint looking for source issues"
-	@misc/errOutput @go run ./cmds/xrlint --unused=false ./registry/... \
-		./common/... ./cmds/... ./tests/...
+	@misc/errOutput @go run ./cmds/xrlint --unused=false --xrerror=false \
+		./registry/... ./common/... ./cmds/... ./tests/...
 	@touch .xrlint
 
 utest: .utest
@@ -114,7 +114,7 @@ ftest: .ftest
 	@touch .ftest
 
 test: xrlint errors qtest ftest testimages
-	@msg=`gofmt -l .` && [ -z "$$msg" ] || \
+	@msg=`gofmt -l . common/shared_*` && [ -z "$$msg" ] || \
 		( echo -e "\n**** Run gofmt:\n$$msg\n" ; exit 1 )
 
 benchmark:
@@ -125,10 +125,10 @@ benchmark:
 .sharedfiles: common/shared*
 	@echo
 	@echo "# Copying shared files"
-	@sed "s/XXX/registry/g" common/shared_entity > registry/shared_entity.go
-	@sed "s/XXX/xrlib/g" common/shared_entity > cmds/xr/xrlib/shared_entity.go
-	@sed "s/XXX/registry/g" common/shared_model > registry/shared_model.go
-	@sed "s/XXX/xrlib/g" common/shared_model > cmds/xr/xrlib/shared_model.go
+	@for i in common/shared_* ; do \
+		sed "s/XXX/registry/g" "$$i" > registry/$${i#common/}.go ; \
+		sed "s/XXX/xrlib/g" "$$i" > cmds/xr/xrlib/$${i#common/}.go ; \
+	 done
 	@touch .sharedfiles
 
 registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
@@ -137,7 +137,7 @@ registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@go run ./cmds/genspecattrs
 
 xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
-	common/* registry/*
+	common/* registry/* registry/formats/*
 	@echo
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \
@@ -273,10 +273,12 @@ mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
 	(echo && echo "# Starting mysql" && \
 	docker run -q -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
-		-v $(PWD)/.mysql-data:/var/lib/mysql \
 		-p $(DBPORT):$(DBPORT) --name mysql $(MYSQL_IMAGE) \
 		--port $(DBPORT) > /dev/null )
+
 		@ # -e MYSQL_USER=$(DBUSER) \
+		# --tmpfs /var/lib/mysql \
+		# -v $(PWD)/.mysql-data:/var/lib/mysql \
 
 waitformysql:
 	@while ! docker run -q --network host $(MYSQL_IMAGE) mysqladmin \
@@ -368,6 +370,6 @@ clean:
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1
 	@-docker rm -f mysql mysql-client > /dev/null 2>&1
 	@# do "sleep" so that "docker system prune" won't delete the mysql image
-	@-docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
+	@# -docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
 	@-docker system prune -f -a --volumes > /dev/null
-	@rm -rf ./mysql-data
+	@rm -rf ./.mysql-data

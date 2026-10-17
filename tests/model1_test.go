@@ -5625,7 +5625,7 @@ func TestModelResourceCreate(t *testing.T) {
 
 	// Rollback since the previous "newModel" erased too much
 	XNoErr(t, reg.Rollback())
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	reg.LoadModel()
 
 	g, err := reg.AddGroup("dirs", "dir1")
@@ -9400,7 +9400,8 @@ func TestModelAPI(t *testing.T) {
 	gm2, _ := reg.Model.AddGroupModel("dirs2", "dir2")
 	gm2.AddResourceModel("files", "file", 0, false, true)
 
-	m := reg.LoadModel()
+	m, err := reg.LoadModel()
+	XNoErr(t, err)
 	XJSONCheck(t, m, reg.Model)
 	XNoErr(t, reg.SaveAllAndCommit())
 }
