@@ -42,7 +42,11 @@ func (g *Group) Delete() *XRError {
 		return NewXRError("readonly", g.XID)
 	}
 
-	if g.Registry.Touch() {
+	b, xErr := g.Registry.Touch()
+	if xErr != nil {
+		return xErr
+	}
+	if b {
 		if xErr := g.Registry.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
@@ -70,7 +74,9 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 
 	if r := g.Tx.GetResource(g, rType, id); r != nil {
 		if accessMode == FOR_WRITE && r.AccessMode != FOR_WRITE {
-			r.Lock()
+			if _, xErr := r.Lock(); xErr != nil {
+				return nil, xErr
+			}
 		}
 		return r, nil
 	}
@@ -78,9 +84,7 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 	entity, xErr := g.Tx.Backend.GetEntityFromXID(g.Tx, g.Registry.DbSID,
 		g.XID+"/"+rType+"/"+id, false, anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", g.XID+"/"+rType+"/"+id).
-			SetDetail(fmt.Sprintf("Error finding Resource %q(%s): %s",
-				id, rType, xErr.GetTitle()))
+		return nil, xErr
 	}
 	if entity == nil {
 		log.FuncPrintf("tx: %s None found", g.Tx.uuid)
@@ -128,7 +132,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	// A value of "" means just use the default Version
 
 	// Moved to after the findResource below.
-	// g.Lock()
+	// _, xErr := g.Lock()
 
 	if xErr := g.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
@@ -155,7 +159,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// We didn't lock it before this because if the resource is already
 		// there, then we're just updating it and there's no need to lock
 		// the entire group (yet)
-		g.Lock()
+		if _, xErr := g.Lock(); xErr != nil {
+			return nil, false, xErr
+		}
+
 		r, xErr = g.FindResource(ru.RType, ru.Id, true, FOR_WRITE)
 		if xErr != nil {
 			return nil, false, xErr
@@ -313,7 +320,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 		isNew = true
 		r.Tx.AddResource(r)
-		g.Touch()
+		_, xErr := g.Touch()
+		if xErr != nil {
+			return nil, false, xErr
+		}
 
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
@@ -688,7 +698,9 @@ func (g *Group) Validate() *XRError {
 			constraint.rm = g.GroupModel.Resources[resPlural]
 			attrStack, xErr :=
 				constraint.rm.VersionAttributes.FindAbstractAttribute(pp)
-			Must(xErr)
+			if xErr != nil {
+				return xErr
+			}
 			constraint.attr = attrStack[len(attrStack)-1]
 		}
 

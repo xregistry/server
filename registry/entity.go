@@ -83,20 +83,20 @@ func (e *Entity) WasTouched() bool {
 	return e.EpochSet
 }
 
-func (e *Entity) Touch() bool {
+func (e *Entity) Touch() (bool, *XRError) {
 	log.FuncPrintf("tx: %s Touch: %s/%s", e.Tx.uuid, e.Singular, e.UID)
 
 	// See if it's already been modified (and saved) this Tx, if so exit
 	if e.ModSet && e.EpochSet {
-		return false
+		return false, nil
 	}
 
 	if _, xErr := e.Lock(); xErr != nil {
-		panic("err: " + xErr.String())
+		return false, xErr
 	}
 
 	e.EnsureNewObject()
-	return true
+	return true, nil
 }
 
 // lockResourceFamily locks (FOR UPDATE) just the Resource's own row in
@@ -234,7 +234,9 @@ func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
 		log.FuncPrintf("tx: %s lockEntityFamily: upgrading stale cached %q "+
 			"(eSID=%s) to FOR_WRITE now that its family's DB rows are locked",
 			tx.uuid, cached.XID, cached.DbSID)
-		Must(cached.Refresh(FOR_WRITE))
+		if xErr := cached.Refresh(FOR_WRITE); xErr != nil {
+			return xErr
+		}
 	}
 
 	return nil
@@ -282,7 +284,9 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 
 		// Not sure why setting it to nil isn't sufficient (todo)
 		// e.NewObject = nil
-		e.Refresh(FOR_READ)
+		if tmpxErr := e.Refresh(FOR_READ); tmpxErr != nil {
+			panic(tmpxErr)
+		}
 	}
 
 	return xErr

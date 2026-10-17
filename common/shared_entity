@@ -1817,7 +1817,9 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 	}
 
 	// Make sure we have a tx since Validate assumes it
-	e.Tx.EnsureTx()
+	if xErr := e.Tx.EnsureTx(); xErr != nil {
+		return xErr
+	}
 
 	verb := log.IsFuncVerbose()
 	if verb {
@@ -3070,7 +3072,9 @@ func (e *Entity) Lock() (bool, *XRError) { // did we lock it?
 	log.FuncPrintf("tx: %s Requesting lock for %q eSID=%s connID=%d",
 		e.Tx.uuid, e.XID, e.DbSID, e.Tx.connID)
 
-	Must(e.Refresh(FOR_WRITE))
+	if xErr := e.Refresh(FOR_WRITE); xErr != nil {
+		return false, xErr
+	}
 
 	log.FuncPrintf("tx: %s Got lock for %q eSID=%s connID=%d",
 		e.Tx.uuid, e.XID, e.DbSID, e.Tx.connID)
@@ -3117,7 +3121,9 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 	// Without this, that buffered write would be wiped out here before
 	// ever reaching the DB, right before EnsureCompat() returns.
 	if e.NewSystem != nil {
-		e.SaveSystemProps()
+		if xErr := e.SaveSystemProps(); xErr != nil {
+			return xErr
+		}
 	}
 
 	if xErr := e.Tx.Backend.RefreshEntity(e, accessMode); xErr != nil {

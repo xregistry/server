@@ -31,7 +31,11 @@ func (v *Version) Delete() *XRError {
 func (v *Version) JustDelete() *XRError {
 	meta := v.Resource.MustFindMeta(false)
 
-	if v.Resource.Touch() {
+	b, xErr := v.Resource.Touch()
+	if xErr != nil {
+		return xErr
+	}
+	if b {
 		if xErr := meta.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
@@ -100,7 +104,9 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
 	// deleting the current default w/o a new vID being given, then unstick it
 	if (nextVersionID == "" && mustChange) || nextVersionID == "null" {
 		// Find the next default version
-		v.Resource.SetDefault(nil)
+		if xErr := v.Resource.SetDefault(nil); xErr != nil {
+			return xErr
+		}
 	} else if nextVersionID != "" {
 		nextVersion, xErr = v.Resource.FindVersion(nextVersionID, false)
 		if xErr != nil {

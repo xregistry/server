@@ -326,7 +326,10 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 	// If verifyData==true then it'll call reg.ValidateAndSave() to make sure
 	// we process the changed Reg( touch, if nothing else). But if verifyData
 	// is false then the caller will be responsible for calling Val&Save.
-	m.Registry.Touch()
+	_, xErr := m.Registry.Touch()
+	if xErr != nil {
+		return xErr
+	}
 
 	if src == "" {
 		// This should serialize just the bare minimum, only what the

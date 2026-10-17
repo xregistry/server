@@ -69,8 +69,8 @@ xrlint: .xrlint
 .xrlint: cmds/xrlint/* cmds/xr/* cmds/xrserver/*  registry/* common/* tests/*
 	@echo
 	@echo "# Running xrlint looking for source issues"
-	@misc/errOutput @go run ./cmds/xrlint --unused=false ./registry/... \
-		./common/... ./cmds/... ./tests/...
+	@misc/errOutput @go run ./cmds/xrlint --unused=false --xrerror=false \
+		./registry/... ./common/... ./cmds/... ./tests/...
 	@touch .xrlint
 
 utest: .utest

@@ -182,11 +182,15 @@ func (tx *Tx) Commit() *XRError {
 	tx.Locked = false
 
 	if xErr := tx.WriteCache(true); xErr != nil {
-		return tx.Rollback()
+		// ignore any rollback error
+		tx.Rollback()
+		return xErr
 	}
 
 	if xErr := tx.Backend.Commit(tx); xErr != nil {
-		return tx.Rollback()
+		// ignore any rollback error
+		tx.Rollback()
+		return xErr
 	}
 
 	log.FuncPrintf("tx: %s Committed", tx.uuid)
@@ -220,9 +224,9 @@ func (tx *Tx) IsLocked() bool {
 
 // Technically a "backend" func but most code only has access to tx so
 // attach it there
-func (tx *Tx) GetResourceContents(e *Entity) []byte {
-	buf, _ := tx.Backend.GetResourceContents(e)
-	return buf
+func (tx *Tx) GetResourceContents(e *Entity) ([]byte, *XRError) {
+	buf, xErr := tx.Backend.GetResourceContents(e)
+	return buf, xErr
 }
 
 // Validate does this Tx's own bookkeeping/sanity-checks, then delegates
@@ -310,10 +314,14 @@ func (tx *Tx) DumpDirtyCache() {
 // the response that gets serialized later in the same request, well
 // before the Tx actually commits.
 // DUG TODO THIS NEEDS TO BE DONE ON A PER RESOURCE BASIS NOT GLOBAL
-func (tx *Tx) FlushSystemProps() {
+func (tx *Tx) FlushSystemProps() *XRError {
 	for _, e := range tx.Cache {
-		e.SaveSystemProps()
+		if xErr := e.SaveSystemProps(); xErr != nil {
+			return xErr
+		}
 	}
+
+	return nil
 }
 
 func (tx *Tx) AddGroupToValidate(g *Group) {
@@ -361,7 +369,10 @@ func (tx *Tx) SaveCommitRefresh() *XRError {
 	if xErr := tx.SaveAll(); xErr != nil {
 		return xErr
 	}
-	tx.Validate()
+
+	if xErr := tx.Validate(); xErr != nil {
+		return xErr
+	}
 
 	if xErr := tx.Commit(); xErr != nil {
 		return xErr
@@ -513,7 +524,9 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 		// written - and, if relevant, the default-version cascade
 		// re-run - at most ONCE per entity per Tx, instead of once per
 		// individual SetSystemDBProperty() call.
-		e.SaveSystemProps()
+		if xErr := e.SaveSystemProps(); xErr != nil {
+			return xErr
+		}
 	}
 	return nil
 }

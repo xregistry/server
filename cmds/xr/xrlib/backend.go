@@ -156,12 +156,6 @@ func (CLIBE *CLIBackend) ClearUserProps(e *Entity) *XRError {
 	return nil
 }
 
-// args is chunks of 13 any's per row/entity
-func (CLIEBE *CLIBackend) BatchUpdateProps(e *Entity, isSystem bool, args []any) *XRError {
-	panic("not yet")
-	return nil
-}
-
 func (CLIBE *CLIBackend) ListRegistries(tx *Tx) ([]string, *XRError) {
 	panic("not yet")
 	return nil, nil

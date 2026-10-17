@@ -107,6 +107,18 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 		extras:           map[string]any{},
 	}
 
+	// Probably an empty list, but if not, save it so that if we need to
+	// reset() info we'll also reset the list of out-bound headers
+	hdr := w.Header()
+	if hdr != nil {
+		copyHdr := map[string][]string{}
+		for k, v := range hdr {
+			copyHdr[k] = append([]string{}, v...)
+		}
+
+		info.extras["savedHeaders"] = copyHdr
+	}
+
 	if r.TLS != nil {
 		info.BaseURL = "https" + info.BaseURL[4:]
 	} else if tmp := r.Header.Get("Referer"); tmp != "" {
@@ -122,23 +134,46 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 	return info
 }
 
-func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo, *XRError) {
+// Clear everything except the stuff that should never change on a retry
+func (info *RequestInfo) Reset() {
+	if info.tx != nil {
+		// Should never happen, but just incase
+		info.tx.Rollback()
+		info.tx = nil
+	}
 
-	info := NewRequestInfo(tx.uuid, tx.Config, w, r)
-	info.tx = tx
-	tx.RequestInfo = info
+	// Clear and reset outbound headers to the original list
+	clear(info.OriginalResponse.Header())
+	savedHeaders := info.extras["savedHeaders"]
+	if !IsNil(savedHeaders) {
+		for k, v := range savedHeaders.(map[string][]string) {
+			info.OriginalResponse.Header()[k] = v
+		}
+	}
+
+	newInfo := NewRequestInfo(info.uuid, info.XRSConfig,
+		info.OriginalResponse, info.OriginalRequest)
+
+	*info = *newInfo
+
+}
+
+func (info *RequestInfo) ParseRequest(tx *Tx) *XRError {
+
+	// Incase it changed due to shortSelf
+	info.OriginalPath = strings.Trim(info.OriginalRequest.URL.Path, " /")
 
 	// See which registry to use and twiddle some stuff in info if needed
 	xErr := info.ParseRegistryURL()
 	if xErr != nil {
-		return info, xErr
+		return xErr
 	}
 
 	// Load the request's body
 	var err error
 	info.Body, err = io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		return info, NewXRError("parsing_data", "request JSON",
+		return NewXRError("parsing_data", "request JSON",
 			"error_detail="+err.Error())
 	}
 	if len(info.Body) == 0 {
@@ -157,17 +192,17 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 
 	xErr = info.ProcessCapabilitiesModelSource()
 	if xErr != nil {
-		return info, xErr
+		return xErr
 	}
 
-	if tmp := r.Header.Get("xRegistry~User"); tmp != "" {
+	if tmp := info.OriginalRequest.Header.Get("xRegistry~User"); tmp != "" {
 		info.tx.User = tmp
 	}
 
 	// Parse the incoming URL and setup more stuff in info, like Groups...
 	xErr = info.ParseRequestURL()
 	if xErr != nil {
-		return info, xErr
+		return xErr
 	}
 
 	// Save the original Parts and RootPath for operations that need them
@@ -177,14 +212,14 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	info.OriginalRootPath = info.RootPath
 
 	// Get root of the overall server - before any xreg/xxx processing
-	root := "http://" + r.Host
-	if r.TLS != nil {
+	root := "http://" + info.OriginalRequest.Host
+	if info.OriginalRequest.TLS != nil {
 		root = "https" + info.BaseURL[4:]
-	} else if tmp := r.Header.Get("Referer"); tmp != "" {
+	} else if tmp := info.OriginalRequest.Header.Get("Referer"); tmp != "" {
 		if strings.HasPrefix(tmp, "https:") {
 			root = "https" + info.BaseURL[4:]
 		}
-	} else if tmp := r.Header.Get("Forwarded"); tmp != "" {
+	} else if tmp := info.OriginalRequest.Header.Get("Forwarded"); tmp != "" {
 		if strings.Contains(tmp, "https") {
 			root = "https" + info.BaseURL[4:]
 		}
@@ -195,7 +230,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		log.Printf("tx: %s Info: %s", info.uuid, ToJSON(info))
 	}
 
-	return info, nil
+	return nil
 }
 
 func (info *RequestInfo) ParseFilters() *XRError {
@@ -395,6 +430,8 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 	defRegSegment := info.XRSConfig.GetAsString("path.defaultreg")
 	regCollectionSegment := info.XRSConfig.GetAsString("path.regcollection")
 
+	var xErr *XRError
+
 	// e.g. localhost:8080/xreg/...
 	// e.g. localhost:8080/xregs/XXX/...
 	parts := strings.Split(path, "/")
@@ -408,11 +445,10 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		info.BaseURL += "/" + parts[0] + "/" + parts[1]
 		info.OriginalPath = strings.Join(parts[2:], "/")
 
-		reg, xErr := FindRegistryByUID(info.tx, info.XRSConfig, parts[1], FOR_READ)
+		reg, xErr := FindRegistryByUID(info.tx, info.XRSConfig, parts[1],
+			FOR_READ)
 		if xErr != nil {
-			return NewXRError("server_error",
-				info.OriginalRequest.URL.RequestURI()).
-				SetDetail(xErr.GetTitle())
+			return xErr
 		}
 		if reg == nil {
 			return NewXRError("not_found", info.BaseURL).
@@ -424,9 +460,13 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		info.BaseURL += "/" + parts[0]
 		info.OriginalPath = strings.Join(parts[1:], "/")
 
-		info.Registry = GetDefaultReg(info.tx)
+		info.Registry, xErr = GetDefaultReg(info.tx)
 	} else {
-		info.Registry = GetDefaultReg(info.tx)
+		info.Registry, xErr = GetDefaultReg(info.tx)
+	}
+
+	if xErr != nil {
+		return xErr
 	}
 
 	info.tx.Registry = info.Registry
@@ -1072,7 +1112,9 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 				// for the model-changing reason instead.
 				// DUG do we need to lock everything in Entities too?
 				// Could a lower-level entity update get thru?
-				info.Registry.Lock()
+				if _, xErr := info.Registry.Lock(); xErr != nil {
+					return xErr
+				}
 
 				xErr := info.Registry.Model.ApplyNewModelFromJSON(
 					rawJson, false)

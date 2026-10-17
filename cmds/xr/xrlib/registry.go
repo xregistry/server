@@ -374,8 +374,9 @@ func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
 	panic("not yet")
 }
 
-func (e *Entity) SaveSystemProps() {
+func (e *Entity) SaveSystemProps() *XRError {
 	panic("not yet")
+	return nil
 }
 
 func (m *Model) VerifyAndSave(verifyData bool) *XRError {

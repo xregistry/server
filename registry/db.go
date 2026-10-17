@@ -16,21 +16,12 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-// isRetryableDBErr inspects a recovered panic value (or a plain error) and
+// isRetryableDBErr inspects an error and
 // reports whether it's a MySQL deadlock/lock-wait-timeout - the only
 // conditions ServeHTTP's per-request retry loop should transparently
-// retry on a fresh Tx. Everything else (syntax errors, bugs, connection
+// retry. Everything else (syntax errors, bugs, connection
 // loss, etc.) is NOT retryable and should keep surfacing exactly as it
 // does today (500 via the outer recover()).
-//
-// This codebase's Query()/Do()/etc. always panic via
-// Must()/PanicIf()/Panicf() (see common/utils.go), which panic with a
-// formatted STRING (fmt.Sprintf(msg, args...)), not the original *error*
-// value - so the underlying *mysql.MySQLError is normally unwrappable
-// from the recovered panic value. Try errors.As() first (in case a
-// caller ever panics with the raw error directly), then fall back to
-// matching the well-known MySQL error text embedded in that string,
-// which is the case that matters in practice here.
 func isRetryableDBErr(v any) bool {
 	// MySQL error numbers we treat as safe/expected to retry the whole HTTP
 	// request for (see isRetryableDBErr()/ServeHTTP's retry loop) rather than
@@ -65,7 +56,8 @@ func prepare(tx *Tx, query string) (*sql.Stmt, *XRError) {
 	ps, err := tx.tx.(*sql.Tx).Prepare(query)
 	if err != nil {
 		return nil,
-			NewXRError("server_error", "/").SetDetail(err.Error() + ".")
+			NewXRError("server_error", "/").SetDetail(err.Error() + ".").
+				SetRetryable(isRetryableDBErr(err))
 	}
 
 	return ps, nil
@@ -152,9 +144,13 @@ func (r *Result) PullNextRow() {
 	}
 }
 
-func (r *Result) retrieveAllRowsFromDB() {
+func (r *Result) retrieveAllRowsFromDB() *XRError {
 	for {
-		if r.retrieveNextRowFromDB() == false {
+		b, xErr := r.retrieveNextRowFromDB()
+		if xErr != nil {
+			return xErr
+		}
+		if b == false {
 			break
 		}
 		r.AllRows = append(r.AllRows, r.Data)
@@ -180,7 +176,9 @@ func (r *Result) retrieveAllRowsFromDB() {
 		if err := r.sqlRows.Err(); err != nil {
 			r.sqlRows.Close()
 			r.sqlRows = nil
-			Panicf("Error retrieving rows from DB: %s", err)
+			return NewXRError("server_error", "/").
+				SetDetailf("Error retrieving rows from DB: %s.", err).
+				SetRetryable(isRetryableDBErr(err))
 		}
 	}
 
@@ -189,15 +187,18 @@ func (r *Result) retrieveAllRowsFromDB() {
 		r.sqlRows.Close()
 		r.sqlRows = nil
 	}
+
+	return nil
 }
 
-func (r *Result) retrieveNextRowFromDB() bool {
+func (r *Result) retrieveNextRowFromDB() (bool, *XRError) {
 	if r.sqlRows == nil {
 		panic("sqlRows is nil")
 	}
+
 	if r.sqlRows.Next() == false {
 		// r.Close()
-		return false
+		return false, nil
 	}
 
 	r.TempData = make([]any, len(r.TempData))
@@ -209,7 +210,11 @@ func (r *Result) retrieveNextRowFromDB() bool {
 
 	err := r.sqlRows.Scan(r.TempData...) // Can't pass r.Data directly
 	if err != nil {
-		panic(fmt.Sprintf("Error scanning DB row: %s", err))
+		r.sqlRows.Close()
+		return false, NewXRError("server_error", "/").
+			SetDetailf("Error scanning DB rows: %s.", err).
+			SetRetryable(isRetryableDBErr(err))
+		// panic(fmt.Sprintf("Error scanning DB row: %s", err))
 		// should return err.  r.Data = nil ; return err..
 	}
 
@@ -228,7 +233,7 @@ func (r *Result) retrieveNextRowFromDB() bool {
 		}
 		log.Printf("row: %v", dd)
 	}
-	return true
+	return true, nil
 }
 
 type queryTime struct {
@@ -265,7 +270,7 @@ func DumpTimings() string {
 	return str
 }
 
-func Query(tx *Tx, cmd string, args ...interface{}) *Result {
+func Query(tx *Tx, cmd string, args ...interface{}) (*Result, *XRError) {
 	startTime := time.Time{}
 	pTime := time.Time{}
 	qTime := time.Time{}
@@ -283,20 +288,33 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	if doTime {
 		pTime = time.Now()
 	}
-	PanicIf(xErr != nil, "tx: %s Error Prepping query (%s): %s\n",
-		tx.uuid, cmd, ToJSON(xErr))
+	if xErr != nil {
+		return nil, xErr
+	}
 	defer ps.Close()
 
 	rows, err := ps.Query(args...)
 	if doTime {
 		qTime = time.Now()
 	}
-	PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
-		tx.uuid, cmd, args, err)
+	if err != nil {
+		return nil, NewXRError("server_error", "/").
+			SetDetailf("Error querying DB(%s)(%v)->%s.", cmd, args, err).
+			SetRetryable(isRetryableDBErr(err))
+	}
+	defer rows.Close()
+
+	// PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
+	// tx.uuid, cmd, args, err)
 
 	colTypes, err := rows.ColumnTypes()
-	PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
-		tx.uuid, cmd, args, err)
+	if err != nil {
+		return nil, NewXRError("server_error", "/").
+			SetDetailf("Error querying DB(%s)(%v)->%s.", cmd, args, err).
+			SetRetryable(isRetryableDBErr(err))
+	}
+	// PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
+	// tx.uuid, cmd, args, err)
 
 	result := &Result{
 		tx:       tx,
@@ -310,7 +328,9 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 
 	// Download all data. We used to pull from DB on each PullNextRow
 	// but mysql doesn't support multiple queries being active in the same Tx
-	result.retrieveAllRowsFromDB()
+	if xErr := result.retrieveAllRowsFromDB(); xErr != nil {
+		return nil, xErr
+	}
 
 	if doTime {
 		gTime = time.Now()
@@ -332,10 +352,10 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 		qt.count++
 	}
 
-	return result
+	return result, nil
 }
 
-func Do(tx *Tx, cmd string, args ...interface{}) int {
+func Do(tx *Tx, cmd string, args ...interface{}) (int, *XRError) {
 	log.FuncPrintf("tx: %s Do: %q args: %v", tx.uuid, cmd, args)
 
 	if tx.IsLocked() {
@@ -344,49 +364,67 @@ func Do(tx *Tx, cmd string, args ...interface{}) int {
 	}
 
 	ps, xErr := prepare(tx, cmd)
-	PanicIf(xErr != nil, "tx:%s CMD: %q args: %v  err: %s",
-		tx.uuid, cmd, args, ToJSON(xErr))
+	if xErr != nil {
+		return 0, xErr
+	}
 	defer ps.Close()
 
 	result, err := ps.Exec(args...)
 	if err != nil {
-		Panicf("tx: %s Do: Error DB(%s)->%s\n", tx.uuid,
-			SubQuery(cmd, args), err)
+		return 0, NewXRError("server_error", "/").
+			SetDetailf("Do: Error DB(%s)->%s.", SubQuery(cmd, args), err).
+			SetRetryable(isRetryableDBErr(err))
 	}
 
 	count, _ := result.RowsAffected()
 	log.FuncPrintf("tx: %s Do: %d rows", tx.uuid, count)
-	return int(count)
+	return int(count), nil
 }
 
-func DoOne(tx *Tx, cmd string, args ...interface{}) {
-	count := Do(tx, cmd, args...)
+func DoOne(tx *Tx, cmd string, args ...interface{}) *XRError {
+	count, xErr := Do(tx, cmd, args...)
+	if xErr != nil {
+		return xErr
+	}
 
 	PanicIf(count != 1, "tx: %s DoOne: Error DB(%s) didn't change "+
 		"exactly 1 row(%d)", tx.uuid, SubQuery(cmd, args), count)
+	return nil
 }
 
-func DoZeroOne(tx *Tx, cmd string, args ...interface{}) {
-	count := Do(tx, cmd, args...)
+func DoZeroOne(tx *Tx, cmd string, args ...interface{}) *XRError {
+	count, xErr := Do(tx, cmd, args...)
+	if xErr != nil {
+		return xErr
+	}
 
 	PanicIf(count != 0 && count != 1,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/1 row(%d)",
 		tx.uuid, SubQuery(cmd, args), count)
+	return nil
 }
 
-func DoOneTwo(tx *Tx, cmd string, args ...interface{}) {
-	count := Do(tx, cmd, args...)
+func DoOneTwo(tx *Tx, cmd string, args ...interface{}) *XRError {
+	count, xErr := Do(tx, cmd, args...)
+	if xErr != nil {
+		return xErr
+	}
 
 	PanicIf(count != 1 && count != 2,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 1/2 row(%d)",
 		tx.uuid, SubQuery(cmd, args), count)
+	return nil
 }
 
-func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) {
-	count := Do(tx, cmd, args...)
+func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) *XRError {
+	count, xErr := Do(tx, cmd, args...)
+	if xErr != nil {
+		return xErr
+	}
 	PanicIf(count != 0 && count != 2,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/2 row(%d)",
 		tx.uuid, SubQuery(cmd, args), count)
+	return nil
 }
 
 //go:embed init.sql
@@ -443,8 +481,8 @@ func OpenDB(xrsConfig *Config, name string) (*sql.DB, *XRError) {
 			"?interpolateParams=true")
 
 	if err != nil {
-		return nil, NewXRError("server_error", "/",
-			fmt.Sprintf("Error talking to SQL: %s", err))
+		return nil, NewXRError("server_error", "/").
+			SetDetailf("Error talking to SQL: %s.", err)
 	}
 
 	DB.SetMaxOpenConns(5)

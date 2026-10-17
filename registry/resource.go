@@ -148,6 +148,7 @@ func (r *Resource) Get(name string) any {
 
 	xrefStr, xref, xErr := r.GetXref()
 	Must(xErr)
+
 	if xrefStr != "" {
 		// Set but target is missing
 		if xref == nil {
@@ -295,7 +296,7 @@ func (r *Resource) SetSaveDefault(name string, val any) *XRError {
 	return v.SetSave(name, val)
 }
 
-func (r *Resource) Touch() bool {
+func (r *Resource) Touch() (bool, *XRError) {
 	return r.MustFindMeta(false).Touch()
 }
 
@@ -328,7 +329,9 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 
 	if m := r.Tx.GetMeta(r); m != nil {
 		if r.AccessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
-			m.Lock()
+			if _, xErr := m.Lock(); xErr != nil {
+				return nil, xErr
+			}
 		}
 		return m, nil
 	}
@@ -337,9 +340,7 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 		r.XID+"/meta", false, anyCase, r.AccessMode)
 
 	if xErr != nil {
-		return nil, NewXRError("server_error", r.XID+"/meta").
-			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s.",
-				r.XID, xErr.GetTitle()))
+		return nil, xErr
 	}
 
 	if entity == nil {
@@ -368,7 +369,9 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 
 	if v := r.Tx.GetVersion(r, id); v != nil {
 		if r.AccessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
-			v.Lock()
+			if _, xErr := v.Lock(); xErr != nil {
+				return nil, xErr
+			}
 		}
 		return v, nil
 	}
@@ -387,9 +390,7 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.DbSID,
 		r.XID+"/versions/"+id, true, anyCase, r.AccessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
-			SetDetail(fmt.Sprintf("Error finding Version %s: %s.",
-				r.XID+"/versions/"+id, xErr.GetTitle()))
+		return nil, xErr
 	}
 
 	if entity == nil {
@@ -439,7 +440,11 @@ func (r *Resource) GetNewestVersionID(excludeTBD bool) (string, *XRError) {
 	}
 
 	// Must have a cycle - pick based on vID and timestamp
-	vad, _ := r.GetVersionAncestorData()
+	vad, xErr := r.GetVersionAncestorData()
+	if xErr != nil {
+		return "", xErr
+	}
+
 	newestID := ""
 	newestTS := ""
 	newestLowerID := ""
@@ -488,7 +493,9 @@ func (r *Resource) EnsureLatest() *XRError {
 
 	if meta.Get("defaultversionsticky") != true || currentDefault == "" {
 		newDefault, xErr := r.GetNewestVersionID(true)
-		Must(xErr)
+		if xErr != nil {
+			return xErr
+		}
 		PanicIf(newDefault == "", "No versions")
 
 		// Only update if it changed
@@ -1133,7 +1140,12 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		}
 
 		// Touch owning Resource to bump its epoch abd modifiedat timestamp
-		if r.Touch() {
+		b, xErr := r.Touch()
+		if xErr != nil {
+			return nil, false, xErr
+		}
+
+		if b {
 			if xErr = r.ValidateAndSave(false); xErr != nil {
 				return nil, false, xErr
 			}
@@ -1419,7 +1431,9 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// Versions of this Resource) so they're visible to the response
 	// that's about to be serialized, well before this Tx actually
 	// commits (see Tx.FlushSystemProps()).
-	r.Tx.FlushSystemProps()
+	if xErr := r.Tx.FlushSystemProps(); xErr != nil {
+		return xErr
+	}
 
 	// Make sure all attribtues with matchversions=true are the same for
 	// all versions
@@ -1490,7 +1504,9 @@ func (r *Resource) runCascade() *XRError {
 	newXref := meta.GetAsString("xref")
 	if oldXref != newXref {
 		if oldXref != "" {
-			meta.SaveXrefCascadeDelete()
+			if xErr := meta.SaveXrefCascadeDelete(); xErr != nil {
+				return xErr
+			}
 		}
 		if newXref != "" {
 			// This Registry now has at least one xref - flip the
@@ -1528,7 +1544,9 @@ func (r *Resource) runCascade() *XRError {
 				}
 			}
 			if !skipInsert {
-				meta.SaveXrefCascadeInsert()
+				if xErr := meta.SaveXrefCascadeInsert(); xErr != nil {
+					return xErr
+				}
 			}
 		}
 	}
@@ -1548,7 +1566,10 @@ func (r *Resource) runCascade() *XRError {
 	defaultVerCascadeNeeded := oldXref != newXref ||
 		meta.GetOriginAsString("defaultversionid") != meta.GetAsString("defaultversionid")
 	if !defaultVerCascadeNeeded {
-		finalDefVer, _ := r.GetDefault()
+		finalDefVer, xErr := r.GetDefault()
+		if xErr != nil {
+			return xErr
+		}
 		// finalDefVer can be nil for an xref source with no real
 		// Versions of its own (its "default version" is really the
 		// xref target's synthetic copy) - nothing of r's OWN to have
@@ -1823,7 +1844,11 @@ func (r *Resource) Delete() *XRError {
 		return xErr
 	}
 
-	if r.Group.Touch() {
+	b, xErr := r.Group.Touch()
+	if xErr != nil {
+		return xErr
+	}
+	if b {
 		if xErr := r.Group.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
@@ -2409,7 +2434,9 @@ func (r *Resource) SaveDefaultVersionCascade() *XRError {
 	// Versions were deleted, which per business rules deletes the
 	// Resource itself). If so there's nothing left to cascade.
 	meta, xErr := r.FindMeta(false)
-	Must(xErr)
+	if xErr != nil {
+		return xErr
+	}
 	if meta == nil {
 		return nil
 	}
@@ -2422,11 +2449,18 @@ func (r *Resource) SaveDefaultVersionCascade() *XRError {
 	// func will be called again to fix-up the default version props for
 	// the resource.
 	ver, xErr := r.GetDefault()
-	Must(xErr)
+	if xErr != nil {
+		return xErr
+	}
 	if !r.IsXref() && ver == nil {
-		Must(r.EnsureLatest())
+		if xErr = r.EnsureLatest(); xErr != nil {
+			return xErr
+		}
+
 		ver, xErr = r.GetDefault()
-		Must(xErr)
+		if xErr != nil {
+			return xErr
+		}
 	}
 
 	if ver == nil {

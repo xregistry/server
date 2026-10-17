@@ -47,7 +47,9 @@ func chainWillDelete(r *Resource, vID string) *XRError {
 			return xErr
 		}
 		if ver.GetAsString("ancestorid") != ancestorID {
-			ver.SetSave("ancestorid", ancestorID)
+			if xErr := ver.SetSave("ancestorid", ancestorID); xErr != nil {
+				return xErr
+			}
 		}
 	}
 
@@ -104,7 +106,9 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 		}
 		PanicIf(v == nil, "Didn't find version %q", va.VID)
 
-		v.SetSave("ancestorid", newestVerID)
+		if xErr := v.SetSave("ancestorid", newestVerID); xErr != nil {
+			return xErr
+		}
 		newestVerID = v.UID // This one is now the latest
 	}
 
@@ -125,7 +129,9 @@ func (vm *ManualVersionMode) WillDelete(r *Resource, vID string) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		ver.SetSave("ancestorid", ver.UID)
+		if xErr := ver.SetSave("ancestorid", ver.UID); xErr != nil {
+			return xErr
+		}
 	}
 
 	return nil
@@ -162,7 +168,9 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
 		}
 		PanicIf(v == nil, "Didn't find version %q", av.VersionUID)
 
-		v.SetSave("ancestorid", av.AncestorID)
+		if xErr := v.SetSave("ancestorid", av.AncestorID); xErr != nil {
+			return xErr
+		}
 	}
 
 	return nil
@@ -203,7 +211,9 @@ func (vm *ModifiedatVersionMode) CheckAncestors(r *Resource) *XRError {
 		}
 		PanicIf(v == nil, "Didn't find version %q", av.VersionUID)
 
-		v.SetSave("ancestorid", av.AncestorID)
+		if xErr := v.SetSave("ancestorid", av.AncestorID); xErr != nil {
+			return xErr
+		}
 	}
 
 	return nil
@@ -249,7 +259,9 @@ func (vm *SemverVersionMode) CheckAncestors(r *Resource) *XRError {
 		}
 		PanicIf(v == nil, "Didn't find version %q", av.VersionUID)
 
-		v.SetSave("ancestorid", av.AncestorID)
+		if xErr := v.SetSave("ancestorid", av.AncestorID); xErr != nil {
+			return xErr
+		}
 	}
 
 	return nil

@@ -2390,7 +2390,9 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 		// Save what our real type is
 		rClone.XImportOrigin = "/" + r.GroupModel.Plural + "/" + r.Plural
 
-		gm.AddResourceModelFull(rClone)
+		if _, xErr := gm.AddResourceModelFull(rClone); xErr != nil {
+			return xErr
+		}
 
 		// Don't save it in the model
 		// It's just for initial construction of the model

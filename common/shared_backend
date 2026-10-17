@@ -83,9 +83,6 @@ type Backend interface {
 
 	ClearUserProps(e *Entity) *XRError
 
-	// args is chunks of 13 any's per row/entity
-	BatchUpdateProps(e *Entity, isSystem bool, args []any) *XRError
-
 	// Registry stuff
 	ListRegistries(tx *Tx) ([]string, *XRError) // Order by UID,ASC case-insen.
 	DeleteRegistry(r *Registry) *XRError
@@ -155,11 +152,6 @@ type Backend interface {
 		children bool, anyCase bool, accessMode int) (EntityIterator, *XRError)
 	SaveEntity(e *Entity) *XRError
 	SaveChangedSystemProps(e *Entity, changed map[string]any) *XRError
-}
-
-type BatchRow struct {
-	IsSystem bool
-	Args     [13]any
 }
 
 // TODO see if we can use VersionAncestor instead

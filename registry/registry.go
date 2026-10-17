@@ -77,7 +77,7 @@ func (r *Registry) GetXRServerConfig() *Config {
 	return r.Tx.Config
 }
 
-func GetDefaultReg(tx *Tx) *Registry {
+func GetDefaultReg(tx *Tx) (*Registry, *XRError) {
 	PanicIf(tx == nil, "Check me")
 
 	regDbSID := tx.Config.GetAsString("DefaultRegDbSID")
@@ -86,15 +86,17 @@ func GetDefaultReg(tx *Tx) *Registry {
 		panic("No registry specified")
 	}
 
-	reg, err := FindRegistryBySID(tx, regDbSID, FOR_READ)
-	Must(err)
+	reg, xErr := FindRegistryBySID(tx, regDbSID, FOR_READ)
+	if xErr != nil {
+		return nil, xErr
+	}
+	PanicIf(reg == nil, "No default registry")
 
 	if reg != nil {
 		tx.Registry = reg
 	}
-	PanicIf(reg == nil, "No default registry")
 
-	return reg
+	return reg, nil
 }
 
 func (r *Registry) Rollback() *XRError {
@@ -133,8 +135,13 @@ func (r *Registry) Refresh(accessMode int) *XRError {
 	if xErr != nil {
 		return xErr
 	}
+
 	r.LoadCapabilities()
-	r.LoadModel()
+
+	if _, xErr := r.LoadModel(); xErr != nil {
+		return xErr
+	}
+
 	return nil
 }
 
@@ -236,7 +243,9 @@ func (reg *Registry) JustSet(name string, val any) *XRError {
 	// for writing until later in the process. So instead of forcing the
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update' will just lock it automatically
-	reg.Lock()
+	if _, xErr := reg.Lock(); xErr != nil {
+		return xErr
+	}
 	return reg.Entity.eJustSetPath(name, val)
 }
 
@@ -248,7 +257,9 @@ func (reg *Registry) Delete() *XRError {
 	// for writing until later in the process. So instead of forcing the
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
-	reg.Lock()
+	if _, xErr := reg.Lock(); xErr != nil {
+		return xErr
+	}
 
 	if xErr := reg.Tx.Backend.DeleteRegistry(reg); xErr != nil {
 		return xErr
@@ -335,7 +346,9 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	// for writing until later in the process. So instead of forcing the
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
-	reg.Lock()
+	if _, xErr := reg.Lock(); xErr != nil {
+		return xErr
+	}
 
 	reg.SetNewObject(obj)
 
@@ -486,7 +499,9 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 		log.FuncPrintf("tx: %s FindGroup %s,%s from cache",
 			reg.Tx.uuid, gType, id)
 		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
-			g.Lock()
+			if _, xErr := g.Lock(); xErr != nil {
+				return nil, xErr
+			}
 		}
 		return g, nil
 	}
@@ -494,8 +509,7 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 	entity, xErr := reg.Tx.Backend.GetEntityFromXID(reg.Tx, reg.DbSID,
 		"/"+gType+"/"+id, false, anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Group %q(%s): %s.", id, gType, xErr.GetTitle())
+		return nil, xErr
 	}
 
 	if entity == nil {
@@ -529,7 +543,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 	// Move to below, after the "findGroup". Is SaveModel needs it then
 	// it'll lock it.
-	// reg.Lock()
+	// _, xErr := reg.Lock()
 
 	if xErr := reg.SaveModel(false); xErr != nil {
 		return nil, false, xErr
@@ -561,7 +575,10 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		// locked, lock it before we try to create the group.
 		// We don't lock it before this because if the group already
 		// exists then there should be no reason to touch the Registry
-		reg.Lock()
+		if _, xErr := reg.Lock(); xErr != nil {
+			return nil, false, xErr
+		}
+
 		g, xErr = reg.FindGroup(gType, id, true, FOR_WRITE)
 		if xErr != nil {
 			return nil, false, xErr
@@ -621,7 +638,9 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			return nil, false, xErr
 		}
 		isNew = true
-		g.Registry.Touch()
+		if _, xErr := g.Registry.Touch(); xErr != nil {
+			return nil, false, xErr
+		}
 		g.Tx.AddGroup(g)
 	}
 

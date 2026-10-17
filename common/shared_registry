@@ -54,7 +54,12 @@ func NewRegistry(tx *Tx, config *Config, id string) (*Registry, *XRError) {
 	defer func() {
 		if newTx {
 			// If created just for us, close it
-			tx.Conditional(xErr)
+			if xErr == nil {
+				xErr = tx.Commit()
+			} else {
+				//xrlint:ignore
+				tx.Rollback()
+			}
 		}
 	}()
 
@@ -121,7 +126,9 @@ func NewRegistry(tx *Tx, config *Config, id string) (*Registry, *XRError) {
 	}
 
 	// Add Registry and Model to backend
-	tx.Backend.RegisterEntity(&reg.Entity)
+	if xErr := tx.Backend.RegisterEntity(&reg.Entity); xErr != nil {
+		return nil, xErr
+	}
 
 	if xErr = reg.JustSet("specversion", SPECVERSION); xErr != nil {
 		return nil, xErr
@@ -146,7 +153,9 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 
 	if tx.Registry != nil && tx.Registry.DbSID == sid {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
-			tx.Registry.Lock()
+			if _, xErr := tx.Registry.Lock(); xErr != nil {
+				return nil, xErr
+			}
 		}
 		return tx.Registry, nil
 	}
@@ -155,7 +164,8 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 		accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", sid, xErr.GetTitle())
+			"Error finding Registry %q: %s.", sid, xErr.GetTitle()).
+			SetRetryable(xErr.Retryable)
 	}
 	if ent == nil {
 		return nil, nil
@@ -174,7 +184,10 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	}
 
 	reg.LoadCapabilities()
-	reg.LoadModel()
+
+	if _, xErr := reg.LoadModel(); xErr != nil {
+		return nil, xErr
+	}
 
 	reg.oldCapabilities = reg.Capabilities.Clone()
 
@@ -191,7 +204,9 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 
 	if tx != nil && tx.Registry != nil && tx.Registry.UID == uid {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
-			tx.Registry.Lock()
+			if _, xErr := tx.Registry.Lock(); xErr != nil {
+				return nil, xErr
+			}
 		}
 		return tx.Registry, nil
 	}
@@ -245,7 +260,8 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 			tx.Rollback()
 		}
 		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", uid, xErr.GetTitle())
+			"Error finding Registry %q: %s.", uid, xErr.GetTitle()).
+			SetRetryable(xErr.Retryable)
 	}
 
 	reg := &Registry{Entity: *entity}
@@ -261,7 +277,10 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 	reg.Tx.AddRegistry(reg)
 
 	reg.LoadCapabilities()
-	reg.LoadModel()
+
+	if _, xErr := reg.LoadModel(); xErr != nil {
+		return nil, xErr
+	}
 
 	reg.oldCapabilities = reg.Capabilities.Clone()
 
@@ -311,7 +330,9 @@ func (reg *Registry) SetSave(name string, val any) *XRError {
 	// for writing until later in the process. So instead of forcing the
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update' will just lock it automatically
-	reg.Lock()
+	if _, xErr := reg.Lock(); xErr != nil {
+		return xErr
+	}
 	return reg.Entity.eSetSave(name, val)
 }
 

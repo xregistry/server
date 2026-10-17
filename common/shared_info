@@ -21,7 +21,7 @@ type RequestInfo struct {
 	OriginalRequest  *http.Request       `json:"-"`
 	OriginalResponse http.ResponseWriter `json:"-"`
 	Body             []byte              `json:"-"`
-	ParsedBody       map[string]any      `jsom:"-"`
+	ParsedBody       map[string]any      `json:"-"`
 	RootPath         string              // "", "model", "export", ...
 	Parts            []string            // Split /GROUPS/gID of OriginalPath
 

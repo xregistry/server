@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"net/http"
 	"net/url"
 	// "os"
@@ -73,37 +74,32 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var info *RequestInfo
-	var tx *Tx
-
 	uuid := NewUUID()
+	info := NewRequestInfo(uuid, s.XRSConfig, w, r)
 
 	defer func() {
 		// If we haven't written anything, this will force the HTTP status code
 		// to be written and not default to 200
-		if info != nil {
-			info.Done()
-		}
+		info.Done()
 	}()
 
 	defer func() {
+		// Unless an explicit Commit() is done, we'll always rollback. In
+		// which case this rollback is a no-op
+		if info.tx != nil {
+			info.tx.Rollback()
+			info.tx = nil
+		}
+
 		if rec := recover(); rec != nil {
 			log.Printf("tx: %s panic: %s", uuid, rec)
 			// ShowStack() // Down via NewXRError below now
 
-			// If info isn't defined yet
-			if info == nil {
-				info = NewRequestInfo(uuid, s.XRSConfig, w, r)
-			}
-
 			xErr := NewXRError("server_error", "/"+info.OriginalPath).
 				SetDetail("An internal error occurred, contact the admin.")
+			xErr.Instance = uuid
 			HTTPWriteError(info, xErr)
 		}
-
-		// Unless an explicit Commit() is done, we'll always rollback. In
-		// which case this rollback is a no-op
-		tx.Rollback()
 	}()
 
 	saveVerbose := log.Clone()
@@ -123,18 +119,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasPrefix(r.URL.Path, XRPROXY_PREFIX) {
+		info.SentStatus = true // to avoid a dup w.Write() in defer
 		HTTPXRProxy(uuid, w, r)
 		return
 	}
 
 	rootApp := s.XRSConfig.GetAsString("rootapp")
 	if rootApp != "ui" && rootApp != "xreg" {
-		// info isn't set up yet this early (ParseRequest() hasn't run),
-		// so build a minimal one here rather than dereferencing the nil
-		// "info" - otherwise this misconfiguration panics (masked by the
-		// generic panic recover() above into an unhelpful 500, instead of
-		// this specific error message).
-		info = NewRequestInfo(uuid, s.XRSConfig, w, r)
 		xErr := NewXRError("server_error", "/"+info.OriginalPath).
 			SetDetailf("Unknown rootapp: %s.", rootApp)
 		HTTPWriteError(info, xErr)
@@ -163,143 +154,112 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Serve the new SPA UI for /ui and /ui/...
 	if serveUI {
+		info.SentStatus = true // to avoid a dup w.Write() in defer
 		ServeUIStatic(s, uuid, w, r)
 		return
 	}
 
 	// Buffer the raw request body ONCE, up front, so it can be replayed
-	// (see r.Body reset below) if the retry loop needs to redo the
-	// whole request - ParseRequest() below fully drains r.Body via
-	// io.ReadAll into info.Body, and an http.Request's Body can't be
-	// rewound on its own once read.
+	// if the retry loop needs to redo the whole request
 	var savedBody []byte
 	if r.Body != nil {
 		savedBody, _ = io.ReadAll(r.Body)
 		r.Body.Close()
 	}
 
-	// Bounded retry loop for a genuine MySQL deadlock/lock-wait-timeout
-	// (see isRetryableDBErr()) discovered while acquiring a FOR_WRITE row
-	// lock (see entity.go's FOR_WRITE "FOR UPDATE" fetches) - now that
-	// those locks are real (as of this change), transient conflicts
-	// between two concurrent Txs are expected occasionally and should be
-	// retried transparently on a fresh Tx rather than surfaced as a
-	// client-visible 500. Only retried when NOTHING has been written to
-	// the response yet (info.SentStatus == false) - GET/PUT/POST/PATCH
-	// responses are streamed incrementally (see jsonWriter.go), so once
-	// real bytes reach the client a clean retry is no longer possible.
 	const maxAttempts = 5
-	const retryBackoff = 40 * time.Millisecond
 
+	var xErr *XRError
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		r.Body = io.NopCloser(bytes.NewReader(savedBody))
 
-		retry := s.serveOneAttempt(uuid, w, r, &info, &tx, attempt,
-			attempt == maxAttempts)
-		if !retry {
-			return
+		xErr = s.serveOneAttempt(info)
+
+		// no error, or not retryable, or we've already start to send data
+		// then just exit and don't retry
+		if xErr == nil || !xErr.Retryable || info.SentStatus {
+			break
 		}
 
-		time.Sleep(retryBackoff)
+		if attempt == maxAttempts {
+			// Too many retries, send 503 instead of the the DB error
+			xErr = NewXRError("server_busy", "/"+info.OriginalPath)
+			xErr.Instance = info.uuid
+			break
+		}
+
+		if log.GetLevel() == 1 && !log.IsVerbose() {
+			log.Printf("Retrying %s %s after DB lock conflict "+
+				"(attempt %d)", r.Method, r.URL, attempt)
+		} else if log.GetLevel() > 1 {
+			log.VPrintf(3, "tx: %s Retrying %s %s after DB lock "+
+				"conflict (attempt %d)", uuid, r.Method, r.URL,
+				attempt)
+		}
+
+		// Sleep a random multiplier of 40ms
+		delay := time.Duration(40*attempt+rand.Int()%40) * time.Millisecond
+		time.Sleep(delay)
+		info.Reset()
+
+		// If client connection is close, then don't bother to try again
+		if info.OriginalRequest.Context().Err() != nil {
+			break
+		}
 	}
+
+	if xErr != nil {
+		HTTPWriteError(info, xErr)
+	}
+
 }
 
 // serveOneAttempt runs one full "new Tx -> parse -> dispatch by method ->
 // commit/rollback" pass for a single attempt of ServeHTTP's retry loop.
-// info/txPtr are pointers into ServeHTTP's own locals so its outer defers
-// (info.Done()/tx.Rollback()/the generic panic recover()) keep
-// working exactly as before, whichever attempt ends up being the last one.
-// Returns true only when this attempt hit a retryable DB conflict (see
-// isRetryableDBErr()) before any response bytes were sent AND lastAttempt
-// is false - in every other case (success, non-retryable error/panic, or a
-// retryable conflict on the final allowed attempt) it fully handles the
-// response itself (or re-panics, for a genuine bug, so the outer recover()
-// still produces today's generic 500) and returns false.
-func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
-	r *http.Request, infoPtr **RequestInfo, txPtr **Tx,
-	attempt int, lastAttempt bool) (retry bool) {
+// It's the caller's job to determine if we should retry on XRError
+func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
 
 	defer func() {
-		uuid := "n/a"
-		log.VPrintf(3, "tx: %s Done with serveOneAttempt", uuid)
-		rec := recover()
-		if rec == nil {
-			return
+		if info.tx != nil {
+			// Make sure we don't leave any dangling TXs on something bad
+			info.tx.Rollback()
+			info.tx = nil
 		}
 
-		info := *infoPtr
-		if isRetryableDBErr(rec) && (info == nil || !info.SentStatus) {
-			if *txPtr != nil {
-				(*txPtr).Rollback()
+		// Converts an panicked XRError into a returned XRError insted so the
+		// retry loop can handle it.
+		// Shouldn't happen but there's one case (the Get() func) where we
+		// don't return an xErr due to the big code impact. Maybe later
+		if rec := recover(); rec != nil {
+			if xErr, ok := rec.(*XRError); ok {
+				retErr = xErr
+			} else {
+				panic(rec)
 			}
-
-			if !lastAttempt {
-				if log.GetLevel() == 1 && !log.IsVerbose() {
-					log.Printf("Retrying %s %s after DB lock conflict "+
-						"(attempt %d)", r.Method, r.URL, attempt)
-				} else if log.GetLevel() > 1 {
-					log.VPrintf(3, "tx: %s Retrying %s %s after DB lock "+
-						"conflict (attempt %d)", uuid, r.Method, r.URL,
-						attempt)
-				}
-
-				retry = true
-				return
-			}
-
-			// Out of attempts - tell the client plainly instead of a
-			// generic 500, rather than letting this re-panic.
-			if info == nil {
-				info = NewRequestInfo(uuid, s.XRSConfig, w, r)
-				*infoPtr = info
-			}
-			xErr := NewXRError("server_busy", "/"+info.OriginalPath)
-			HTTPWriteError(info, xErr)
-			return
 		}
-
-		// Not retryable (or a response was already sent) - preserve
-		// today's exact behavior by letting ServeHTTP's outer recover()
-		// handle it.
-		panic(rec)
 	}()
 
 	be, xErr := NewDefaultBackend(s.XRSConfig)
 	if xErr != nil {
-		panic(xErr)
+		return xErr
 	}
 
-	tx, xErr := NewTx(uuid, s.XRSConfig, be)
-	*txPtr = tx
+	tx, xErr := NewTx(info.uuid, s.XRSConfig, be)
 	if xErr != nil {
-		log.Printf("tx: %s Error talking to the DB creating new Tx: %s",
-			uuid, xErr.GetTitle())
-	} else {
-		xErr = ProcessShortSelf(tx, r)
+		return xErr
 	}
 
+	info.tx = tx
+	tx.RequestInfo = info
+
+	xErr = ProcessShortSelf(info)
 	if xErr != nil {
-		// Special one off - info isn't defined yet
-		info := *infoPtr
-		if info == nil {
-			info = NewRequestInfo(uuid, s.XRSConfig, w, r)
-			*infoPtr = info
-		}
-
-		HTTPWriteError(info, xErr)
-
-		return false
+		return xErr
 	}
 
-	info, xErr := ParseRequest(tx, w, r)
-	*infoPtr = info
-	// tx.RequestInfo = info
-	// log.VPrintf(3, "tx: %s Request: %s %s", info.uuid,
-	// info.OriginalRequest.Method, info.OriginalPath)
-
+	xErr = info.ParseRequest(tx)
 	if xErr != nil {
-		HTTPWriteError(info, xErr)
-		return false
+		return xErr
 	}
 
 	/*
@@ -317,7 +277,7 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 	if xErr == nil {
 		// These should only return an error if they didn't already
 		// send a response back to the client.
-		switch r.Method {
+		switch info.OriginalRequest.Method {
 		case "GET":
 			tx.Lock()
 			xErr = HTTPGet(info)
@@ -334,22 +294,25 @@ func (s *Server) serveOneAttempt(uuid string, w http.ResponseWriter,
 			xErr = HTTPOptions(info)
 		default:
 			xErr = NewXRError("action_not_supported", "/"+info.OriginalPath,
-				"action="+r.Method)
+				"action="+info.OriginalRequest.Method)
 		}
 	}
 
 	// Add our tx uuid to the error for debugging
 	if xErr != nil && xErr.Instance == "" {
-		xErr.Instance = uuid
+		xErr.Instance = info.uuid
 	}
-
-	Must(tx.Conditional(xErr))
 
 	if xErr != nil {
-		HTTPWriteError(info, xErr)
+		// Ignore possible error since we'r already in error state
+		tx.Rollback()
+	} else {
+		xErr = tx.Commit()
 	}
 
-	return false
+	info.tx = nil
+
+	return xErr
 }
 
 func HTTPGETCapabilities(info *RequestInfo) *XRError {
@@ -365,7 +328,9 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	if capStr != "" {
 		var xErr *XRError
 		cap, xErr = ParseCapabilities([]byte(capStr))
-		Must(xErr)
+		if xErr != nil {
+			return xErr
+		}
 	}
 
 	buf, err = json.MarshalIndent(cap, "", "  ")
@@ -418,8 +383,7 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 
 	buf, xErr := model.SerializeForUser()
 	if xErr != nil {
-		return NewXRError("server_error", "/"+info.OriginalPath).
-			SetDetail(xErr.GetTitle())
+		return xErr
 	}
 
 	info.SetHeader("Content-Type", "application/json")
@@ -484,8 +448,7 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 
 	names, xErr := GetRegistryNames(info.XRSConfig)
 	if xErr != nil {
-		return NewXRError("server_error", "/.xregistry").
-			SetDetail(xErr.GetTitle())
+		return xErr
 	}
 
 	defRegSegment := info.XRSConfig.GetAsString("path.defaultreg")
@@ -553,14 +516,12 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	iter, xErr := info.Registry.GetEntitiesFromXID(XID, true, true, false,
 		FOR_READ)
 	if xErr != nil {
-		return NewXRError("server_error", XID).SetDetailf(
-			"error loading entity: %s.", xErr.GetTitle())
+		return xErr
 	}
 
 	entity, xErr := iter.Next()
 	if xErr != nil {
-		return NewXRError("server_error", XID).SetDetailf(
-			"error loading entity: %s.", xErr.GetTitle())
+		return xErr
 	}
 
 	if entity == nil {
@@ -572,39 +533,37 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	if info.VersionUID == "" {
 		// We're on a Resource, so go find the default Version and count
 		// how many versions there are for the VersionsCount attribute
-		group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID,
+		group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
 			false, FOR_READ)
-		if err != nil {
-			return NewXRError("server_error",
-				info.GetParts(2)).SetDetailf("Error finding Group: %s.", err)
+		if xErr != nil {
+			return xErr
 		}
 		if group == nil {
 			return NewXRError("not_found", info.GetParts(2))
 		}
 
-		resource, err := group.FindResource(info.ResourceType,
+		resource, xErr := group.FindResource(info.ResourceType,
 			info.ResourceUID, false, FOR_READ)
-		if err != nil {
-			return NewXRError("server_error", info.GetParts(4)).
-				SetDetailf("Error finding Resource: %s.", err)
+		if xErr != nil {
+			return xErr
 		}
 		if resource == nil {
 			return NewXRError("not_found", info.GetParts(4))
 		}
 		meta := resource.MustFindMeta(false)
 
+		// Count the versions and find the default one
 		vID := meta.GetAsString("defaultversionid")
 		for {
-			v, err := iter.Next()
-			if err != nil {
-				return NewXRError("server_error", info.GetParts(4)).
-					SetDetailf("Error finding Version: %s.", err)
+			v, xErr := iter.Next()
+			if xErr != nil {
+				return xErr
 			}
 			if v == nil {
 				break
 			}
 
-			if v != nil && v.Type == ENTITY_META {
+			if v.Type == ENTITY_META {
 				// Skip the "meta" subobject, but first grab the
 				// "defaultversionid if we don't already have it,
 				// which should only be true in the xref case
@@ -614,13 +573,6 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 				continue
 			}
 
-			if v == nil && version == nil {
-				return NewXRError("server_error", resource.XID+"/versions/"+vID).
-					SetDetailf("Error finding Version: %s.", err)
-			}
-			if v == nil {
-				break
-			}
 			versionsCount++
 			if v.UID == vID {
 				version = v
@@ -674,7 +626,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 
 	xErr = entity.SerializeProps(headerIt)
 	if xErr != nil {
-		panic(xErr)
+		return (xErr)
 	}
 
 	if info.VersionUID == "" {
@@ -910,7 +862,10 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 
 		jw = NewJsonWriter(info, iter)
 
-		jw.NextEntity()
+		_, xErr = jw.NextEntity()
+		if xErr != nil {
+			return xErr
+		}
 
 		// Collections will need to print the {}, so don't error for them
 		if what != "Coll" {
@@ -1613,7 +1568,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	// Just double-check
 	if numParts > 4 {
-		PanicIf(info.Parts[4] != "versions", "Not 'versions': %s", info.Parts[4])
+		PanicIf(info.Parts[4] != "versions", "Not 'versions': %s",
+			info.Parts[4])
 	}
 
 	// GROUPs/gID/RESOURCEs/rID/versions...
@@ -1913,7 +1869,9 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 	// via the /modelsource entry point instead.
 	// DUG - do we need to lock everything in Entities too?
 	// I wonder if a PUT to a version would be let thru and missed??
-	info.Registry.Lock()
+	if _, xErr := info.Registry.Lock(); xErr != nil {
+		return xErr
+	}
 
 	xErr := info.Registry.Model.ApplyNewModelFromJSON(body, true)
 	if xErr != nil {
@@ -2732,8 +2690,8 @@ func AddRegistryRootHeader(info *RequestInfo) {
 	}
 }
 
-func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
-	path := req.URL.Path
+func ProcessShortSelf(info *RequestInfo) *XRError {
+	path := info.OriginalRequest.URL.Path
 	if !strings.HasPrefix(path, "/r/") {
 		return nil
 	}
@@ -2743,21 +2701,21 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		suffix = "$" + suffix
 	}
 
-	regUID, eXID, xErr := MapShortSelf(tx, ss)
+	regUID, eXID, xErr := MapShortSelf(info.tx, ss)
 	if xErr != nil {
 		return xErr
 	}
 
-	regCollectionSegment := tx.Config.GetAsString("path.regcollection")
+	regCollectionSegment := info.tx.Config.GetAsString("path.regcollection")
 
 	if regUID != "" && eXID != "" {
 		// found it!
 		// Note that eXID will always have a leading "/"
 		newPath := "/" + regCollectionSegment + "/" + regUID + eXID + suffix
 
-		log.FuncPrintf("tx: %s Redirect: %q -> %q", tx.uuid, path, newPath)
+		log.FuncPrintf("tx: %s Redirect: %q -> %q", info.tx.uuid, path, newPath)
 
-		req.URL.Path = newPath
+		info.OriginalRequest.URL.Path = newPath
 		return nil
 	}
 
