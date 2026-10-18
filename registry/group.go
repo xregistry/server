@@ -599,10 +599,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 		// Uncommented
 		meta, _, xErr = r.UpsertMeta(&MetaUpsert{
-			obj:           metaObj,
-			addType:       metaAddType, // ru.AddType,
-			createVersion: false,
-			more:          true,
+			Obj:           metaObj,
+			AddType:       metaAddType, // ru.AddType,
+			CreateVersion: false,
+			More:          true,
 		})
 
 		if xErr != nil {

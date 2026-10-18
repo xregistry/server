@@ -230,7 +230,10 @@ func (sqlBE *SQLBackend) NewTx(tx *registry.Tx) *XRError {
 	// This combination is what makes the FOR_READ/FOR_WRITE distinction
 	// in Entity.AccessMode actually mean something at the DB level.
 	t, err := DB.BeginTx(context.Background(),
-		&sql.TxOptions{sql.LevelRepeatableRead, false})
+		&sql.TxOptions{
+			Isolation: sql.LevelRepeatableRead,
+			ReadOnly:  false,
+		})
 	if err != nil {
 		// Don't close the shared pool here, other Txs are using it.
 		// database/sql discards bad connections on its own.

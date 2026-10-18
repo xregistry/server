@@ -53,7 +53,7 @@ type RequestInfo struct {
 	Offset        uint64          // ?offset= (only meaningful if Limit != 0)
 
 	// extra stuff if we ever need to pass around data while processing
-	extras map[string]any
+	Extras map[string]any
 }
 
 type Inline struct {

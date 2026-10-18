@@ -1,4 +1,4 @@
-// genspecattrs generates registry/ui/specattrs.js from the spec-defined
+// genspecattrs generates registry/http/ui/specattrs.js from the spec-defined
 // attribute list in registry.OrderedSpecProps (sourced from common/shared_entity).
 // Run via: make .sharedfiles  (triggered when common/shared_entity changes)
 package main
@@ -86,7 +86,7 @@ func main() {
 	}
 	sort.Strings(labelNames)
 
-	out, err := os.Create("registry/ui/specattrs.js")
+	out, err := os.Create("registry/http/ui/specattrs.js")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "genspecattrs: %v\n", err)
 		os.Exit(1)
@@ -106,7 +106,7 @@ func main() {
 	// -ldflags directly instead of via `make`). Surfaced by the Config
 	// page's "About" section (see renderConfig() in app.js). Since this
 	// only regenerates when its Makefile prerequisites change (see
-	// registry/ui/specattrs.js's rule), it reflects the commit as of the
+	// registry/http/ui/specattrs.js's rule), it reflects the commit as of the
 	// last time this file was regenerated, not necessarily HEAD.
 	uiCommit := os.Getenv("GIT_COMMIT")
 	if uiCommit == "" {
@@ -329,5 +329,5 @@ func main() {
 	}
 	fmt.Fprintln(out, "};")
 
-	// fmt.Fprintf(os.Stderr, "genspecattrs: wrote registry/ui/specattrs.js\n")
+	// fmt.Fprintf(os.Stderr, "genspecattrs: wrote registry/http/ui/specattrs.js\n")
 }

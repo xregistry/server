@@ -576,10 +576,10 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 }
 
 type MetaUpsert struct {
-	obj           Object
-	addType       AddType
-	createVersion bool
-	more          bool
+	Obj           Object
+	AddType       AddType
+	CreateVersion bool
+	More          bool
 }
 
 // returns *Meta, isNew, error
@@ -589,16 +589,16 @@ type MetaUpsert struct {
 // we're removing the 'xref' attr. Other cases, the http layer would have
 // already create the Resource and default version for us.
 func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%v,%v,%v", r.Tx.UUID, r.UID, mu.addType,
-		mu.createVersion, mu.more)()
+	defer log.Trace("tx: %s %s,%v,%v,%v", r.Tx.UUID, r.UID, mu.AddType,
+		mu.CreateVersion, mu.More)()
 
-	// log.Printf("tx: %s UpsertMeta: OBJ: %s", r.Tx.UUID, ToJSON(mu.obj))
+	// log.Printf("tx: %s UpsertMeta: OBJ: %s", r.Tx.UUID, ToJSON(mu.Obj))
 
 	if xErr := r.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
 	}
 
-	if xErr := CheckAttrs(mu.obj, r.XID+"/meta"); xErr != nil {
+	if xErr := CheckAttrs(mu.Obj, r.XID+"/meta"); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -613,9 +613,9 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		}
 	}
 
-	PanicIf(mu.obj == nil, "obj is nil")
+	PanicIf(mu.Obj == nil, "obj is nil")
 
-	meta.RemoveReadOnlyImmutable(mu.obj)
+	meta.RemoveReadOnlyImmutable(mu.Obj)
 
 	// Just in case we need it, save the Resource's epoch value. If this
 	// is an xref'd Resource then it'll actually be the target's epoch.
@@ -647,23 +647,23 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 	attrsToKeep[r.Singular+"id"] = true
 
-	if info.HasIgnore("defaultversionid") && !IsNil(mu.obj) {
-		delete(mu.obj, "defaultversionid")
+	if info.HasIgnore("defaultversionid") && !IsNil(mu.Obj) {
+		delete(mu.Obj, "defaultversionid")
 	}
-	if info.HasIgnore("defaultversionsticky") && !IsNil(mu.obj) {
-		delete(mu.obj, "defaultversionsticky")
+	if info.HasIgnore("defaultversionsticky") && !IsNil(mu.Obj) {
+		delete(mu.Obj, "defaultversionsticky")
 	}
 
 	// Apply properties
 	existingNewObj := meta.NewObject // Should be nil when using http
-	meta.SetNewObject(mu.obj)
+	meta.SetNewObject(mu.Obj)
 	meta.Entity.EnsureNewObject()
 
 	// Get new values for easy reference
 	newStickyAny, newStickyok := meta.NewObject["defaultversionsticky"]
 	newVerIDAny, newVerIDok := meta.NewObject["defaultversionid"]
 
-	if meta.NewObject != nil && mu.addType == ADD_PATCH {
+	if meta.NewObject != nil && mu.AddType == ADD_PATCH {
 		// Do some spec checks and tweaks
 		if newVerIDok && !newStickyok {
 			// Just defaultversionid is present
@@ -713,7 +713,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		meta.JustSet(r.Singular+"id", r.UID)
 	}
 
-	if mu.obj != nil {
+	if mu.Obj != nil {
 		xrefAny, hasXref = meta.NewObject["xref"]
 		if hasXref {
 			if IsNil(xrefAny) {
@@ -848,9 +848,9 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				meta.Object["createdat"] = meta.Object["#createdat"]
 			}
 
-			// if mu.createVersion is true, make sure we have at least one
+			// if mu.CreateVersion is true, make sure we have at least one
 			// version
-			if mu.createVersion {
+			if mu.CreateVersion {
 				numVers, xErr := r.GetNumberOfVersions()
 				if xErr != nil {
 					return nil, false, xErr
@@ -955,7 +955,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 	*/
 
-	if !mu.more {
+	if !mu.More {
 		// If there's no more processing, go ahead and verify everything
 
 		// Clear the defautversionid if we're not sticky

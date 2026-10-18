@@ -11,6 +11,7 @@ import (
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
+	xrhttp "github.com/xregistry/server/registry/http"
 	_ "github.com/xregistry/server/registry/mysql"
 )
 
@@ -379,7 +380,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	XRSConfig.Set("DefaultRegDbSID", reg.DbSID)
-	registry.NewServer(XRSConfig).Serve()
+	xrhttp.NewServer(XRSConfig).Serve()
 }
 
 func BufPrintf(buf *strings.Builder, fmtStr string, args ...any) {

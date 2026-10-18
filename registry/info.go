@@ -22,7 +22,7 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 		OriginalRequest:  r,
 		OriginalResponse: w,
 		BaseURL:          "http://" + r.Host,
-		extras:           map[string]any{},
+		Extras:           map[string]any{},
 	}
 
 	// Probably an empty list, but if not, save it so that if we need to
@@ -34,7 +34,7 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 			copyHdr[k] = append([]string{}, v...)
 		}
 
-		info.extras["savedHeaders"] = copyHdr
+		info.Extras["savedHeaders"] = copyHdr
 	}
 
 	if r.TLS != nil {
@@ -62,7 +62,7 @@ func (info *RequestInfo) Reset() {
 
 	// Clear and reset outbound headers to the original list
 	clear(info.OriginalResponse.Header())
-	savedHeaders := info.extras["savedHeaders"]
+	savedHeaders := info.Extras["savedHeaders"]
 	if !IsNil(savedHeaders) {
 		for k, v := range savedHeaders.(map[string][]string) {
 			info.OriginalResponse.Header()[k] = v
@@ -71,13 +71,6 @@ func (info *RequestInfo) Reset() {
 
 	newInfo := NewRequestInfo(info.UUID, info.XRSConfig,
 		info.OriginalResponse, info.OriginalRequest)
-
-	hw := info.extras["HttpWriter"]
-	if !IsNil(hw) {
-		httpWriter := hw.(*HttpWriter)
-		newInfo.extras["HttpWriter"] = httpWriter
-		httpWriter.Reset()
-	}
 
 	*info = *newInfo
 

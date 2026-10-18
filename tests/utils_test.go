@@ -22,6 +22,7 @@ import (
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
+	xrhttp "github.com/xregistry/server/registry/http"
 	"github.com/xregistry/server/registry/mysql"
 )
 
@@ -31,7 +32,7 @@ const specVersionPlaceholder = "$SPECVERSION"
 const outputSpacePlaceholder = "$SPACE"
 
 var XRServerConfig *Config
-var MainServer *registry.Server
+var MainServer *xrhttp.Server
 var FileServer = testFileServer()
 
 var outputSubstitutions = [][2]string{
@@ -95,7 +96,7 @@ func TestMain(m *testing.M) {
 	XRServerConfig.Set("rootapp", "xreg")
 	XRServerConfig.Set("http.addr", "")
 	XRServerConfig.Set("http.port", 8181)
-	MainServer = registry.NewServer(XRServerConfig).Start()
+	MainServer = xrhttp.NewServer(XRServerConfig).Start()
 
 	// Start testing fileserver
 	if IsPortInUse(8282) {

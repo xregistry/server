@@ -135,12 +135,12 @@ benchmark:
 	 done
 	@touch .sharedfiles
 
-registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
+registry/http/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@echo
-	@echo "# Rebuilding registry/ui/specattrs.js"
+	@echo "# Rebuilding registry/http/ui/specattrs.js"
 	@go run ./cmds/genspecattrs
 
-xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
+xrserver: .sharedfiles registry/http/ui/specattrs.js cmds/xrserver/* \
 		common/* $(REGISTRY_FILES)
 	@echo
 	@echo "# Building xrserver"
@@ -253,12 +253,12 @@ push: .push
 start: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver"
-	./xrserver -vv --rootapp=xreg --ui-dir registry/ui $(VERIFY)
+	./xrserver -vv --rootapp=xreg --ui-dir registry/http/ui $(VERIFY)
 
 notest run local: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver from scratch"
-	./xrserver -vv --rootapp=xreg --recreatedb --samples --ui-dir registry/ui $(VERIFY)
+	./xrserver -vv --rootapp=xreg --recreatedb --samples --ui-dir registry/http/ui $(VERIFY)
 
 docker-all: images
 	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -vv --recreatedb --samples
@@ -363,7 +363,7 @@ clean:
 	@echo
 	@echo "# Cleaning"
 	@rm -f cmds/xr/xrlib/shared_*.go registry/shared_*.go
-	@rm -f registry/ui/specattrs.js
+	@rm -f registry/http/ui/specattrs.js
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*

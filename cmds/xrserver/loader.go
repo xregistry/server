@@ -21,6 +21,7 @@ import (
 	"github.com/xregistry/server/common"
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
+	xrhttp "github.com/xregistry/server/registry/http"
 )
 
 var Token string
@@ -63,7 +64,7 @@ func LoadRegistry(regName string, data string) {
 
 	rr := httptest.NewRecorder()
 
-	registry.NewServer(XRSConfig).ServeHTTP(rr, req)
+	xrhttp.NewServer(XRSConfig).ServeHTTP(rr, req)
 
 	if rr.Code != 200 {
 		body, _ := io.ReadAll(rr.Body)
@@ -716,7 +717,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 					ErrFatalf(info.ParseRequestURL())
 				}
 
-				IncomingObj, xErr := registry.ExtractIncomingObject(info, body)
+				IncomingObj, xErr := xrhttp.ExtractIncomingObject(info, body)
 				ErrFatalf(xErr)
 				_, xErr = info.Registry.UpsertJustGroups(IncomingObj,
 					registry.ADD_UPDATE)

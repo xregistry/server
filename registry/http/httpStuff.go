@@ -1,4 +1,4 @@
-package registry
+package http
 
 import (
 	"bytes"
@@ -19,6 +19,7 @@ import (
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 type Server struct {
@@ -53,7 +54,7 @@ func (s *Server) Close() {
 	s.HTTPServer.Close()
 
 	// Release the backend's shared resources, e.g. the DB connection pool
-	if be, xErr := NewDefaultBackend(s.XRSConfig); xErr == nil {
+	if be, xErr := registry.NewDefaultBackend(s.XRSConfig); xErr == nil {
 		be.Close(s.XRSConfig)
 	}
 }
@@ -81,10 +82,10 @@ func (s *Server) Serve() {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	uuid := NewUUID()
-	info := NewRequestInfo(uuid, s.XRSConfig, w, r)
+	info := registry.NewRequestInfo(uuid, s.XRSConfig, w, r)
 
 	httpWriter := NewHttpWriter(info)
-	info.extras["HttpWriter"] = httpWriter // Dup in info.Reset()
+	info.Extras["HttpWriter"] = httpWriter // Dup in info.Reset()
 
 	defer func() {
 		// If we haven't written anything, this will force the HTTP status code
@@ -210,6 +211,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		delay := time.Duration(40*attempt+rand.Int()%40) * time.Millisecond
 		time.Sleep(delay)
 		info.Reset()
+		info.Extras["HttpWriter"] = httpWriter
+		httpWriter.Reset()
 
 		// If client connection is close, then don't bother to try again
 		if info.OriginalRequest.Context().Err() != nil {
@@ -226,7 +229,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // serveOneAttempt runs one full "new Tx -> parse -> dispatch by method ->
 // commit/rollback" pass for a single attempt of ServeHTTP's retry loop.
 // It's the caller's job to determine if we should retry on XRError
-func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
+func (s *Server) serveOneAttempt(info *registry.RequestInfo) (retErr *XRError) {
 
 	defer func() {
 		if info.Tx != nil {
@@ -248,12 +251,12 @@ func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
 		}
 	}()
 
-	be, xErr := NewDefaultBackend(s.XRSConfig)
+	be, xErr := registry.NewDefaultBackend(s.XRSConfig)
 	if xErr != nil {
 		return xErr
 	}
 
-	tx, xErr := NewTx(info.UUID, s.XRSConfig, be)
+	tx, xErr := registry.NewTx(info.UUID, s.XRSConfig, be)
 	if xErr != nil {
 		return xErr
 	}
@@ -324,12 +327,12 @@ func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
 	return xErr
 }
 
-func HTTPGETCapabilities(info *RequestInfo) *XRError {
+func HTTPGETCapabilities(info *registry.RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	buf := []byte(nil)
 	var err error
@@ -356,12 +359,12 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	return nil
 }
 
-func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
+func HTTPGETCapabilitiesOffered(info *registry.RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	buf := []byte(nil)
 	var err error
@@ -379,12 +382,12 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 	return nil
 }
 
-func HTTPGETModel(info *RequestInfo) *XRError {
+func HTTPGETModel(info *registry.RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	format := info.GetFlag("schema")
 	if format == "" {
@@ -393,7 +396,7 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 
 	model := info.Registry.Model
 	if model == nil {
-		model = &Model{}
+		model = &registry.Model{}
 	}
 
 	buf, xErr := model.SerializeForUser()
@@ -407,16 +410,16 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 	return nil
 }
 
-func HTTPGETModelSource(info *RequestInfo) *XRError {
+func HTTPGETModelSource(info *registry.RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	model := info.Registry.Model
 	if model == nil {
-		model = &Model{}
+		model = &registry.Model{}
 	}
 
 	modelSrc := model.Source
@@ -458,14 +461,14 @@ func HTTPGETModelSource(info *RequestInfo) *XRError {
 // attribute, fetched from its own URL), so baking a name into this
 // discovery doc would create a second, easily-stale copy of it. Clients
 // that want a name should GET the registry's own URL and read it there.
-func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
+func HTTPGETXRegistryDiscovery(info *registry.RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
-	names, xErr := GetRegistryNames(info.XRSConfig)
+	names, xErr := registry.GetRegistryNames(info.XRSConfig)
 	if xErr != nil {
 		return xErr
 	}
@@ -526,10 +529,10 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 	return nil
 }
 
-func HTTPGETContent(info *RequestInfo) *XRError {
+func HTTPGETContent(info *registry.RequestInfo) *XRError {
 	defer log.Trace("tx: %s", info.UUID)()
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	isV := log.IsFuncVerbose()
 	XID := "/" + strings.Join(info.Parts, "/")
@@ -549,7 +552,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 		return NewXRError("not_found", XID)
 	}
 
-	var version *Entity
+	var version *registry.Entity
 	versionsCount := 0
 	if info.VersionUID == "" {
 		// We're on a Resource, so go find the default Version and count
@@ -607,7 +610,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 		log.Printf("tx: %s Version: %#v", info.UUID, version)
 	}
 
-	headerIt := func(e *Entity, key string, val any, attr *Attribute) *XRError {
+	headerIt := func(e *registry.Entity, key string, val any, attr *registry.Attribute) *XRError {
 		if key[0] == '#' {
 			return nil
 		}
@@ -616,7 +619,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 			return nil
 		}
 
-		if attr.Type == MAP && IsScalar(attr.Item.Type) {
+		if attr.Type == MAP && registry.IsScalar(attr.Item.Type) {
 			for name, value := range val.(map[string]any) {
 				// Should only ever be one of each xRegistry header
 				httpWriter.SetHeader("xRegistry-"+key+"."+name,
@@ -625,7 +628,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 			return nil
 		}
 
-		if !IsScalar(attr.Type) {
+		if !registry.IsScalar(attr.Type) {
 			return nil
 		}
 
@@ -720,17 +723,17 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	return nil
 }
 
-func HTTPOptions(info *RequestInfo) *XRError {
+func HTTPOptions(info *registry.RequestInfo) *XRError {
 	defer log.Trace("tx: %s %s", info.UUID, info.OriginalPath)()
 
 	// Headers will be set automatically by httpWriter.Write()
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 	httpWriter.StatusCode = 200
 
 	return nil
 }
 
-func HTTPGet(info *RequestInfo) *XRError {
+func HTTPGet(info *registry.RequestInfo) *XRError {
 	defer log.Trace("tx: %s %s", info.UUID, info.What)()
 
 	info.Root = strings.Trim(info.Root, "/")
@@ -796,7 +799,7 @@ func HTTPGet(info *RequestInfo) *XRError {
 	return SerializeQuery(info, resXIDs, info.What)
 }
 
-func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
+func SerializeQuery(info *registry.RequestInfo, resXIDs map[string][]string,
 	what string) *XRError {
 
 	defer log.Trace("tx: %s", info.UUID)()
@@ -806,7 +809,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		return xErr
 	}
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	// resXIDs is used to group the items we want to return. In most cases
 	// the items will all be part of one group where that group name doesn't
@@ -854,7 +857,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 	}
 
 	httpWriter.SetHeader("Content-Type", "application/json")
-	var jw *JsonWriter
+	var jw *registry.JsonWriter
 	hasData := false
 	keys := SortedKeys(resXIDs)
 	for i, key := range keys {
@@ -862,7 +865,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		PanicIf(!ok, "can't find %q", key)
 
 		var xErr *XRError
-		var iter EntityIterator
+		var iter registry.EntityIterator
 
 		// "!" is special - it means skip the query and just produce: {}
 		if len(XIDs) != 1 || XIDs[0] != "!" {
@@ -878,7 +881,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			AddPaginationLinkHeaders(info, iter)
 		}
 
-		jw = NewJsonWriter(info, httpWriter, iter)
+		jw = registry.NewJsonWriter(info, httpWriter, iter)
 
 		_, xErr = jw.NextEntity()
 		if xErr != nil {
@@ -947,7 +950,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		// Only do this if we're adding the extra grouping wrapper
 		if key != "" {
 			// Cause the jwWriter to indent since we're adding a wrapper
-			jw.indent = "  "
+			jw.Indent = "  "
 			if i == 0 {
 				jw.Print("{\n")
 			}
@@ -964,7 +967,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			return xErr
 		}
 
-		if jw.hasData {
+		if jw.HasData {
 			hasData = true
 		}
 
@@ -991,8 +994,8 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 // "self" carries the offset/limit/count parameters ("count" being the total
 // number of top-level entities across the *entire* filtered collection). Must be called before anything is written to the response
 // body, since HTTP headers can't be sent after the body has started.
-func AddPaginationLinkHeaders(info *RequestInfo, iter EntityIterator) {
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+func AddPaginationLinkHeaders(info *registry.RequestInfo, iter registry.EntityIterator) {
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	limit := info.Limit
 	offset := info.Offset
@@ -1101,12 +1104,12 @@ func AddPaginationLinkHeaders(info *RequestInfo, iter EntityIterator) {
 	addLink("last", lastOffset)
 }
 
-func HTTPPutPost(info *RequestInfo) *XRError {
+func HTTPPutPost(info *registry.RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
 
 	defer log.Trace("tx: %s %s %s", info.UUID, method, info.OriginalPath)()
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	isNew := false
 	XIDs := ([]string)(nil)
@@ -1193,9 +1196,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// POST /    + body:map[GROUPS]map[id]Group
 
 		if method == "PUT" || method == "PATCH" {
-			addType := ADD_UPDATE
+			addType := registry.ADD_UPDATE
 			if method == "PATCH" {
-				addType = ADD_PATCH
+				addType = registry.ADD_PATCH
 			}
 			xErr = info.Registry.Update(IncomingObj, addType)
 			if xErr != nil {
@@ -1209,7 +1212,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Must be POST /    + body:map[GROUPS]map[id]Group
 
-		newGs, xErr := info.Registry.UpsertJustGroups(IncomingObj, ADD_UPDATE)
+		newGs, xErr := info.Registry.UpsertJustGroups(IncomingObj, registry.ADD_UPDATE)
 		if xErr != nil {
 			return xErr
 		}
@@ -1237,7 +1240,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	// URL: /GROUPs[/gID]...
 	// ////////////////////////////////////////////////////////////////
-	group := (*Group)(nil)
+	group := (*registry.Group)(nil)
 	groupUID := info.GroupUID
 
 	if numParts == 1 {
@@ -1249,9 +1252,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		addType := ADD_UPSERT
+		addType := registry.ADD_UPSERT
 		if method == "PATCH" {
-			addType = ADD_PATCH
+			addType = registry.ADD_PATCH
 		}
 
 		for id, obj := range objMap {
@@ -1278,9 +1281,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// POST   /GROUPs/gID  + body: map[rType]map[rID]{resource}
 
 		if method == "PUT" || method == "PATCH" {
-			addType := ADD_UPSERT
+			addType := registry.ADD_UPSERT
 			if method == "PATCH" {
-				addType = ADD_PATCH
+				addType = registry.ADD_PATCH
 			}
 
 			group, isNew, xErr := info.Registry.UpsertGroupWithObject(info.GroupType,
@@ -1315,7 +1318,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 		}
 
-		newRs, xErr := group.UpsertJustResources(IncomingObj, ADD_UPDATE)
+		newRs, xErr := group.UpsertJustResources(IncomingObj, registry.ADD_UPDATE)
 		if xErr != nil {
 			return xErr
 		}
@@ -1361,8 +1364,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	// ////////////////////////////////////////////////////////////////
 
 	// Some global vars
-	resource := (*Resource)(nil)
-	version := (*Version)(nil)
+	resource := (*registry.Resource)(nil)
+	version := (*registry.Version)(nil)
 	resourceUID := info.ResourceUID
 	versionUID := info.VersionUID
 	setDefVerID := info.GetFlag("setdefaultversionid")
@@ -1395,13 +1398,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		// For each Resource in the map, upsert it and add it's XID to result
-		addType := ADD_UPSERT
+		addType := registry.ADD_UPSERT
 		if method == "PATCH" {
-			addType = ADD_PATCH
+			addType = registry.ADD_PATCH
 		}
 
 		for id, obj := range objMap {
-			r, _, xErr := group.UpsertResource(&ResourceUpsert{
+			r, _, xErr := group.UpsertResource(&registry.ResourceUpsert{
 				RType:            info.ResourceType,
 				Id:               id,
 				VID:              "",
@@ -1445,11 +1448,11 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			// IncomingObj["id"] = version.UID
 
 			// Create a new Resource and it's first/only/default Version
-			addType := ADD_UPSERT
+			addType := registry.ADD_UPSERT
 			if method == "PATCH" || !metaInBody {
-				addType = ADD_PATCH
+				addType = registry.ADD_PATCH
 			}
-			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
+			resource, _, xErr = group.UpsertResource(&registry.ResourceUpsert{
 				RType:            info.ResourceType,
 				Id:               resourceUID,
 				VID:              "",
@@ -1464,11 +1467,11 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		} else {
 			// Upsert resource's default version
 
-			addType := ADD_UPSERT
+			addType := registry.ADD_UPSERT
 			if method == "PATCH" {
-				addType = ADD_PATCH
+				addType = registry.ADD_PATCH
 			}
-			resource, isNew, xErr = group.UpsertResource(&ResourceUpsert{
+			resource, isNew, xErr = group.UpsertResource(&registry.ResourceUpsert{
 				RType:            info.ResourceType,
 				Id:               resourceUID,
 				VID:              "",
@@ -1497,12 +1500,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		if resource == nil {
 			// Implicitly create the resource
-			resource, isNew, xErr = group.UpsertResource(&ResourceUpsert{
+			resource, isNew, xErr = group.UpsertResource(&registry.ResourceUpsert{
 				RType:            info.ResourceType,
 				Id:               resourceUID,
 				VID:              propsID,
 				Obj:              IncomingObj,
-				AddType:          ADD_ADD,
+				AddType:          registry.ADD_ADD,
 				ObjIsVer:         true,
 				DefaultVersionID: setDefVerID,
 			})
@@ -1517,10 +1520,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			// it yet - do it after info.Tx.Validate() runs below instead.
 			needLocationVersionIDFromMeta = true
 		} else {
-			version, isNew, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
+			version, isNew, xErr = resource.UpsertVersionWithObject(&registry.VersionUpsert{
 				Id:               propsID,
 				Obj:              IncomingObj,
-				AddType:          ADD_UPSERT,
+				AddType:          registry.ADD_UPSERT,
 				More:             false,
 				DefaultVersionID: setDefVerID,
 			})
@@ -1537,22 +1540,22 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	// GROUPs/gID/RESOURCEs/rID/meta
 	if numParts > 4 && info.Parts[4] == "meta" {
 		// PUT /GROUPs/gID/RESOURCEs/rID/meta
-		addType := ADD_UPSERT
+		addType := registry.ADD_UPSERT
 		if method == "PATCH" {
-			addType = ADD_PATCH
+			addType = registry.ADD_PATCH
 		}
 
 		if resource == nil {
 			isNew = true
 
 			// Implicitly create the resource
-			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
+			resource, _, xErr = group.UpsertResource(&registry.ResourceUpsert{
 				// TODO check to see if "" should be propsID
 				RType:            info.ResourceType,
 				Id:               resourceUID,
 				VID:              "",
 				Obj:              map[string]any{},
-				AddType:          ADD_ADD,
+				AddType:          registry.ADD_ADD,
 				ObjIsVer:         false,
 				DefaultVersionID: setDefVerID,
 			})
@@ -1568,11 +1571,11 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		// Technically, this will always "update" not "insert"
-		meta, _, xErr := resource.UpsertMeta(&MetaUpsert{
-			obj:           IncomingObj,
-			addType:       addType,
-			createVersion: true,
-			more:          false,
+		meta, _, xErr := resource.UpsertMeta(&registry.MetaUpsert{
+			Obj:           IncomingObj,
+			AddType:       addType,
+			CreateVersion: true,
+			More:          false,
 		})
 
 		if xErr != nil {
@@ -1638,12 +1641,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				"versions":  (map[string]any)(IncomingObj),
 			}
 
-			addType := ADD_UPSERT
+			addType := registry.ADD_UPSERT
 			if method == "PATCH" {
-				addType = ADD_PATCH
+				addType = registry.ADD_PATCH
 			}
 
-			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
+			resource, _, xErr = group.UpsertResource(&registry.ResourceUpsert{
 				RType:            info.ResourceType,
 				Id:               resourceUID,
 				VID:              tmpVID, // setDefVerID, // was ""
@@ -1681,9 +1684,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			// Process the versions
-			addType := ADD_UPSERT
+			addType := registry.ADD_UPSERT
 			if method == "PATCH" {
-				addType = ADD_PATCH
+				addType = registry.ADD_PATCH
 			}
 			count := 0
 			for id, obj := range objMap {
@@ -1696,7 +1699,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 					defv = setDefVerID
 				}
 
-				v, _, xErr := resource.UpsertVersionWithObject(&VersionUpsert{
+				v, _, xErr := resource.UpsertVersionWithObject(&registry.VersionUpsert{
 					Id:               id,
 					Obj:              obj,
 					AddType:          addType,
@@ -1738,19 +1741,19 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		if version == nil {
 			// We have a Resource, so add a new Version based on IncomingObj
-			version, isNew, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
+			version, isNew, xErr = resource.UpsertVersionWithObject(&registry.VersionUpsert{
 				Id:               versionUID,
 				Obj:              IncomingObj,
-				AddType:          ADD_UPSERT,
+				AddType:          registry.ADD_UPSERT,
 				More:             false,
 				DefaultVersionID: setDefVerID,
 			})
 		} else if !isNew {
-			addType := ADD_UPSERT
+			addType := registry.ADD_UPSERT
 			if method == "PATCH" || !metaInBody {
-				addType = ADD_PATCH
+				addType = registry.ADD_PATCH
 			}
-			version, _, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
+			version, _, xErr = resource.UpsertVersionWithObject(&registry.VersionUpsert{
 				Id:               version.UID,
 				Obj:              IncomingObj,
 				AddType:          addType,
@@ -1818,7 +1821,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	return SerializeQuery(info, resXIDs, what)
 }
 
-func HTTPPUTCapabilities(info *RequestInfo) *XRError {
+func HTTPPUTCapabilities(info *registry.RequestInfo) *XRError {
 	if len(info.Parts) > 1 || !info.IsAvailable("capabilities") {
 		return NewXRError("not_available", "/"+info.GetParts(0))
 	}
@@ -1864,7 +1867,7 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 	return HTTPGETCapabilities(info)
 }
 
-func HTTPPUTModelSource(info *RequestInfo) *XRError {
+func HTTPPUTModelSource(info *registry.RequestInfo) *XRError {
 	if len(info.Parts) > 1 || !info.IsAvailable("modelsource") {
 		return NewXRError("not_available", "/"+info.GetParts(0))
 	}
@@ -1904,8 +1907,8 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 	return HTTPGETModelSource(info)
 }
 
-func HTTPDelete(info *RequestInfo) *XRError {
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+func HTTPDelete(info *registry.RequestInfo) *XRError {
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	// DELETE /...
 	if len(info.Parts) == 0 {
@@ -2084,7 +2087,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 type EpochEntry map[string]any
 type EpochEntryMap map[string]EpochEntry
 
-func LoadEpochMap(info *RequestInfo) (EpochEntryMap, *XRError) {
+func LoadEpochMap(info *registry.RequestInfo) (EpochEntryMap, *XRError) {
 	res := EpochEntryMap{}
 
 	bodyStr := strings.TrimSpace(string(info.Body))
@@ -2103,8 +2106,8 @@ func LoadEpochMap(info *RequestInfo) (EpochEntryMap, *XRError) {
 	return res, nil
 }
 
-func HTTPDeleteGroups(info *RequestInfo) *XRError {
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+func HTTPDeleteGroups(info *registry.RequestInfo) *XRError {
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	list, xErr := LoadEpochMap(info)
 	if xErr != nil {
@@ -2169,8 +2172,8 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 	return nil
 }
 
-func HTTPDeleteResources(info *RequestInfo) *XRError {
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+func HTTPDeleteResources(info *registry.RequestInfo) *XRError {
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	list, xErr := LoadEpochMap(info)
 	if xErr != nil {
@@ -2266,8 +2269,8 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 	return nil
 }
 
-func HTTPDeleteVersions(info *RequestInfo) *XRError {
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+func HTTPDeleteVersions(info *registry.RequestInfo) *XRError {
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	nextDefault := info.GetFlag("setdefaultversionid")
 
@@ -2307,7 +2310,7 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	// might update a future one's ancestorid value which will also change
 	// its epoch value - which will make the epoch check fail.
 	// However, we can save the Versions for the next loop.
-	vers := []*Version{}
+	vers := []*registry.Version{}
 	for id, entry := range list {
 		version, xErr := resource.FindVersion(id, false)
 		if xErr != nil {
@@ -2368,7 +2371,7 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	return nil
 }
 
-func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
+func ExtractIncomingObject(info *registry.RequestInfo, body []byte) (Object, *XRError) {
 	IncomingObj := map[string]any{}
 
 	if len(body) == 0 {
@@ -2462,7 +2465,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 		seenMaps := map[string]bool{}
 		seenMetaMaps := map[string]bool{}
 
-		for name, attr := range SpecialAttrHeaders {
+		for name, attr := range registry.SpecialAttrHeaders {
 			// TODO we may need some kind of "delete if missing" flag on
 			// each HttpHeader attribute since some may want to have an
 			// explicit 'null' to be erased instead of just missing (eg patch)
@@ -2667,11 +2670,11 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 	return IncomingObj, nil
 }
 
-func HTTPWriteError(info *RequestInfo, errAny any) {
+func HTTPWriteError(info *registry.RequestInfo, errAny any) {
 	var xErr *XRError
 	var ok bool
 
-	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
 	if xErr, ok = errAny.(*XRError); !ok {
 		xErr = NewXRError("bad_request", "/"+info.OriginalPath,
@@ -2724,7 +2727,7 @@ func (hw *HttpWriter) AddRegistryRootHeader() {
 	}
 }
 
-func ProcessShortSelf(info *RequestInfo) *XRError {
+func ProcessShortSelf(info *registry.RequestInfo) *XRError {
 	path := info.OriginalRequest.URL.Path
 	if !strings.HasPrefix(path, "/r/") {
 		return nil
@@ -2735,7 +2738,7 @@ func ProcessShortSelf(info *RequestInfo) *XRError {
 		suffix = "$" + suffix
 	}
 
-	regUID, eXID, xErr := MapShortSelf(info.Tx, ss)
+	regUID, eXID, xErr := registry.MapShortSelf(info.Tx, ss)
 	if xErr != nil {
 		return xErr
 	}
@@ -2757,12 +2760,12 @@ func ProcessShortSelf(info *RequestInfo) *XRError {
 }
 
 type HttpWriter struct {
-	Info       *RequestInfo
+	Info       *registry.RequestInfo
 	StatusCode int
 	SentStatus bool
 }
 
-func NewHttpWriter(info *RequestInfo) *HttpWriter {
+func NewHttpWriter(info *registry.RequestInfo) *HttpWriter {
 	return &HttpWriter{
 		Info:       info,
 		StatusCode: 0,

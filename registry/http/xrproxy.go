@@ -1,7 +1,7 @@
-package registry
+package http
 
 // This file implements a generic, byte-level JSON reverse-proxy used by the
-// new SPA (registry/ui/app.js) to talk to remote xRegistry servers that
+// new SPA (registry/http/ui/app.js) to talk to remote xRegistry servers that
 // don't set permissive CORS headers. Unlike the old "/proxy" endpoint that
 // used to back the retired hand-rolled "?ui" HTML viewer (re-rendering an
 // HTML-templated page around fetched remote data - since removed along with
