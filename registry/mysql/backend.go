@@ -1,4 +1,4 @@
-package registry
+package mysql
 
 import (
 	"context"
@@ -10,14 +10,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func init() {
-	xErr := RegisterBackend("mysql", NewSQLBackend)
+	xErr := registry.RegisterBackend("mysql", NewSQLBackend)
 	if xErr != nil {
 		panic(xErr.String() + xErr.Detail)
 	}
@@ -27,9 +29,24 @@ type SQLBackend struct {
 	XRSConfig *Config
 }
 
-var _ Backend = &SQLBackend{}
+var _ registry.Backend = &SQLBackend{}
 
-func NewSQLBackend(c *Config) (Backend, *XRError) {
+// holderMu serializes the check-then-seed of Config's "dbHolder" below
+var holderMu sync.Mutex
+
+func NewSQLBackend(c *Config) (registry.Backend, *XRError) {
+	// NewSQLBackend is called many times (e.g. once per request), but there
+	// must be only one dbHolder (and thus one *sql.DB pool) per Config, so
+	// only seed it if it's not already there. The first call needs to
+	// happen before Serve() starts since Config itself isn't thread-safe.
+	// See dbHolder's doc comment in db.go for why the live *sql.DB handle
+	// itself must never be stored directly as a Config.Data value.
+	holderMu.Lock()
+	if h, _ := c.Get("dbHolder").(*dbHolder); h == nil {
+		c.Set("dbHolder", &dbHolder{})
+	}
+	holderMu.Unlock()
+
 	return &SQLBackend{
 		XRSConfig: c,
 	}, nil
@@ -106,11 +123,11 @@ func replaceVariables(str string) string {
 
 	vars := [][2]string{
 		{"$$", ";"}, // can't use ; in file
-		{"$ENTITY_REGISTRY", StrTypes(ENTITY_REGISTRY)},
-		{"$ENTITY_GROUP", StrTypes(ENTITY_GROUP)},
-		{"$ENTITY_RESOURCE", StrTypes(ENTITY_RESOURCE)},
-		{"$ENTITY_META", StrTypes(ENTITY_META)},
-		{"$ENTITY_VERSION", StrTypes(ENTITY_VERSION)},
+		{"$ENTITY_REGISTRY", registry.StrTypes(ENTITY_REGISTRY)},
+		{"$ENTITY_GROUP", registry.StrTypes(ENTITY_GROUP)},
+		{"$ENTITY_RESOURCE", registry.StrTypes(ENTITY_RESOURCE)},
+		{"$ENTITY_META", registry.StrTypes(ENTITY_META)},
+		{"$ENTITY_VERSION", registry.StrTypes(ENTITY_VERSION)},
 		{"$DB_IN", string(DB_IN)},
 		{"$MAX_VARCHAR", fmt.Sprintf("%d", MAX_VARCHAR)},
 		{"$MAX_PROPNAME", fmt.Sprintf("%d", MAX_PROPNAME)},
@@ -178,14 +195,19 @@ func (sqlBE *SQLBackend) DBList(xrsConfig *Config) ([]string, *XRError) {
 	return names, nil
 }
 
+func (sqlBE *SQLBackend) Close(xrsConfig *Config) *XRError {
+	CloseDB(xrsConfig)
+	return nil
+}
+
 // TX Actions
 
 // It's ok for this to be called multiple times for the same Tx just to
 // make sure we have an active transaction - it's a no-op at that point
-func (sqlBE *SQLBackend) NewTx(tx *Tx) *XRError {
-	defer log.Trace("tx: %s tx.NewTx", tx.uuid)()
+func (sqlBE *SQLBackend) NewTx(tx *registry.Tx) *XRError {
+	defer log.Trace("tx: %s tx.NewTx", tx.UUID)()
 
-	if tx.tx != nil {
+	if tx.Tx != nil {
 		return nil
 	}
 
@@ -210,22 +232,23 @@ func (sqlBE *SQLBackend) NewTx(tx *Tx) *XRError {
 	t, err := DB.BeginTx(context.Background(),
 		&sql.TxOptions{sql.LevelRepeatableRead, false})
 	if err != nil {
-		CloseDB(tx.Config)
-		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
-		// panic("Error talking to the DB: %s", err)
+		// Don't close the shared pool here, other Txs are using it.
+		// database/sql discards bad connections on its own.
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".").
+			SetRetryable(isRetryableDBErr(err))
 	}
 
-	tx.tx = t
+	tx.Tx = t
 	tx.CreateTime = time.Now().UTC().Format(time.RFC3339Nano)
-	tx.Cache = map[string]*Entity{}
-	// tx.stack = GetStack()
+	tx.Cache = map[string]*registry.Entity{}
+	// tx.Stack = GetStack()
 
-	log.FuncPrintf("tx: %s Begin transaction", tx.uuid)
+	log.FuncPrintf("tx: %s Begin transaction", tx.UUID)
 
 	if log.HasVerbose("DEBUG_NewTX") {
 		var connID int64
 		t.QueryRow("SELECT CONNECTION_ID()").Scan(&connID)
-		tx.connID = connID
+		tx.ConnID = connID
 
 		var autocommit int
 		var isoLevel string
@@ -233,20 +256,20 @@ func (sqlBE *SQLBackend) NewTx(tx *Tx) *XRError {
 			"@@session.transaction_isolation").Scan(&autocommit, &isoLevel)
 		if err != nil {
 			log.Printf("tx: %s connID=%d error checking "+
-				"autocommit/isolation: %s", tx.uuid, connID, err)
+				"autocommit/isolation: %s", tx.UUID, connID, err)
 		} else {
 			log.Printf("tx: %s connID=%d autocommit=%d isolation=%s",
-				tx.uuid, connID, autocommit, isoLevel)
+				tx.UUID, connID, autocommit, isoLevel)
 		}
 
-		log.Printf("tx: %s bound to MySQL CONNECTION_ID=%d", tx.uuid, connID)
+		log.Printf("tx: %s bound to MySQL CONNECTION_ID=%d", tx.UUID, connID)
 	}
 
 	return nil
 }
 
-func (sqlBE *SQLBackend) Commit(tx *Tx) *XRError {
-	err := tx.tx.(*sql.Tx).Commit()
+func (sqlBE *SQLBackend) Commit(tx *registry.Tx) *XRError {
+	err := tx.Tx.(*sql.Tx).Commit()
 	if !IsNil(err) {
 		return NewXRError("server_error", "/").
 			SetDetailf("Error: %s", err.Error())
@@ -255,8 +278,8 @@ func (sqlBE *SQLBackend) Commit(tx *Tx) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) Rollback(tx *Tx) *XRError {
-	err := tx.tx.(*sql.Tx).Rollback()
+func (sqlBE *SQLBackend) Rollback(tx *registry.Tx) *XRError {
+	err := tx.Tx.(*sql.Tx).Rollback()
 	if !IsNil(err) {
 		return NewXRError("server_error", "/").
 			SetDetailf("Error: %s", err.Error())
@@ -275,7 +298,7 @@ func (sqlBE *SQLBackend) Rollback(tx *Tx) *XRError {
 // re-clear these on every single save while validation stays off - this
 // one-time, model-change-triggered sweep is the sole owner of clearing
 // stale values.
-func (sqlBE *SQLBackend) ClearResourceModelSystemProps(rm *ResourceModel, props []string) *XRError {
+func (sqlBE *SQLBackend) ClearResourceModelSystemProps(rm *registry.ResourceModel, props []string) *XRError {
 	if len(props) == 0 {
 		return nil
 	}
@@ -310,7 +333,7 @@ func (sqlBE *SQLBackend) ClearResourceModelSystemProps(rm *ResourceModel, props 
 	return xErr
 }
 
-func (sqlBE *SQLBackend) ListRegistries(tx *Tx) ([]string, *XRError) {
+func (sqlBE *SQLBackend) ListRegistries(tx *registry.Tx) ([]string, *XRError) {
 	// Order by UID, ASC - case insensitive
 	results, xErr := Query(tx, `SELECT UID FROM Registries ORDER BY UID ASC`)
 	if xErr != nil {
@@ -326,13 +349,13 @@ func (sqlBE *SQLBackend) ListRegistries(tx *Tx) ([]string, *XRError) {
 	return res, nil
 }
 
-func (sqlBE *SQLBackend) DeleteRegistry(r *Registry) *XRError {
+func (sqlBE *SQLBackend) DeleteRegistry(r *registry.Registry) *XRError {
 	xErr := DoOne(r.Tx, `DELETE FROM Registries WHERE SID=?`, r.DbSID)
 
 	return xErr
 }
 
-func (sqlBE *SQLBackend) MapRegistryUID2SID(tx *Tx, uid string) (string, *XRError) {
+func (sqlBE *SQLBackend) MapRegistryUID2SID(tx *registry.Tx, uid string) (string, *XRError) {
 	results, xErr := Query(tx, `SELECT SID FROM Registries WHERE UID=?`, uid)
 	if xErr != nil {
 		return "", xErr
@@ -341,14 +364,14 @@ func (sqlBE *SQLBackend) MapRegistryUID2SID(tx *Tx, uid string) (string, *XRErro
 
 	row := results.NextRow()
 	if row == nil {
-		log.FuncPrintf("tx: %s None found", tx.uuid)
+		log.FuncPrintf("tx: %s None found", tx.UUID)
 		return "", nil
 	}
 
 	return NotNilString(row[0]), nil
 }
 
-func (sqlBE *SQLBackend) RegistryGetUsesXref(r *Registry) (bool, *XRError) {
+func (sqlBE *SQLBackend) RegistryGetUsesXref(r *registry.Registry) (bool, *XRError) {
 	// UsesXref lives on the raw Registries table (not Entities/
 	// Props, since it's a plain internal flag, not a real
 	// attribute), so it needs its own tiny supplemental lookup here -
@@ -368,7 +391,7 @@ func (sqlBE *SQLBackend) RegistryGetUsesXref(r *Registry) (bool, *XRError) {
 	return false, nil
 }
 
-func (sqlBE *SQLBackend) RegistrySetUsesXref(r *Registry, b bool) *XRError {
+func (sqlBE *SQLBackend) RegistrySetUsesXref(r *registry.Registry, b bool) *XRError {
 	xErr := DoZeroOne(r.Tx,
 		`UPDATE Registries SET UsesXref=? WHERE SID=? AND UsesXref<>?`,
 		b, r.Tx.Registry.DbSID, b)
@@ -376,7 +399,7 @@ func (sqlBE *SQLBackend) RegistrySetUsesXref(r *Registry, b bool) *XRError {
 	return xErr
 }
 
-func (sqlBE *SQLBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
+func (sqlBE *SQLBackend) RegistryRecalcUsesXref(r *registry.Registry) *XRError {
 	// We do this via triggers in init.sql so no need to do it here.
 	// However, here's the SQL I think we'd use:
 	/*
@@ -392,19 +415,19 @@ func (sqlBE *SQLBackend) RegistryRecalcUsesXref(r *Registry) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XRError) {
+func (sqlBE *SQLBackend) GetGroups(r *registry.Registry, accessMode int) ([]*registry.Group, *XRError) {
 	entities, xErr := sqlBE.getEntitiesFromQuery(r.Tx, r.DbSID, accessMode,
 		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
 	if xErr != nil {
 		return nil, xErr
 	}
 
-	groups := make([]*Group, len(entities))
+	groups := make([]*registry.Group, len(entities))
 	for i, e := range entities {
 		gType, _, _ := strings.Cut(e.XID, string(DB_IN))
 		g := r.Tx.GetGroup(r, gType, e.UID)
 		if g == nil {
-			g = &Group{
+			g = &registry.Group{
 				Entity:   *e,
 				Registry: r,
 			}
@@ -418,7 +441,7 @@ func (sqlBE *SQLBackend) GetGroups(r *Registry, accessMode int) ([]*Group, *XREr
 
 	return groups, nil
 }
-func (sqlBE *SQLBackend) GetGroupIDsByType(r *Registry, gType string,
+func (sqlBE *SQLBackend) GetGroupIDsByType(r *registry.Registry, gType string,
 	accessMode int) ([]string, *XRError) {
 
 	results, xErr := Query(r.Tx, `
@@ -439,7 +462,7 @@ func (sqlBE *SQLBackend) GetGroupIDsByType(r *Registry, gType string,
 }
 
 // regUID, entityXID, err
-func (sqlBE *SQLBackend) MapShortSelf(tx *Tx, ss string) (string, string, *XRError) {
+func (sqlBE *SQLBackend) MapShortSelf(tx *registry.Tx, ss string) (string, string, *XRError) {
 
 	query := fmt.Sprintf(`
         SELECT r.UID, e.XID
@@ -460,8 +483,8 @@ func (sqlBE *SQLBackend) MapShortSelf(tx *Tx, ss string) (string, string, *XRErr
 
 	return "", "", nil
 }
-func (sqlBE *SQLBackend) GenerateResultEntities(reg *Registry, what string,
-	XIDs []string) (EntityIterator, *XRError) {
+func (sqlBE *SQLBackend) GenerateResultEntities(reg *registry.Registry, what string,
+	XIDs []string) (registry.EntityIterator, *XRError) {
 
 	query, args, err := GenerateQuery(reg, what, XIDs)
 	if err != nil {
@@ -503,13 +526,13 @@ func (sqlBE *SQLBackend) GenerateResultEntities(reg *Registry, what string,
 	return iter, nil
 }
 
-func (sqlBE *SQLBackend) DeleteGroup(g *Group) *XRError {
+func (sqlBE *SQLBackend) DeleteGroup(g *registry.Group) *XRError {
 	xErr := DoOne(g.Tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
 
 	return xErr
 }
 
-func (sqlBE *SQLBackend) HasReadOnlyResource(g *Group) (bool, *XRError) {
+func (sqlBE *SQLBackend) HasReadOnlyResource(g *registry.Group) (bool, *XRError) {
 	// Make sure we don't have any readonly Resources. Callers (HTTPDelete/
 	// HTTPDeleteGroups) already lock g itself FOR_WRITE, but that doesn't
 	// lock the descendant Resources/Metas whose readonly Props this scans -
@@ -518,7 +541,7 @@ func (sqlBE *SQLBackend) HasReadOnlyResource(g *Group) (bool, *XRError) {
 	// letting this Group be improperly deleted.
 	results, xErr := Query(g.Tx, `
         SELECT EXISTS(SELECT 1 FROM Props
-        WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
+        WHERE RegSID=? AND Type=`+registry.StrTypes(ENTITY_META)+` AND
           XID LIKE '`+g.XID+`/%' AND
           PropName='readonly`+string(DB_IN)+`' AND
           PropValue='true') FOR UPDATE`,
@@ -533,7 +556,7 @@ func (sqlBE *SQLBackend) HasReadOnlyResource(g *Group) (bool, *XRError) {
 	return NotNilInt(row[0]) != 0, nil
 }
 
-func (sqlBE *SQLBackend) FindBadEqualsVersions(g *Group, gPP *PropPath, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) {
+func (sqlBE *SQLBackend) FindBadEqualsVersions(g *registry.Group, gPP *PropPath, rm *registry.ResourceModel, rPP *PropPath) (string, []string, *XRError) {
 	// validateEquals checks the "equals" half of a constraint: every
 	// Version (real or xref-mirrored, since this scans Entities/
 	// Props broadly) of resPlural, under this Group, must have
@@ -605,7 +628,7 @@ func (sqlBE *SQLBackend) FindBadEqualsVersions(g *Group, gPP *PropPath, rm *Reso
 
 		// r.XID, v.UID, vp.PropValue
 
-		// log.Printf("tx: %s %q %q %q", g.Tx.uuid,
+		// log.Printf("tx: %s %q %q %q", g.Tx.UUID,
 		// NotNilString(row[0]), NotNilString(row[1]),
 		// NotNilString(row[2]))
 
@@ -621,7 +644,7 @@ func (sqlBE *SQLBackend) FindBadEqualsVersions(g *Group, gPP *PropPath, rm *Reso
 	return rXID, vIDs, nil
 }
 
-func (sqlBE *SQLBackend) FindBadEnumVersions(g *Group, constraint *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) {
+func (sqlBE *SQLBackend) FindBadEnumVersions(g *registry.Group, constraint *registry.Constraint, rm *registry.ResourceModel, rPP *PropPath) (string, []string, *XRError) {
 
 	// validateEnum checks the "enum" half of a constraint: every Version
 	// (real or xref-mirrored, since this scans Entities/Props
@@ -711,19 +734,19 @@ func (sqlBE *SQLBackend) FindBadEnumVersions(g *Group, constraint *Constraint, r
 	return rXID, vIDs, nil
 }
 
-func (sqlBE *SQLBackend) GetResources(g *Group, accessMode int) ([]*Resource, *XRError) {
+func (sqlBE *SQLBackend) GetResources(g *registry.Group, accessMode int) ([]*registry.Resource, *XRError) {
 	entities, xErr := sqlBE.getEntitiesFromQuery(g.Tx, g.Registry.DbSID, FOR_WRITE,
 		`e.ParentSID=?`, g.DbSID)
 	if xErr != nil {
 		return nil, xErr
 	}
 
-	resources := make([]*Resource, len(entities))
+	resources := make([]*registry.Resource, len(entities))
 	for i, e := range entities {
 		parts := strings.Split(e.XID, "/") // /gType/gID/rType/rID
 		r := g.Tx.GetResource(g, parts[3], e.UID)
 		if r == nil {
-			r = &Resource{
+			r = &registry.Resource{
 				Entity: *e,
 				Group:  g,
 			}
@@ -738,7 +761,7 @@ func (sqlBE *SQLBackend) GetResources(g *Group, accessMode int) ([]*Resource, *X
 	return resources, nil
 }
 
-func (sqlBE *SQLBackend) GetResourceIDsByType(g *Group, rType string,
+func (sqlBE *SQLBackend) GetResourceIDsByType(g *registry.Group, rType string,
 	accessMode int) ([]string, *XRError) {
 
 	results, xErr := Query(g.Tx, `
@@ -758,7 +781,7 @@ func (sqlBE *SQLBackend) GetResourceIDsByType(g *Group, rType string,
 	return list, nil
 }
 
-func (sqlBE *SQLBackend) RegisterEntity(e *Entity) *XRError {
+func (sqlBE *SQLBackend) RegisterEntity(e *registry.Entity) *XRError {
 	switch e.Type {
 	case ENTITY_REGISTRY:
 		// Add Registry and Model to the DB's tables
@@ -976,7 +999,7 @@ func (sqlBE *SQLBackend) RegisterEntity(e *Entity) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) LoadModelJSON(r *Registry) (string, string, *XRError) {
+func (sqlBE *SQLBackend) LoadModelJSON(r *registry.Registry) (string, string, *XRError) {
 	// Load Registry model
 	results, xErr := Query(r.Tx,
 		`SELECT Model,Changed FROM Models WHERE RegistrySID=?`,
@@ -991,7 +1014,7 @@ func (sqlBE *SQLBackend) LoadModelJSON(r *Registry) (string, string, *XRError) {
 		return "", "", nil
 		/*
 			NewXRError("server_error", "/model").
-				SetDetailf("tx: %s Can't find registry: %s", r.Tx.uuid, r.UID)
+				SetDetailf("tx: %s Can't find registry: %s", r.Tx.UUID, r.UID)
 		*/
 	}
 
@@ -1001,11 +1024,11 @@ func (sqlBE *SQLBackend) LoadModelJSON(r *Registry) (string, string, *XRError) {
 	return model, changedUUID, nil
 }
 
-func (sqlBE *SQLBackend) SaveModel(m *Model, changeUUID string) *XRError {
+func (sqlBE *SQLBackend) SaveModel(m *registry.Model, changeUUID string) *XRError {
 	buf, _ := json.Marshal(m)
 	modelStr := string(buf)
 
-	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.Tx.uuid)
+	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.Tx.UUID)
 	xErr := DoZeroTwo(m.Registry.Tx, `
         INSERT INTO Models(RegistrySID, Model, Changed)
             VALUES(?,?,?)
@@ -1018,7 +1041,7 @@ func (sqlBE *SQLBackend) SaveModel(m *Model, changeUUID string) *XRError {
 }
 
 func (sqlBE *SQLBackend) RegisterModelEntity(me any) *XRError {
-	if gm, ok := me.(*GroupModel); ok {
+	if gm, ok := me.(*registry.GroupModel); ok {
 		xErr := DoOne(gm.Model.Registry.Tx,
 			`INSERT INTO ModelEntities(
                      SID, RegistrySID, ParentSID,
@@ -1029,7 +1052,7 @@ func (sqlBE *SQLBackend) RegisterModelEntity(me any) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-	} else if rm, ok := me.(*ResourceModel); ok {
+	} else if rm, ok := me.(*registry.ResourceModel); ok {
 		gm := rm.GroupModel
 		gmAbs := "/" + gm.Plural
 
@@ -1050,7 +1073,7 @@ func (sqlBE *SQLBackend) RegisterModelEntity(me any) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) DeleteModelEnityByAbstract(reg *Registry, abstract string) *XRError {
+func (sqlBE *SQLBackend) DeleteModelEnityByAbstract(reg *registry.Registry, abstract string) *XRError {
 	xErr := DoOne(reg.Tx, `DELETE FROM ModelEntities
         WHERE RegistrySID=? AND Abstract=?`,
 		reg.DbSID, abstract)
@@ -1058,7 +1081,7 @@ func (sqlBE *SQLBackend) DeleteModelEnityByAbstract(reg *Registry, abstract stri
 	return xErr
 }
 
-func (sqlBE *SQLBackend) GetModelEntitiesByAbstract(r *Registry) (map[string]string, *XRError) {
+func (sqlBE *SQLBackend) GetModelEntitiesByAbstract(r *registry.Registry) (map[string]string, *XRError) {
 	// Load old model's ModelEntities so we can diff them
 	existingModelEntities := map[string]string{} // Abstract->SID
 	results, xErr := Query(r.Tx,
@@ -1082,7 +1105,7 @@ func (sqlBE *SQLBackend) GetModelEntitiesByAbstract(r *Registry) (map[string]str
 	return existingModelEntities, nil
 }
 
-func (sqlBE *SQLBackend) CountGroupModelUsed(r *Registry, gmSID string) (int, *XRError) {
+func (sqlBE *SQLBackend) CountGroupModelUsed(r *registry.Registry, gmSID string) (int, *XRError) {
 	results, xErr := Query(r.Tx,
 		`SELECT COUNT(*) FROM "Groups" WHERE ModelSID=?`, gmSID)
 	if xErr != nil {
@@ -1094,7 +1117,7 @@ func (sqlBE *SQLBackend) CountGroupModelUsed(r *Registry, gmSID string) (int, *X
 	return count, nil
 }
 
-func (sqlBE *SQLBackend) CountResourceModelUsed(r *Registry, rmSID string) (int, *XRError) {
+func (sqlBE *SQLBackend) CountResourceModelUsed(r *registry.Registry, rmSID string) (int, *XRError) {
 	results, xErr := Query(r.Tx,
 		`SELECT COUNT(*) FROM Resources WHERE ModelSID=?`, rmSID)
 	if xErr != nil {
@@ -1107,7 +1130,7 @@ func (sqlBE *SQLBackend) CountResourceModelUsed(r *Registry, rmSID string) (int,
 }
 
 // versionXID, attr, err
-func (sqlBE *SQLBackend) IsHasDocUsed(r *Registry, rm *ResourceModel) (string, string, *XRError) {
+func (sqlBE *SQLBackend) IsHasDocUsed(r *registry.Registry, rm *registry.ResourceModel) (string, string, *XRError) {
 	names := []string{
 		rm.Singular + string(DB_IN),
 		rm.Singular + "url" + string(DB_IN),
@@ -1143,7 +1166,7 @@ func (sqlBE *SQLBackend) IsHasDocUsed(r *Registry, rm *ResourceModel) (string, s
 }
 
 // versionXID, attr, err
-func (sqlBE *SQLBackend) HasDocContent(r *Resource) (string, *XRError) {
+func (sqlBE *SQLBackend) HasDocContent(r *registry.Resource) (string, *XRError) {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
 	// ManualVersionMode.newestVersionID(). Called from ValidateResource()
@@ -1182,7 +1205,7 @@ func (sqlBE *SQLBackend) HasDocContent(r *Resource) (string, *XRError) {
 	return "", nil
 }
 
-func (sqlBE *SQLBackend) RefreshEntity(e *Entity, accessMode int) *XRError {
+func (sqlBE *SQLBackend) RefreshEntity(e *registry.Entity, accessMode int) *XRError {
 	mode := ""
 	if accessMode == FOR_WRITE {
 		mode = " FOR UPDATE"
@@ -1197,7 +1220,7 @@ func (sqlBE *SQLBackend) RefreshEntity(e *Entity, accessMode int) *XRError {
 		results.Close()
 	}
 
-	log.FuncPrintf("tx: %s Refreshing %q, mode: %v", e.Tx.uuid, e.XID, mode)
+	log.FuncPrintf("tx: %s Refreshing %q, mode: %v", e.Tx.UUID, e.XID, mode)
 
 	results, xErr := Query(e.Tx, `
         SELECT PropName, PropValue, PropType, IsSystemProp
@@ -1234,7 +1257,7 @@ func (sqlBE *SQLBackend) RefreshEntity(e *Entity, accessMode int) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) ClearUserProps(e *Entity) *XRError {
+func (sqlBE *SQLBackend) ClearUserProps(e *registry.Entity) *XRError {
 	// Delete all user props for this entity, we assume that NewObject
 	// contains everything we want going forward
 	_, xErr := Do(e.Tx, `DELETE FROM Props
@@ -1246,7 +1269,7 @@ func (sqlBE *SQLBackend) ClearUserProps(e *Entity) *XRError {
 	return xErr
 }
 
-func batchUpdateProps(e *Entity, isSystem bool, args []any) *XRError {
+func batchUpdateProps(e *registry.Entity, isSystem bool, args []any) *XRError {
 	size := len(args) / 13
 
 	isSystemStr := "false"
@@ -1285,7 +1308,7 @@ func batchUpdateProps(e *Entity, isSystem bool, args []any) *XRError {
 // single-row delete filter (own rows only - never cascaded/copied
 // ones), regardless of isSystem, since own vs. system PropNames never
 // collide.
-func batchDeleteProps(e *Entity, names []string) *XRError {
+func batchDeleteProps(e *registry.Entity, names []string) *XRError {
 	if len(names) == 0 {
 		return nil
 	}
@@ -1324,7 +1347,7 @@ func batchDeleteProps(e *Entity, names []string) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) LockResourceBySID(tx *Tx, sid string) *XRError {
+func (sqlBE *SQLBackend) LockResourceBySID(tx *registry.Tx, sid string) *XRError {
 	results, xErr := Query(tx,
 		"SELECT SID FROM Resources WHERE SID=? FOR UPDATE",
 		sid)
@@ -1336,7 +1359,7 @@ func (sqlBE *SQLBackend) LockResourceBySID(tx *Tx, sid string) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) DeleteResource(r *Resource) *XRError {
+func (sqlBE *SQLBackend) DeleteResource(r *registry.Resource) *XRError {
 	// Any xref source's stale mirror is cleared by ResourcesTrigger
 	// (init.sql), which fires for every deletion path (this, whole-
 	// Group delete, whole-Registry delete) uniformly.
@@ -1345,7 +1368,7 @@ func (sqlBE *SQLBackend) DeleteResource(r *Resource) *XRError {
 	return xErr
 }
 
-func (sqlBE *SQLBackend) GetResourceContents(e *Entity) ([]byte, *XRError) {
+func (sqlBE *SQLBackend) GetResourceContents(e *registry.Entity) ([]byte, *XRError) {
 	if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
 		contentID := e.Get("#contentid")
 
@@ -1373,7 +1396,7 @@ func (sqlBE *SQLBackend) GetResourceContents(e *Entity) ([]byte, *XRError) {
 	panic(fmt.Sprintf("%s: I'm not a Resource or Version", e.XID))
 }
 
-func (sqlBE *SQLBackend) SetResourceContents(e *Entity, val []byte) *XRError {
+func (sqlBE *SQLBackend) SetResourceContents(e *registry.Entity, val []byte) *XRError {
 	if IsNil(val) {
 		// Remove the content
 		_, xErr := Do(e.Tx, `DELETE FROM ResourceContents WHERE VersionSID=?`,
@@ -1393,7 +1416,7 @@ func (sqlBE *SQLBackend) SetResourceContents(e *Entity, val []byte) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) RecalcVersionsIsDefault(r *Resource) *XRError {
+func (sqlBE *SQLBackend) RecalcVersionsIsDefault(r *registry.Resource) *XRError {
 	// Fix up isdefault on every one of this Resource's OWN Versions -
 	// they were each set based on their own state at their own last
 	// Save(), so if the default just moved to a different Version, the
@@ -1412,14 +1435,14 @@ func (sqlBE *SQLBackend) RecalcVersionsIsDefault(r *Resource) *XRError {
 	return xErr
 }
 
-func (sqlBE *SQLBackend) DeleteResourceDefaultVersionProps(r *Resource) *XRError {
+func (sqlBE *SQLBackend) DeleteResourceDefaultVersionProps(r *registry.Resource) *XRError {
 	_, xErr := Do(r.Tx,
 		`DELETE FROM Props WHERE eSID=? AND IsDefaultVerCopy=true`,
 		r.DbSID)
 	return xErr
 }
 
-func (sqlBE *SQLBackend) CopyResourceDefaultVersionProps(r *Resource) *XRError {
+func (sqlBE *SQLBackend) CopyResourceDefaultVersionProps(r *registry.Resource) *XRError {
 	// IsCalcDynamic isn't excluded here (unlike IsCalcStatic) so ver's
 	// own "isdefault" row (just fixed up above) is mirrored into the
 	// Resource too - like createdat/modifiedat, it's just copied
@@ -1447,7 +1470,7 @@ func (sqlBE *SQLBackend) CopyResourceDefaultVersionProps(r *Resource) *XRError {
 	return xErr
 }
 
-func (sqlBE *SQLBackend) FindBadAncestorsCreatedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+func (sqlBE *SQLBackend) FindBadAncestorsCreatedAt(r *registry.Resource, lock bool) ([]*registry.AncestorVersion, *XRError) {
 	// Search the DB for all Versions of this Resource, sorted by 'createdat'
 	// and return the ones that do not have the proper 'ancestorid' value.
 	// Meaning, they don't point to the next oldest one (based on createdat)
@@ -1473,14 +1496,14 @@ func (sqlBE *SQLBackend) FindBadAncestorsCreatedAt(r *Resource, lock bool) ([]*A
 	}
 	defer results.Close()
 
-	AVs := []*AncestorVersion{}
+	AVs := []*registry.AncestorVersion{}
 
 	for {
 		row := results.NextRow()
 		if row == nil {
 			break
 		}
-		AVs = append(AVs, &AncestorVersion{
+		AVs = append(AVs, &registry.AncestorVersion{
 			VersionUID: NotNilString(row[0]),
 			AncestorID: NotNilString(row[1]),
 		})
@@ -1489,7 +1512,7 @@ func (sqlBE *SQLBackend) FindBadAncestorsCreatedAt(r *Resource, lock bool) ([]*A
 	return AVs, nil
 }
 
-func (sqlBE *SQLBackend) FindBadAncestorsModifiedAt(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+func (sqlBE *SQLBackend) FindBadAncestorsModifiedAt(r *registry.Resource, lock bool) ([]*registry.AncestorVersion, *XRError) {
 	// Search the DB for all Versions of this Resource, sorted by
 	// 'modifiedat' and return the ones that do not have the proper
 	// 'ancestorid' value. Meaning, they don't point to the next oldest
@@ -1516,14 +1539,14 @@ func (sqlBE *SQLBackend) FindBadAncestorsModifiedAt(r *Resource, lock bool) ([]*
 	}
 	defer results.Close()
 
-	AVs := []*AncestorVersion{}
+	AVs := []*registry.AncestorVersion{}
 
 	for {
 		row := results.NextRow()
 		if row == nil {
 			break
 		}
-		AVs = append(AVs, &AncestorVersion{
+		AVs = append(AVs, &registry.AncestorVersion{
 			VersionUID: NotNilString(row[0]),
 			AncestorID: NotNilString(row[1]),
 		})
@@ -1532,7 +1555,7 @@ func (sqlBE *SQLBackend) FindBadAncestorsModifiedAt(r *Resource, lock bool) ([]*
 	return AVs, nil
 }
 
-func (sqlBE *SQLBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*AncestorVersion, *XRError) {
+func (sqlBE *SQLBackend) FindBadAncestorsSemVer(r *registry.Resource, lock bool) ([]*registry.AncestorVersion, *XRError) {
 	// Search the DB for all Versions of this Resource, sorted by
 	// 'semver' and return the ones that do not have the proper
 	// 'ancestorid' value. Meaning, they don't point to the next oldest
@@ -1552,14 +1575,14 @@ func (sqlBE *SQLBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*Ance
 	}
 	defer results.Close()
 
-	AVs := []*AncestorVersion{}
+	AVs := []*registry.AncestorVersion{}
 
 	for {
 		row := results.NextRow()
 		if row == nil {
 			break
 		}
-		AVs = append(AVs, &AncestorVersion{
+		AVs = append(AVs, &registry.AncestorVersion{
 			VersionUID: NotNilString(row[0]),
 			AncestorID: NotNilString(row[1]),
 		})
@@ -1570,7 +1593,7 @@ func (sqlBE *SQLBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*Ance
 	// tie-break convention used elsewhere for "newest"/"oldest" - see
 	// the versionmode doc in model.md), so results are deterministic.
 	sort.Slice(AVs, func(i, j int) bool {
-		if c := CompareSemver(AVs[i].VersionUID, AVs[j].VersionUID); c != 0 {
+		if c := registry.CompareSemver(AVs[i].VersionUID, AVs[j].VersionUID); c != 0 {
 			return c < 0
 		}
 		iVUID := strings.ToLower(AVs[i].VersionUID)
@@ -1578,7 +1601,7 @@ func (sqlBE *SQLBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*Ance
 		return iVUID < jVUID
 	})
 
-	AVs2 := []*AncestorVersion{}
+	AVs2 := []*registry.AncestorVersion{}
 
 	// Pick just AVs that are bad
 	for i, av := range AVs {
@@ -1598,7 +1621,7 @@ func (sqlBE *SQLBackend) FindBadAncestorsSemVer(r *Resource, lock bool) ([]*Ance
 	return AVs2, nil
 }
 
-func (sqlBE *SQLBackend) FindNewestVersionID(r *Resource, excludeTBD bool) (string, *XRError) {
+func (sqlBE *SQLBackend) FindNewestVersionID(r *registry.Resource, excludeTBD bool) (string, *XRError) {
 
 	lockExpr := ""
 	// if meta := r.Tx.GetMeta(r); meta != nil && meta.AccessMode == FOR_WRITE {
@@ -1644,7 +1667,7 @@ func (sqlBE *SQLBackend) FindNewestVersionID(r *Resource, excludeTBD bool) (stri
 	return "", nil
 }
 
-func (sqlBE *SQLBackend) GetVersionIDs(r *Resource) ([]*VersionAncestor, *XRError) {
+func (sqlBE *SQLBackend) GetVersionIDs(r *registry.Resource) ([]*registry.VersionAncestor, *XRError) {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
 	// ManualVersionMode.newestVersionID().
@@ -1664,13 +1687,13 @@ func (sqlBE *SQLBackend) GetVersionIDs(r *Resource) ([]*VersionAncestor, *XRErro
 	}
 	defer results.Close()
 
-	VAs := ([]*VersionAncestor)(nil)
+	VAs := ([]*registry.VersionAncestor)(nil)
 	for {
 		row := results.NextRow()
 		if row == nil {
 			break
 		}
-		VAs = append(VAs, &VersionAncestor{
+		VAs = append(VAs, &registry.VersionAncestor{
 			VID:        NotNilString(row[0]),
 			AncestorID: NotNilString(row[1]),
 			CreatedAt:  NotNilString(row[2]),
@@ -1680,7 +1703,7 @@ func (sqlBE *SQLBackend) GetVersionIDs(r *Resource) ([]*VersionAncestor, *XRErro
 	return VAs, nil
 }
 
-func (sqlBE *SQLBackend) GetRootVersionIDs(r *Resource) ([]string, *XRError) {
+func (sqlBE *SQLBackend) GetRootVersionIDs(r *registry.Resource) ([]string, *XRError) {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as HasCircularAncestors()
 	lockExpr := ""
@@ -1710,7 +1733,7 @@ func (sqlBE *SQLBackend) GetRootVersionIDs(r *Resource) ([]string, *XRError) {
 	return vIDs, nil
 }
 
-func (sqlBE *SQLBackend) GetProblematicVersions(r *Resource) ([]*VersionAncestor, *XRError) {
+func (sqlBE *SQLBackend) GetProblematicVersions(r *registry.Resource) ([]*registry.VersionAncestor, *XRError) {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
 	// ManualVersionMode.newestVersionID(). This is called from
@@ -1739,13 +1762,13 @@ func (sqlBE *SQLBackend) GetProblematicVersions(r *Resource) ([]*VersionAncestor
 	}
 	defer results.Close()
 
-	vers := ([]*VersionAncestor)(nil)
+	vers := ([]*registry.VersionAncestor)(nil)
 	for {
 		row := results.NextRow()
 		if row == nil {
 			break
 		}
-		vers = append(vers, &VersionAncestor{
+		vers = append(vers, &registry.VersionAncestor{
 			VID:        NotNilString(row[0]),
 			AncestorID: NotNilString(row[1]),
 			CreatedAt:  NotNilString(row[2]),
@@ -1755,7 +1778,7 @@ func (sqlBE *SQLBackend) GetProblematicVersions(r *Resource) ([]*VersionAncestor
 	return vers, nil
 }
 
-func (sqlBE *SQLBackend) GetChildVersionIDs(r *Resource, parentVID string) ([]string, *XRError) {
+func (sqlBE *SQLBackend) GetChildVersionIDs(r *registry.Resource, parentVID string) ([]string, *XRError) {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
 	// ManualVersionMode.newestVersionID(). Called from WillDelete() on
@@ -1789,7 +1812,7 @@ func (sqlBE *SQLBackend) GetChildVersionIDs(r *Resource, parentVID string) ([]st
 	return vIDs, nil
 }
 
-func (sqlBE *SQLBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
+func (sqlBE *SQLBackend) GetNumberOfVersions(r *registry.Resource) (int, *XRError) {
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as HasCircularAncestors() /
 	// ManualVersionMode.newestVersionID(). Called from write paths
@@ -1814,19 +1837,19 @@ func (sqlBE *SQLBackend) GetNumberOfVersions(r *Resource) (int, *XRError) {
 	return NotNilInt(row[0]), nil
 }
 
-func (sqlBE *SQLBackend) GetVersions(r *Resource, accessMode int) ([]*Version, *XRError) {
+func (sqlBE *SQLBackend) GetVersions(r *registry.Resource, accessMode int) ([]*registry.Version, *XRError) {
 	entities, xErr := sqlBE.getEntitiesFromQuery(r.Tx, r.Registry.DbSID,
 		accessMode, `e.ParentSID=? AND e.Type=?`, r.DbSID, ENTITY_VERSION)
 	if xErr != nil {
 		return nil, xErr
 	}
 
-	versions := make([]*Version, len(entities))
+	versions := make([]*registry.Version, len(entities))
 
 	for i, e := range entities {
 		v := r.Tx.GetVersion(r, e.UID)
 		if v == nil {
-			v = &Version{
+			v = &registry.Version{
 				Entity:   *e,
 				Resource: r,
 			}
@@ -1841,7 +1864,7 @@ func (sqlBE *SQLBackend) GetVersions(r *Resource, accessMode int) ([]*Version, *
 	return versions, nil
 }
 
-func (sqlBE *SQLBackend) GetXrefSources(r *Resource) ([]string, *XRError) {
+func (sqlBE *SQLBackend) GetXrefSources(r *registry.Resource) ([]string, *XRError) {
 	XIDs := []string{}
 
 	// FOR UPDATE: this is r (the target) reading the "who xrefs me" set
@@ -1871,7 +1894,7 @@ func (sqlBE *SQLBackend) GetXrefSources(r *Resource) ([]string, *XRError) {
 }
 
 // numValues, numNonEmptyUnique, numEmpty, error
-func (sqlBE *SQLBackend) CountNonMatchingVersions(r *Resource, vAttrPath *PropPath) (int, int, int, *XRError) {
+func (sqlBE *SQLBackend) CountNonMatchingVersions(r *registry.Resource, vAttrPath *PropPath) (int, int, int, *XRError) {
 
 	// FOR UPDATE only when r's Meta is already locked FOR_WRITE - same
 	// RR-snapshot-staleness reasoning as HasCircularAncestors(),
@@ -1916,7 +1939,7 @@ func (sqlBE *SQLBackend) CountNonMatchingVersions(r *Resource, vAttrPath *PropPa
 	return numValues, numNonEmpty, numEmpty, nil
 }
 
-func (sqlBE *SQLBackend) DeleteMeta(meta *Meta) *XRError {
+func (sqlBE *SQLBackend) DeleteMeta(meta *registry.Meta) *XRError {
 	// Props/Entities rows for this Meta are cleaned up by
 	// ResourcesTrigger (ParentSID=OLD.SID) when the owning Resource is
 	// deleted right after this.
@@ -1925,14 +1948,14 @@ func (sqlBE *SQLBackend) DeleteMeta(meta *Meta) *XRError {
 	return xErr
 }
 
-func (sqlBE *SQLBackend) DeleteVersion(v *Version) *XRError {
+func (sqlBE *SQLBackend) DeleteVersion(v *registry.Version) *XRError {
 	xErr := DoZeroOne(v.Tx, `DELETE FROM Versions WHERE SID=?`, v.DbSID)
 
 	return xErr
 }
 
 // Delete xref'd meta props, all Versions xref'd props (all?), xref'd Versions
-func (sqlBE *SQLBackend) ClearXrefState(meta *Meta) *XRError {
+func (sqlBE *SQLBackend) ClearXrefState(meta *registry.Meta) *XRError {
 	_, xErr := Do(meta.Tx, `DELETE FROM Props
         WHERE eSID=? AND IsXrefPropCopy=true`,
 		meta.DbSID)
@@ -1952,7 +1975,7 @@ func (sqlBE *SQLBackend) ClearXrefState(meta *Meta) *XRError {
 	return xErr
 }
 
-func (sqlBE *SQLBackend) CopyXrefState(meta *Meta) *XRError {
+func (sqlBE *SQLBackend) CopyXrefState(meta *registry.Meta) *XRError {
 	/*  Shouldn't need to look at the DB since it's locked/cached
 		results := Query(meta.Tx, `
 	        SELECT xRefXID FROM Metas WHERE SID=?`, meta.DbSID)
@@ -2002,7 +2025,7 @@ func (sqlBE *SQLBackend) CopyXrefState(meta *Meta) *XRError {
 	// directly accessible via meta.Self.(*Meta).Resource - no need to
 	// look it up as a "parent" entity at all. meta always has a parent
 	// Resource, so meta.ParentSID is never empty here.
-	resource := meta.Self.(*Meta).Resource
+	resource := meta.Self.(*registry.Meta).Resource
 
 	// Copy the target's meta.* props into this (source) Meta, excluding
 	// its own xref and "<singular>id" attrs, and any '#' internal props.
@@ -2038,7 +2061,7 @@ func (sqlBE *SQLBackend) CopyXrefState(meta *Meta) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) CopyXrefDefaultVersionProps(r *Resource) *XRError {
+func (sqlBE *SQLBackend) CopyXrefDefaultVersionProps(r *registry.Resource) *XRError {
 	// No real default Version - this Resource may be an xref
 	// source with no Versions of its own, in which case its
 	// "current default" is really the xref target's current
@@ -2128,7 +2151,7 @@ func (sqlBE *SQLBackend) CopyXrefDefaultVersionProps(r *Resource) *XRError {
 // (The DELETE...JOIN statements above don't need this: DELETE/UPDATE
 // searches always read latest-committed data in InnoDB, unlike plain
 // SELECTs - only these INSERT...SELECTs need the explicit FOR UPDATE.)
-func (sqlBE *SQLBackend) CopyXrefVersions(r *Resource, targetSID string) *XRError {
+func (sqlBE *SQLBackend) CopyXrefVersions(r *registry.Resource, targetSID string) *XRError {
 	if r == nil {
 		return nil
 	}
@@ -2268,10 +2291,10 @@ func (sqlBE *SQLBackend) CopyXrefVersions(r *Resource, targetSID string) *XRErro
 	return xErr
 }
 
-func (sqlBE *SQLBackend) GetEntityFromXID(tx *Tx, regSID string, xidStr string,
-	allAttrs bool, anyCase bool, accessMode int) (*Entity, *XRError) {
+func (sqlBE *SQLBackend) GetEntityFromXID(tx *registry.Tx, regSID string, xidStr string,
+	allAttrs bool, anyCase bool, accessMode int) (*registry.Entity, *XRError) {
 
-	defer log.Trace("tx: %s xid:%q all:%v", tx.uuid, xidStr, allAttrs)()
+	defer log.Trace("tx: %s xid:%q all:%v", tx.UUID, xidStr, allAttrs)()
 
 	iter, xErr := sqlBE.GetEntitiesFromXID(tx, regSID, xidStr, allAttrs,
 		false, anyCase, accessMode)
@@ -2294,12 +2317,12 @@ func (sqlBE *SQLBackend) GetEntityFromXID(tx *Tx, regSID string, xidStr string,
 	return e, nil
 }
 
-func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string,
+func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *registry.Tx, regSID string,
 	xidStr string, allAttrs bool, children bool, anyCase bool,
-	accessMode int) (EntityIterator, *XRError) {
+	accessMode int) (registry.EntityIterator, *XRError) {
 
 	defer log.Trace("tx: %s xid:%q all:%v child:%v",
-		tx.uuid, xidStr, allAttrs, children)()
+		tx.UUID, xidStr, allAttrs, children)()
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
@@ -2380,10 +2403,10 @@ func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *Tx, regSID string,
 	return iterator, nil
 }
 
-func (sqlBE *SQLBackend) getEntitiesFromQuery(tx *Tx, regID string,
-	accessMode int, query string, args ...any) ([]*Entity, *XRError) {
+func (sqlBE *SQLBackend) getEntitiesFromQuery(tx *registry.Tx, regID string,
+	accessMode int, query string, args ...any) ([]*registry.Entity, *XRError) {
 
-	defer log.Trace("tx: %s %s", tx.uuid, query)()
+	defer log.Trace("tx: %s %s", tx.UUID, query)()
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp
@@ -2432,7 +2455,7 @@ func (sqlBE *SQLBackend) getEntitiesFromQuery(tx *Tx, regID string,
 	}
 	defer results.Close()
 
-	entities := []*Entity{}
+	entities := []*registry.Entity{}
 	for {
 		e, xErr := readNextEntity(tx, results, accessMode)
 		if xErr != nil {
@@ -2448,7 +2471,7 @@ func (sqlBE *SQLBackend) getEntitiesFromQuery(tx *Tx, regID string,
 	// entity's Resource+Meta+Versions family too, if applicable.
 	if accessMode == FOR_WRITE {
 		for _, e := range entities {
-			if xErr := lockEntityFamily(tx, e); xErr != nil {
+			if xErr := registry.LockEntityFamily(tx, e); xErr != nil {
 				return nil, xErr
 			}
 		}
@@ -2459,7 +2482,7 @@ func (sqlBE *SQLBackend) getEntitiesFromQuery(tx *Tx, regID string,
 
 type sqlEntityIterator struct {
 	Results    *Result
-	Tx         *Tx
+	Tx         *registry.Tx
 	AccessMode int
 
 	offset uint64
@@ -2467,14 +2490,14 @@ type sqlEntityIterator struct {
 	total  uint64
 }
 
-func (sei *sqlEntityIterator) Next() (*Entity, *XRError) {
+func (sei *sqlEntityIterator) Next() (*registry.Entity, *XRError) {
 	e, xErr := readNextEntity(sei.Tx, sei.Results, sei.AccessMode)
 	if xErr != nil {
 		return nil, xErr
 	}
 
 	if e != nil && sei.AccessMode == FOR_WRITE {
-		if xErr := lockEntityFamily(sei.Tx, e); xErr != nil {
+		if xErr := registry.LockEntityFamily(sei.Tx, e); xErr != nil {
 			return nil, xErr
 		}
 	}
@@ -2493,7 +2516,7 @@ func (sei *sqlEntityIterator) Offset() uint64 { return sei.offset }
 func (sei *sqlEntityIterator) Size() uint64   { return sei.size }
 func (sei *sqlEntityIterator) Total() uint64  { return sei.total }
 
-func (sqlBE *SQLBackend) Query(tx *Tx, query string, args ...any) ([][]any, *XRError) {
+func (sqlBE *SQLBackend) Query(tx *registry.Tx, query string, args ...any) ([][]any, *XRError) {
 	results, xErr := Query(tx, query, args...)
 	if xErr != nil {
 		return nil, xErr
@@ -2569,7 +2592,7 @@ func (sqlBE *SQLBackend) Query(tx *Tx, query string, args ...any) ([][]any, *XRE
 // ALL" here would produce. The one-time, non-recursive arm-tagging seed
 // (built via "UNION ALL" below) doesn't have this concern since it's a
 // flat aggregation, not something that compounds across recursion depth.
-func generateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interface{}) {
+func generateFilterCTE(reg *registry.Registry, filters [][]*registry.FilterExpr) (string, []interface{}) {
 	query := ""
 	args := []interface{}{}
 
@@ -2618,8 +2641,8 @@ func generateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interf
 				}
 
 				PanicIf(!has, "Must have *") // Sanity check
-				// log.Printf("tx: %s fpn: %q", reg.Tx.uuid, filterPropName)
-				// log.Printf("tx: %s fpn: %s", reg.Tx.uuid, filter.PP.Debug())
+				// log.Printf("tx: %s fpn: %q", reg.Tx.UUID, filterPropName)
+				// log.Printf("tx: %s fpn: %s", reg.Tx.UUID, filter.PP.Debug())
 			} else {
 				if filter.Operator == FILTER_PRESENT ||
 					filter.Operator == FILTER_ABSENT {
@@ -2763,7 +2786,7 @@ func generateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interf
           (
             (
               -- Non-meta objects, just compare the XID
-              result.Type<>` + StrTypes(ENTITY_META) + ` AND
+              result.Type<>` + registry.StrTypes(ENTITY_META) + ` AND
               ( result.XID = '/' OR
                 e2.XID=result.XID OR
                 e2.XID LIKE CONCAT(result.XID,'/%')
@@ -2772,7 +2795,7 @@ func generateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interf
             OR
             (
               -- For 'meta' objects, compare it's parent's XID
-              result.Type=` + StrTypes(ENTITY_META) + ` AND
+              result.Type=` + registry.StrTypes(ENTITY_META) + ` AND
               (e2.eSID = result.ParentSID OR e2.ParentSID = result.ParentSID)
               -- ( e2.XID=TRIM(TRAILING '/meta' FROM result.XID) OR
                 -- e2.XID LIKE CONCAT(TRIM(TRAILING 'meta' FROM result.XID),'%')
@@ -2807,8 +2830,8 @@ func generateFilterCTE(reg *Registry, filters [][]*FilterExpr) (string, []interf
         e.eSID=cte.ParentSID
         OR
         -- If this is a Resource, grab its 'meta' sub-object
-        ( cte.Type=` + StrTypes(ENTITY_RESOURCE) + ` AND
-          e.Type=` + StrTypes(ENTITY_META) + ` AND
+        ( cte.Type=` + registry.StrTypes(ENTITY_RESOURCE) + ` AND
+          e.Type=` + registry.StrTypes(ENTITY_META) + ` AND
           e.ParentSID=cte.eSID
         )
       )
@@ -2845,7 +2868,7 @@ func topLevelSlashCount(xid string) string {
 }
 
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
-func GenerateQuery(reg *Registry, what string, XIDs []string) (string, []interface{}, *XRError) {
+func GenerateQuery(reg *registry.Registry, what string, XIDs []string) (string, []interface{}, *XRError) {
 	query := ""
 	args := []any{}
 
@@ -3083,7 +3106,7 @@ SELECT
 	}
 
 	if log.GetLevel() > 3 || log.HasVerbose("genq") {
-		log.Printf("tx: %s Query:\n%s\n\n", reg.Tx.uuid, SubQuery(query, args))
+		log.Printf("tx: %s Query:\n%s\n\n", reg.Tx.UUID, SubQuery(query, args))
 	}
 	return query, args, nil
 }
@@ -3108,15 +3131,15 @@ func LikeWildcardIt(str string) (string, bool) {
 }
 
 // Create a new Entity based on what's in the DB. Similar to Refresh()
-func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError) {
-	entity := (*Entity)(nil)
+func readNextEntity(tx *registry.Tx, results *Result, accessMode int) (*registry.Entity, *XRError) {
+	entity := (*registry.Entity)(nil)
 
 	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,XID,
 	// PropName,PropValue,PropType,IsSystemProp,FilterMask
 	//   0     1     2       3         4      5   6     7      8
 	//     9        10         11         12        13
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		// log.Printf("tx: %s Row(%d): %#v", tx.uuid, len(row), row)
+		// log.Printf("tx: %s Row(%d): %#v", tx.UUID, len(row), row)
 		if log.HasVerbose("readNextEntity") {
 			str := "("
 			for _, c := range row {
@@ -3126,15 +3149,15 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 					str += fmt.Sprintf("%s,", *c)
 				}
 			}
-			log.Printf("tx: %s Row: %s)", tx.uuid, str)
+			log.Printf("tx: %s Row: %s)", tx.UUID, str)
 		}
 		eType := int((*row[1]).(int64))
 		plural := NotNilString(row[2])
 		uid := NotNilString(row[6])
 
 		if entity == nil {
-			entity = &Entity{
-				EntityExtensions: EntityExtensions{},
+			entity = &registry.Entity{
+				EntityExtensions: registry.EntityExtensions{},
 
 				Tx:         tx,
 				AccessMode: accessMode,
@@ -3151,7 +3174,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 			}
 
 			entity.GroupModel, entity.ResourceModel =
-				AbstractToModels(tx.Registry, entity.Abstract)
+				registry.AbstractToModels(tx.Registry, entity.Abstract)
 
 			// FilterMask is only meaningful/present when the query
 			// applied a ?filter=. It tells us which top-level OR
@@ -3211,7 +3234,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 	return entity, nil
 }
 
-func (sqlBE *SQLBackend) SaveEntity(e *Entity) *XRError {
+func (sqlBE *SQLBackend) SaveEntity(e *registry.Entity) *XRError {
 	// old - make a dup so we can delete some attributes
 	newObj := e.NewObject // maps.Clone(e.NewObject)
 
@@ -3356,8 +3379,8 @@ type dbPropRow struct {
 // The nil/delete case is a no-op here: Save() already issues one
 // blanket DELETE for all of this entity's own-prop rows before
 // traversal starts, so there's never a per-prop delete to buffer.
-func setDBPropertyBatch(e *Entity, pp *PropPath, val any) *XRError {
-	defer log.Trace("tx: %s %s=%v", e.Tx.uuid, pp, val)()
+func setDBPropertyBatch(e *registry.Entity, pp *PropPath, val any) *XRError {
+	defer log.Trace("tx: %s %s=%v", e.Tx.UUID, pp, val)()
 
 	row, skip, xErr := prepDBProperty(e, pp, val)
 	if xErr != nil {
@@ -3393,10 +3416,10 @@ func setDBPropertyBatch(e *Entity, pp *PropPath, val any) *XRError {
 // SetDBProperty() (immediate single-row write) and
 // SetDBPropertyBatch() (buffered, for Save()'s traversal loop - see
 // DoDBPropertyBatch()). Returns skip=true if nothing further needs to
-// be written (e.g. dontStore props, or the RESOURCE-content special
+// be written (e.g. DontStore props, or the RESOURCE-content special
 // case, which is written directly to ResourceContents here and never
 // touches Props).
-func prepDBProperty(e *Entity, pp *PropPath, val any) (row dbPropRow,
+func prepDBProperty(e *registry.Entity, pp *PropPath, val any) (row dbPropRow,
 	skip bool, xErr *XRError) {
 
 	PanicIf(pp.UI() == "", "pp is empty")
@@ -3414,12 +3437,12 @@ func prepDBProperty(e *Entity, pp *PropPath, val any) (row dbPropRow,
 
 	_, propsMap := e.GetPropsOrdered()
 	specProp, ok := propsMap[pp.Top()]
-	if ok && specProp.internals != nil {
-		// Any prop with "dontStore"=true we skip
-		if specProp.internals.dontStore {
+	if ok && specProp.Internals != nil {
+		// Any prop with "DontStore"=true we skip
+		if specProp.Internals.DontStore {
 			return dbPropRow{}, true, nil
 		}
-		if specProp.internals.noDocView {
+		if specProp.Internals.NoDocView {
 			row.DocView = false
 		}
 	}
@@ -3466,7 +3489,7 @@ func prepDBProperty(e *Entity, pp *PropPath, val any) (row dbPropRow,
 	// Convert specDefined BOOLEAN value "false" to "nil" so it doesn't
 	// appear in the DB at all. If this is too broad then just do it for
 	// "defaultversionsticky" in resources.go as we're copying attributes.
-	if !IsNil(specProp) && val == false && GoToOurType(val) == BOOLEAN {
+	if !IsNil(specProp) && val == false && registry.GoToOurType(val) == BOOLEAN {
 		// val = nil
 	}
 
@@ -3475,7 +3498,7 @@ func prepDBProperty(e *Entity, pp *PropPath, val any) (row dbPropRow,
 		return row, false, nil
 	}
 
-	row.Type = GoToOurType(val)
+	row.Type = registry.GoToOurType(val)
 	// Convert booleans to true/false instead of 1/0 so filter works
 	// ...=true and not ...=1
 	dbVal := val
@@ -3529,7 +3552,7 @@ func prepDBProperty(e *Entity, pp *PropPath, val any) (row dbPropRow,
 // REPLACE INTO Props statements (see DBWritePropsBatch()
 // in fulltree.go), then clears the buffer. Called once by Save(),
 // right after its traversal loop finishes.
-func doDBPropertyBatch(e *Entity) *XRError {
+func doDBPropertyBatch(e *registry.Entity) *XRError {
 	tmp, ok := e.GetStuff("dbPropBatch")
 	if !ok || IsNil(tmp) {
 		return nil
@@ -3552,7 +3575,7 @@ func doDBPropertyBatch(e *Entity) *XRError {
 // DoDBPropertyBatch) - same meaning as DBWriteProp's isSystem
 // param, just batched across multiple rows in one statement instead of
 // one statement per row.
-func dbWritePropsBatch(e *Entity, rows []dbPropRow, isSystem bool) *XRError {
+func dbWritePropsBatch(e *registry.Entity, rows []dbPropRow, isSystem bool) *XRError {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -3587,7 +3610,7 @@ func dbWritePropsBatch(e *Entity, rows []dbPropRow, isSystem bool) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) SaveChangedSystemProps(e *Entity, changed map[string]any) *XRError {
+func (sqlBE *SQLBackend) SaveChangedSystemProps(e *registry.Entity, changed map[string]any) *XRError {
 
 	_, propsMap := e.GetPropsOrdered()
 
@@ -3599,8 +3622,8 @@ func (sqlBE *SQLBackend) SaveChangedSystemProps(e *Entity, changed map[string]an
 
 	for name, val := range changed {
 		docView := true
-		if specProp, ok := propsMap[name]; ok && specProp.internals != nil &&
-			specProp.internals.noDocView {
+		if specProp, ok := propsMap[name]; ok && specProp.Internals != nil &&
+			specProp.Internals.NoDocView {
 			docView = false
 		}
 		dbName := NewPPP(name).DB()
@@ -3610,7 +3633,7 @@ func (sqlBE *SQLBackend) SaveChangedSystemProps(e *Entity, changed map[string]an
 			continue
 		}
 
-		propType := GoToOurType(val)
+		propType := registry.GoToOurType(val)
 		dbVal := val
 		if propType == BOOLEAN {
 			if val == true {

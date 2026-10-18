@@ -98,7 +98,7 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 	r *http.Request) *RequestInfo {
 
 	info := &RequestInfo{
-		uuid:             uuid,
+		UUID:             uuid,
 		XRSConfig:        xrsConfig,
 		OriginalPath:     strings.Trim(r.URL.Path, " /"),
 		OriginalRequest:  r,
@@ -136,10 +136,10 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 
 // Clear everything except the stuff that should never change on a retry
 func (info *RequestInfo) Reset() {
-	if info.tx != nil {
+	if info.Tx != nil {
 		// Should never happen, but just incase
-		info.tx.Rollback()
-		info.tx = nil
+		info.Tx.Rollback()
+		info.Tx = nil
 	}
 
 	// Clear and reset outbound headers to the original list
@@ -151,7 +151,7 @@ func (info *RequestInfo) Reset() {
 		}
 	}
 
-	newInfo := NewRequestInfo(info.uuid, info.XRSConfig,
+	newInfo := NewRequestInfo(info.UUID, info.XRSConfig,
 		info.OriginalResponse, info.OriginalRequest)
 
 	*info = *newInfo
@@ -183,7 +183,7 @@ func (info *RequestInfo) ParseRequest(tx *Tx) *XRError {
 	if log.IsFuncVerbose() {
 		defer func() {
 			log.Printf("tx: %s Info:\n%s",
-				info.uuid, ToJSON(info))
+				info.UUID, ToJSON(info))
 		}()
 	}
 
@@ -196,7 +196,7 @@ func (info *RequestInfo) ParseRequest(tx *Tx) *XRError {
 	}
 
 	if tmp := info.OriginalRequest.Header.Get("xRegistry~User"); tmp != "" {
-		info.tx.User = tmp
+		info.Tx.User = tmp
 	}
 
 	// Parse the incoming URL and setup more stuff in info, like Groups...
@@ -227,7 +227,7 @@ func (info *RequestInfo) ParseRequest(tx *Tx) *XRError {
 	info.OriginalBaseURL = root
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s Info: %s", info.uuid, ToJSON(info))
+		log.Printf("tx: %s Info: %s", info.UUID, ToJSON(info))
 	}
 
 	return nil
@@ -445,7 +445,7 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		info.BaseURL += "/" + parts[0] + "/" + parts[1]
 		info.OriginalPath = strings.Join(parts[2:], "/")
 
-		reg, xErr := FindRegistryByUID(info.tx, info.XRSConfig, parts[1],
+		reg, xErr := FindRegistryByUID(info.Tx, info.XRSConfig, parts[1],
 			FOR_READ)
 		if xErr != nil {
 			return xErr
@@ -460,16 +460,16 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		info.BaseURL += "/" + parts[0]
 		info.OriginalPath = strings.Join(parts[1:], "/")
 
-		info.Registry, xErr = GetDefaultReg(info.tx)
+		info.Registry, xErr = GetDefaultReg(info.Tx)
 	} else {
-		info.Registry, xErr = GetDefaultReg(info.tx)
+		info.Registry, xErr = GetDefaultReg(info.Tx)
 	}
 
 	if xErr != nil {
 		return xErr
 	}
 
-	info.tx.Registry = info.Registry
+	info.Tx.Registry = info.Registry
 
 	return nil
 }
@@ -489,8 +489,8 @@ func (info *RequestInfo) ParseFlags() {
 
 func (info *RequestInfo) ParseRequestURL() *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s ParseRequestURL:\n%s", info.uuid, ToJSON(info))
-		log.Printf("tx: %s Req: %#v", info.uuid, info.OriginalRequest.URL)
+		log.Printf("tx: %s ParseRequestURL:\n%s", info.UUID, ToJSON(info))
+		log.Printf("tx: %s Req: %#v", info.UUID, info.OriginalRequest.URL)
 	}
 
 	if xErr := info.ParseRequestPath(); xErr != nil {
@@ -692,7 +692,7 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 
 func (info *RequestInfo) ParseRequestPath() *XRError {
 	// Now process the URL path
-	log.FuncPrintf("tx: %s ParseRequestPath: %q", info.uuid, info.OriginalPath)
+	log.FuncPrintf("tx: %s ParseRequestPath: %q", info.UUID, info.OriginalPath)
 
 	path := strings.Trim(info.OriginalPath, " /")
 	info.Parts = strings.Split(path, "/")

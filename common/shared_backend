@@ -51,6 +51,11 @@ type Backend interface {
 	DBDelete(c *Config, name string) *XRError
 	DBList(c *Config) ([]string, *XRError)
 
+	// Close releases any long-lived resources (e.g. connection pools) that
+	// the backend shares across all Backend instances for this Config.
+	// It's safe to use the backend again afterwards, it'll just reconnect.
+	Close(c *Config) *XRError
+
 	// Tx related stuff
 	NewTx(tx *Tx) *XRError
 	Commit(tx *Tx) *XRError

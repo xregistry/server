@@ -39,6 +39,10 @@ func (CLIBE *CLIBackend) DBList(c *Config) ([]string, *XRError) {
 	return nil, nil
 }
 
+func (CLIBE *CLIBackend) Close(c *Config) *XRError {
+	return nil
+}
+
 func (CLIBE *CLIBackend) NewTx(tx *Tx) *XRError {
 	return nil
 }

@@ -50,6 +50,11 @@ func NewServer(xrsConfig *Config) *Server {
 
 func (s *Server) Close() {
 	s.HTTPServer.Close()
+
+	// Release the backend's shared resources, e.g. the DB connection pool
+	if be, xErr := NewDefaultBackend(s.XRSConfig); xErr == nil {
+		be.Close(s.XRSConfig)
+	}
 }
 
 func (s *Server) Start() *Server {
@@ -86,9 +91,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		// Unless an explicit Commit() is done, we'll always rollback. In
 		// which case this rollback is a no-op
-		if info.tx != nil {
-			info.tx.Rollback()
-			info.tx = nil
+		if info.Tx != nil {
+			info.Tx.Rollback()
+			info.Tx = nil
 		}
 
 		if rec := recover(); rec != nil {
@@ -184,7 +189,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if attempt == maxAttempts {
 			// Too many retries, send 503 instead of the the DB error
 			xErr = NewXRError("server_busy", "/"+info.OriginalPath)
-			xErr.Instance = info.uuid
+			xErr.Instance = info.UUID
 			break
 		}
 
@@ -220,10 +225,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
 
 	defer func() {
-		if info.tx != nil {
+		if info.Tx != nil {
 			// Make sure we don't leave any dangling TXs on something bad
-			info.tx.Rollback()
-			info.tx = nil
+			info.Tx.Rollback()
+			info.Tx = nil
 		}
 
 		// Converts an panicked XRError into a returned XRError insted so the
@@ -244,12 +249,12 @@ func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
 		return xErr
 	}
 
-	tx, xErr := NewTx(info.uuid, s.XRSConfig, be)
+	tx, xErr := NewTx(info.UUID, s.XRSConfig, be)
 	if xErr != nil {
 		return xErr
 	}
 
-	info.tx = tx
+	info.Tx = tx
 	tx.RequestInfo = info
 
 	xErr = ProcessShortSelf(info)
@@ -300,7 +305,7 @@ func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
 
 	// Add our tx uuid to the error for debugging
 	if xErr != nil && xErr.Instance == "" {
-		xErr.Instance = info.uuid
+		xErr.Instance = info.UUID
 	}
 
 	if xErr != nil {
@@ -310,7 +315,7 @@ func (s *Server) serveOneAttempt(info *RequestInfo) (retErr *XRError) {
 		xErr = tx.Commit()
 	}
 
-	info.tx = nil
+	info.Tx = nil
 
 	return xErr
 }
@@ -508,7 +513,7 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 }
 
 func HTTPGETContent(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s", info.uuid)()
+	defer log.Trace("tx: %s", info.UUID)()
 
 	isV := log.IsFuncVerbose()
 	XID := "/" + strings.Join(info.Parts, "/")
@@ -583,7 +588,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	}
 
 	if isV {
-		log.Printf("tx: %s Version: %#v", info.uuid, version)
+		log.Printf("tx: %s Version: %#v", info.UUID, version)
 	}
 
 	headerIt := func(e *Entity, key string, val any, attr *Attribute) *XRError {
@@ -591,7 +596,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 			return nil
 		}
 
-		if attr.internals != nil && attr.internals.neverSerialize {
+		if attr.Internals != nil && attr.Internals.NeverSerialize {
 			return nil
 		}
 
@@ -611,8 +616,8 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 		}
 
 		var headerName string
-		if attr.internals != nil && attr.internals.httpHeader != "" {
-			headerName = attr.internals.httpHeader
+		if attr.Internals != nil && attr.Internals.HttpHeader != "" {
+			headerName = attr.Internals.HttpHeader
 		} else {
 			headerName = "xRegistry-" + key
 		}
@@ -660,7 +665,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	url = entity.GetAsString(singular + "proxyurl")
 
 	if isV {
-		log.Printf("tx: %s %sproxyurl: %s", info.uuid, singular, url)
+		log.Printf("tx: %s %sproxyurl: %s", info.UUID, singular, url)
 	}
 	if url != "" {
 		// Just act as a proxy and copy the remote resource as our response
@@ -706,7 +711,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 }
 
 func HTTPOptions(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s %s", info.uuid, info.OriginalPath)()
+	defer log.Trace("tx: %s %s", info.UUID, info.OriginalPath)()
 
 	// Headers will be set automatically by info.Write()
 	info.StatusCode = 200
@@ -715,7 +720,7 @@ func HTTPOptions(info *RequestInfo) *XRError {
 }
 
 func HTTPGet(info *RequestInfo) *XRError {
-	defer log.Trace("tx: %s %s", info.uuid, info.What)()
+	defer log.Trace("tx: %s %s", info.UUID, info.What)()
 
 	info.Root = strings.Trim(info.Root, "/")
 
@@ -783,10 +788,10 @@ func HTTPGet(info *RequestInfo) *XRError {
 func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 	what string) *XRError {
 
-	defer log.Trace("tx: %s", info.uuid)()
+	defer log.Trace("tx: %s", info.UUID)()
 
 	// Make sure everything is ok before we send back the results
-	if xErr := info.tx.Validate(); xErr != nil {
+	if xErr := info.Tx.Validate(); xErr != nil {
 		return xErr
 	}
 
@@ -818,7 +823,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		defer func() {
 			if log.GetLevel() > 3 {
 				diff := time.Now().Sub(start).Truncate(time.Millisecond)
-				log.Printf("tx: %s Total Time: %s", info.uuid, diff)
+				log.Printf("tx: %s Total Time: %s", info.UUID, diff)
 			}
 		}()
 	*/
@@ -1083,7 +1088,7 @@ func AddPaginationLinkHeaders(info *RequestInfo, iter EntityIterator) {
 func HTTPPutPost(info *RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
 
-	defer log.Trace("tx: %s %s %s", info.uuid, method, info.OriginalPath)()
+	defer log.Trace("tx: %s %s %s", info.UUID, method, info.OriginalPath)()
 
 	isNew := false
 	XIDs := ([]string)(nil)
@@ -1491,7 +1496,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			// "location" header in the response. Resource.ValidateResource()
 			// (which computes/sets meta's "defaultversionid") is now
 			// deferred (see Tx.AddResourceToValidate()), so we can't read
-			// it yet - do it after info.tx.Validate() runs below instead.
+			// it yet - do it after info.Tx.Validate() runs below instead.
 			needLocationVersionIDFromMeta = true
 		} else {
 			version, isNew, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
@@ -1744,7 +1749,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	PanicIf(xErr != nil, "err should be nil")
 
 	// Make sure everything is ok before we send back the results
-	if xErr := info.tx.Validate(); xErr != nil {
+	if xErr := info.Tx.Validate(); xErr != nil {
 		return xErr
 	}
 
@@ -1922,7 +1927,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		return info.tx.Validate()
+		return info.Tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID...
@@ -1947,7 +1952,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(); xErr != nil {
+		if xErr := info.Tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -1966,7 +1971,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		return info.tx.Validate()
+		return info.Tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID...
@@ -1996,7 +2001,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(); xErr != nil {
+		if xErr := info.Tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -2017,7 +2022,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		return info.tx.Validate()
+		return info.Tx.Validate()
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
@@ -2045,7 +2050,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		if xErr := info.tx.Validate(); xErr != nil {
+		if xErr := info.Tx.Validate(); xErr != nil {
 			return xErr
 		}
 
@@ -2651,7 +2656,7 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 
 	// Add our tx uuid to the error for debugging
 	if xErr != nil && xErr.Instance == "" {
-		xErr.Instance = info.uuid
+		xErr.Instance = info.UUID
 	}
 
 	info.StatusCode = xErr.Code
@@ -2701,19 +2706,19 @@ func ProcessShortSelf(info *RequestInfo) *XRError {
 		suffix = "$" + suffix
 	}
 
-	regUID, eXID, xErr := MapShortSelf(info.tx, ss)
+	regUID, eXID, xErr := MapShortSelf(info.Tx, ss)
 	if xErr != nil {
 		return xErr
 	}
 
-	regCollectionSegment := info.tx.Config.GetAsString("path.regcollection")
+	regCollectionSegment := info.Tx.Config.GetAsString("path.regcollection")
 
 	if regUID != "" && eXID != "" {
 		// found it!
 		// Note that eXID will always have a leading "/"
 		newPath := "/" + regCollectionSegment + "/" + regUID + eXID + suffix
 
-		log.FuncPrintf("tx: %s Redirect: %q -> %q", info.tx.uuid, path, newPath)
+		log.FuncPrintf("tx: %s Redirect: %q -> %q", info.Tx.UUID, path, newPath)
 
 		info.OriginalRequest.URL.Path = newPath
 		return nil

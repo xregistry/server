@@ -24,7 +24,7 @@ func (g *Group) SetSave(name string, val any) *XRError {
 }
 
 func (g *Group) Delete() *XRError {
-	defer log.Trace("tx: %s %s", g.Tx.uuid, g.UID)()
+	defer log.Trace("tx: %s %s", g.Tx.UUID, g.UID)()
 
 	// Make sure we don't have any readonly Resources. Callers (HTTPDelete/
 	// HTTPDeleteGroups) already lock g itself FOR_WRITE, but that doesn't
@@ -70,7 +70,7 @@ func (g *Group) Delete() *XRError {
 // no analogous need to force every subsequent read through this Group
 // to inherit a prior FOR_WRITE.
 func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode int) (*Resource, *XRError) {
-	defer log.Trace("tx: %s %s,%s,%v", g.Tx.uuid, rType, id, anyCase)()
+	defer log.Trace("tx: %s %s,%s,%v", g.Tx.UUID, rType, id, anyCase)()
 
 	if r := g.Tx.GetResource(g, rType, id); r != nil {
 		if accessMode == FOR_WRITE && r.AccessMode != FOR_WRITE {
@@ -87,7 +87,7 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 		return nil, xErr
 	}
 	if entity == nil {
-		log.FuncPrintf("tx: %s None found", g.Tx.uuid)
+		log.FuncPrintf("tx: %s None found", g.Tx.UUID)
 		return nil, nil
 	}
 
@@ -126,7 +126,7 @@ type ResourceUpsert struct {
 
 // Return: *Resource, isNew, error
 func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%s", g.Tx.uuid, ru.RType, ru.Id)()
+	defer log.Trace("tx: %s %s,%s", g.Tx.UUID, ru.RType, ru.Id)()
 
 	// ru.VID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
@@ -630,7 +630,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 // Returns a map of resourceType->*Resource
 func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string][]*Resource, *XRError) {
-	defer log.Trace("tx: %s", g.Tx.uuid)()
+	defer log.Trace("tx: %s", g.Tx.UUID)()
 
 	resources := map[string][]*Resource{}
 
@@ -679,7 +679,7 @@ func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string
 }
 
 func (g *Group) Validate() *XRError {
-	defer log.Trace("tx: %s %s", g.Tx.uuid, g.XID)()
+	defer log.Trace("tx: %s %s", g.Tx.UUID, g.XID)()
 
 	constraints, xErr := g.GetConstraints()
 	if xErr != nil {

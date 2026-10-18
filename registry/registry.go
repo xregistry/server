@@ -46,12 +46,6 @@ func NewXRServerConfig(fileName string) *Config {
 	xrsConfig.Set("path.defaultreg", "xreg")
 	xrsConfig.Set("path.regcollection", "xregs")
 
-	// Seed the (empty) DB connection holder once, up front, while we're
-	// still single-threaded (before Serve() starts). See dbHolder's doc
-	// comment in db.go for why the live *sql.DB handle itself must never
-	// be stored directly as a Config.Data value.
-	xrsConfig.Set("dbHolder", &dbHolder{})
-
 	return xrsConfig
 }
 
@@ -250,7 +244,7 @@ func (reg *Registry) JustSet(name string, val any) *XRError {
 }
 
 func (reg *Registry) Delete() *XRError {
-	defer log.Trace("tx: %s %s", reg.Tx.uuid, reg.UID)()
+	defer log.Trace("tx: %s %s", reg.Tx.UUID, reg.UID)()
 
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
@@ -279,7 +273,7 @@ func (reg *Registry) Delete() *XRError {
 }
 
 func (reg *Registry) LoadModelFromFile(file string) *XRError {
-	defer log.Trace("tx: %s %s", reg.Tx.uuid, file)()
+	defer log.Trace("tx: %s %s", reg.Tx.UUID, file)()
 
 	var xErr *XRError
 	var err error
@@ -333,7 +327,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 }
 
 func (reg *Registry) Update(obj Object, addType AddType) *XRError {
-	defer log.Trace("tx: %s", reg.Tx.uuid)()
+	defer log.Trace("tx: %s", reg.Tx.UUID)()
 
 	if xErr := CheckAttrs(obj, reg.XID); xErr != nil {
 		return xErr
@@ -493,11 +487,11 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 // prevent, where a decision (e.g. "does this Resource already exist?")
 // computed from an unlocked read could go stale before the write.
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
-	defer log.Trace("tx: %s %s,%s,%v", reg.Tx.uuid, gType, id, anyCase)()
+	defer log.Trace("tx: %s %s,%s,%v", reg.Tx.UUID, gType, id, anyCase)()
 
 	if g := reg.Tx.GetGroup(reg, gType, id); g != nil {
 		log.FuncPrintf("tx: %s FindGroup %s,%s from cache",
-			reg.Tx.uuid, gType, id)
+			reg.Tx.UUID, gType, id)
 		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
 			if _, xErr := g.Lock(); xErr != nil {
 				return nil, xErr
@@ -513,7 +507,7 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 	}
 
 	if entity == nil {
-		log.FuncPrintf("tx: %s None found", reg.Tx.uuid)
+		log.FuncPrintf("tx: %s None found", reg.Tx.UUID)
 		return nil, nil
 	}
 
@@ -539,7 +533,7 @@ func (reg *Registry) UpsertGroup(gType string, id string) (*Group, bool, *XRErro
 }
 
 func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, addType AddType) (*Group, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%s", reg.Tx.uuid, gType, id)()
+	defer log.Trace("tx: %s %s,%s", reg.Tx.UUID, gType, id)()
 
 	// Move to below, after the "findGroup". Is SaveModel needs it then
 	// it'll lock it.
@@ -586,7 +580,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	}
 
 	log.FuncPrintf("tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
-		reg.Tx.uuid, gType, id, g != nil)
+		reg.Tx.UUID, gType, id, g != nil)
 
 	if g != nil && g.UID != id {
 		return nil, false,
@@ -737,7 +731,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 // Returns a map of groupType->*Group
 func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[string][]*Group, *XRError) {
-	defer log.Trace("tx: %s", reg.Tx.uuid)()
+	defer log.Trace("tx: %s", reg.Tx.UUID)()
 
 	groups := map[string][]*Group{}
 

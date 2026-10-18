@@ -142,7 +142,7 @@ var _ EntitySetter = &Resource{}
 var _ EntitySetter = &Meta{}
 
 func (r *Resource) Get(name string) any {
-	log.FuncPrintf("tx: %s Get: r(%s).Get(%s)", r.Tx.uuid, r.UID, name)
+	log.FuncPrintf("tx: %s Get: r(%s).Get(%s)", r.Tx.UUID, r.UID, name)
 
 	meta := r.MustFindMeta(false)
 
@@ -228,13 +228,13 @@ func (r *Resource) IsXref() bool {
 
 func (m *Meta) JustSet(name string, val any) *XRError {
 	log.FuncPrintf("tx: %s JustSet: m(%s).JustSet(%s,%v)",
-		m.Tx.uuid, m.Resource.UID, name, val)
+		m.Tx.UUID, m.Resource.UID, name, val)
 	return m.Entity.eJustSetPath(name, val)
 }
 
 func (r *Resource) JustSetMeta(name string, val any) *XRError {
 	log.FuncPrintf("tx: %s JustSetMeta: r(%s).Set(%s,%v)",
-		r.Tx.uuid, r.UID, name, val)
+		r.Tx.UUID, r.UID, name, val)
 	meta := r.MustFindMeta(false)
 	return meta.Entity.eJustSetPath(name, val)
 }
@@ -244,7 +244,7 @@ func (r *Resource) JustSet(name string, val any) *XRError {
 }
 
 func (r *Resource) JustSetDefault(name string, val any) *XRError {
-	log.FuncPrintf("tx: %s JustSetDefault: r(%s).Set(%s,%v)", r.Tx.uuid,
+	log.FuncPrintf("tx: %s JustSetDefault: r(%s).Set(%s,%v)", r.Tx.UUID,
 		r.UID, name, val)
 
 	if r.IsXref() {
@@ -259,13 +259,13 @@ func (r *Resource) JustSetDefault(name string, val any) *XRError {
 }
 
 func (m *Meta) SetSave(name string, val any) *XRError {
-	log.FuncPrintf("tx: %s SetSave: m(%s).SetSave(%s,%v)", m.Tx.uuid,
+	log.FuncPrintf("tx: %s SetSave: m(%s).SetSave(%s,%v)", m.Tx.UUID,
 		m.Resource.UID, name, val)
 	return m.Entity.eSetSave(name, val)
 }
 
 func (r *Resource) SetSaveMeta(name string, val any) *XRError {
-	log.FuncPrintf("tx: %s SetSaveMeta: r(%s).Set(%s,%v)", r.Tx.uuid,
+	log.FuncPrintf("tx: %s SetSaveMeta: r(%s).Set(%s,%v)", r.Tx.UUID,
 		r.UID, name, val)
 
 	meta := r.MustFindMeta(false)
@@ -274,7 +274,7 @@ func (r *Resource) SetSaveMeta(name string, val any) *XRError {
 
 // Should only ever be used for "id"
 func (r *Resource) SetSaveResource(name string, val any) *XRError {
-	log.FuncPrintf("tx: %s SetSaveResource: r(%s).Set(%s,%v)", r.Tx.uuid,
+	log.FuncPrintf("tx: %s SetSaveResource: r(%s).Set(%s,%v)", r.Tx.UUID,
 		r.UID, name, val)
 
 	PanicIf(name != r.Singular+"id", "You shouldn't be using this")
@@ -287,7 +287,7 @@ func (r *Resource) SetSave(name string, val any) *XRError {
 }
 
 func (r *Resource) SetSaveDefault(name string, val any) *XRError {
-	log.FuncPrintf("tx: %s SetSaveDefault: r(%s).Set(%s,%v)", r.Tx.uuid,
+	log.FuncPrintf("tx: %s SetSaveDefault: r(%s).Set(%s,%v)", r.Tx.UUID,
 		r.UID, name, val)
 
 	v, xErr := r.GetDefault()
@@ -307,13 +307,13 @@ func (r *Resource) MustFindMeta(anyCase bool) *Meta {
 	}
 	if IsNil(meta) {
 		panic(fmt.Sprintf("tx: %s Meta is missing: %s (rXID=%s)",
-			r.Tx.uuid, r.UID, r.XID))
+			r.Tx.UUID, r.UID, r.XID))
 	}
 	return meta
 }
 
 func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
-	defer log.Trace("tx: %s %v", r.Tx.uuid, anyCase)()
+	defer log.Trace("tx: %s %v", r.Tx.UUID, anyCase)()
 
 	// Resource/Meta/Version are locked together as one family (see
 	// lockEntityFamily()) - Meta's effective access mode is always
@@ -344,7 +344,7 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 	}
 
 	if entity == nil {
-		log.FuncPrintf("tx: %s None found", r.Tx.uuid)
+		log.FuncPrintf("tx: %s None found", r.Tx.UUID)
 		return nil, nil
 	}
 
@@ -356,7 +356,7 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 
 // Maybe replace error with a panic? same for other finds??
 func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
-	defer log.Trace("tx: %s %s,%v", r.Tx.uuid, id, anyCase)()
+	defer log.Trace("tx: %s %s,%v", r.Tx.UUID, id, anyCase)()
 
 	if id == "" { // just incase
 		return nil, nil
@@ -394,7 +394,7 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 	}
 
 	if entity == nil {
-		log.FuncPrintf("tx: %s None found", r.Tx.uuid)
+		log.FuncPrintf("tx: %s None found", r.Tx.UUID)
 		return nil, nil
 	}
 
@@ -471,12 +471,12 @@ func (r *Resource) GetNewest() (*Version, *XRError) {
 }
 
 func (r *Resource) EnsureLatest() *XRError {
-	log.Trace("tx: %s %s", r.Tx.uuid, r.XID)()
+	log.Trace("tx: %s %s", r.Tx.UUID, r.XID)()
 	meta := r.MustFindMeta(false)
 
 	currentDefault := meta.GetAsString("defaultversionid")
 
-	// log.Printf("tx: %s In %s.ensurelatest, defID: %q", r.Tx.uuid,
+	// log.Printf("tx: %s In %s.ensurelatest, defID: %q", r.Tx.UUID,
 	// r.UID, currentDefault)
 
 	// Since defaultversionid and defaultversionsticky are so closely related
@@ -589,10 +589,10 @@ type MetaUpsert struct {
 // we're removing the 'xref' attr. Other cases, the http layer would have
 // already create the Resource and default version for us.
 func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%v,%v,%v", r.Tx.uuid, r.UID, mu.addType,
+	defer log.Trace("tx: %s %s,%v,%v,%v", r.Tx.UUID, r.UID, mu.addType,
 		mu.createVersion, mu.more)()
 
-	// log.Printf("tx: %s UpsertMeta: OBJ: %s", r.Tx.uuid, ToJSON(mu.obj))
+	// log.Printf("tx: %s UpsertMeta: OBJ: %s", r.Tx.UUID, ToJSON(mu.obj))
 
 	if xErr := r.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
@@ -1002,7 +1002,7 @@ type VersionUpsert struct {
 
 // *Version, isNew, error
 func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *XRError) {
-	defer log.Trace("tx: %s %s,%v,%v", r.Tx.uuid, vu.Id, vu.AddType, vu.More)()
+	defer log.Trace("tx: %s %s,%v,%v", r.Tx.UUID, vu.Id, vu.AddType, vu.More)()
 
 	if xErr := r.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
@@ -1352,7 +1352,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// If any Version actually changed we should run all checks.
 	// "force" will check things even if they haven't changed.
 
-	defer log.Trace("tx: %s r:%s only:%v, force:%v", r.Tx.uuid,
+	defer log.Trace("tx: %s r:%s only:%v, force:%v", r.Tx.UUID,
 		r.UID, onlyMetaChanged, force)()
 
 	// We're about to fully (re-)validate r ourselves right now, so drop
@@ -1728,7 +1728,7 @@ func (r *Resource) EnsureSingleVersionRoot() *XRError {
 }
 
 func (r *Resource) EnsureMaxVersions() *XRError {
-	defer log.Trace("tx: %s %s", r.Tx.uuid, r.XID)()
+	defer log.Trace("tx: %s %s", r.Tx.UUID, r.XID)()
 
 	// xref resource have no versios, so exit
 	if r.IsXref() {
@@ -1777,14 +1777,14 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 			}
 		} else {
 			for i, vd := range vad.Roots {
-				log.FuncPrintf("tx: %s Comparing: %s(%s)", r.Tx.uuid,
+				log.FuncPrintf("tx: %s Comparing: %s(%s)", r.Tx.UUID,
 					vd.UID, vd.CreatedAt)
 				if oldestVD == nil || vd.CreatedAt < oldestVD.CreatedAt ||
 					(vd.CreatedAt == oldestVD.CreatedAt &&
 						vd.lowerUID < oldestVD.lowerUID) {
 					oldestVD = vd
 					oldestIndex = i
-					log.FuncPrintf("tx: %s -  Is older", r.Tx.uuid)
+					log.FuncPrintf("tx: %s -  Is older", r.Tx.UUID)
 				}
 			}
 		}
@@ -1794,7 +1794,7 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 			if xErr != nil {
 				return xErr
 			}
-			// log.Printf("tx: %s ensuremax: Deleting: %s", r.Tx.uuid, v.XID)
+			// log.Printf("tx: %s ensuremax: Deleting: %s", r.Tx.UUID, v.XID)
 			// ShowStack()
 			log.FuncPrintf("Deleting: %q", v.UID)
 			xErr = v.DeleteSetNextVersion("")
@@ -1810,13 +1810,13 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 		// looked at (even if it's the default), from the collection and loop
 		if count > rm.GetMaxVersions() {
 			if len(vad.Roots) != 0 {
-				log.FuncPrintf("tx: %s Removing %q", r.Tx.uuid, oldestVD.UID)
+				log.FuncPrintf("tx: %s Removing %q", r.Tx.UUID, oldestVD.UID)
 				vad.Roots = append(vad.Roots[:oldestIndex],
 					vad.Roots[oldestIndex+1:]...)
 			}
 
 			for _, childVD := range oldestVD.Children {
-				log.FuncPrintf("tx: %s Adding new root: %q", r.Tx.uuid,
+				log.FuncPrintf("tx: %s Adding new root: %q", r.Tx.UUID,
 					childVD.UID)
 				vad.Roots = append(vad.Roots, childVD)
 			}
@@ -1832,7 +1832,7 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 }
 
 func (r *Resource) Delete() *XRError {
-	defer log.Trace("tx: %s %s", r.Tx.uuid, r.UID)()
+	defer log.Trace("tx: %s %s", r.Tx.UUID, r.UID)()
 
 	meta := r.MustFindMeta(false)
 
@@ -1873,7 +1873,7 @@ func (r *Resource) Delete() *XRError {
 }
 
 func (m *Meta) Delete() *XRError {
-	defer log.Trace("tx: %s %s", m.Tx.uuid, m.UID)()
+	defer log.Trace("tx: %s %s", m.Tx.UUID, m.UID)()
 
 	if xErr := m.Tx.Backend.DeleteMeta(m); xErr != nil {
 		return xErr
@@ -2033,7 +2033,7 @@ func (r *Resource) GetVersionAncestorData() (*VersionAncestorData, *XRError) {
 // This will check "format" as well.
 // "force" check all Verisons even if we don't think we need to.
 func (r *Resource) EnsureCompat(force bool) *XRError {
-	defer log.Trace("tx: %s %s", r.Tx.uuid, r.UID)()
+	defer log.Trace("tx: %s %s", r.Tx.UUID, r.UID)()
 
 	meta := r.MustFindMeta(false)
 
@@ -2384,7 +2384,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 // Check to make sure all attributes with matchversions=true are validated
 // to be the same across all Versions
 func (r *Resource) EnsureMatchVersions(force bool) *XRError {
-	defer log.Trace("tx: %s %s", r.Tx.uuid, r.UID)()
+	defer log.Trace("tx: %s %s", r.Tx.UUID, r.UID)()
 
 	mvs := r.ResourceModel.GetMatchVersionAttributes()
 
@@ -2423,7 +2423,7 @@ func (r *Resource) SaveDefaultVersionCascade() *XRError {
 		return nil
 	}
 
-	defer log.Trace("tx: %s %s", r.Tx.uuid, r.XID)()
+	defer log.Trace("tx: %s %s", r.Tx.UUID, r.XID)()
 
 	if xErr := r.Tx.Backend.DeleteResourceDefaultVersionProps(r); xErr != nil {
 		return xErr
@@ -2544,7 +2544,7 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) *XR
 		return nil
 	}
 
-	defer log.Trace("tx: %s %s %s", srcResource.Tx.uuid, srcResource.XID,
+	defer log.Trace("tx: %s %s %s", srcResource.Tx.UUID, srcResource.XID,
 		targetResourceSID)()
 
 	return srcResource.Tx.Backend.CopyXrefVersions(srcResource,
@@ -2579,7 +2579,7 @@ func (r *Resource) SaveXrefFanOutForTarget() *XRError {
 		return nil
 	}
 
-	defer log.Trace("tx: %s %s", r.Tx.uuid, r.XID)()
+	defer log.Trace("tx: %s %s", r.Tx.UUID, r.XID)()
 
 	XIDs, xErr := r.Tx.Backend.GetXrefSources(r)
 	if xErr != nil {

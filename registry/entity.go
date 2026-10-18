@@ -79,12 +79,12 @@ func (e *Entity) ToString() string {
 }
 
 func (e *Entity) WasTouched() bool {
-	log.FuncPrintf("tx: %s WasTouch: %s/%s", e.Tx.uuid, e.Singular, e.UID)
+	log.FuncPrintf("tx: %s WasTouch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
 	return e.EpochSet
 }
 
 func (e *Entity) Touch() (bool, *XRError) {
-	log.FuncPrintf("tx: %s Touch: %s/%s", e.Tx.uuid, e.Singular, e.UID)
+	log.FuncPrintf("tx: %s Touch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
 
 	// See if it's already been modified (and saved) this Tx, if so exit
 	if e.ModSet && e.EpochSet {
@@ -99,7 +99,7 @@ func (e *Entity) Touch() (bool, *XRError) {
 	return true, nil
 }
 
-// lockResourceFamily locks (FOR UPDATE) just the Resource's own row in
+// LockResourceFamily locks (FOR UPDATE) just the Resource's own row in
 // the Resources table.
 //
 // Every write path locks the Resource FIRST - before it ever creates or
@@ -130,7 +130,7 @@ func (e *Entity) Touch() (bool, *XRError) {
 // The old code below locked the whole family (Metas/Versions/Entities
 // rows too) - left here, commented out, as a reminder/fallback in case
 // concurrency issues resurface and we need to revisit this narrowing.
-func lockResourceFamily(tx *Tx, resourceSID string) *XRError {
+func LockResourceFamily(tx *Tx, resourceSID string) *XRError {
 	return tx.Backend.LockResourceBySID(tx, resourceSID)
 
 	/*
@@ -165,11 +165,11 @@ func lockResourceFamily(tx *Tx, resourceSID string) *XRError {
 }
 
 // lockEntityFamily locks (FOR UPDATE) the full Resource+Meta+Versions
-// family that ent belongs to, if any - see lockResourceFamily()'s and
+// family that ent belongs to, if any - see LockResourceFamily()'s and
 // Entity.Lock()'s doc comments for why. Safe to call with a nil ent or
 // a non-Resource/Meta/Version entity (no-op).
 //
-// IMPORTANT: lockResourceFamily() only takes real DB-level "FOR UPDATE"
+// IMPORTANT: LockResourceFamily() only takes real DB-level "FOR UPDATE"
 // row locks - it has no idea about this Tx's Go-level entity Cache. If
 // some OTHER member of the family (e.g. the Meta, when ent is a
 // Version) was already fetched FOR_READ earlier in this same Tx and is
@@ -180,14 +180,14 @@ func lockResourceFamily(tx *Tx, resourceSID string) *XRError {
 // loaded. Every "if meta.AccessMode == FOR_WRITE { lockExpr = ...}"-
 // style guard added throughout resource.go/versionmodes.go implicitly
 // assumes that AccessMode faithfully reflects whether the row is
-// really DB-locked - so after lockResourceFamily() runs, we must also
+// really DB-locked - so after LockResourceFamily() runs, we must also
 // walk this Tx's cache and upgrade (Refresh(FOR_WRITE)) every other
 // cached Resource/Meta/Version belonging to this same family, or those
 // guards (and any code that just trusts a cached Meta/Version's
 // AccessMode) can silently keep using stale FOR_READ data even though
 // the DB row underneath was just real-locked. This was the root cause
 // of a recurring "<attr> is nil" panic under TestMiscConcurrency.
-func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
+func LockEntityFamily(tx *Tx, ent *Entity) *XRError {
 	if ent == nil {
 		return nil
 	}
@@ -201,7 +201,7 @@ func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
 	if resourceSID == "" {
 		return nil
 	}
-	if xErr := lockResourceFamily(tx, resourceSID); xErr != nil {
+	if xErr := LockResourceFamily(tx, resourceSID); xErr != nil {
 		return xErr
 	}
 
@@ -226,14 +226,14 @@ func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
 			// discard e.NewObject wholesale (it only flushes NewSystem,
 			// not NewObject - see Refresh()'s own doc comment), silently
 			// losing those edits. Just mark it FOR_WRITE (its row is now
-			// genuinely DB-locked via lockResourceFamily() above) without
+			// genuinely DB-locked via LockResourceFamily() above) without
 			// reloading, so we don't clobber the pending edits.
 			cached.AccessMode = FOR_WRITE
 			continue
 		}
 		log.FuncPrintf("tx: %s lockEntityFamily: upgrading stale cached %q "+
 			"(eSID=%s) to FOR_WRITE now that its family's DB rows are locked",
-			tx.uuid, cached.XID, cached.DbSID)
+			tx.UUID, cached.XID, cached.DbSID)
 		if xErr := cached.Refresh(FOR_WRITE); xErr != nil {
 			return xErr
 		}
@@ -244,7 +244,7 @@ func lockEntityFamily(tx *Tx, ent *Entity) *XRError {
 
 // Set, Validate and Save to DB but not Commit
 func (e *Entity) eSetSave(path string, val any) *XRError {
-	defer log.Trace("tx: %s %s=%v", e.Tx.uuid, path, val)()
+	defer log.Trace("tx: %s %s=%v", e.Tx.UUID, path, val)()
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
@@ -264,10 +264,10 @@ func (e *Entity) eSetSave(path string, val any) *XRError {
 // This is really just an internal Setter used for testing.
 // It'll set a property and then validate and save the entity in the DB
 func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
-	defer log.Trace("tx: %s %s: %s=%v", e.Tx.uuid, e.DbSID, pp.UI(), val)()
+	defer log.Trace("tx: %s %s: %s=%v", e.Tx.UUID, e.DbSID, pp.UI(), val)()
 	defer func() {
 		if log.IsFuncVerbose() {
-			log.Printf("tx: %s exit: e.Object:\n%s", e.Tx.uuid, ToJSON(e.Object))
+			log.Printf("tx: %s exit: e.Object:\n%s", e.Tx.UUID, ToJSON(e.Object))
 		}
 	}()
 
@@ -304,7 +304,7 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 // earlier buffered value, rather than racing an immediate DB DELETE
 // against a later flush.
 func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) *XRError {
-	defer log.Trace("tx: %s %d props", e.Tx.uuid, len(pps))()
+	defer log.Trace("tx: %s %d props", e.Tx.UUID, len(pps))()
 
 	if len(pps) == 0 {
 		return nil
@@ -339,7 +339,7 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) *XRError {
 // back-to-back without each one independently re-triggering the whole
 // cascade - see SaveSystemProps().
 func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
-	defer log.Trace("tx: %s %s=%v", e.Tx.uuid, pp, val)()
+	defer log.Trace("tx: %s %s=%v", e.Tx.UUID, pp, val)()
 
 	PanicIf(pp.UI() == "", "pp is empty")
 
@@ -348,9 +348,9 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 
 	_, propsMap := e.GetPropsOrdered()
 	specProp, ok := propsMap[pp.Top()]
-	if ok && specProp.internals != nil {
+	if ok && specProp.Internals != nil {
 		// Any prop with "dontStore"=true we skip
-		if specProp.internals.dontStore {
+		if specProp.Internals.dontStore {
 			return
 		}
 	}
@@ -523,22 +523,22 @@ func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 
 // This is used to serialize an Entity regardless of the format.
 // This will:
-//   - Use AddCalcProps() to fill in any missing props (eg Entity's getFn())
+//   - Use AddCalcProps() to fill in any missing props (eg Entity's GetFn())
 //   - Call that passed-in 'fn' to serialize each prop but in the right order
 //     as defined by the entity's GetPropsOrdered()
 func (e *Entity) SerializeProps(
 	fn func(*Entity, string, any, *Attribute) *XRError) *XRError {
-	defer log.Trace("tx: %s %s", e.Tx.uuid, e.XID)()
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
 
 	info := e.GetRequestInfo()
 	daObj := e.AddCalcProps()
 	attrs := e.GetAttributes(e.Object)
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s SerProps.Entity: %s", e.Tx.uuid, ToJSON(e))
-		log.Printf("tx: %s SerProps.Obj: %s", e.Tx.uuid, ToJSON(e.Object))
-		log.Printf("tx: %s SerProps daObj: %s", e.Tx.uuid, ToJSON(daObj))
-		log.Printf("tx: %s SerProps attrs:\n%s", e.Tx.uuid, ToJSON(attrs))
+		log.Printf("tx: %s SerProps.Entity: %s", e.Tx.UUID, ToJSON(e))
+		log.Printf("tx: %s SerProps.Obj: %s", e.Tx.UUID, ToJSON(e.Object))
+		log.Printf("tx: %s SerProps daObj: %s", e.Tx.UUID, ToJSON(daObj))
+		log.Printf("tx: %s SerProps attrs:\n%s", e.Tx.UUID, ToJSON(attrs))
 	}
 
 	resourceSingular := ""
@@ -565,11 +565,11 @@ func (e *Entity) SerializeProps(
 			}
 		}
 
-		log.FuncPrintf("tx: %s Ser prop(%s): %q", e.Tx.uuid, e.XID, name)
+		log.FuncPrintf("tx: %s Ser prop(%s): %q", e.Tx.UUID, e.XID, name)
 
 		attr, ok := attrs[name]
 		if !ok {
-			log.FuncPrintf("tx: %s  skipping %q, no attr", e.Tx.uuid, name)
+			log.FuncPrintf("tx: %s  skipping %q, no attr", e.Tx.UUID, name)
 			delete(daObj, name)
 			continue // not allowed at this eType so skip it
 		}
@@ -590,7 +590,7 @@ func (e *Entity) SerializeProps(
 						PanicIf(objKey[0] != '#' && attr == nil,
 							"Can't find attr for (%s) %q", e.XID, objKey)
 					}
-					// log.Printf("tx: %s Ser*ext(%s): %q", e.Tx.uuid, e.XID,
+					// log.Printf("tx: %s Ser*ext(%s): %q", e.Tx.UUID, e.XID,
 					//  objKey)
 
 					if xErr := fn(e, objKey, val, attr); xErr != nil {
@@ -601,8 +601,8 @@ func (e *Entity) SerializeProps(
 			continue
 		}
 
-		if name[0] == '$' || (prop.internals != nil && prop.internals.alwaysSerialize) {
-			log.FuncPrintf("tx: %s forced serialization of %q", e.Tx.uuid, name)
+		if name[0] == '$' || (prop.Internals != nil && prop.Internals.AlwaysSerialize) {
+			log.FuncPrintf("tx: %s forced serialization of %q", e.Tx.UUID, name)
 			if xErr := fn(e, name, nil, attr); xErr != nil {
 				return xErr
 			}
@@ -611,7 +611,7 @@ func (e *Entity) SerializeProps(
 
 		// Should be a no-op for Resources.
 		if val, ok := daObj[name]; ok {
-			log.FuncPrintf("tx: %s val: %v", e.Tx.uuid, val)
+			log.FuncPrintf("tx: %s val: %v", e.Tx.UUID, val)
 			if !IsNil(val) {
 				xErr := fn(e, name, val, attr)
 				if xErr != nil {
@@ -620,7 +620,7 @@ func (e *Entity) SerializeProps(
 			}
 			delete(daObj, name)
 		} else {
-			log.FuncPrintf("tx: %s no value for %q", e.Tx.uuid, name)
+			log.FuncPrintf("tx: %s no value for %q", e.Tx.UUID, name)
 		}
 	}
 
@@ -649,12 +649,12 @@ func (e *Entity) SerializeProps(
 }
 
 func (e *Entity) Save() *XRError {
-	defer log.Trace("tx: %s %s", e.Tx.uuid, e.XID)()
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
 
 	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s NewObject:\n%s", e.Tx.uuid, ToJSON(e.NewObject))
+		log.Printf("tx: %s NewObject:\n%s", e.Tx.UUID, ToJSON(e.NewObject))
 		// ShowStack()
 	}
 
@@ -710,13 +710,13 @@ func (e *Entity) AddCalcProps() map[string]any {
 
 	for _, prop := range propsOrdered {
 		// Only generate props that have a Fn
-		if prop.internals != nil && prop.internals.getFn != nil {
+		if prop.Internals != nil && prop.Internals.GetFn != nil {
 			// Only generate/set the value if it's not already set
 			if _, ok := mat[prop.Name]; !ok {
-				if val := prop.internals.getFn(e); !IsNil(val) {
+				if val := prop.Internals.GetFn(e); !IsNil(val) {
 					// Only write it if we have a value
 					// log.Printf("tx: %s Added calc prop: %q",
-					// e.Tx.uuid, prop.Name)
+					// e.Tx.UUID, prop.Name)
 					mat[prop.Name] = val
 				}
 			}
@@ -825,8 +825,8 @@ func PrepUpdateEntity(e *Entity) *XRError {
 		*/
 
 		if e.NewObject != nil {
-			if attr.InType(e.Type) && attr.internals != nil && attr.internals.updateFn != nil {
-				if xErr := attr.internals.updateFn(e); xErr != nil {
+			if attr.InType(e.Type) && attr.Internals != nil && attr.Internals.UpdateFn != nil {
+				if xErr := attr.Internals.UpdateFn(e); xErr != nil {
 					return xErr
 				}
 			}
@@ -852,7 +852,7 @@ func CheckAttrs(obj map[string]any, source string) *XRError {
 	}
 	for k, _ := range obj {
 		if xErr := IsValidAttributeName(k, source, ""); xErr != nil {
-			// log.Printf("tx: %s Key: %q", e.Tx.uuid, k)
+			// log.Printf("tx: %s Key: %q", e.Tx.UUID, k)
 			// ShowStack()
 			return xErr
 		}

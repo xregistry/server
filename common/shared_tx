@@ -21,7 +21,7 @@ import (
 // Tx is just as apsect of it.
 type Tx struct {
 	// Common Fields
-	uuid string // a unique ID for the TXs map key
+	UUID string // a unique ID for the TXs map key
 
 	Config   *Config // Either XRSConfig and XRConfig
 	Registry *Registry
@@ -36,7 +36,7 @@ type Tx struct {
 	Cache map[string]*Entity // e.XID
 
 	// Server Fields
-	tx          any    // *sql.Tx - actual DB Tx pointer
+	Tx          any    // *sql.Tx - actual DB Tx pointer
 	CreateTime  string // use for entity timestamps too
 	User        string
 	RequestInfo *RequestInfo
@@ -73,8 +73,8 @@ type Tx struct {
 	RecalcUsesXref bool
 
 	// For debugging
-	stack  []string // Stack at time NewTX
-	connID int64    // MySQL CONNECTION_ID() this Tx is bound to
+	Stack  []string // Stack at time NewTX
+	ConnID int64    // MySQL CONNECTION_ID() this Tx is bound to
 }
 
 // resourceValidation is one entry in Tx.ResourcesToValidate - it carries
@@ -97,7 +97,7 @@ func NewTx(uuid string, c *Config, backend Backend) (*Tx, *XRError) {
 
 	PanicIf(uuid == "", "missing uuid")
 	tx := &Tx{
-		uuid:    uuid,
+		UUID:    uuid,
 		Config:  c,
 		Backend: backend,
 	}
@@ -107,30 +107,30 @@ func NewTx(uuid string, c *Config, backend Backend) (*Tx, *XRError) {
 	}
 
 	TXsMutex.Lock()
-	TXs[tx.uuid] = tx
+	TXs[tx.UUID] = tx
 	TXsMutex.Unlock()
 
 	return tx, nil
 }
 
 func (tx *Tx) EnsureTx() *XRError {
-	if tx.tx != nil {
+	if tx.Tx != nil {
 		return nil
 	}
 	return tx.Backend.NewTx(tx)
 }
 
 func (tx *Tx) GetUUID() string {
-	return tx.uuid
+	return tx.UUID
 }
 
 // Clears all variables - the tx MUST be Committed or Rolledback prior to this.
 // This is just a bookkeeping func
 func (tx *Tx) Clear() {
 	TXsMutex.Lock()
-	delete(TXs, tx.uuid)
+	delete(TXs, tx.UUID)
 	TXsMutex.Unlock()
-	tx.tx = nil
+	tx.Tx = nil
 	// tx.Registry = nil // new
 	tx.CreateTime = ""
 	// tx.RequestInfo = nil // new
@@ -140,11 +140,11 @@ func (tx *Tx) Clear() {
 	tx.GroupsToValidate = nil
 	tx.ResourcesToValidate = nil
 	tx.ResourcesValidatingBatch = nil
-	tx.stack = nil
+	tx.Stack = nil
 }
 
 func (tx *Tx) IsOpen() bool {
-	return tx.tx != nil
+	return tx.Tx != nil
 }
 
 func (tx *Tx) String() string {
@@ -154,7 +154,7 @@ func (tx *Tx) String() string {
 	}
 
 	txStr := "<none>"
-	if tx.tx != nil {
+	if tx.Tx != nil {
 		txStr = "<set>"
 	}
 	return fmt.Sprintf("tx: sql.tx: %s, Registry: %s", txStr, regStr)
@@ -175,7 +175,7 @@ func (tx *Tx) Commit() *XRError {
 		// panic("Tx isn't locked!!")
 	}
 
-	if tx.tx == nil {
+	if tx.Tx == nil {
 		return nil
 	}
 
@@ -193,14 +193,14 @@ func (tx *Tx) Commit() *XRError {
 		return xErr
 	}
 
-	log.FuncPrintf("tx: %s Committed", tx.uuid)
+	log.FuncPrintf("tx: %s Committed", tx.UUID)
 
 	tx.Clear()
 	return nil
 }
 
 func (tx *Tx) Rollback() *XRError {
-	if tx == nil || tx.tx == nil {
+	if tx == nil || tx.Tx == nil {
 		return nil
 	}
 
@@ -208,7 +208,7 @@ func (tx *Tx) Rollback() *XRError {
 		return xErr
 	}
 
-	log.FuncPrintf("tx: %s Rolled Back", tx.uuid)
+	log.FuncPrintf("tx: %s Rolled Back", tx.UUID)
 
 	tx.Clear()
 	return nil
@@ -250,7 +250,7 @@ func (tx *Tx) Validate() *XRError {
 
 	if tx.Registry != nil {
 		PanicIf(tx.Registry.Model.GetChanged(), "tx: %s Unwritten model",
-			tx.uuid)
+			tx.UUID)
 
 		// Drains any deferred Resource/Group validation - this can
 		// still write (e.g. meta.ValidateAndSave()/r.ValidateAndSave()
@@ -272,7 +272,7 @@ func (tx *Tx) Validate() *XRError {
 
 	// Make sure we've saved everything in the cache before we generate
 	// the results. If the stack isn't shown, enable it in entity.SetNewObject
-	PanicIf(tx.IsCacheDirty(), "tx: %s Unwritten stuff in cache", tx.uuid)
+	PanicIf(tx.IsCacheDirty(), "tx: %s Unwritten stuff in cache", tx.UUID)
 
 	return nil
 }
@@ -281,14 +281,14 @@ func (tx *Tx) IsCacheDirty() bool {
 	dirty := false
 	for _, e := range tx.Cache {
 		if len(e.NewObject) != 0 {
-			log.Printf("tx: %s Dirty: %q", tx.uuid, e.XID)
-			log.Printf("tx: %s NewObj:\n%s", tx.uuid, ToJSON(e.NewObject))
-			log.Printf("tx: %s Stack for NewObj:", tx.uuid)
+			log.Printf("tx: %s Dirty: %q", tx.UUID, e.XID)
+			log.Printf("tx: %s NewObj:\n%s", tx.UUID, ToJSON(e.NewObject))
+			log.Printf("tx: %s Stack for NewObj:", tx.UUID)
 			for _, s := range e.NewObjectStack {
-				log.Printf("tx: %s   %s", tx.uuid, s)
+				log.Printf("tx: %s   %s", tx.UUID, s)
 			}
 			if len(e.NewObjectStack) == 0 {
-				log.Printf("tx: %s Enable via entity.SetNewObject", tx.uuid)
+				log.Printf("tx: %s Enable via entity.SetNewObject", tx.UUID)
 			}
 			dirty = true
 		}
@@ -297,10 +297,10 @@ func (tx *Tx) IsCacheDirty() bool {
 }
 
 func (tx *Tx) DumpDirtyCache() {
-	log.Printf("tx: %s ==== DIRTY CACHE =====", tx.uuid)
+	log.Printf("tx: %s ==== DIRTY CACHE =====", tx.UUID)
 	for path, e := range tx.Cache {
 		if len(e.NewObject) != 0 {
-			log.Printf("tx: %s - %s", tx.uuid, path)
+			log.Printf("tx: %s - %s", tx.UUID, path)
 		}
 	}
 }
@@ -380,9 +380,9 @@ func (tx *Tx) SaveCommitRefresh() *XRError {
 
 	/*
 	   // Reload all cached entities so the tests don't need to do it themselves
-	   log.Printf("tx: %s cache size: %d", tx.uuid, len(tx.Cache))
+	   log.Printf("tx: %s cache size: %d", tx.UUID, len(tx.Cache))
 	   for _, e := range tx.Cache {
-	       log.Printf("tx: %s Refresh: %s/%s", tx.uuid, e.Singular, e.UID)
+	       log.Printf("tx: %s Refresh: %s/%s", tx.UUID, e.Singular, e.UID)
 	       e.Refresh()
 	   }
 	*/
@@ -426,9 +426,9 @@ func (tx *Tx) SaveAllAndCommit() *XRError {
 // Cache stuff
 
 func (tx *Tx) DumpCache() {
-	log.Printf("tx: %s ==== CACHE =====", tx.uuid)
+	log.Printf("tx: %s ==== CACHE =====", tx.UUID)
 	for path, _ := range tx.Cache {
-		log.Printf("tx: %s - %s", tx.uuid, path)
+		log.Printf("tx: %s - %s", tx.UUID, path)
 	}
 }
 
@@ -438,7 +438,7 @@ func (tx *Tx) EraseCache() {
 
 func (tx *Tx) AddToCache(e *Entity) {
 	PanicIf(IsNil(e.Self), "tx: %s Self is nil, %s/%s",
-		tx.uuid, e.Singular, e.UID)
+		tx.UUID, e.Singular, e.UID)
 	tx.Cache[e.Registry.UID+e.XID] = e
 }
 
@@ -449,8 +449,8 @@ func (tx *Tx) RemoveFromCache(e *Entity) {
 	// TODO turn this off when in prod (the maps.Equals probably isn't too
 	// expensive, but it's not free
 	if e.NewObject != nil && !maps.Equal(e.Object, e.NewObject) {
-		log.Printf("tx: %s OldObject:\n%s", tx.uuid, ToJSON(e.Object))
-		log.Printf("tx: %s NewObject:\n%s", tx.uuid, ToJSON(e.NewObject))
+		log.Printf("tx: %s OldObject:\n%s", tx.UUID, ToJSON(e.Object))
+		log.Printf("tx: %s NewObject:\n%s", tx.UUID, ToJSON(e.NewObject))
 		e.ShowStack()
 		panic(e.XID + " is dirty")
 	}
@@ -506,12 +506,12 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 	for _, e := range tx.Cache {
 		if true { // !force {
 			if e.NewObject != nil {
-				log.Printf("tx: %s %s: %s", tx.uuid, e.Singular, e.UID)
-				log.Printf("tx: %s %s", tx.uuid, ToJSON(e.NewObject))
+				log.Printf("tx: %s %s: %s", tx.UUID, e.Singular, e.UID)
+				log.Printf("tx: %s %s", tx.UUID, ToJSON(e.NewObject))
 				ShowStack()
 			}
 			PanicIf(e.NewObject != nil, "tx: %s Entity %s/%q not saved",
-				tx.uuid, e.Singular, e.UID)
+				tx.UUID, e.Singular, e.UID)
 		}
 		if xErr := e.ValidateAndSave(false); xErr != nil {
 			return xErr
@@ -543,7 +543,7 @@ func DumpTXs() {
 	TXsMutex.RLock()
 	for _, t := range TXs {
 		log.Printf("NewTx Stack %d:", count)
-		for _, s := range t.stack {
+		for _, s := range t.Stack {
 			log.Printf("  %s", s)
 		}
 		count++

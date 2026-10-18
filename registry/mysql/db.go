@@ -1,4 +1,4 @@
-package registry
+package mysql
 
 import (
 	"database/sql"
@@ -14,6 +14,7 @@ import (
 	log "github.com/duglin/dlog"
 	"github.com/go-sql-driver/mysql"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 // isRetryableDBErr inspects an error and
@@ -46,14 +47,14 @@ func isRetryableDBErr(v any) bool {
 		strings.Contains(msg, "Error 1205")
 }
 
-func prepare(tx *Tx, query string) (*sql.Stmt, *XRError) {
+func prepare(tx *registry.Tx, query string) (*sql.Stmt, *XRError) {
 	// If the current Tx is closed, create a new one
 	xErr := tx.EnsureTx()
 	if xErr != nil {
 		return nil, xErr
 	}
 
-	ps, err := tx.tx.(*sql.Tx).Prepare(query)
+	ps, err := tx.Tx.(*sql.Tx).Prepare(query)
 	if err != nil {
 		return nil,
 			NewXRError("server_error", "/").SetDetail(err.Error() + ".").
@@ -64,7 +65,7 @@ func prepare(tx *Tx, query string) (*sql.Stmt, *XRError) {
 }
 
 type Result struct {
-	tx       *Tx
+	Tx       *registry.Tx
 	sqlRows  *sql.Rows
 	colTypes []reflect.Type
 	Data     []*any // One row
@@ -84,8 +85,8 @@ func (r *Result) Close() {
 		return
 	}
 
-	if r.tx != nil {
-		r.tx = nil
+	if r.Tx != nil {
+		r.Tx = nil
 	}
 
 	if r.sqlRows != nil {
@@ -270,7 +271,7 @@ func DumpTimings() string {
 	return str
 }
 
-func Query(tx *Tx, cmd string, args ...interface{}) (*Result, *XRError) {
+func Query(tx *registry.Tx, cmd string, args ...interface{}) (*Result, *XRError) {
 	startTime := time.Time{}
 	pTime := time.Time{}
 	qTime := time.Time{}
@@ -281,7 +282,7 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, *XRError) {
 	}
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s Query: %s", tx.uuid, SubQuery(cmd, args))
+		log.Printf("tx: %s Query: %s", tx.UUID, SubQuery(cmd, args))
 	}
 
 	ps, xErr := prepare(tx, cmd)
@@ -305,7 +306,7 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, *XRError) {
 	defer rows.Close()
 
 	// PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
-	// tx.uuid, cmd, args, err)
+	// tx.UUID, cmd, args, err)
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
@@ -314,10 +315,10 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, *XRError) {
 			SetRetryable(isRetryableDBErr(err))
 	}
 	// PanicIf(err != nil, "tx: %s Error querying DB(%s)(%v)->%s\n",
-	// tx.uuid, cmd, args, err)
+	// tx.UUID, cmd, args, err)
 
 	result := &Result{
-		tx:       tx,
+		Tx:       tx,
 		sqlRows:  rows,
 		colTypes: []reflect.Type{},
 	}
@@ -355,8 +356,8 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, *XRError) {
 	return result, nil
 }
 
-func Do(tx *Tx, cmd string, args ...interface{}) (int, *XRError) {
-	log.FuncPrintf("tx: %s Do: %q args: %v", tx.uuid, cmd, args)
+func Do(tx *registry.Tx, cmd string, args ...interface{}) (int, *XRError) {
+	log.FuncPrintf("tx: %s Do: %q args: %v", tx.UUID, cmd, args)
 
 	if tx.IsLocked() {
 		ShowStack("Attempting a write when TX is locked - tx: %p", tx)
@@ -377,22 +378,22 @@ func Do(tx *Tx, cmd string, args ...interface{}) (int, *XRError) {
 	}
 
 	count, _ := result.RowsAffected()
-	log.FuncPrintf("tx: %s Do: %d rows", tx.uuid, count)
+	log.FuncPrintf("tx: %s Do: %d rows", tx.UUID, count)
 	return int(count), nil
 }
 
-func DoOne(tx *Tx, cmd string, args ...interface{}) *XRError {
+func DoOne(tx *registry.Tx, cmd string, args ...interface{}) *XRError {
 	count, xErr := Do(tx, cmd, args...)
 	if xErr != nil {
 		return xErr
 	}
 
 	PanicIf(count != 1, "tx: %s DoOne: Error DB(%s) didn't change "+
-		"exactly 1 row(%d)", tx.uuid, SubQuery(cmd, args), count)
+		"exactly 1 row(%d)", tx.UUID, SubQuery(cmd, args), count)
 	return nil
 }
 
-func DoZeroOne(tx *Tx, cmd string, args ...interface{}) *XRError {
+func DoZeroOne(tx *registry.Tx, cmd string, args ...interface{}) *XRError {
 	count, xErr := Do(tx, cmd, args...)
 	if xErr != nil {
 		return xErr
@@ -400,11 +401,11 @@ func DoZeroOne(tx *Tx, cmd string, args ...interface{}) *XRError {
 
 	PanicIf(count != 0 && count != 1,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/1 row(%d)",
-		tx.uuid, SubQuery(cmd, args), count)
+		tx.UUID, SubQuery(cmd, args), count)
 	return nil
 }
 
-func DoOneTwo(tx *Tx, cmd string, args ...interface{}) *XRError {
+func DoOneTwo(tx *registry.Tx, cmd string, args ...interface{}) *XRError {
 	count, xErr := Do(tx, cmd, args...)
 	if xErr != nil {
 		return xErr
@@ -412,18 +413,18 @@ func DoOneTwo(tx *Tx, cmd string, args ...interface{}) *XRError {
 
 	PanicIf(count != 1 && count != 2,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 1/2 row(%d)",
-		tx.uuid, SubQuery(cmd, args), count)
+		tx.UUID, SubQuery(cmd, args), count)
 	return nil
 }
 
-func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) *XRError {
+func DoZeroTwo(tx *registry.Tx, cmd string, args ...interface{}) *XRError {
 	count, xErr := Do(tx, cmd, args...)
 	if xErr != nil {
 		return xErr
 	}
 	PanicIf(count != 0 && count != 2,
 		"tx: %s DoOne: Error DB(%s) didn't change exactly 0/2 row(%d)",
-		tx.uuid, SubQuery(cmd, args), count)
+		tx.UUID, SubQuery(cmd, args), count)
 	return nil
 }
 
@@ -487,6 +488,7 @@ func OpenDB(xrsConfig *Config, name string) (*sql.DB, *XRError) {
 
 	DB.SetMaxOpenConns(5)
 	DB.SetMaxIdleConns(5)
+	DB.SetConnMaxIdleTime(5 * time.Minute)
 
 	holder.db = DB
 	if xrsConfig.GetAsString("db.name") != name {

@@ -13,6 +13,7 @@ import (
 
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
+	"github.com/xregistry/server/registry/mysql"
 )
 
 func TestMiscDBRows(t *testing.T) {
@@ -20,7 +21,7 @@ func TestMiscDBRows(t *testing.T) {
 	reg := NewRegistry("TestMiscDBRows")
 	defer PassDeleteReg(t, reg)
 
-	if fmt.Sprintf("%T", reg.GetTx().Backend) != "*registry.SQLBackend" {
+	if fmt.Sprintf("%T", reg.GetTx().Backend) != "*mysql.SQLBackend" {
 		t.Fatalf("Unknown backend: %T", reg.GetTx().Backend)
 	}
 
@@ -71,7 +72,7 @@ func TestMiscDBRows(t *testing.T) {
 		return NotNilString(vp)
 	}
 
-	be := registry.MustNewDefaultBackend(reg.GetXRServerConfig()).(*registry.SQLBackend)
+	be := registry.MustNewDefaultBackend(reg.GetXRServerConfig()).(*mysql.SQLBackend)
 
 	rows, xErr := be.Query(reg.GetTx(), "SELECT XID,PropName,PropValue "+
 		"FROM Props WHERE RegSID=? AND IsDefaultVerCopy=false AND "+

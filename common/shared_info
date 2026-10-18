@@ -12,9 +12,9 @@ import (
 )
 
 type RequestInfo struct {
-	tx               *Tx
+	Tx               *Tx
 	XRSConfig        *Config
-	uuid             string
+	UUID             string
 	Registry         *Registry
 	BaseURL          string              // host+path to root of registry
 	OriginalPath     string              // GROUPs/gID... (no leading /,query)
@@ -199,7 +199,7 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 	for _, inline := range info.Inlines {
 		iPP := inline.PP
 		if log.IsFuncVerbose() {
-			log.Printf("tx: %s Inline cmp: %q in %q", info.uuid,
+			log.Printf("tx: %s Inline cmp: %q in %q", info.UUID,
 				ePP.DB(), inline.PP.DB())
 		}
 
@@ -219,7 +219,7 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 			// (iPP.Len() > 1 && iPP.Bottom() == "*" && ePP.HasPrefix(iPP.RemoveLast())) {
 
 			if log.IsFuncVerbose() {
-				log.Printf("tx: %s match: %q in %q", info.uuid,
+				log.Printf("tx: %s match: %q in %q", info.UUID,
 					ePP.DB(), inline.PP.DB())
 			}
 			return true

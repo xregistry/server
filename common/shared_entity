@@ -30,7 +30,7 @@ type Entity struct {
 	// I'm not sure if OriginObject is the best way to go. I added it so that
 	// EnsureCompat could view the original value of "compat" but I also could
 	// have just set a flag on Meta when "compat" changed (via the
-	// updateFn(), and then avoid cloning the entire Object. Just something
+	// UpdateFn(), and then avoid cloning the entire Object. Just something
 	// to think about for the future
 
 	// System/NewSystem mirror Object/NewObject but for "system" props
@@ -112,7 +112,7 @@ func (e *Entity) SetStuff(key string, val any) {
 type Registry struct {
 	Entity
 	Model        *Model        `json:"-"`
-	Capabilities *Capabilities `json"-"`
+	Capabilities *Capabilities `json:"-"`
 
 	oldCapabilities *Capabilities // as seen at the start of the tx
 
@@ -168,16 +168,16 @@ func InitOrderedSpecProps() {
 			Required: true,
 			Default:  SPECVERSION,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_REGISTRY),
-				dontStore:   true,
-				uiMonospace: true,
-				uiLabel:     "Spec Version",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_REGISTRY),
+				DontStore:   true,
+				UIMonospace: true,
+				UILabel:     "Spec Version",
 
-				getFn: func(e *Entity) any {
+				GetFn: func(e *Entity) any {
 					return SPECVERSION
 				},
-				checkFn: func(e *Entity) *XRError {
+				CheckFn: func(e *Entity) *XRError {
 					tmp := e.NewObject["specversion"]
 					if !IsNil(tmp) && tmp != "" {
 						sv, _ := tmp.(string)
@@ -199,12 +199,12 @@ func InitOrderedSpecProps() {
 			Immutable: true,
 			Required:  true,
 
-			internals: &AttrInternals{
-				types:        "", // Yes even ENTITY_RESOURCE
-				xrefrequired: true,
-				uiMonospace:  true,
+			Internals: &AttrInternals{
+				Types:        "", // Yes even ENTITY_RESOURCE
+				XrefRequired: true,
+				UIMonospace:  true,
 
-				checkFn: func(e *Entity) *XRError {
+				CheckFn: func(e *Entity) *XRError {
 					singular := e.Singular
 					// PanicIf(singular == "", "singular is '' :  %v", e)
 					if e.Type == ENTITY_VERSION || e.Type == ENTITY_META {
@@ -250,7 +250,7 @@ func InitOrderedSpecProps() {
 					}
 					return nil
 				},
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					// Make sure the ID is always set
 					singular := e.Singular
 					if e.Type == ENTITY_VERSION || e.Type == ENTITY_META {
@@ -265,12 +265,12 @@ func InitOrderedSpecProps() {
 						log.Printf("tx: %s (%s) %q is nil - "+
 							"e.UID=%q e.Type=%d e.Object=%s e.NewObject=%s "+
 							"e.OriginObject=%s",
-							e.Tx.uuid, e.XID, singular, e.UID, e.Type,
+							e.Tx.UUID, e.XID, singular, e.UID, e.Type,
 							ToJSON(e.Object), ToJSON(e.NewObject),
 							ToJSON(e.OriginObject))
 						panic(fmt.Sprintf(`tx: %s (%s) %q is nil - `+
 							`that's bad, fix it!`,
-							e.Tx.uuid, e.XID, singular))
+							e.Tx.UUID, e.XID, singular))
 					}
 					return nil
 				},
@@ -282,12 +282,12 @@ func InitOrderedSpecProps() {
 			Immutable: true,
 			Required:  true,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_VERSION),
-				uiMonospace: true,
-				uiLabel:     "Version ID",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				UIMonospace: true,
+				UILabel:     "Version ID",
 
-				checkFn: func(e *Entity) *XRError {
+				CheckFn: func(e *Entity) *XRError {
 					oldID := any(e.UID)
 					newID := any(e.NewObject["versionid"])
 
@@ -320,15 +320,15 @@ func InitOrderedSpecProps() {
 					}
 					return nil
 				},
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					// Make sure the ID is always set
 					if IsNil(e.NewObject["versionid"]) {
 						log.Printf("tx: %s (%s) versionid is nil - "+
 							"e.UID=%q e.Object=%s e.NewObject=%s e.OriginObject=%s",
-							e.Tx.uuid, e.XID, e.UID, ToJSON(e.Object),
+							e.Tx.UUID, e.XID, e.UID, ToJSON(e.Object),
 							ToJSON(e.NewObject), ToJSON(e.OriginObject))
 						panic(fmt.Sprintf(`"tx: %s (%s) versionid" is nil - " +
-                    "fix it!`, e.Tx.uuid, e.XID))
+                    "fix it!`, e.Tx.UUID, e.XID))
 					}
 					return nil
 				},
@@ -341,12 +341,12 @@ func InitOrderedSpecProps() {
 			Immutable: true,
 			Required:  true,
 
-			internals: &AttrInternals{
-				types:        "", // Yes even ENTITY_RESOURCE
-				dontStore:    true,
-				xrefrequired: true,
+			Internals: &AttrInternals{
+				Types:        "", // Yes even ENTITY_RESOURCE
+				DontStore:    true,
+				XrefRequired: true,
 
-				getFn: func(e *Entity) any {
+				GetFn: func(e *Entity) any {
 					base := ""
 					xid := e.XID
 					isAbs := false
@@ -391,12 +391,12 @@ func InitOrderedSpecProps() {
 			ReadOnly:  true,
 			Immutable: true,
 
-			internals: &AttrInternals{
-				types:        "",
-				dontStore:    true,
-				xrefrequired: true,
+			Internals: &AttrInternals{
+				Types:        "",
+				DontStore:    true,
+				XrefRequired: true,
 
-				getFn: func(e *Entity) any {
+				GetFn: func(e *Entity) any {
 					// Capabilities.ShortSelf isn't enabled, so stop
 					if e.Registry.Capabilities.ShortSelfEnabled() == false {
 						return nil
@@ -415,7 +415,7 @@ func InitOrderedSpecProps() {
 
 					ss := base + "/r/" + e.DbSID
 
-					selfAny := SpecProps["self"].internals.getFn(e)
+					selfAny := SpecProps["self"].Internals.GetFn(e)
 					if self, ok := selfAny.(string); ok && len(self) < len(ss) {
 						ss = self
 					}
@@ -431,18 +431,18 @@ func InitOrderedSpecProps() {
 			Immutable: true,
 			Required:  true,
 
-			internals: &AttrInternals{
-				types:        "",
-				dontStore:    true,
-				xrefrequired: true,
+			Internals: &AttrInternals{
+				Types:        "",
+				DontStore:    true,
+				XrefRequired: true,
 			},
 		},
 		{
 			Name: "xref",
 			Type: URL,
 
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_META),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_META),
 			},
 		},
 		{
@@ -451,10 +451,10 @@ func InitOrderedSpecProps() {
 			ReadOnly: true,
 			Required: true,
 
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
 
-				checkFn: func(e *Entity) *XRError {
+				CheckFn: func(e *Entity) *XRError {
 					// If we explicitly setEpoch via internal API then don't check
 					if e.EpochSet {
 						return nil
@@ -486,10 +486,10 @@ func InitOrderedSpecProps() {
 					}
 					return nil
 				},
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					// Very special, if we're in meta and xref set then
 					// erase 'epoch'. We can't do it earlier because we need
-					// the checkFn to be run to make sure any incoming value
+					// the CheckFn to be run to make sure any incoming value
 					// was valid
 					if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 						e.NewObject["epoch"] = nil
@@ -527,9 +527,9 @@ func InitOrderedSpecProps() {
 			Name: "name",
 			Type: STRING,
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-				uiLabel: "Name",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+				UILabel: "Name",
 			},
 		},
 		{
@@ -539,37 +539,37 @@ func InitOrderedSpecProps() {
 			Required: true,
 			Default:  false,
 
-			internals: &AttrInternals{
-				types:     StrTypes(ENTITY_VERSION),
-				dontStore: true,
-				uiLabel:   "Is Default",
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_VERSION),
+				DontStore: true,
+				UILabel:   "Is Default",
 			},
 		},
 		{
 			Name: "description",
 			Type: STRING,
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-				uiLabel: "Description",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+				UILabel: "Description",
 			},
 		},
 		{
 			Name: "documentation",
 			Type: URL,
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-				uiLabel: "Documentation",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+				UILabel: "Documentation",
 			},
 		},
 		{
 			Name: "icon",
 			Type: URL,
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-				uiLabel: "Icon",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+				UILabel: "Icon",
 			},
 		},
 		{
@@ -579,9 +579,9 @@ func InitOrderedSpecProps() {
 				Type: STRING,
 			},
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-				uiLabel: "Labels",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+				UILabel: "Labels",
 			},
 		},
 		{
@@ -589,11 +589,11 @@ func InitOrderedSpecProps() {
 			Type:     TIMESTAMP,
 			Required: true,
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-				uiLabel: "Created",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+				UILabel: "Created",
 
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 						e.NewObject["createdat"] = nil
 
@@ -627,11 +627,11 @@ func InitOrderedSpecProps() {
 			Type:     TIMESTAMP,
 			Required: true,
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-				uiLabel: "Modified",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+				UILabel: "Modified",
 
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 						e.NewObject["modifiedat"] = nil
 						return nil
@@ -659,8 +659,8 @@ func InitOrderedSpecProps() {
 		},
 		{
 			Name: "$extensions",
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_REGISTRY),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_REGISTRY),
 			},
 		},
 		{
@@ -673,11 +673,11 @@ func InitOrderedSpecProps() {
 				},
 			},
 
-			internals: &AttrInternals{
-				types:     StrTypes(ENTITY_REGISTRY),
-				dontStore: true,
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_REGISTRY),
+				DontStore: true,
 
-				getFn: func(e *Entity) any {
+				GetFn: func(e *Entity) any {
 					// Need to explicitly ask for "capabilities", ?inline=* won't
 					// do it
 					info := e.GetRequestInfo()
@@ -697,7 +697,7 @@ func InitOrderedSpecProps() {
 					}
 					return nil
 				},
-				checkFn: func(e *Entity) *XRError {
+				CheckFn: func(e *Entity) *XRError {
 					// Yes it's weird to store it in #capabilities but
 					// it's actually easier to do it this way. Trying to convert
 					// map[string]any <-> Capabilities  is really annoying
@@ -734,7 +734,7 @@ func InitOrderedSpecProps() {
 					}
 					return nil
 				},
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					return nil
 				},
 			},
@@ -750,11 +750,11 @@ func InitOrderedSpecProps() {
 				},
 			},
 
-			internals: &AttrInternals{
-				types:     StrTypes(ENTITY_REGISTRY),
-				dontStore: true,
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_REGISTRY),
+				DontStore: true,
 
-				getFn: func(e *Entity) any {
+				GetFn: func(e *Entity) any {
 					// Need to explicitly ask for "model", ?inline=* won't
 					// do it
 					info := e.GetRequestInfo()
@@ -784,10 +784,10 @@ func InitOrderedSpecProps() {
 				},
 			},
 
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_REGISTRY),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_REGISTRY),
 
-				getFn: func(e *Entity) any {
+				GetFn: func(e *Entity) any {
 					// Need to explicitly ask for "modelsource", ?inline=* won't
 					// do it
 					info := e.GetRequestInfo()
@@ -816,9 +816,9 @@ func InitOrderedSpecProps() {
 			Required: true,
 			Default:  false,
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_META),
-				uiLabel: "Read Only",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_META),
+				UILabel: "Read Only",
 			},
 		},
 		{
@@ -829,12 +829,12 @@ func InitOrderedSpecProps() {
 			Strict:   PtrBool(true),
 			Required: false,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_META),
-				uiMonospace: true,
-				uiLabel:     "Compatibility",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_META),
+				UIMonospace: true,
+				UILabel:     "Compatibility",
 
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					compat, ok := e.NewObject["compatibility"]
 					if ok && compat == "" {
 						return NewXRError("invalid_attribute", e.XID,
@@ -866,11 +866,11 @@ func InitOrderedSpecProps() {
 				},
 			},
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_GROUP, ENTITY_META),
-				uiLabel: "Deprecated",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_GROUP, ENTITY_META),
+				UILabel: "Deprecated",
 
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					dep, ok := e.NewObject["deprecated"]
 					if !ok || IsNil(dep) {
 						return nil
@@ -918,10 +918,10 @@ func InitOrderedSpecProps() {
 				},
 			},
 
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_GROUP),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_GROUP),
 
-				checkFn: func(e *Entity) *XRError {
+				CheckFn: func(e *Entity) *XRError {
 					g := e.Self.(*Group)
 					// Note, this will not actually do the constaint checks,
 					// this just verifies the constraint defintions are valid.
@@ -947,12 +947,12 @@ func InitOrderedSpecProps() {
 			Type:     STRING,
 			Required: true,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_VERSION),
-				uiMonospace: true,
-				uiLabel:     "Ancestor Version ID",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				UIMonospace: true,
+				UILabel:     "Ancestor Version ID",
 
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					_, ok := e.NewObject["ancestorid"]
 					PanicIf(!ok, "Missing versionid")
 					if !ok {
@@ -971,23 +971,23 @@ func InitOrderedSpecProps() {
 			Name: "contenttype",
 			Type: STRING,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_VERSION),
-				httpHeader:  "Content-Type",
-				uiMonospace: true,
-				uiLabel:     "Content Type",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				HttpHeader:  "Content-Type",
+				UIMonospace: true,
+				UILabel:     "Content Type",
 			},
 		},
 		{
 			Name: "format",
 			Type: STRING,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_VERSION),
-				uiMonospace: true,
-				uiLabel:     "Format",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				UIMonospace: true,
+				UILabel:     "Format",
 
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					format, ok := e.NewObject["format"]
 					if ok && format == "" {
 						return NewXRError("invalid_attribute", e.XID,
@@ -1003,10 +1003,10 @@ func InitOrderedSpecProps() {
 			Type:     BOOLEAN,
 			ReadOnly: true,
 
-			internals: &AttrInternals{
-				types:     StrTypes(ENTITY_VERSION),
-				noDocView: true,
-				uiLabel:   "Format Validated",
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_VERSION),
+				NoDocView: true,
+				UILabel:   "Format Validated",
 			},
 		},
 		{
@@ -1014,11 +1014,11 @@ func InitOrderedSpecProps() {
 			Type:     STRING,
 			ReadOnly: true,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_VERSION),
-				noDocView:   true,
-				uiMonospace: true,
-				uiLabel:     "Format Validated Reason",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				NoDocView:   true,
+				UIMonospace: true,
+				UILabel:     "Format Validated Reason",
 			},
 		},
 		{
@@ -1026,10 +1026,10 @@ func InitOrderedSpecProps() {
 			Type:     BOOLEAN,
 			ReadOnly: true,
 
-			internals: &AttrInternals{
-				types:     StrTypes(ENTITY_VERSION),
-				noDocView: true,
-				uiLabel:   "Compatibility Validated",
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_VERSION),
+				NoDocView: true,
+				UILabel:   "Compatibility Validated",
 			},
 		},
 		{
@@ -1037,23 +1037,23 @@ func InitOrderedSpecProps() {
 			Type:     STRING,
 			ReadOnly: true,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_VERSION),
-				noDocView:   true,
-				uiMonospace: true,
-				uiLabel:     "Compatibility Validated Reason",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				NoDocView:   true,
+				UIMonospace: true,
+				UILabel:     "Compatibility Validated Reason",
 			},
 		},
 		{
 			Name: "$extensions",
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION),
 			},
 		},
 		{
 			Name: "$space",
-			internals: &AttrInternals{
-				types: "",
+			Internals: &AttrInternals{
+				Types: "",
 			},
 		},
 		// For the $RESOURCE ones, make sure to use attr.Clone("newname")
@@ -1062,11 +1062,11 @@ func InitOrderedSpecProps() {
 		{
 			Name: "$RESOURCEurl",
 			Type: URL,
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_VERSION),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_VERSION),
 
-				checkFn: RESOURCEcheckFn,
-				updateFn: func(e *Entity) *XRError {
+				CheckFn: RESOURCECheckFn,
+				UpdateFn: func(e *Entity) *XRError {
 					singular := e.GetResourceSingular()
 					v, ok := e.NewObject[singular+"url"]
 					if ok && !IsNil(v) {
@@ -1081,11 +1081,11 @@ func InitOrderedSpecProps() {
 		{
 			Name: "$RESOURCEproxyurl",
 			Type: URL,
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_VERSION),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_VERSION),
 
-				checkFn: RESOURCEcheckFn,
-				updateFn: func(e *Entity) *XRError {
+				CheckFn: RESOURCECheckFn,
+				UpdateFn: func(e *Entity) *XRError {
 					singular := e.GetResourceSingular()
 					v, ok := e.NewObject[singular+"proxyurl"]
 					if ok && !IsNil(v) {
@@ -1101,12 +1101,12 @@ func InitOrderedSpecProps() {
 			Name: "$RESOURCE",
 			Type: ANY,
 
-			internals: &AttrInternals{
-				types:           StrTypes(ENTITY_VERSION),
-				alwaysSerialize: true, // Will always be missing, so need this
+			Internals: &AttrInternals{
+				Types:           StrTypes(ENTITY_VERSION),
+				AlwaysSerialize: true, // Will always be missing, so need this
 
-				checkFn: RESOURCEcheckFn,
-				updateFn: func(e *Entity) *XRError {
+				CheckFn: RESOURCECheckFn,
+				UpdateFn: func(e *Entity) *XRError {
 					singular := e.GetResourceSingular()
 					v, ok := e.NewObject[singular]
 					if ok {
@@ -1125,11 +1125,11 @@ func InitOrderedSpecProps() {
 		{
 			Name: "$RESOURCEbase64",
 			Type: STRING,
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_VERSION),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_VERSION),
 
-				checkFn: RESOURCEcheckFn,
-				updateFn: func(e *Entity) *XRError {
+				CheckFn: RESOURCECheckFn,
+				UpdateFn: func(e *Entity) *XRError {
 					singular := e.GetResourceSingular()
 					v, ok := e.NewObject[singular]
 					if ok {
@@ -1147,8 +1147,8 @@ func InitOrderedSpecProps() {
 		},
 		{
 			Name: "$space",
-			internals: &AttrInternals{
-				types: "",
+			Internals: &AttrInternals{
+				Types: "",
 			},
 		},
 		{
@@ -1160,8 +1160,8 @@ func InitOrderedSpecProps() {
 					Type: ANY,
 				},
 			},
-			internals: &AttrInternals{
-				types: StrTypes(ENTITY_RESOURCE),
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_RESOURCE),
 			},
 		},
 		{
@@ -1171,11 +1171,11 @@ func InitOrderedSpecProps() {
 			Immutable: true,
 			Required:  true,
 
-			internals: &AttrInternals{
-				types:     StrTypes(ENTITY_RESOURCE),
-				dontStore: true,
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_RESOURCE),
+				DontStore: true,
 
-				getFn: func(e *Entity) any {
+				GetFn: func(e *Entity) any {
 					base := ""
 					xid := e.XID
 
@@ -1204,8 +1204,8 @@ func InitOrderedSpecProps() {
 		},
 		{
 			Name: "$space",
-			internals: &AttrInternals{
-				types: "",
+			Internals: &AttrInternals{
+				Types: "",
 			},
 		},
 		{
@@ -1213,12 +1213,12 @@ func InitOrderedSpecProps() {
 			Type:     STRING,
 			Required: true,
 
-			internals: &AttrInternals{
-				types:       StrTypes(ENTITY_META),
-				uiMonospace: true,
-				uiLabel:     "Default Version ID",
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_META),
+				UIMonospace: true,
+				UILabel:     "Default Version ID",
 
-				updateFn: func(e *Entity) *XRError {
+				UpdateFn: func(e *Entity) *XRError {
 					// Make sure it has a value, if not copy from existing
 					xRef := e.NewObject["xref"]
 					PanicIf(xRef == "", "xref is ''")
@@ -1264,12 +1264,12 @@ func InitOrderedSpecProps() {
 			ReadOnly: true,
 			Required: true,
 
-			internals: &AttrInternals{
-				types:     StrTypes(ENTITY_META),
-				dontStore: true,
-				uiLabel:   "Default Version URL",
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_META),
+				DontStore: true,
+				UILabel:   "Default Version URL",
 
-				getFn: func(e *Entity) any {
+				GetFn: func(e *Entity) any {
 					val := e.Object["defaultversionid"]
 					if IsNil(val) {
 						return nil
@@ -1336,11 +1336,11 @@ func InitOrderedSpecProps() {
 			Required: true,
 			Default:  false,
 
-			internals: &AttrInternals{
-				types:   StrTypes(ENTITY_META),
-				uiLabel: "Default Version Sticky",
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_META),
+				UILabel: "Default Version Sticky",
 
-				checkFn: func(e *Entity) *XRError {
+				CheckFn: func(e *Entity) *XRError {
 					if e.GetResourceModel().GetMaxVersions() == 1 {
 						if e.NewObject["defaultversionsticky"] == true {
 							return NewXRError("setdefaultversionsticky_false", e.XID)
@@ -1352,8 +1352,8 @@ func InitOrderedSpecProps() {
 		},
 		{
 			Name: "$space",
-			internals: &AttrInternals{
-				types: "",
+			Internals: &AttrInternals{
+				Types: "",
 			},
 		},
 		{
@@ -1367,9 +1367,9 @@ func InitOrderedSpecProps() {
 					},
 				},
 			},
-			internals: &AttrInternals{
-				types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
-				dontStore: true,
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+				DontStore: true,
 			},
 		},
 	}
@@ -1394,8 +1394,8 @@ func init() {
 
 	// Load-up the attributes that have custom http header names
 	for _, attr := range OrderedSpecProps {
-		if attr.internals != nil && attr.internals.httpHeader != "" {
-			SpecialAttrHeaders[strings.ToLower(attr.internals.httpHeader)] =
+		if attr.Internals != nil && attr.Internals.HttpHeader != "" {
+			SpecialAttrHeaders[strings.ToLower(attr.Internals.HttpHeader)] =
 				attr
 		}
 	}
@@ -1408,9 +1408,9 @@ func init() {
 		ReadOnly:  true,
 		Immutable: true,
 		Required:  true,
-		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
-			dontStore: true,
+		Internals: &AttrInternals{
+			Types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+			DontStore: true,
 		},
 	}
 
@@ -1419,9 +1419,9 @@ func init() {
 		Type:     UINTEGER,
 		ReadOnly: true,
 		Required: true,
-		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
-			dontStore: true,
+		Internals: &AttrInternals{
+			Types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+			DontStore: true,
 		},
 	}
 }
@@ -1623,10 +1623,10 @@ func GetOrderedSpecAttrTypes() []SpecAttrInfo {
 		types := ""
 		mono := false
 		label := ""
-		if attr.internals != nil {
-			types = attr.internals.types
-			mono = attr.internals.uiMonospace
-			label = attr.internals.uiLabel
+		if attr.Internals != nil {
+			types = attr.Internals.Types
+			mono = attr.Internals.UIMonospace
+			label = attr.Internals.UILabel
 		}
 		result = append(result, SpecAttrInfo{Name: attr.Name, Types: types, UIMonospace: mono, UILabel: label})
 	}
@@ -1805,7 +1805,7 @@ func buildCanonicalLevelOrders() map[int][]string {
 }
 
 func (e *Entity) ValidateAndSave(force bool) *XRError {
-	defer log.Trace("tx: %s %s", e.Tx.uuid, e.XID)()
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
 
 	// Force will do a validate even if it doesn't look like anything changed.
 	// BUT if after validate() nothing still hasn't changed then it doesn't
@@ -1825,7 +1825,7 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 	if verb {
 		log.Printf("tx: %s "+
 			"Pre validate %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
-			e.Tx.uuid,
+			e.Tx.UUID,
 			e.Abstract, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
 	}
 
@@ -1834,7 +1834,7 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 	}
 
 	if verb {
-		log.Printf("tx: %s Post validate(%s): %s", e.Tx.uuid,
+		log.Printf("tx: %s Post validate(%s): %s", e.Tx.UUID,
 			e.XID, ToJSON(e.NewObject))
 	}
 
@@ -1852,11 +1852,11 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 // avoid traversing the entity more than once, we will tweak things if needed.
 // For example, if a missing attribute has a Default value then we'll add it.
 func (e *Entity) Validate() *XRError {
-	defer log.Trace("tx: %s %s", e.Tx.uuid, e.XID)()
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
 	// Don't touch what was passed in
 	attrs := e.GetAttributes(e.NewObject)
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s Attrs:\n%s", e.Tx.uuid, ToJSON(attrs))
+		log.Printf("tx: %s Attrs:\n%s", e.Tx.UUID, ToJSON(attrs))
 	}
 
 	// Skip xref's versions since its owning resource should have done it
@@ -1889,9 +1889,9 @@ func (e *Entity) Validate() *XRError {
 	}
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s ========", e.Tx.uuid)
-		log.Printf("tx: %s NewObject:\n%s", e.Tx.uuid, ToJSON(e.NewObject))
-		log.Printf("tx: %s Attrs: %v", e.Tx.uuid, SortedKeys(attrs))
+		log.Printf("tx: %s ========", e.Tx.UUID)
+		log.Printf("tx: %s NewObject:\n%s", e.Tx.UUID, ToJSON(e.NewObject))
+		log.Printf("tx: %s Attrs: %v", e.Tx.UUID, SortedKeys(attrs))
 	}
 
 	// If nothing changed then use the original data for validation
@@ -1906,11 +1906,11 @@ func (e *Entity) Validate() *XRError {
 // been removed - such as collections
 func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attributes, path *PropPath) *XRError {
 
-	defer log.Trace("tx: %s %s", e.Tx.uuid, path)()
+	defer log.Trace("tx: %s %s", e.Tx.UUID, path)()
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s Check Obj:\n%s", e.Tx.uuid, ToJSON(val))
-		log.Printf("tx: %s OrigAttrs:\n%s", e.Tx.uuid,
+		log.Printf("tx: %s Check Obj:\n%s", e.Tx.UUID, ToJSON(val))
+		log.Printf("tx: %s OrigAttrs:\n%s", e.Tx.UUID,
 			ToJSON(SortedKeys(origAttrs)))
 	}
 
@@ -2013,7 +2013,7 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 			// Based on the attribute's type check the incoming 'val'.
 			// This will check for adherence to the model (eg type),
-			// the next section (checkFn) will allow for more detailed
+			// the next section (CheckFn) will allow for more detailed
 			// checking, like for valid values
 			if !IsNil(val) {
 				xErr, haveReplacement, newValue := e.ValidateAttribute(val,
@@ -2057,16 +2057,16 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 				}
 			}
 
-			// Call the attr's checkFn if there to make sure any
+			// Call the attr's CheckFn if there to make sure any
 			// incoming value is ok
-			if attr.internals != nil && attr.internals.checkFn != nil {
-				if xErr := attr.internals.checkFn(e); xErr != nil {
+			if attr.Internals != nil && attr.Internals.CheckFn != nil {
+				if xErr := attr.Internals.CheckFn(e); xErr != nil {
 					return xErr
 				}
 			}
 
-			// Skip/remove 'dontStore' attrs
-			if attr.internals != nil && attr.internals.dontStore {
+			// Skip/remove 'DontStore' attrs
+			if attr.Internals != nil && attr.Internals.DontStore {
 				// TODO find a way to allow an admin to set the
 				// meta.ReadOnly flag itself
 				delete(objKeys, key) // Remove from to-process list
@@ -2075,9 +2075,9 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			}
 
 			// If this attr has a func to update its value, call it
-			if attr.internals != nil && attr.internals.updateFn != nil {
+			if attr.Internals != nil && attr.Internals.UpdateFn != nil {
 				if e.NewObject != nil {
-					if xErr := attr.internals.updateFn(e); xErr != nil {
+					if xErr := attr.Internals.UpdateFn(e); xErr != nil {
 						return xErr
 					}
 				}
@@ -2091,9 +2091,9 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 				flagit := true // Assume we'll err
 
 				// Most "meta" attribute aren't actually required when xref
-				// is set, so only flag the ones w/o 'xrefrequired=true'
+				// is set, so only flag the ones w/o 'XrefRequired=true'
 				if e.Type == ENTITY_META && e.GetAsString("xref") != "" &&
-					!attr.internals.xrefrequired {
+					!attr.Internals.XrefRequired {
 					flagit = false
 				}
 
@@ -2178,8 +2178,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 // Return: error, haveReplaceValue, newValue
 func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s val: %v", e.Tx.uuid, ToJSON(val))
-		log.Printf("tx: %s attr: %v", e.Tx.uuid, ToJSON(attr))
+		log.Printf("tx: %s val: %v", e.Tx.UUID, ToJSON(val))
+		log.Printf("tx: %s attr: %v", e.Tx.UUID, ToJSON(attr))
 	}
 
 	if attr.Type == ANY {
@@ -2211,8 +2211,8 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*X
 
 func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s item: %v", e.Tx.uuid, ToJSON(mapAttr.Item))
-		log.Printf("tx: %s val: %v", e.Tx.uuid, ToJSON(val))
+		log.Printf("tx: %s item: %v", e.Tx.UUID, ToJSON(mapAttr.Item))
+		log.Printf("tx: %s val: %v", e.Tx.UUID, ToJSON(val))
 	}
 
 	if IsNil(val) {
@@ -2274,8 +2274,8 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 
 func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s item: %s", e.Tx.uuid, ToJSON(arrayAttr.Item))
-		log.Printf("tx: %s val: %s", e.Tx.uuid, ToJSON(val))
+		log.Printf("tx: %s item: %s", e.Tx.UUID, ToJSON(arrayAttr.Item))
+		log.Printf("tx: %s val: %s", e.Tx.UUID, ToJSON(val))
 	}
 
 	if IsNil(val) {
@@ -2320,7 +2320,7 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 // returns: Error, haveReplacementValue, replacementValue
 func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s val: %s", e.Tx.uuid, ToJSON(val))
+		log.Printf("tx: %s val: %s", e.Tx.UUID, ToJSON(val))
 	}
 
 	replace := false
@@ -2554,7 +2554,7 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 	// enforced separately (and more completely, incl. xref-mirrored
 	// data) via Group.validateEnum(), not here.
 	enums, strict := attr.Enum, attr.GetStrict()
-	// log.Printf("tx: %s Checking: %q: %q vs %q", e.Tx.uuid,
+	// log.Printf("tx: %s Checking: %q: %q vs %q", e.Tx.UUID,
 	// attr.Name, val, EnumAsString(enums))
 	if strict && !IsValidEnum(val, enums) {
 		return NewXRError("invalid_attribute", e.XID,
@@ -2729,7 +2729,7 @@ func (e *Entity) GetPP(pp *PropPath) any {
 		val, _, _ = ObjectGetProp(e.Object, pp)
 	}
 
-	log.FuncPrintf("tx: %s %s(%s).Get(%s) -> %v", e.Tx.uuid, e.Plural, e.UID,
+	log.FuncPrintf("tx: %s %s(%s).Get(%s) -> %v", e.Tx.UUID, e.Plural, e.UID,
 		pp.DB(), val)
 	return val
 }
@@ -2936,7 +2936,7 @@ func (e *Entity) eJustSetPath(path string, val any) *XRError {
 
 // Set the prop in the Entity but don't Validate or Save to the DB
 func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
-	defer log.Trace("tx: %s %s.%s=%v", e.Tx.uuid, e.XID, pp.UI(), val)()
+	defer log.Trace("tx: %s %s.%s=%v", e.Tx.UUID, e.XID, pp.UI(), val)()
 
 	PanicIf(e.AccessMode != FOR_WRITE, "ejustset: %q isn't FOR_WRITE", e.XID)
 
@@ -2986,9 +2986,9 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	*/
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s Abstract/ID: %s/%s", e.Tx.uuid, e.Abstract, e.UID)
-		log.Printf("tx: %s e.Object:\n%s", e.Tx.uuid, ToJSON(e.Object))
-		log.Printf("tx: %s e.NewObject:\n%s", e.Tx.uuid, ToJSON(e.NewObject))
+		log.Printf("tx: %s Abstract/ID: %s/%s", e.Tx.UUID, e.Abstract, e.UID)
+		log.Printf("tx: %s e.Object:\n%s", e.Tx.UUID, ToJSON(e.Object))
+		log.Printf("tx: %s e.NewObject:\n%s", e.Tx.UUID, ToJSON(e.NewObject))
 	}
 
 	err := ObjectSetProp(e.NewObject, pp, val)
@@ -3054,15 +3054,15 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 	// And then use e.ShowStack() to dump it
 
 	/* Sample code to print the stack for where this NewObject was created:
-	   log.Printf("tx: %s Stack for NewObject:", e.Tx.uuid)
+	   log.Printf("tx: %s Stack for NewObject:", e.Tx.UUID)
 	   for _, s := range e.NewObjectStack {
-	       log.Printf("tx: %s %s", e.Tx.uuid, s)
+	       log.Printf("tx: %s %s", e.Tx.UUID, s)
 	   }
 	*/
 }
 
 func (e *Entity) Lock() (bool, *XRError) { // did we lock it?
-	defer log.Trace("tx: %s %s:%s", e.Tx.uuid, e.XID, e.DbSID)()
+	defer log.Trace("tx: %s %s:%s", e.Tx.UUID, e.XID, e.DbSID)()
 
 	if e.AccessMode == FOR_WRITE {
 		// Already locked
@@ -3070,14 +3070,14 @@ func (e *Entity) Lock() (bool, *XRError) { // did we lock it?
 	}
 
 	log.FuncPrintf("tx: %s Requesting lock for %q eSID=%s connID=%d",
-		e.Tx.uuid, e.XID, e.DbSID, e.Tx.connID)
+		e.Tx.UUID, e.XID, e.DbSID, e.Tx.ConnID)
 
 	if xErr := e.Refresh(FOR_WRITE); xErr != nil {
 		return false, xErr
 	}
 
 	log.FuncPrintf("tx: %s Got lock for %q eSID=%s connID=%d",
-		e.Tx.uuid, e.XID, e.DbSID, e.Tx.connID)
+		e.Tx.UUID, e.XID, e.DbSID, e.Tx.ConnID)
 
 	// Resource/Meta/Version are logically one unit - Meta holds the
 	// data most callers actually care about (defaultversionid, epoch,
@@ -3088,7 +3088,7 @@ func (e *Entity) Lock() (bool, *XRError) { // did we lock it?
 	// whole Resource+Meta+Versions family together here, in one place,
 	// so callers never need to remember to do this themselves at each
 	// call site.
-	if xErr := lockEntityFamily(e.Tx, e); xErr != nil {
+	if xErr := LockEntityFamily(e.Tx, e); xErr != nil {
 		return false, xErr
 	}
 
@@ -3096,16 +3096,16 @@ func (e *Entity) Lock() (bool, *XRError) { // did we lock it?
 }
 
 func (e *Entity) ShowStack() {
-	log.Printf("tx: %s Stack for NewObject (%s):", e.Tx.uuid, e.XID)
+	log.Printf("tx: %s Stack for NewObject (%s):", e.Tx.UUID, e.XID)
 	for _, s := range e.NewObjectStack {
-		log.Printf("tx: %s  %s", e.Tx.uuid, s)
+		log.Printf("tx: %s  %s", e.Tx.UUID, s)
 	}
 }
 
 // Update the entity's Object - not the other props in Entity. Similar to
 // Raw EntityFromXID
 func (e *Entity) Refresh(accessMode int) *XRError {
-	defer log.Trace("tx: %s %s", e.Tx.uuid, e.XID)()
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
 
 	// If there's a buffered, not-yet-persisted system-prop change on
 	// this entity (see SetSystemDBProperty()'s doc comment), flush it

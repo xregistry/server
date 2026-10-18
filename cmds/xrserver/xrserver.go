@@ -11,6 +11,7 @@ import (
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
+	_ "github.com/xregistry/server/registry/mysql"
 )
 
 var DontCreate = false

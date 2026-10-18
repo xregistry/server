@@ -50,6 +50,8 @@ export TIMEIT         ?= TIMEFORMAT="Time: %0lR" ; time
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 
+REGISTRY_FILES := $(shell find registry -type f)
+
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
 cmds: .cmds
@@ -66,7 +68,8 @@ errors: .errors
 	@touch .errors
 
 xrlint: .xrlint
-.xrlint: cmds/xrlint/* cmds/xr/* cmds/xrserver/*  registry/* common/* tests/*
+.xrlint: cmds/xrlint/* cmds/xr/* cmds/xrserver/*  $(REGISTRY_FILES) \
+		common/* tests/*
 	@echo
 	@echo "# Running xrlint looking for source issues"
 	@misc/errOutput @go run ./cmds/xrlint --unused=false --xrerror=false \
@@ -90,7 +93,8 @@ qtest: .qtest
 	@make mysql waitformysql
 	@echo
 	@echo "# Testing"
-	@! grep -e '	' registry/init.sql||(echo "Remove tabs in init.db";exit 1)
+	@! grep -e '	' registry/mysql/init.sql || \
+		(echo "Remove tabs in init.db";exit 1)
 	@if curl localhost:8080 > /dev/null 2>&1 ; then \
      	echo "Stop server on :8080 first" ; exit 1 ; \
 	 else true ; fi
@@ -137,7 +141,7 @@ registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@go run ./cmds/genspecattrs
 
 xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
-	common/* registry/* registry/formats/*
+		common/* $(REGISTRY_FILES)
 	@echo
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \

@@ -22,6 +22,7 @@ import (
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
+	"github.com/xregistry/server/registry/mysql"
 )
 
 const TestDBName = "registry"
@@ -118,10 +119,10 @@ func TestMain(m *testing.M) {
 		// registry.DeleteDB(TestRegName)
 	}
 
-	if dump := registry.DumpTimings(); dump != "" {
+	if dump := mysql.DumpTimings(); dump != "" {
 		now := time.Now()
 		os.WriteFile(fmt.Sprintf("timings-%s.txt", now.Format("15-04-05")),
-			[]byte(registry.DumpTimings()), 0666)
+			[]byte(mysql.DumpTimings()), 0666)
 	}
 	os.Exit(rc)
 }

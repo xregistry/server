@@ -49,14 +49,14 @@ func (m *Model) VerifyAndSave(verifyData bool) *XRError {
 
 func (m *Model) Save() *XRError {
 	// log.FuncPrintf("tx: %s In model.Save - changed: %v",
-	// m.Registry.Tx.uuid, m.GetChanged())
+	// m.Registry.Tx.UUID, m.GetChanged())
 	if m.GetChanged() == false {
 		return nil
 	}
 
 	if log.HasVerbose("ModelSave") || log.IsFuncVerbose() {
 		buf, _ := json.MarshalIndent(m, "", "  ")
-		log.Printf("tx: %s Saving model:\n%s", m.Registry.Tx.uuid, string(buf))
+		log.Printf("tx: %s Saving model:\n%s", m.Registry.Tx.UUID, string(buf))
 	}
 
 	// Diff against whatever is STILL persisted in the DB right now (not
@@ -271,7 +271,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 	}
 
 	newM.Registry = m.Registry
-	// log.FuncPrintf("tx: %s ApplyNewModel:\n%s", m.Registry.Tx.uuid,
+	// log.FuncPrintf("tx: %s ApplyNewModel:\n%s", m.Registry.Tx.UUID,
 	// ToJSON(newM))
 
 	// Copy existing SIDs into the new Model so we don't create new ones
@@ -349,7 +349,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 
 		// Not everything goes thru the http code
 		if xErr.Instance == "" && m.Registry != nil {
-			xErr.Instance = m.Registry.Tx.uuid
+			xErr.Instance = m.Registry.Tx.UUID
 		}
 
 		return xErr

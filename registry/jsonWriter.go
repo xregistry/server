@@ -270,7 +270,7 @@ func (jw *JsonWriter) WriteCollection() (int, uint64, bool, *XRError) {
 
 func (jw *JsonWriter) WriteEntity() *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s WriteEntity: %v", jw.info.uuid, jw.Entity)
+		log.Printf("tx: %s WriteEntity: %v", jw.info.UUID, jw.Entity)
 	}
 
 	if jw.Entity == nil {
@@ -287,10 +287,10 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	addSpace := false // Add space before next attribute?
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s eType: %d", jw.info.uuid, myType)
-		log.Printf("tx: %s JW:\n%s", jw.info.uuid, ToJSON(jw))
-		log.Printf("tx: %s JW.Obj:\n%s", jw.info.uuid, ToJSON(jw.Entity.Object))
-		log.Printf("tx: %s JW.NObj:\n%s", jw.info.uuid,
+		log.Printf("tx: %s eType: %d", jw.info.UUID, myType)
+		log.Printf("tx: %s JW:\n%s", jw.info.UUID, ToJSON(jw))
+		log.Printf("tx: %s JW.Obj:\n%s", jw.info.UUID, ToJSON(jw.Entity.Object))
+		log.Printf("tx: %s JW.NObj:\n%s", jw.info.UUID,
 			ToJSON(jw.Entity.NewObject))
 	}
 
@@ -300,7 +300,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	jsonIt := func(e *Entity, key string, val any, attr *Attribute) *XRError {
 		info := e.GetRequestInfo()
 
-		log.VPrintf("WriteEntity", "tx: %s jsonIt: %q", info.uuid, key)
+		log.VPrintf("WriteEntity", "tx: %s jsonIt: %q", info.UUID, key)
 		if key == "$space" {
 			addSpace = true
 			return nil
@@ -319,7 +319,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 			return nil
 		}
 
-		if attr != nil && attr.internals != nil && attr.internals.neverSerialize {
+		if attr != nil && attr.Internals != nil && attr.Internals.NeverSerialize {
 			return nil
 		}
 
