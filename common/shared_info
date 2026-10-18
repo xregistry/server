@@ -52,9 +52,6 @@ type RequestInfo struct {
 	Limit         uint64          // ?limit= (0 == not specified)
 	Offset        uint64          // ?offset= (only meaningful if Limit != 0)
 
-	StatusCode int
-	SentStatus bool
-
 	// extra stuff if we ever need to pass around data while processing
 	extras map[string]any
 }

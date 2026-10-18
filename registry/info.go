@@ -5,94 +5,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
-
-func (info *RequestInfo) Write(b []byte) (int, error) {
-	if !info.SentStatus {
-		// Set all response headers before writing status
-
-		// CORS headers
-		info.AddHeader("Access-Control-Allow-Origin", "*")
-		methods := info.GetAllowedMethods()
-		methodsStr := strings.Join(methods, ", ")
-		info.AddHeader("Access-Control-Allow-Methods", methodsStr)
-		info.AddHeader("Access-Control-Expose-Headers", "Link")
-
-		// Reflect whatever headers the browser's preflight asked for
-		// (e.g. Content-Type) so cross-origin PUT/PATCH/POST/DELETE
-		// requests with a JSON body aren't blocked by CORS.
-		reqHeaders := info.OriginalRequest.Header.Get(
-			"Access-Control-Request-Headers")
-		if reqHeaders != "" {
-			info.AddHeader("Access-Control-Allow-Headers", reqHeaders)
-		} else {
-			info.AddHeader("Access-Control-Allow-Headers", "Content-Type")
-		}
-
-		// For OPTIONS requests, also set the Allow header
-		if info.OriginalRequest.Method == "OPTIONS" {
-			info.AddHeader("Allow", methodsStr)
-		}
-
-		AddRegistryRootHeader(info)
-
-		info.SentStatus = true
-		if info.StatusCode == 0 {
-			info.StatusCode = http.StatusOK
-		}
-
-		// If the user never set one, don't let golang add one
-		if info.GetResponseHeader("Content-Type") == "" {
-			info.OriginalResponse.Header()["Content-Type"] = nil
-		}
-
-		info.OriginalResponse.WriteHeader(info.StatusCode)
-	}
-	return info.OriginalResponse.Write(b)
-}
-
-func (info *RequestInfo) DelHeader(name string) {
-	info.OriginalResponse.Header().Del(name)
-}
-
-var stacks = map[string]string{}
-
-func (info *RequestInfo) SetHeader(name, value string) {
-	// Make sure we don't add the same header more than once, that's a sign
-	// we're doing something weong.
-	// At some point we may need to add a new func (AddHeader) to append a
-	// value to the end of the current one (if there)
-	PanicIf(info.OriginalResponse.Header().Get(name) != "",
-		"%s\nPrev:\n%s\n---", name, stacks[name])
-	// Uncomment when we need to debug the PanicIf
-	// stacks[name] = GetStackAsString()
-
-	info.OriginalResponse.Header()[name] = []string{value}
-}
-
-func (info *RequestInfo) AddHeader(name, value string) {
-	info.OriginalResponse.Header().Add(name, value)
-}
-
-func (info *RequestInfo) GetResponseHeader(name string) string {
-	return info.OriginalResponse.Header().Get(name)
-}
-
-func (info *RequestInfo) GetResponseHeaderValues(name string) []string {
-	return info.OriginalResponse.Header()[name]
-}
-
-func (info *RequestInfo) Done() {
-	// If we haven't written anything, this will force the HTTP status code
-	// to be written and not default to 200
-	info.Write(nil)
-}
 
 func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 	r *http.Request) *RequestInfo {
@@ -153,6 +71,13 @@ func (info *RequestInfo) Reset() {
 
 	newInfo := NewRequestInfo(info.UUID, info.XRSConfig,
 		info.OriginalResponse, info.OriginalRequest)
+
+	hw := info.extras["HttpWriter"]
+	if !IsNil(hw) {
+		httpWriter := hw.(*HttpWriter)
+		newInfo.extras["HttpWriter"] = httpWriter
+		httpWriter.Reset()
+	}
 
 	*info = *newInfo
 
@@ -868,95 +793,6 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 	}
 
 	return NewXRError("not_found", info.GetParts(0))
-}
-
-// GetAllowedMethods returns the list of HTTP methods allowed for the current
-// request path based on capabilities
-func (info *RequestInfo) GetAllowedMethods() []string {
-	methods := []string{}
-
-	// Use original Parts/RootPath (they may have been modified during processing)
-	parts := info.OriginalParts
-	rootPath := info.OriginalRootPath
-	numParts := len(parts)
-
-	// Check special endpoints
-	if rootPath == "capabilities" {
-		if info.IsAvailable("capabilities") {
-			methods = append(methods, "GET")
-			if info.IsAvailableMutable("capabilities") {
-				methods = append(methods, "PUT", "PATCH")
-			}
-		}
-	} else if rootPath == "capabilitiesoffered" {
-		if info.IsAvailable("capabilitiesoffered") {
-			methods = append(methods, "GET")
-		}
-	} else if rootPath == "export" {
-		if info.IsAvailable("export") {
-			methods = append(methods, "GET")
-		}
-	} else if rootPath == "model" {
-		if info.IsAvailable("model") {
-			methods = append(methods, "GET")
-		}
-	} else if rootPath == "modelsource" {
-		if info.IsAvailable("modelsource") {
-			methods = append(methods, "GET")
-			if info.IsAvailableMutable("modelsource") {
-				methods = append(methods, "PUT")
-			}
-		}
-	} else if rootPath == ".xregistry" {
-		if info.IsAvailable(".xregistry") {
-			methods = append(methods, "GET")
-		}
-	} else if info.IsAvailable("entities") {
-		// Standard entity endpoints
-		isMutable := info.IsAvailableMutable("entities")
-
-		// GET is always supported for entities
-		methods = append(methods, "GET")
-
-		if isMutable {
-			// Determine which write methods are supported based on path
-			if numParts == 0 {
-				// / - Registry root
-				methods = append(methods, "PUT", "PATCH", "POST")
-			} else if numParts == 1 {
-				// /GROUPS - Collection
-				methods = append(methods, "POST", "PATCH", "DELETE")
-			} else if numParts == 2 {
-				// /GROUPS/gID - Group entity
-				methods = append(methods, "PUT", "PATCH", "POST", "DELETE")
-			} else if numParts == 3 {
-				// /GROUPS/gID/RESOURCES - Resource collection
-				methods = append(methods, "POST", "PATCH", "DELETE")
-			} else if numParts == 4 {
-				// /GROUPS/gID/RESOURCES/rID - Resource entity
-				methods = append(methods, "PUT", "PATCH", "POST", "DELETE")
-			} else if numParts == 5 {
-				if parts[4] == "meta" {
-					// /GROUPS/gID/RESOURCES/rID/meta
-					methods = append(methods, "PUT", "PATCH")
-				} else if parts[4] == "versions" {
-					// /GROUPS/gID/RESOURCES/rID/versions
-					methods = append(methods, "POST", "PATCH", "DELETE")
-				}
-			} else if numParts == 6 {
-				// /GROUPS/gID/RESOURCES/rID/versions/vID
-				methods = append(methods, "PUT", "PATCH", "DELETE")
-			}
-		}
-	}
-
-	// Always include OPTIONS
-	methods = append(methods, "OPTIONS")
-
-	// Sort alphabetically for consistent output
-	sort.Strings(methods)
-
-	return methods
 }
 
 // This is called prior to partsing any of the URL bits (path,query params)

@@ -16,6 +16,7 @@ import (
 
 type JsonWriter struct {
 	info        *RequestInfo
+	writer      io.Writer
 	indent      string
 	collXIDs    map[int]string   // [eType] XID path+/ to the root of Colls
 	unusedColls map[int][]string // [eType][remaining coll names on this eType]
@@ -34,9 +35,10 @@ type JsonWriter struct {
 	didCapModelSpace bool
 }
 
-func NewJsonWriter(info *RequestInfo, iter EntityIterator) *JsonWriter {
+func NewJsonWriter(info *RequestInfo, writer io.Writer, iter EntityIterator) *JsonWriter {
 	return &JsonWriter{
 		info:        info,
+		writer:      writer,
 		indent:      "",
 		collXIDs:    map[int]string{},
 		unusedColls: map[int][]string{},
@@ -46,12 +48,12 @@ func NewJsonWriter(info *RequestInfo, iter EntityIterator) *JsonWriter {
 }
 
 func (jw *JsonWriter) Print(str string) {
-	fmt.Fprint(jw.info, str)
+	fmt.Fprint(jw.writer, str)
 	jw.hasData = true
 }
 
 func (jw *JsonWriter) Printf(format string, args ...any) {
-	fmt.Fprintf(jw.info, format, args...)
+	fmt.Fprintf(jw.writer, format, args...)
 	jw.hasData = true
 }
 

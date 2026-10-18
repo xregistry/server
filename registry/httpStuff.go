@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"sort"
 	// "os"
 	"reflect"
 	"strconv"
@@ -82,10 +83,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	uuid := NewUUID()
 	info := NewRequestInfo(uuid, s.XRSConfig, w, r)
 
+	httpWriter := NewHttpWriter(info)
+	info.extras["HttpWriter"] = httpWriter // Dup in info.Reset()
+
 	defer func() {
 		// If we haven't written anything, this will force the HTTP status code
 		// to be written and not default to 200
-		info.Done()
+		httpWriter.Done()
 	}()
 
 	defer func() {
@@ -124,7 +128,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasPrefix(r.URL.Path, XRPROXY_PREFIX) {
-		info.SentStatus = true // to avoid a dup w.Write() in defer
+		httpWriter.SentStatus = true // to avoid a dup w.Write() in defer
 		HTTPXRProxy(uuid, w, r)
 		return
 	}
@@ -159,7 +163,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Serve the new SPA UI for /ui and /ui/...
 	if serveUI {
-		info.SentStatus = true // to avoid a dup w.Write() in defer
+		httpWriter.SentStatus = true // to avoid a dup w.Write() in defer
 		ServeUIStatic(s, uuid, w, r)
 		return
 	}
@@ -182,7 +186,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// no error, or not retryable, or we've already start to send data
 		// then just exit and don't retry
-		if xErr == nil || !xErr.Retryable || info.SentStatus {
+		if xErr == nil || !xErr.Retryable || httpWriter.SentStatus {
 			break
 		}
 
@@ -325,6 +329,8 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+
 	buf := []byte(nil)
 	var err error
 
@@ -344,9 +350,9 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 			SetDetailf("Error parsing capabilities: %s.", err.Error())
 	}
 
-	info.SetHeader("Content-Type", "application/json")
-	info.Write(buf)
-	info.Write([]byte("\n"))
+	httpWriter.SetHeader("Content-Type", "application/json")
+	httpWriter.Write(buf)
+	httpWriter.Write([]byte("\n"))
 	return nil
 }
 
@@ -354,6 +360,8 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
+
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
 
 	buf := []byte(nil)
 	var err error
@@ -365,9 +373,9 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 			SetDetailf("Error parsing capabilitiesoffered: %s.", err.Error())
 	}
 
-	info.SetHeader("Content-Type", "application/json")
-	info.Write(buf)
-	info.Write([]byte("\n"))
+	httpWriter.SetHeader("Content-Type", "application/json")
+	httpWriter.Write(buf)
+	httpWriter.Write([]byte("\n"))
 	return nil
 }
 
@@ -375,6 +383,8 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
+
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
 
 	format := info.GetFlag("schema")
 	if format == "" {
@@ -391,9 +401,9 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 		return xErr
 	}
 
-	info.SetHeader("Content-Type", "application/json")
-	info.Write(buf)
-	info.Write([]byte("\n"))
+	httpWriter.SetHeader("Content-Type", "application/json")
+	httpWriter.Write(buf)
+	httpWriter.Write([]byte("\n"))
 	return nil
 }
 
@@ -401,6 +411,8 @@ func HTTPGETModelSource(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
+
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
 
 	model := info.Registry.Model
 	if model == nil {
@@ -418,9 +430,9 @@ func HTTPGETModelSource(info *RequestInfo) *XRError {
 			SetDetailf("Error parsing modelsource: %s.", err.Error())
 	}
 
-	info.SetHeader("Content-Type", "application/json")
-	info.Write(buf)
-	info.Write([]byte("\n"))
+	httpWriter.SetHeader("Content-Type", "application/json")
+	httpWriter.Write(buf)
+	httpWriter.Write([]byte("\n"))
 	return nil
 }
 
@@ -450,6 +462,8 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
 	}
+
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
 
 	names, xErr := GetRegistryNames(info.XRSConfig)
 	if xErr != nil {
@@ -506,14 +520,16 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 			SetDetailf("Error generating .xregistry doc: %s.", err.Error())
 	}
 
-	info.SetHeader("Content-Type", "application/json")
-	info.Write(buf)
-	info.Write([]byte("\n"))
+	httpWriter.SetHeader("Content-Type", "application/json")
+	httpWriter.Write(buf)
+	httpWriter.Write([]byte("\n"))
 	return nil
 }
 
 func HTTPGETContent(info *RequestInfo) *XRError {
 	defer log.Trace("tx: %s", info.UUID)()
+
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
 
 	isV := log.IsFuncVerbose()
 	XID := "/" + strings.Join(info.Parts, "/")
@@ -600,12 +616,10 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 			return nil
 		}
 
-		info := e.GetRequestInfo()
-
 		if attr.Type == MAP && IsScalar(attr.Item.Type) {
 			for name, value := range val.(map[string]any) {
 				// Should only ever be one of each xRegistry header
-				info.SetHeader("xRegistry-"+key+"."+name,
+				httpWriter.SetHeader("xRegistry-"+key+"."+name,
 					fmt.Sprintf("%v", value))
 			}
 			return nil
@@ -624,7 +638,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 
 		str := fmt.Sprintf("%v", val)
 		// As above, should only ever be one of these
-		info.AddHeader(headerName, str)
+		httpWriter.AddHeader(headerName, str)
 
 		return nil
 	}
@@ -635,30 +649,26 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	}
 
 	if info.VersionUID == "" {
-		info.SetHeader("xRegistry-versionscount",
+		httpWriter.SetHeader("xRegistry-versionscount",
 			fmt.Sprintf("%d", versionsCount))
-		info.SetHeader("xRegistry-versionsurl",
+		httpWriter.SetHeader("xRegistry-versionsurl",
 			info.BaseURL+entity.XID+"/versions")
 	}
-	info.SetHeader("Content-Location", info.BaseURL+version.XID)
-	info.SetHeader("Content-Disposition",
+	httpWriter.SetHeader("Content-Location", info.BaseURL+version.XID)
+	httpWriter.SetHeader("Content-Disposition",
 		`inline; filename="`+info.ResourceUID+`"`)
 
 	url := ""
 	singular := info.ResourceModel.Singular
 	if url = entity.GetAsString(singular + "url"); url != "" {
 		// Should already be serialzied as a header
-		// info.SetHeader("xRegistry-"+singular+"url", url)
+		// httpWriter.SetHeader("xRegistry-"+singular+"url", url)
 
-		if info.StatusCode == 0 {
+		if httpWriter.StatusCode == 0 {
 			// If we set it during a PUT/POST, don't override the 201
-			info.StatusCode = http.StatusSeeOther
-			info.SetHeader("Location", url)
+			httpWriter.StatusCode = http.StatusSeeOther
+			httpWriter.SetHeader("Location", url)
 		}
-		/*
-			http.Redirect(info.OriginalResponse, "/"+info.OriginalPath, url,
-				http.StatusSeeOther)
-		*/
 		return nil
 	}
 
@@ -675,18 +685,18 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 				"error_detail="+err.Error())
 		}
 		if resp.StatusCode/100 != 2 {
-			info.StatusCode = resp.StatusCode
+			httpWriter.StatusCode = resp.StatusCode
 			// return fmt.Error f("Remote error")
 			// Let the body of the response be our body, below
 		}
 
 		// Copy all HTTP headers
 		for header, value := range resp.Header {
-			info.AddHeader(header, strings.Join(value, ","))
+			httpWriter.AddHeader(header, strings.Join(value, ","))
 		}
 
 		// Now copy the body
-		_, err = io.Copy(info, resp.Body)
+		_, err = io.Copy(httpWriter, resp.Body)
 		if err != nil {
 			return NewXRError("parsing_response", "/"+info.OriginalPath,
 				"error_detail="+err.Error())
@@ -698,14 +708,14 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	if IsNil(buf) {
 		// No data so just return
 		/*
-			if info.StatusCode == 0 {
-				info.StatusCode = http.StatusNoContent
+			if httpWriter.StatusCode == 0 {
+				httpWriter.StatusCode = http.StatusNoContent
 			}
 		*/
 		return nil
 	}
 
-	info.Write(buf.([]byte))
+	httpWriter.Write(buf.([]byte))
 
 	return nil
 }
@@ -713,8 +723,9 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 func HTTPOptions(info *RequestInfo) *XRError {
 	defer log.Trace("tx: %s %s", info.UUID, info.OriginalPath)()
 
-	// Headers will be set automatically by info.Write()
-	info.StatusCode = 200
+	// Headers will be set automatically by httpWriter.Write()
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+	httpWriter.StatusCode = 200
 
 	return nil
 }
@@ -795,6 +806,8 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		return xErr
 	}
 
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+
 	// resXIDs is used to group the items we want to return. In most cases
 	// the items will all be part of one group where that group name doesn't
 	// need to be returned - e.g. POST /schemagroup where the response will
@@ -840,7 +853,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 		}
 	}
 
-	info.SetHeader("Content-Type", "application/json")
+	httpWriter.SetHeader("Content-Type", "application/json")
 	var jw *JsonWriter
 	hasData := false
 	keys := SortedKeys(resXIDs)
@@ -865,7 +878,7 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 			AddPaginationLinkHeaders(info, iter)
 		}
 
-		jw = NewJsonWriter(info, iter)
+		jw = NewJsonWriter(info, httpWriter, iter)
 
 		_, xErr = jw.NextEntity()
 		if xErr != nil {
@@ -979,6 +992,8 @@ func SerializeQuery(info *RequestInfo, resXIDs map[string][]string,
 // number of top-level entities across the *entire* filtered collection). Must be called before anything is written to the response
 // body, since HTTP headers can't be sent after the body has started.
 func AddPaginationLinkHeaders(info *RequestInfo, iter EntityIterator) {
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+
 	limit := info.Limit
 	offset := info.Offset
 
@@ -1010,7 +1025,8 @@ func AddPaginationLinkHeaders(info *RequestInfo, iter EntityIterator) {
 	}
 
 	addLink := func(rel string, off uint64) {
-		info.AddHeader("Link", fmt.Sprintf("%s;rel=%s", buildLink(off), rel))
+		httpWriter.AddHeader("Link", fmt.Sprintf("%s;rel=%s",
+			buildLink(off), rel))
 	}
 
 	// "self" is on every response and carries the pagination metadata. Per
@@ -1025,7 +1041,7 @@ func AddPaginationLinkHeaders(info *RequestInfo, iter EntityIterator) {
 		if withCount {
 			v += fmt.Sprintf(";count=%d", total)
 		}
-		info.AddHeader("Link", v)
+		httpWriter.AddHeader("Link", v)
 	}
 
 	hasRows := gotTotal
@@ -1089,6 +1105,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
 
 	defer log.Trace("tx: %s %s %s", info.UUID, method, info.OriginalPath)()
+
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
 
 	isNew := false
 	XIDs := ([]string)(nil)
@@ -1272,8 +1290,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			if isNew { // 201, else let it default to 200
-				info.SetHeader("Location", info.BaseURL+group.XID)
-				info.StatusCode = http.StatusCreated
+				httpWriter.SetHeader("Location", info.BaseURL+group.XID)
+				httpWriter.StatusCode = http.StatusCreated
 			}
 
 			// Return HTTP GET of Group
@@ -1563,8 +1581,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Return HTTP GET of 'meta'
 		if isNew { // 201, else let it default to 200
-			info.SetHeader("Location", info.BaseURL+meta.XID)
-			info.StatusCode = http.StatusCreated
+			httpWriter.SetHeader("Location", info.BaseURL+meta.XID)
+			httpWriter.StatusCode = http.StatusCreated
 		}
 
 		resXIDs := map[string][]string{"": []string{meta.XID}}
@@ -1782,8 +1800,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	if isNew { // 201, else let it default to 200
-		info.SetHeader("Location", location)
-		info.StatusCode = http.StatusCreated
+		httpWriter.SetHeader("Location", location)
+		httpWriter.StatusCode = http.StatusCreated
 	}
 
 	// Return the contents of the entity instead of the xReg metadata
@@ -1887,6 +1905,8 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 }
 
 func HTTPDelete(info *RequestInfo) *XRError {
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+
 	// DELETE /...
 	if len(info.Parts) == 0 {
 		// DELETE /
@@ -1956,7 +1976,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		info.StatusCode = http.StatusNoContent
+		httpWriter.StatusCode = http.StatusNoContent
 		return nil
 	}
 
@@ -2005,7 +2025,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		info.StatusCode = http.StatusNoContent
+		httpWriter.StatusCode = http.StatusNoContent
 		return nil
 	}
 
@@ -2054,7 +2074,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		info.StatusCode = http.StatusNoContent
+		httpWriter.StatusCode = http.StatusNoContent
 		return nil
 	}
 
@@ -2084,6 +2104,8 @@ func LoadEpochMap(info *RequestInfo) (EpochEntryMap, *XRError) {
 }
 
 func HTTPDeleteGroups(info *RequestInfo) *XRError {
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+
 	list, xErr := LoadEpochMap(info)
 	if xErr != nil {
 		return xErr
@@ -2143,11 +2165,13 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 		}
 	}
 
-	info.StatusCode = http.StatusNoContent
+	httpWriter.StatusCode = http.StatusNoContent
 	return nil
 }
 
 func HTTPDeleteResources(info *RequestInfo) *XRError {
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+
 	list, xErr := LoadEpochMap(info)
 	if xErr != nil {
 		return xErr
@@ -2238,11 +2262,13 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 		}
 	}
 
-	info.StatusCode = http.StatusNoContent
+	httpWriter.StatusCode = http.StatusNoContent
 	return nil
 }
 
 func HTTPDeleteVersions(info *RequestInfo) *XRError {
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+
 	nextDefault := info.GetFlag("setdefaultversionid")
 
 	list, xErr := LoadEpochMap(info)
@@ -2338,7 +2364,7 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 		}
 	}
 
-	info.StatusCode = http.StatusNoContent
+	httpWriter.StatusCode = http.StatusNoContent
 	return nil
 }
 
@@ -2645,13 +2671,16 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	var xErr *XRError
 	var ok bool
 
+	httpWriter := info.extras["HttpWriter"].(*HttpWriter)
+
 	if xErr, ok = errAny.(*XRError); !ok {
 		xErr = NewXRError("bad_request", "/"+info.OriginalPath,
 			"error_detail="+fmt.Sprintf("%v", errAny))
 	}
 
 	if xErr.IsType("action_not_supported") {
-		info.AddHeader("Allow", strings.Join(info.GetAllowedMethods(), ", "))
+		httpWriter.AddHeader("Allow",
+			strings.Join(httpWriter.GetAllowedMethods(), ", "))
 	}
 
 	// Add our tx uuid to the error for debugging
@@ -2659,25 +2688,25 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 		xErr.Instance = info.UUID
 	}
 
-	info.StatusCode = xErr.Code
+	httpWriter.StatusCode = xErr.Code
 	// If header not already set, set it. This will likely only happen
 	// when the error happens very very very early in our processing
-	if info.GetResponseHeader("Content-Type") == "" {
-		info.SetHeader("Content-Type", "application/json; charset=utf-8")
+	if httpWriter.GetResponseHeader("Content-Type") == "" {
+		httpWriter.SetHeader("Content-Type", "application/json; charset=utf-8")
 	}
 
-	AddRegistryRootHeader(info)
+	httpWriter.AddRegistryRootHeader()
 
-	info.Write([]byte(xErr.ToJSON() + "\n"))
+	httpWriter.Write([]byte(xErr.ToJSON() + "\n"))
 }
 
-func AddRegistryRootHeader(info *RequestInfo) {
+func (hw *HttpWriter) AddRegistryRootHeader() {
 	// Add or replace Link header with xregistry-root rel
 	// Check if there's already a Link header with rel=xregistry-root
 
-	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
+	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", hw.Info.BaseURL)
 
-	existingLinks := info.GetResponseHeaderValues("Link")
+	existingLinks := hw.GetResponseHeaderValues("Link")
 	for _, v := range existingLinks {
 		// Check if this Link header has rel=xregistry-root
 		if strings.Contains(v, "rel=xregistry-root") ||
@@ -2689,9 +2718,9 @@ func AddRegistryRootHeader(info *RequestInfo) {
 	existingLinks = append(existingLinks, linkValue)
 
 	// Clear all Link headers and re-add them with the updated value
-	info.DelHeader("Link")
+	hw.DelHeader("Link")
 	for _, v := range existingLinks {
-		info.AddHeader("Link", v)
+		hw.AddHeader("Link", v)
 	}
 }
 
@@ -2725,4 +2754,193 @@ func ProcessShortSelf(info *RequestInfo) *XRError {
 	}
 
 	return NewXRError("not_found", path)
+}
+
+type HttpWriter struct {
+	Info       *RequestInfo
+	StatusCode int
+	SentStatus bool
+}
+
+func NewHttpWriter(info *RequestInfo) *HttpWriter {
+	return &HttpWriter{
+		Info:       info,
+		StatusCode: 0,
+		SentStatus: false,
+	}
+}
+
+func (hw *HttpWriter) Reset() { // on each tx retry
+	hw.StatusCode = 0
+	hw.SentStatus = false
+}
+
+func (hw *HttpWriter) Write(b []byte) (int, error) {
+	if !hw.SentStatus {
+		// Set all response headers before writing status
+
+		// CORS headers
+		hw.AddHeader("Access-Control-Allow-Origin", "*")
+		methods := hw.GetAllowedMethods()
+		methodsStr := strings.Join(methods, ", ")
+		hw.AddHeader("Access-Control-Allow-Methods", methodsStr)
+		hw.AddHeader("Access-Control-Expose-Headers", "Link")
+
+		// Reflect whatever headers the browser's preflight asked for
+		// (e.g. Content-Type) so cross-origin PUT/PATCH/POST/DELETE
+		// requests with a JSON body aren't blocked by CORS.
+		reqHeaders := hw.Info.OriginalRequest.Header.Get(
+			"Access-Control-Request-Headers")
+		if reqHeaders != "" {
+			hw.AddHeader("Access-Control-Allow-Headers", reqHeaders)
+		} else {
+			hw.AddHeader("Access-Control-Allow-Headers", "Content-Type")
+		}
+
+		// For OPTIONS requests, also set the Allow header
+		if hw.Info.OriginalRequest.Method == "OPTIONS" {
+			hw.AddHeader("Allow", methodsStr)
+		}
+
+		hw.AddRegistryRootHeader()
+
+		hw.SentStatus = true
+		if hw.StatusCode == 0 {
+			hw.StatusCode = http.StatusOK
+		}
+
+		// If the user never set one, don't let golang add one
+		if hw.GetResponseHeader("Content-Type") == "" {
+			hw.Info.OriginalResponse.Header()["Content-Type"] = nil
+		}
+
+		hw.Info.OriginalResponse.WriteHeader(hw.StatusCode)
+	}
+	return hw.Info.OriginalResponse.Write(b)
+}
+
+func (hw *HttpWriter) DelHeader(name string) {
+	hw.Info.OriginalResponse.Header().Del(name)
+}
+
+var stacks = map[string]string{}
+
+func (hw *HttpWriter) SetHeader(name, value string) {
+	// Make sure we don't add the same header more than once, that's a sign
+	// we're doing something weong.
+	// At some point we may need to add a new func (AddHeader) to append a
+	// value to the end of the current one (if there)
+	PanicIf(hw.Info.OriginalResponse.Header().Get(name) != "",
+		"%s\nPrev:\n%s\n---", name, stacks[name])
+	// Uncomment when we need to debug the PanicIf
+	// stacks[name] = GetStackAsString()
+
+	hw.Info.OriginalResponse.Header()[name] = []string{value}
+}
+
+func (hw *HttpWriter) AddHeader(name, value string) {
+	hw.Info.OriginalResponse.Header().Add(name, value)
+}
+
+func (hw *HttpWriter) GetResponseHeader(name string) string {
+	return hw.Info.OriginalResponse.Header().Get(name)
+}
+
+func (hw *HttpWriter) GetResponseHeaderValues(name string) []string {
+	return hw.Info.OriginalResponse.Header()[name]
+}
+
+func (hw *HttpWriter) Done() {
+	// If we haven't written anything, this will force the HTTP status code
+	// to be written and not default to 200
+	hw.Write(nil)
+}
+
+// GetAllowedMethods returns the list of HTTP methods allowed for the current
+// request path based on capabilities
+func (hw *HttpWriter) GetAllowedMethods() []string {
+	methods := []string{}
+
+	// Use original Parts/RootPath (they may have been modified during processing)
+	parts := hw.Info.OriginalParts
+	rootPath := hw.Info.OriginalRootPath
+	numParts := len(parts)
+
+	// Check special endpoints
+	if rootPath == "capabilities" {
+		if hw.Info.IsAvailable("capabilities") {
+			methods = append(methods, "GET")
+			if hw.Info.IsAvailableMutable("capabilities") {
+				methods = append(methods, "PUT", "PATCH")
+			}
+		}
+	} else if rootPath == "capabilitiesoffered" {
+		if hw.Info.IsAvailable("capabilitiesoffered") {
+			methods = append(methods, "GET")
+		}
+	} else if rootPath == "export" {
+		if hw.Info.IsAvailable("export") {
+			methods = append(methods, "GET")
+		}
+	} else if rootPath == "model" {
+		if hw.Info.IsAvailable("model") {
+			methods = append(methods, "GET")
+		}
+	} else if rootPath == "modelsource" {
+		if hw.Info.IsAvailable("modelsource") {
+			methods = append(methods, "GET")
+			if hw.Info.IsAvailableMutable("modelsource") {
+				methods = append(methods, "PUT")
+			}
+		}
+	} else if rootPath == ".xregistry" {
+		if hw.Info.IsAvailable(".xregistry") {
+			methods = append(methods, "GET")
+		}
+	} else if hw.Info.IsAvailable("entities") {
+		// Standard entity endpoints
+		isMutable := hw.Info.IsAvailableMutable("entities")
+
+		// GET is always supported for entities
+		methods = append(methods, "GET")
+
+		if isMutable {
+			// Determine which write methods are supported based on path
+			if numParts == 0 {
+				// / - Registry root
+				methods = append(methods, "PUT", "PATCH", "POST")
+			} else if numParts == 1 {
+				// /GROUPS - Collection
+				methods = append(methods, "POST", "PATCH", "DELETE")
+			} else if numParts == 2 {
+				// /GROUPS/gID - Group entity
+				methods = append(methods, "PUT", "PATCH", "POST", "DELETE")
+			} else if numParts == 3 {
+				// /GROUPS/gID/RESOURCES - Resource collection
+				methods = append(methods, "POST", "PATCH", "DELETE")
+			} else if numParts == 4 {
+				// /GROUPS/gID/RESOURCES/rID - Resource entity
+				methods = append(methods, "PUT", "PATCH", "POST", "DELETE")
+			} else if numParts == 5 {
+				if parts[4] == "meta" {
+					// /GROUPS/gID/RESOURCES/rID/meta
+					methods = append(methods, "PUT", "PATCH")
+				} else if parts[4] == "versions" {
+					// /GROUPS/gID/RESOURCES/rID/versions
+					methods = append(methods, "POST", "PATCH", "DELETE")
+				}
+			} else if numParts == 6 {
+				// /GROUPS/gID/RESOURCES/rID/versions/vID
+				methods = append(methods, "PUT", "PATCH", "DELETE")
+			}
+		}
+	}
+
+	// Always include OPTIONS
+	methods = append(methods, "OPTIONS")
+
+	// Sort alphabetically for consistent output
+	sort.Strings(methods)
+
+	return methods
 }
