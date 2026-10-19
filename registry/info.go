@@ -788,7 +788,7 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 	return NewXRError("not_found", info.GetParts(0))
 }
 
-// This is called prior to partsing any of the URL bits (path,query params)
+// This is called prior to parsing any of the URL bits (path,query params)
 // because we may need to change what features are available based on how
 // the capabilities or model is changed. This is only true when we're doing
 // a write to the root of the Registry and it includes the "capabilities"
@@ -883,14 +883,14 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 			}
 
 			// Set capabilities directly (like HTTPPUTCapabilities does)
-			xErr = info.Registry.SetSave("#capabilities",
-				ToJSON(newCapabilities))
+			xErr = info.Registry.SetCapabilities(newCapabilities, "")
 			if xErr != nil {
 				return xErr
 			}
 
-			// Update the in-memory capabilities
-			info.Registry.Capabilities = newCapabilities
+			if xErr = info.Registry.ValidateAndSave(false); xErr != nil {
+				return xErr
+			}
 		}
 	}
 

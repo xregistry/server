@@ -338,14 +338,6 @@ func HTTPGETCapabilities(info *registry.RequestInfo) *XRError {
 	var err error
 
 	cap := info.Registry.Capabilities
-	capStr := info.Registry.GetAsString("#capabilities")
-	if capStr != "" {
-		var xErr *XRError
-		cap, xErr = ParseCapabilities([]byte(capStr))
-		if xErr != nil {
-			return xErr
-		}
-	}
 
 	buf, err = json.MarshalIndent(cap, "", "  ")
 	if err != nil {

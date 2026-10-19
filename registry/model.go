@@ -119,7 +119,7 @@ func (m *Model) Save() *XRError {
 	// we don't want to do that when we're saving it in the DB. We only want
 	// to do that when we're serializing the model for the end user.
 
-	xErr = m.Registry.Tx.Backend.SaveModel(m)
+	xErr = m.Registry.Tx.Backend.SaveModel(m.Registry)
 	if xErr != nil {
 		return xErr
 	}

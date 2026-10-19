@@ -103,12 +103,22 @@ func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
 	return nil
 }
 
+func (CLIBE *CLIBackend) LoadCapabilities(r *Registry) (*Capabilities, *XRError) {
+	panic("not yet")
+	return nil, nil
+}
+
+func (CLIBE *CLIBackend) SaveCapabilities(r *Registry) *XRError {
+	panic("not yet")
+	return nil
+}
+
 func (CLIBE *CLIBackend) LoadModel(r *Registry) (*Model, *XRError) {
 	panic("not yet")
 	return nil, nil
 }
 
-func (CLIBE *CLIBackend) SaveModel(m *Model) *XRError {
+func (CLIBE *CLIBackend) SaveModel(r *Registry) *XRError {
 	panic("not yet")
 	return nil
 }

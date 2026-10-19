@@ -1027,6 +1027,27 @@ func getJSONModel(r *registry.Registry) (string, string, *XRError) {
 	return model, UUID, nil
 }
 
+func (sqlBE *SQLBackend) LoadCapabilities(r *registry.Registry) (*Capabilities, *XRError) {
+	capVal, ok := r.Object["#capabilities"]
+	if !ok {
+		return nil, nil
+	}
+
+	// Custom capabilities
+	capStr, ok := capVal.(string)
+	PanicIf(!ok, "not a byte array: %T", capVal)
+	cap, xErr := ParseCapabilities([]byte(capStr))
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	return cap, nil
+}
+
+func (sqlBE *SQLBackend) SaveCapabilities(r *registry.Registry) *XRError {
+	return r.SetSave("#capabilities", ToJSON(r.Capabilities))
+}
+
 func (sqlBE *SQLBackend) LoadModel(r *registry.Registry) (*registry.Model, *XRError) {
 	modelJSON, uuid, xErr := getJSONModel(r)
 	if xErr != nil {
@@ -1055,23 +1076,23 @@ func (sqlBE *SQLBackend) LoadModel(r *registry.Registry) (*registry.Model, *XREr
 	return model, nil
 }
 
-func (sqlBE *SQLBackend) SaveModel(m *registry.Model) *XRError {
-	buf, _ := json.Marshal(m)
+func (sqlBE *SQLBackend) SaveModel(r *registry.Registry) *XRError {
+	buf, _ := json.Marshal(r.Model)
 	modelStr := string(buf)
 
 	// This backend uses the model cache
 	uuid := NewUUID()
 
 	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.Tx.UUID)
-	xErr := DoZeroTwo(m.Registry.Tx, `
+	xErr := DoZeroTwo(r.Tx, `
         INSERT INTO Models(RegistrySID, Model, uuid)
             VALUES(?,?,?)
             ON DUPLICATE KEY UPDATE Model=?, UUID=?`,
 
-		m.Registry.DbSID, modelStr, uuid,
+		r.DbSID, modelStr, uuid,
 		modelStr, uuid)
 
-	m.SetStuff("changedUUID", uuid)
+	r.Model.SetStuff("changedUUID", uuid)
 
 	return xErr
 }

@@ -130,7 +130,9 @@ func (r *Registry) Refresh(accessMode int) *XRError {
 		return xErr
 	}
 
-	r.LoadCapabilities()
+	if _, xErr := r.LoadCapabilities(); xErr != nil {
+		return xErr
+	}
 
 	if _, xErr := r.LoadModel(); xErr != nil {
 		return xErr

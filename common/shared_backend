@@ -67,9 +67,14 @@ type Backend interface {
 	// Make Entity known to the backend/DB
 	RegisterEntity(e *Entity) *XRError
 
-	LoadModel(r *Registry) (*Model, *XRError)
-	SaveModel(m *Model) *XRError
+	LoadCapabilities(r *Registry) (*Capabilities, *XRError)
+	SaveCapabilities(r *Registry) *XRError
+
+	LoadModel(r *Registry) (*Model, *XRError) // Load but don't set r.Model
+	SaveModel(r *Registry) *XRError
 	RegisterModelEntity(me any) *XRError
+
+	// DeleteModelEntitiesByAbstact must delete all entities of that type
 	DeleteModelEnityByAbstract(reg *Registry, abstract string) *XRError
 
 	// map(Abs->SID)
@@ -90,7 +95,8 @@ type Backend interface {
 
 	// Registry stuff
 	ListRegistries(tx *Tx) ([]string, *XRError) // Order by UID,ASC case-insen.
-	DeleteRegistry(r *Registry) *XRError
+
+	DeleteRegistry(r *Registry) *XRError // Recursive delete (data and model)
 	MapRegistryUID2SID(tx *Tx, uid string) (string, *XRError)
 	RegistryGetUsesXref(r *Registry) (bool, *XRError)
 	RegistrySetUsesXref(r *Registry, b bool) *XRError
@@ -103,7 +109,7 @@ type Backend interface {
 	GenerateResultEntities(reg *Registry, what string, XIDs []string) (EntityIterator, *XRError)
 
 	// Group stuff
-	DeleteGroup(g *Group) *XRError
+	DeleteGroup(g *Group) *XRError // recursive delete
 	HasReadOnlyResource(g *Group) (bool, *XRError)
 	FindBadEqualsVersions(g *Group, gPP *PropPath, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError) // rID, vIDs, err
 	FindBadEnumVersions(g *Group, c *Constraint, rm *ResourceModel, rPP *PropPath) (string, []string, *XRError)   // rID, vIDs, err
@@ -113,7 +119,7 @@ type Backend interface {
 
 	// Resource stuff
 	LockResourceBySID(tx *Tx, sid string) *XRError
-	DeleteResource(r *Resource) *XRError
+	DeleteResource(r *Resource) *XRError // recursive delete/fixup Reg.UsesXref
 	GetResourceContents(e *Entity) ([]byte, *XRError)
 	SetResourceContents(e *Entity, val []byte) *XRError
 
@@ -139,10 +145,10 @@ type Backend interface {
 	CountNonMatchingVersions(r *Resource, vAttrPath *PropPath) (int, int, int, *XRError)
 
 	// Meta stuff
-	DeleteMeta(meta *Meta) *XRError
+	DeleteMeta(meta *Meta) *XRError // recursive delete
 
 	// Version stuff
-	DeleteVersion(v *Version) *XRError
+	DeleteVersion(v *Version) *XRError // recursive delete & ResourceContent
 
 	// Xref stuff
 	ClearXrefState(meta *Meta) *XRError                   // in prep for new/del xref
@@ -155,6 +161,8 @@ type Backend interface {
 		anyCase bool, accessMode int) (*Entity, *XRError)
 	GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool,
 		children bool, anyCase bool, accessMode int) (EntityIterator, *XRError)
+
+	// SaveEntity needs to also update reg.UsesXref if resource.xref changes
 	SaveEntity(e *Entity) *XRError
 	SaveChangedSystemProps(e *Entity, changed map[string]any) *XRError
 }

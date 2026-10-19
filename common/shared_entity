@@ -676,60 +676,23 @@ func InitOrderedSpecProps() {
 				DontStore: true,
 
 				GetFn: func(e *Entity) any {
-					// Need to explicitly ask for "capabilities", ?inline=* won't
-					// do it
+					// Need to explicitly ask for "capabilities", ?inline=*
+					// won't return it
 					info := e.GetRequestInfo()
 					if info != nil && info.ShouldInline(NewPPP("capabilities").DB()) {
 						// Should have been caught in "info" processing
 						if !info.IsAvailable("capabilities") {
 							return NewXRError("not_available", "/capabilities")
 						}
-						capStr := e.GetAsString("#capabilities")
-						if capStr == "" {
-							return e.Registry.Capabilities
-						}
 
-						cap, xErr := ParseCapabilities([]byte(capStr))
-						Must(xErr)
-						return cap
+						return e.Registry.Capabilities
 					}
 					return nil
 				},
 				CheckFn: func(e *Entity) *XRError {
-					// Yes it's weird to store it in #capabilities but
-					// it's actually easier to do it this way. Trying to convert
-					// map[string]any <-> Capabilities  is really annoying
-					val, ok := e.NewObject["capabilities"]
-
-					var xErr *XRError
-
-					if ok {
-						var cap *Capabilities
-
-						if !IsNil(val) {
-							// If speed is ever a concern here, just save the raw
-							// json from the input stream instead from http
-							// processing
-							valStr := ToJSON(val)
-
-							cap, xErr = ParseCapabilities([]byte(valStr))
-							if xErr != nil {
-								return xErr
-							}
-						} else {
-							cap = DefaultCapabilities.Clone()
-						}
-
-						if xErr = cap.Validate(); xErr != nil {
-							return xErr
-						}
-
-						valStr := ToJSON(cap)
-
-						e.NewObject["#capabilities"] = valStr
-						delete(e.NewObject, "capabilities")
-						e.Registry.Capabilities = cap
-					}
+					// never part of NewObject, it'll be in reg.Capabilities.
+					// Any incoming Object["capabilities"] would have been
+					// processed in RequestInfo pre-processing
 					return nil
 				},
 				UpdateFn: func(e *Entity) *XRError {

@@ -184,7 +184,9 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 		return nil, xErr
 	}
 
-	reg.LoadCapabilities()
+	if _, xErr := reg.LoadCapabilities(); xErr != nil {
+		return nil, xErr
+	}
 
 	if _, xErr := reg.LoadModel(); xErr != nil {
 		return nil, xErr
@@ -277,7 +279,9 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 
 	reg.Tx.AddRegistry(reg)
 
-	reg.LoadCapabilities()
+	if _, xErr := reg.LoadCapabilities(); xErr != nil {
+		return nil, xErr
+	}
 
 	if _, xErr := reg.LoadModel(); xErr != nil {
 		return nil, xErr
@@ -298,23 +302,21 @@ func (reg *Registry) SaveCapabilities() *XRError {
 		return xErr
 	}
 
-	return reg.SetSave("#capabilities", ToJSON(reg.Capabilities))
+	return reg.Tx.Backend.SaveCapabilities(reg)
 }
 
-func (reg *Registry) LoadCapabilities() *Capabilities {
-	capVal, ok := reg.Object["#capabilities"]
-	if !ok {
-		// No custom capabilities, use the default one
-		reg.Capabilities = DefaultCapabilities.Clone()
-	} else {
-		// Custom capabilities
-		capStr, ok := capVal.(string)
-		PanicIf(!ok, "not a byte array: %T", capVal)
-		cap, xErr := ParseCapabilities([]byte(capStr))
-		Must(xErr)
-		reg.Capabilities = cap
+func (reg *Registry) LoadCapabilities() (*Capabilities, *XRError) {
+	cap, xErr := reg.Tx.Backend.LoadCapabilities(reg)
+	if xErr != nil {
+		return nil, xErr
 	}
-	return reg.Capabilities
+
+	if cap == nil {
+		cap = DefaultCapabilities.Clone()
+	}
+
+	reg.Capabilities = cap
+	return reg.Capabilities, nil
 }
 
 func (reg *Registry) LoadModel() (*Model, *XRError) {
@@ -444,6 +446,23 @@ func (reg *Registry) SetModel(newM *Model, src string, verifyData bool) *XRError
 	}
 
 	return nil
+}
+
+func (reg *Registry) SetCapabilities(c *Capabilities, str string) *XRError {
+	var xErr *XRError
+
+	if c == nil && str != "" {
+		c, xErr = ParseCapabilities([]byte(str))
+		if xErr != nil {
+			return xErr
+		}
+	} else {
+		str = ToJSON(c)
+	}
+
+	reg.Capabilities = c
+
+	return reg.Tx.Backend.SaveCapabilities(reg)
 }
 
 func (reg *Registry) SetSave(name string, val any) *XRError {
