@@ -47,14 +47,15 @@ type TDConfig struct {
 	Model        *registry.Model
 	Capabilities *Capabilities
 
-	FailFast     bool
-	IgnoreWarn   bool
-	NextStatus   int
-	ShowSkips    bool
-	ShowWarns    bool
-	ShowLogs     bool // EnvBool("XR_SHOWLOGS", false)
-	ShowStats    bool
-	ConsoleDepth int
+	FailFast       bool
+	IgnoreWarn     bool
+	NextStatus     int
+	ShowSkips      bool
+	ShowWarns      bool
+	ShowLogs       bool // EnvBool("XR_SHOWLOGS", false)
+	ShowStats      bool
+	ConsoleDepth   int
+	AllowMutations bool
 
 	TestRuns map[string]*TD
 	RunFuncs []TestFn
