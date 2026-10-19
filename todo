@@ -118,6 +118,14 @@ TODOs:
 - checkin the generated js files so people can easily download it
 
 - Backend
-  - move mysql triggers to be go initiated
+  - move mysql triggers to be go initiated, if appropriate but I'm not
+    seeing a need to right now since each backend might have optimizations
+    like what we have for mysql
   - create static prepare statements to avoid reparsing sql each time
+  - make RequestInfo more generic - try to remove http specifics
+  - try to remove the net/http import from jsonWriter, registry and info
+  - Consider a Backend.Open() and one backend per server
+  - turn on --xrerror in xrlint
 - move #attrs into system props if we can
+- make backend define what capabilities are available
+- fix default backend logic so people can choose one via config - default:mysql

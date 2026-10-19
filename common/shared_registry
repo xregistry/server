@@ -164,9 +164,7 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	ent, xErr := tx.Backend.GetEntityFromXID(tx, sid, "/", false, false,
 		accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", sid, xErr.GetTitle()).
-			SetRetryable(xErr.Retryable)
+		return nil, xErr
 	}
 	if ent == nil {
 		return nil, nil
@@ -262,9 +260,7 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 		if newTx {
 			tx.Rollback()
 		}
-		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s.", uid, xErr.GetTitle()).
-			SetRetryable(xErr.Retryable)
+		return nil, xErr
 	}
 
 	reg := &Registry{Entity: *entity}

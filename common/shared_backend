@@ -72,7 +72,8 @@ type Backend interface {
 
 	LoadModel(r *Registry) (*Model, *XRError) // Load but don't set r.Model
 	SaveModel(r *Registry) *XRError
-	RegisterModelEntity(me any) *XRError
+	RegisterGroupModel(gm *GroupModel) *XRError
+	RegisterResourceModel(rm *ResourceModel) *XRError
 
 	// DeleteModelEntitiesByAbstact must delete all entities of that type
 	DeleteModelEnityByAbstract(reg *Registry, abstract string) *XRError

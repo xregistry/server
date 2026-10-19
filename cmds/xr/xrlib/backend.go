@@ -123,7 +123,12 @@ func (CLIBE *CLIBackend) SaveModel(r *Registry) *XRError {
 	return nil
 }
 
-func (CLIBE *CLIBackend) RegisterModelEntity(me any) *XRError {
+func (CLIBE *CLIBackend) RegisterGroupModel(gm *GroupModel) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) RegisterResourceModel(rm *ResourceModel) *XRError {
 	panic("not yet")
 	return nil
 }

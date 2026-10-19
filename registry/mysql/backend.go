@@ -1097,37 +1097,27 @@ func (sqlBE *SQLBackend) SaveModel(r *registry.Registry) *XRError {
 	return xErr
 }
 
-func (sqlBE *SQLBackend) RegisterModelEntity(me any) *XRError {
-	if gm, ok := me.(*registry.GroupModel); ok {
-		xErr := DoOne(gm.Model.Registry.Tx,
-			`INSERT INTO ModelEntities(
+func (sqlBE *SQLBackend) RegisterGroupModel(gm *registry.GroupModel) *XRError {
+	return DoOne(gm.Model.Registry.Tx,
+		`INSERT INTO ModelEntities(
                      SID, RegistrySID, ParentSID,
                      Abstract, Plural, Singular)
                  VALUES(?,?,?,?,?,?)`,
-			gm.SID, gm.Model.Registry.DbSID, nil,
-			"/"+gm.Plural, gm.Plural, gm.Singular)
-		if xErr != nil {
-			return xErr
-		}
-	} else if rm, ok := me.(*registry.ResourceModel); ok {
-		gm := rm.GroupModel
-		gmAbs := "/" + gm.Plural
+		gm.SID, gm.Model.Registry.DbSID, nil,
+		"/"+gm.Plural, gm.Plural, gm.Singular)
+}
 
-		xErr := DoOne(rm.GroupModel.Model.Registry.Tx,
-			`INSERT INTO ModelEntities(
+func (sqlBE *SQLBackend) RegisterResourceModel(rm *registry.ResourceModel) *XRError {
+	gm := rm.GroupModel
+	gmAbs := "/" + gm.Plural
+
+	return DoOne(rm.GroupModel.Model.Registry.Tx,
+		`INSERT INTO ModelEntities(
                      SID, RegistrySID, ParentSID,
                      Abstract, Plural, Singular)
                  VALUES(?,?,?,?,?,?)`,
-			rm.SID, gm.Model.Registry.DbSID, gm.SID,
-			gmAbs+"/"+rm.Plural, rm.Plural, rm.Singular)
-		if xErr != nil {
-			return xErr
-		}
-	} else {
-		panic("I don't know who I am")
-	}
-
-	return nil
+		rm.SID, gm.Model.Registry.DbSID, gm.SID,
+		gmAbs+"/"+rm.Plural, rm.Plural, rm.Singular)
 }
 
 func (sqlBE *SQLBackend) DeleteModelEnityByAbstract(reg *registry.Registry, abstract string) *XRError {

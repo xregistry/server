@@ -227,7 +227,7 @@ func (m *Model) Save() *XRError {
 		// If GroupModel is already in DB then skip it
 		if _, ok := existingModelEntities[gmAbs]; !ok {
 			// Add new GroupModel
-			xErr := m.Registry.Tx.Backend.RegisterModelEntity(gm)
+			xErr := m.Registry.Tx.Backend.RegisterGroupModel(gm)
 			if xErr != nil {
 				return xErr
 			}
@@ -238,7 +238,7 @@ func (m *Model) Save() *XRError {
 			// If ResourceModel is already in DB then skip it
 			if _, ok := existingModelEntities[rmAbs]; !ok {
 				// Add new ResourceModel
-				xErr := m.Registry.Tx.Backend.RegisterModelEntity(rm)
+				xErr := m.Registry.Tx.Backend.RegisterResourceModel(rm)
 				if xErr != nil {
 					return xErr
 				}

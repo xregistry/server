@@ -110,32 +110,32 @@ func (e *Entity) ToString() string {
 func LockResourceFamily(tx *Tx, resourceSID string) *XRError {
 	return tx.Backend.LockResourceBySID(tx, resourceSID)
 
-	/*
-		lock := func(query string) {
-			results := Q uery(tx, query, resourceSID)
-			results.Close()
-		}
+	/* OLD
+	lock := func(query string) {
+		results := Q uery(tx, query, resourceSID)
+		results.Close()
+	}
 
-		lock(`SELECT SID FROM Resources WHERE SID=? FOR UPDATE`)
+	lock(`SELECT SID FROM Resources WHERE SID=? FOR UPDATE`)
 	*/
 
-	/*
-		lock(`SELECT SID FROM Metas WHERE ResourceSID=? FOR UPDATE`)
-		lock(`SELECT SID FROM Versions WHERE ResourceSID=? FOR UPDATE`)
+	/* OLD
+	lock(`SELECT SID FROM Metas WHERE ResourceSID=? FOR UPDATE`)
+	lock(`SELECT SID FROM Versions WHERE ResourceSID=? FOR UPDATE`)
 
-		// Entities holds both this Resource's own row (keyed by eSID) and
-		// its children's rows (keyed by ParentSID) - two different indexes
-		// (PRIMARY on eSID, a separate index on ParentSID). A single query
-		// with "WHERE eSID=? OR ParentSID=?" can't use either index (MySQL
-		// falls back to a full index scan of the WHOLE table), which - since
-		// this is a locking FOR UPDATE read - ends up granting X locks on
-		// every OTHER Resource's rows in the table too (verified via
-		// performance_schema.data_locks), a real over-locking bug, not just
-		// a missed optimization. Splitting into two separate queries lets
-		// each one use its own index and lock only the rows that actually
-		// belong to this Resource.
-		lock(`SELECT eSID FROM Entities WHERE eSID=? FOR UPDATE`)
-		lock(`SELECT eSID FROM Entities WHERE ParentSID=? FOR UPDATE`)
+	// Entities holds both this Resource's own row (keyed by eSID) and
+	// its children's rows (keyed by ParentSID) - two different indexes
+	// (PRIMARY on eSID, a separate index on ParentSID). A single query
+	// with "WHERE eSID=? OR ParentSID=?" can't use either index (MySQL
+	// falls back to a full index scan of the WHOLE table), which - since
+	// this is a locking FOR UPDATE read - ends up granting X locks on
+	// every OTHER Resource's rows in the table too (verified via
+	// performance_schema.data_locks), a real over-locking bug, not just
+	// a missed optimization. Splitting into two separate queries lets
+	// each one use its own index and lock only the rows that actually
+	// belong to this Resource.
+	lock(`SELECT eSID FROM Entities WHERE eSID=? FOR UPDATE`)
+	lock(`SELECT eSID FROM Entities WHERE ParentSID=? FOR UPDATE`)
 	*/
 
 	return nil
