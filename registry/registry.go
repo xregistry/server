@@ -1413,6 +1413,10 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	}
 
 	g.RemoveReadOnlyImmutable(obj)
+	if isNew {
+		// A create request must silently ignore any supplied epoch value.
+		delete(obj, "epoch")
+	}
 
 	// Remove all Resource collections from obj before we process it
 	objColls := map[string]map[string]any{}
