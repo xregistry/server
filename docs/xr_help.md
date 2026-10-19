@@ -29,6 +29,7 @@ xr [command]
 
 xr conform [URL...]
   # xRegistry Conformance Tester
+      --allow-mutations    Authorize explicitly selected mutation tests
       --config string      Config file ($HOME/.xr)
       --cset stringArray   Override configFile property: --cset NAME[:VALUE]
   -d, --depth int          Console depth (0=all) (default 2)
@@ -38,7 +39,7 @@ xr conform [URL...]
   -l, --logs               Show logs even on success
       --nowrap             Don't wrap output
   -o, --output string      Output format (text*, json)
-  -r, --run stringArray    Run test (all, smoke, entities)
+  -r, --run stringArray    Run test (all, smoke, entities, mutations)
   -s, --server string      xRegistry server URL
       --skips              Show SKIPs in console
       --stats              Show full stats on all groups

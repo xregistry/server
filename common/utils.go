@@ -1696,7 +1696,8 @@ type HttpRequest struct {
 	Headers map[string]string
 	Body    []byte
 
-	Debug bool
+	Debug      bool
+	NoRedirect bool
 }
 
 type HttpResponse struct {
@@ -1719,6 +1720,12 @@ func HttpGet(url string) (*HttpResponse, *XRError) {
 
 func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 	client := &http.Client{}
+	if req.NoRedirect {
+		client.CheckRedirect = func(req *http.Request,
+			via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
 	httpRes := &HttpResponse{}
 	bodyReader := bytes.NewReader(req.Body)
 
