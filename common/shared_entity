@@ -14,8 +14,6 @@ import (
 )
 
 type Entity struct {
-	EntityExtensions
-
 	Tx           *Tx       `json:"-"`
 	AccessMode   int       // FOR_READ, FOR_WRITE
 	Registry     *Registry `json:"-"`
@@ -3059,6 +3057,27 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 	       log.Printf("tx: %s %s", e.Tx.UUID, s)
 	   }
 	*/
+}
+
+func (e *Entity) WasTouched() bool {
+	log.FuncPrintf("tx: %s WasTouch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
+	return e.EpochSet
+}
+
+func (e *Entity) Touch() (bool, *XRError) {
+	log.FuncPrintf("tx: %s Touch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
+
+	// See if it's already been modified (and saved) this Tx, if so exit
+	if e.ModSet && e.EpochSet {
+		return false, nil
+	}
+
+	if _, xErr := e.Lock(); xErr != nil {
+		return false, xErr
+	}
+
+	e.EnsureNewObject()
+	return true, nil
 }
 
 func (e *Entity) Lock() (bool, *XRError) { // did we lock it?

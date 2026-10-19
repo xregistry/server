@@ -920,15 +920,15 @@ func TestRegistryVerifyDataMissesGroupConstraintOnModelChange(t *testing.T) {
         "files": { "f1": { "mystr": "foo" } } } } }`,
 		200, `*`)
 
-	// Variant 1: pure Go API, no HTTP at all - Model.ApplyNewModelFromJSON()
+	// Variant 1: pure Go API, no HTTP at all - reg.SetModel()
 	// directly, with no subsequent SaveAllAndCommit()/Registry.Validate()
 	// call. This is the clearest, most direct reproduction: nothing else
 	// in this call chain happens to drain tx.GroupsToValidate.
 
 	// v2 model (pure Go API): retarget the constraint to gstr2.
 	// f1.mystr ("foo") no longer equals d1.gstr2 ("bar") - a genuine
-	// violation that ApplyNewModelFromJSON() should catch/reject.
-	xErr := reg.Model.ApplyNewModelFromJSON([]byte(newModelSrc), true)
+	// violation that SetModel() should catch/reject.
+	xErr := reg.SetModel(nil, newModelSrc, true)
 	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
   "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"mystr\".",

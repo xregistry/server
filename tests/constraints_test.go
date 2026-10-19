@@ -21,7 +21,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "type": "string",
                   "matchversions": true
                 } } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Now do some error checking on model definitions
 
@@ -34,7 +34,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "type": "object",
                   "matchversions": true
                 } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.myobj\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute.",
@@ -56,7 +56,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "item": { "type": "object" },
                   "matchversions": true
                 } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.mymap\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute.",
@@ -78,7 +78,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "item": { "type": "integer" },
                   "matchversions": true
                 } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.mymap\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute.",
@@ -99,7 +99,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "item": { "type": "integer" },
                   "matchversions": true
                 } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.myarray\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute.",
@@ -119,7 +119,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "type": "any",
                   "matchversions": true
                 } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.myany\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute.",
@@ -142,7 +142,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                             "attributes": { "myint": {
                               "type": "integer", "matchversions": true }}}
                 } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.myarray.item.myint\" is not allowed to have \"matchversions\" set to \"true\" due to it being in an array.",
@@ -165,7 +165,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                             "attributes": { "myint": {
                               "type": "integer", "matchversions": true }}}
                 } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.mymap.item.myint\" is not allowed to have \"matchversions\" set to \"true\" due to it being in a map.",
@@ -189,7 +189,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                         "mystr": { "type": "string", "matchversions": true }
                       } } } }
                 } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.myint.ifvalues.5.mystr\" is not allowed to have \"matchversions\" set to \"true\" due to it being in an \"ifvalues\" clause.",
@@ -208,7 +208,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
               "attributes": {
                 "*": { "type": "integer", "matchversions": true }
                 } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.*\" is not allowed to have \"matchversions\" set to \"true\" due to it being in a \"*\" extension.",
@@ -228,7 +228,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                 "myint": { "type": "integer", "matchversions": true },
                 "mystr": { "type": "string", "matchversions": true }
               } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{
       "myint": 5
@@ -386,7 +386,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                 }
               } } } } } }`
 	// Should fail due to the model not matching the data
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (mystr) was specified for \"/dirs/d1/files/f1/versions/v1\".",
@@ -402,7 +402,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
 	XHTTP(t, reg, "DELETE", "/dirs/d1", ``, 204, ``)
 
 	// Should work this time
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Set all of them at once - just v1
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
@@ -576,7 +576,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	XHTTP(t, reg, "GET", "/model", ``, 200, `{
   "attributes": {
@@ -1217,7 +1217,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"filesmystr\" has an invalid key. It must be of the form \"<RESOURCES>.<PATH>\".",
@@ -1245,7 +1245,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"datas.files\" has an unknown Resource type \"datas\".",
@@ -1273,7 +1273,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.\" has an empty reference to an attribute.",
@@ -1301,7 +1301,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.fh'213'\" has an invalid path (fh'213'): Unexpected \"'\" in \"fh'213'\" at pos 3.",
@@ -1329,7 +1329,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.foo\" has an invalid path (foo): Attribute \"foo\" can not be found.",
@@ -1357,7 +1357,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mystr.foo\" has an invalid path (mystr.foo): Attribute \"mystr\" is scalar, so \"foo\" is invalid.",
@@ -1387,7 +1387,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mymap.foo\" has an invalid path (mymap.foo): Attribute \"foo\" can not be found in \"mymap\".",
@@ -1421,7 +1421,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mymap.foo\" has a path (mymap.foo) that includes a map (mymap), which is not allowed.",
@@ -1451,7 +1451,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.myarray.foo\" has an invalid path (myarray.foo): Attribute \"foo\" can not be found in \"myarray\".",
@@ -1483,7 +1483,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.myarray.foo\" has a path (myarray.foo) that includes an array (myarray), which is not allowed.",
@@ -1509,7 +1509,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.myobj.foo\" has an invalid path (myobj.foo): Attribute \"foo\" can not be found in \"myobj\".",
@@ -1535,7 +1535,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.myobj\" has an invalid path (myobj): \"myobj\" must be a scalar.",
@@ -1559,7 +1559,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "mystr": { "type": "string", "enum": [ "abc", "def" ] }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mystr\" has an enum value (bye) that isn't part of the inherited attribute's enum list (abc, def).",
@@ -1583,7 +1583,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "mystr": { "type":"string", "enum":["abc"],"strict":false }
                 } } } } } }`
 
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Enum list - empty enum is same as missing
 	modelSrc = `{
@@ -1597,7 +1597,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "mystr": { "type":"string", "enum":["abc"]}
                 } } } } } }`
 
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Enum list - can add even when no enum on base attr
 	modelSrc = `{
@@ -1611,7 +1611,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "mystr": { "type":"string" }
                 } } } } } }`
 
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Enum list - constraint.enum must include attr.default if no
 	// new default is defined
@@ -1626,7 +1626,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "mystr": {"type":"string", "default":"def","required": true }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true), `{
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mystr\" has an enum set (abc, bye) that doesn't include the attribute's default value (def).",
   "subject": "/model",
@@ -1651,7 +1651,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                     "enum": [ "abc", "def" ], "required": true }
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true), `{
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mystr\" has an enum set (abc) that doesn't include the attribute's default value (def).",
   "subject": "/model",
@@ -1675,7 +1675,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "mystr": {"type":"string"}
                 } } } } } }`
 
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Enum list - all enum values of the right/same type
 	modelSrc = `{
@@ -1689,7 +1689,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "mystr": {"type":"string"}
                 } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true), `{
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mystr\" has an enum value (123) that must be of type \"string\".",
   "subject": "/model",
@@ -1710,7 +1710,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": { "mystr": {"type":"string"} } } } } } }`
 
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Equals - missing attr
 	modelSrc = `{
@@ -1722,7 +1722,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": { "mystr": {"type":"string"} } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true), `{
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mystr\" has an \"equals\" reference (foo) that isn't valid: Attribute \"foo\" can not be found.",
   "subject": "/model",
@@ -1743,7 +1743,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": { "mystr": {"type":"string"} } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true), `{
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mystr\" has an \"equals\" reference (labels) that must be a scalar.",
   "subject": "/model",
@@ -1764,7 +1764,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": { "mystr": {"type":"string"} } } } } } }`
 
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true), `{
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: Group Type \"dirs\" constraint \"files.mystr\" references an attribute of type \"string\" but its \"equals\" (epoch) references an attribute of type \"uinteger\". They need to match.",
   "subject": "/model",
@@ -2919,7 +2919,7 @@ func TestConstraintsEqualsNestedGroupPath(t *testing.T) {
 	    },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": { "mystr": { "type": "string" } } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Runtime: gobj.gfoo="abc", mystr="abc" => equals satisfied
 	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
@@ -2961,7 +2961,7 @@ func TestConstraintsEqualsNestedGroupPath(t *testing.T) {
 	    },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": { "mystr": { "type": "string" } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrcBad, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrcBad, true),
 		`^(?s)^.*model_error.*equals.*gfoo.*can not be found`)
 
 	reg.Model.SetChanged(false)
@@ -2985,7 +2985,7 @@ func TestConstraintsEqualsWildcardModelError(t *testing.T) {
 	    },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": { "mystr": { "type": "string" } } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`^(?s)^.*model_error.*equals.*someattr.*can not be found`)
 
 	reg.Model.SetChanged(false)
@@ -3015,7 +3015,7 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
 	      "docs":  {"singular": "doc",  "hasdocument": false,
 	        "attributes": { "mystr": { "type": "string" } }}
 	    } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Each resource type gets its own default from constraints
 	// (JSON output orders docs before files alphabetically)
@@ -3180,7 +3180,7 @@ func TestConstraintsDeepNestedPath(t *testing.T) {
 	          }
 	        }
 	      } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Valid: a.b.c value is in enum
 	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
@@ -3228,7 +3228,7 @@ func TestConstraintsDeepNestedPath(t *testing.T) {
 	          }
 	        }
 	      } } } } } }`
-	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrcBadPath, true),
+	XCheckErr(t, reg.SetModel(nil, modelSrcBadPath, true),
 		`^(?s)^.*model_error.*a.b.c.d.*c.*scalar`)
 
 	reg.Model.SetChanged(false)
@@ -3296,7 +3296,7 @@ func TestConstraintsMatchVersionsWithEquals(t *testing.T) {
 	      "attributes": {
 	        "myattr": { "type": "string", "matchversions": true }
 	      } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Setup: group gattr="x", resource f1 with myattr="x" - both checks pass
 	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
@@ -3349,7 +3349,7 @@ func TestConstraintsXref(t *testing.T) {
 	    "singular": "dir",
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": {} } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Create source resource s1 in d1 (no constraint on d1) - name stays absent
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/s1$details", `{}`, 201,
@@ -3374,7 +3374,7 @@ func TestConstraintsXref(t *testing.T) {
 		`^(?s)^.*"epoch": 1,\n *"isdefault`) // no "name"
 
 	// Make sure our model validation is ok too - we blew up at one point
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 }
 
 // TestConstraintsModelLevelXrefRealValue covers gaps items 2 and 3
@@ -3396,7 +3396,7 @@ func TestConstraintsModelLevelXrefRealValue(t *testing.T) {
 	    "constraints": { "files.name": { "default": "model-default" } },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": {} } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Target t1, in d1, with an EXPLICIT (non-default) value.
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/t1$details",
@@ -3506,7 +3506,7 @@ func TestConstraintsEqualsEnforcedOnXref(t *testing.T) {
 	    "constraints": { "files.myattr": { "equals": "gattr" } },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": { "myattr": { "type": "string" } } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1: gattr="" (unset) - group-level "equals" constraint is skipped
 	// entirely for d1 (Group.Validate() bails when the group attr is
@@ -3651,7 +3651,7 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
 	  "groups": { "dirs": { "singular": "dir",
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": { "myattr": { "type": "string" } } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1: no constraint at all - t1 can have any myattr value.
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/t1$details",
@@ -3810,7 +3810,7 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
 	  "groups": { "dirs": { "singular": "dir",
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": { "myattr": { "type": "string" } } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1 (unconstrained): target t1 with myattr="a" - compliant with
 	// d2's enum below.
@@ -3969,7 +3969,7 @@ func TestConstraintsDefaultTransitionCascade(t *testing.T) {
 	  "groups": { "dirs": { "singular": "dir",
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": {} } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1 has a group-instance constraint default for files.name.
 	XHTTP(t, reg, "PATCH", "/dirs/d1",
@@ -4115,7 +4115,7 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
 	    "constraints": { "files.myattr": { "equals": "gattr" } },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": { "myattr": { "type": "string" } } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1: gattr="x", target t1 with myattr="x" (satisfies "equals").
 	XHTTP(t, reg, "PUT", "/dirs/d1?inline=files", `{
@@ -4274,7 +4274,7 @@ func TestConstraintsMultipleConstraintSourcesXrefCascade(t *testing.T) {
 	    "constraints": { "files.name": { "default": "model-name-default" } },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": {} } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1 (target's group) ALSO sets its own instance-level default for
 	// "description" (a different attribute than the model-level one).

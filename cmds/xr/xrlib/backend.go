@@ -5,6 +5,7 @@ import (
 
 	// log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
+	// . "github.com/xregistry/server/registry"
 )
 
 type CLIBackend struct {
@@ -102,13 +103,12 @@ func (CLIBE *CLIBackend) RegisterEntity(e *Entity) *XRError {
 	return nil
 }
 
-// JSON, uuid
-func (CLIBE *CLIBackend) LoadModelJSON(r *Registry) (string, string, *XRError) {
+func (CLIBE *CLIBackend) LoadModel(r *Registry) (*Model, *XRError) {
 	panic("not yet")
-	return "", "", nil
+	return nil, nil
 }
 
-func (CLIBE *CLIBackend) SaveModel(m *Model, changeUUID string) *XRError {
+func (CLIBE *CLIBackend) SaveModel(m *Model) *XRError {
 	panic("not yet")
 	return nil
 }

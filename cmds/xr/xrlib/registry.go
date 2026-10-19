@@ -8,6 +8,7 @@ import (
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
+	// . "github.com/xregistry/server/registry"
 )
 
 /*
@@ -36,9 +37,6 @@ type CollectionDefined struct {
 	Count    uint
 }
 */
-
-type EntityExtensions struct {
-}
 
 var Registries = map[string]*Registry{}
 

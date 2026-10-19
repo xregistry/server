@@ -262,7 +262,7 @@ func (reg *Registry) Delete() *XRError {
 	// Avoid an unbounded leak of dead entries in the in-process Model
 	// cache (see registry/model.go) - the DbSID is never reused, but
 	// there's no reason to hang on to it once the Registry is gone.
-	evictCachedModel(reg.DbSID)
+	EvictCachedModel(reg.DbSID)
 
 	// Delete any pending changes so dirty check doesn't fail
 	reg.NewObject = nil
@@ -317,7 +317,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 		return xErr
 	}
 
-	if xErr = reg.Model.ApplyNewModel(model, string(buf), true); xErr != nil {
+	if xErr = reg.SetModel(model, string(buf), true); xErr != nil {
 		return xErr
 	}
 
@@ -378,7 +378,7 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 			}
 		}
 
-		xErr := reg.Model.ApplyNewModelFromJSON(rawJson, false)
+		xErr := reg.SetModel(nil, string(rawJson), false)
 		if xErr != nil {
 			return xErr
 		}

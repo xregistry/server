@@ -782,8 +782,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	if meta == nil {
 		meta = &Meta{
 			Entity: Entity{
-				EntityExtensions: EntityExtensions{},
-
 				Tx:        r.Tx,
 				Registry:  r.Registry,
 				DbSID:     NewUUID(),
@@ -2050,7 +2048,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	}
 
 	// Doing neither so just return. No need to clear the *validated/
-	// *validatedreason props here - Model.ApplyNewModel() already
+	// *validatedreason props here - Registry.SetModel() already
 	// bulk-clears them registry-wide, once, at the moment validation
 	// was turned off for this ResourceType (see
 	// Registry.clearValidationSystemProps()), so there's nothing stale
@@ -2233,7 +2231,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	}
 
 	// If compat isn't enabled at the model level, skip entirely - no
-	// need to clear here, Model.ApplyNewModel()'s bulk sweep already
+	// need to clear here, Registry.SetModel()'s bulk sweep already
 	// owns clearing stale values registry-wide the moment validation
 	// was turned off (see clearValidationSystemProps()).
 	if !validateCompat {

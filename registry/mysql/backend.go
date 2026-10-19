@@ -1002,10 +1002,10 @@ func (sqlBE *SQLBackend) RegisterEntity(e *registry.Entity) *XRError {
 	return nil
 }
 
-func (sqlBE *SQLBackend) LoadModelJSON(r *registry.Registry) (string, string, *XRError) {
+func getJSONModel(r *registry.Registry) (string, string, *XRError) {
 	// Load Registry model
 	results, xErr := Query(r.Tx,
-		`SELECT Model,Changed FROM Models WHERE RegistrySID=?`,
+		`SELECT Model,UUID FROM Models WHERE RegistrySID=?`,
 		r.DbSID)
 	if xErr != nil {
 		return "", "", xErr
@@ -1022,23 +1022,56 @@ func (sqlBE *SQLBackend) LoadModelJSON(r *registry.Registry) (string, string, *X
 	}
 
 	model := NotNilString(row[0])
-	changedUUID := NotNilString(row[1])
+	UUID := NotNilString(row[1])
 
-	return model, changedUUID, nil
+	return model, UUID, nil
 }
 
-func (sqlBE *SQLBackend) SaveModel(m *registry.Model, changeUUID string) *XRError {
+func (sqlBE *SQLBackend) LoadModel(r *registry.Registry) (*registry.Model, *XRError) {
+	modelJSON, uuid, xErr := getJSONModel(r)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	if modelJSON == "" {
+		// No model yet.  Maybe we should panic? TODO investigate
+		return nil, nil
+	}
+
+	var model *registry.Model
+
+	// check to see if THIS model (based on uuid) has already been parsed
+	if model = registry.GetCachedModel(r.DbSID, uuid); model == nil {
+		model, xErr = registry.ParseModel([]byte(modelJSON), r)
+		if xErr != nil {
+			return nil, xErr
+		}
+
+		registry.SetCachedModel(r.DbSID, uuid, model)
+	}
+
+	model.Registry = r
+
+	return model, nil
+}
+
+func (sqlBE *SQLBackend) SaveModel(m *registry.Model) *XRError {
 	buf, _ := json.Marshal(m)
 	modelStr := string(buf)
 
+	// This backend uses the model cache
+	uuid := NewUUID()
+
 	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.Tx.UUID)
 	xErr := DoZeroTwo(m.Registry.Tx, `
-        INSERT INTO Models(RegistrySID, Model, Changed)
+        INSERT INTO Models(RegistrySID, Model, uuid)
             VALUES(?,?,?)
-            ON DUPLICATE KEY UPDATE Model=?, Changed=?`,
+            ON DUPLICATE KEY UPDATE Model=?, UUID=?`,
 
-		m.Registry.DbSID, modelStr, changeUUID,
-		modelStr, changeUUID)
+		m.Registry.DbSID, modelStr, uuid,
+		modelStr, uuid)
+
+	m.SetStuff("changedUUID", uuid)
 
 	return xErr
 }
@@ -3160,8 +3193,6 @@ func readNextEntity(tx *registry.Tx, results *Result, accessMode int) (*registry
 
 		if entity == nil {
 			entity = &registry.Entity{
-				EntityExtensions: registry.EntityExtensions{},
-
 				Tx:         tx,
 				AccessMode: accessMode,
 				Registry:   tx.Registry,

@@ -4,6 +4,7 @@ package XXX
 
 import (
 	"fmt"
+	"strings"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
@@ -317,11 +318,132 @@ func (reg *Registry) LoadCapabilities() *Capabilities {
 }
 
 func (reg *Registry) LoadModel() (*Model, *XRError) {
-	return LoadModel(reg)
+	defer log.Trace("tx: %s %s", reg.Tx.UUID, reg.UID)()
+
+	model, xErr := reg.Tx.Backend.LoadModel(reg)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	if model != nil {
+		reg.Model = model
+	}
+
+	return model, nil
 }
 
 func (reg *Registry) SaveModel(verifyData bool) *XRError {
 	return reg.Model.VerifyAndSave(verifyData)
+}
+
+func (reg *Registry) SetModel(newM *Model, src string, verifyData bool) *XRError {
+	// If all we have is modelSrc (src) then parse that into newM
+	if newM == nil && len(src) != 0 {
+		if src = strings.TrimSpace(src); src == "" {
+			return NewXRError("missing_body", "/")
+		}
+
+		// Don't allow local files to be included (e.g. ../foo)
+		buf, xErr := ProcessIncludes("", []byte(src), false)
+		if xErr != nil {
+			return xErr
+		}
+
+		buf, err := RemoveSchema(buf)
+		if err != nil {
+			return NewXRError("bad_request", "/", "error_detail="+err.Error())
+		}
+
+		newM, xErr = ParseModel(buf, reg)
+		if xErr != nil {
+			return xErr
+		}
+	}
+
+	newM.Registry = reg
+
+	// Copy existing SIDs into the new Model so we don't create new ones
+	for gmPlural, gm := range newM.Groups {
+		// Note: gm.Plural might be ""
+		oldGM := reg.Model.FindGroupModel(gmPlural)
+		if oldGM != nil {
+			if oldGM.Singular != gm.Singular {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("changing the singular name of Group %q "+
+							"is not allowed", gmPlural))
+			}
+			gm.SID = oldGM.SID
+
+			for rmPlural, rm := range gm.Resources {
+				// Note: rm.Plural might be ""
+				if oldRM := oldGM.Resources[rmPlural]; oldRM != nil {
+					if oldRM.Singular != rm.Singular {
+						return NewXRError("model_error", "/model",
+							"error_detail="+
+								fmt.Sprintf("changing the singular name of "+
+									"Resource %q is not allowed", rmPlural))
+					}
+					rm.SID = oldRM.SID
+
+					// If hasdocument is transitioning false->true, any
+					// pre-existing data under the reserved names
+					// (<singular>/<singular>url/<singular>base64/
+					// <singular>proxyurl) must not be silently reinterpreted
+					// as document content - reject the transition instead
+					// and make the user explicitly clear that data first.
+					// NOTE: this is a one-time check at the transition
+					// moment only - once hasdocument=true these names are
+					// legitimately used going forward to set the actual
+					// document reference, so this must NOT become a
+					// standing/repeatable invariant.
+					if !oldRM.GetHasDocument() && rm.GetHasDocument() {
+						if xErr := reg.CheckHasDocumentEnableViolation(
+							oldRM); xErr != nil {
+							return xErr
+						}
+					}
+				}
+			}
+		}
+	}
+
+	reg.Model = newM
+
+	reg.Model.SetChanged(true)
+	// If verifyData==true then it'll call reg.ValidateAndSave() to make sure
+	// we process the changed Reg( touch, if nothing else). But if verifyData
+	// is false then the caller will be responsible for calling Val&Save.
+	_, xErr := reg.Touch()
+	if xErr != nil {
+		return xErr
+	}
+
+	if src == "" {
+		// This should serialize just the bare minimum, only what the
+		// user provided, no default values
+		// buf, err := json.MarshalIndent(m, "", "  ")
+		buf, xErr := reg.Model.SerializeForUser()
+		if xErr != nil {
+			return xErr
+		}
+		src = string(buf)
+	}
+	reg.Model.Source = src
+
+	if xErr := reg.Model.VerifyAndSave(verifyData); xErr != nil {
+		// Too much to undo. The Verify() at the top should have caught
+		// anything wrong
+
+		// Not everything goes thru the http code
+		if xErr.Instance == "" && reg != nil {
+			xErr.Instance = reg.Tx.UUID
+		}
+
+		return xErr
+	}
+
+	return nil
 }
 
 func (reg *Registry) SetSave(name string, val any) *XRError {
@@ -338,4 +460,37 @@ func (reg *Registry) SetSave(name string, val any) *XRError {
 
 func (reg *Registry) GetGroups(accessMode int) ([]*Group, *XRError) {
 	return reg.Tx.Backend.GetGroups(reg, accessMode)
+}
+
+// checkHasDocumentEnableViolation returns non-nil XRError if oldRM (a
+// Resource type currently hasdocument=false, transitioning to true) has
+// any existing Version with a non-nil value for one of the 4 reserved
+// "$RESOURCE*" names (<singular>, <singular>url, <singular>base64,
+// <singular>proxyurl). Those names are only reserved once hasdocument is
+// true, so while hasdocument=false a user may have legitimately declared
+// one of them as their own plain extension attribute with real data. Once
+// the transition to hasdocument=true happens, that pre-existing data would
+// otherwise be silently reinterpreted as document content - so we reject
+// the transition instead and make the caller explicitly clear that data
+// first (symmetric with checkHasDocumentViolation()'s true->false block).
+//
+// IMPORTANT: this must only ever be called once, at the exact moment of
+// the false->true transition (see reg.SetModel() above) - NOT as a
+// standing/repeatable invariant. Once hasdocument=true, these same names
+// are legitimately used going forward to set the actual document
+// reference, so re-running this check on every subsequent write would
+// incorrectly reject normal document usage.
+func (reg *Registry) CheckHasDocumentEnableViolation(oldRM *ResourceModel) *XRError {
+
+	vXID, attrName, xErr := reg.Tx.Backend.IsHasDocUsed(reg, oldRM)
+	if xErr != nil {
+		return xErr
+	}
+
+	if vXID != "" {
+		return NewXRError("hasdocument_enable_violation", vXID,
+			"name="+attrName)
+	}
+
+	return nil
 }

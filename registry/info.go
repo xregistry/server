@@ -945,8 +945,7 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 					return xErr
 				}
 
-				xErr := info.Registry.Model.ApplyNewModelFromJSON(
-					rawJson, false)
+				xErr := info.Registry.SetModel(nil, string(rawJson), false)
 				if xErr != nil {
 					return xErr
 				}

@@ -14,6 +14,7 @@ import (
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
+	// . "github.com/xregistry/server/registry"
 )
 
 // var VerboseFlag = EnvBool("XR_VERBOSE", false)

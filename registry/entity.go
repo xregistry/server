@@ -10,8 +10,6 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-type EntityExtensions struct{}
-
 func (e *Entity) GetRequestInfo() *RequestInfo {
 	if e.Tx == nil {
 		return nil
@@ -76,27 +74,6 @@ func (e *Entity) ToString() string {
 	str := fmt.Sprintf("%s/%s\n  Object: %s\n  NewObject: %s",
 		e.Singular, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
 	return str
-}
-
-func (e *Entity) WasTouched() bool {
-	log.FuncPrintf("tx: %s WasTouch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
-	return e.EpochSet
-}
-
-func (e *Entity) Touch() (bool, *XRError) {
-	log.FuncPrintf("tx: %s Touch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
-
-	// See if it's already been modified (and saved) this Tx, if so exit
-	if e.ModSet && e.EpochSet {
-		return false, nil
-	}
-
-	if _, xErr := e.Lock(); xErr != nil {
-		return false, xErr
-	}
-
-	e.EnsureNewObject()
-	return true, nil
 }
 
 // LockResourceFamily locks (FOR UPDATE) just the Resource's own row in

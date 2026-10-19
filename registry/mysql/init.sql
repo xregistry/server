@@ -71,7 +71,7 @@ CREATE TABLE Models (
     Model       MEDIUMTEXT,                     # Full model, not just Registry
 
     # UUID: Used to know if the in-memory model cache is old - see Model.Save()
-    Changed     VARCHAR(64) NOT NULL DEFAULT '',
+    UUID        VARCHAR(64) NOT NULL DEFAULT '',
 
     PRIMARY KEY (RegistrySID)
 );

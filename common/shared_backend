@@ -67,8 +67,8 @@ type Backend interface {
 	// Make Entity known to the backend/DB
 	RegisterEntity(e *Entity) *XRError
 
-	LoadModelJSON(r *Registry) (string, string, *XRError) // json, uuid
-	SaveModel(m *Model, changeUUID string) *XRError
+	LoadModel(r *Registry) (*Model, *XRError)
+	SaveModel(m *Model) *XRError
 	RegisterModelEntity(me any) *XRError
 	DeleteModelEnityByAbstract(reg *Registry, abstract string) *XRError
 

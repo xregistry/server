@@ -5005,7 +5005,7 @@ func TestModelResourceCreate(t *testing.T) {
 		},
 	}
 
-	XNoErr(t, reg.Model.ApplyNewModel(newModel, "", true))
+	XNoErr(t, reg.SetModel(newModel, "", true))
 	XCheckGet(t, reg, "/model", `{
   "attributes": {
     "specversion": {
@@ -5620,7 +5620,7 @@ func TestModelResourceCreate(t *testing.T) {
 			},
 		},
 	}
-	err = reg.Model.ApplyNewModel(newModel, "", true)
+	err = reg.SetModel(newModel, "", true)
 	XNoErr(t, err)
 
 	// Rollback since the previous "newModel" erased too much

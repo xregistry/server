@@ -1899,7 +1899,7 @@ func HTTPPUTModelSource(info *registry.RequestInfo) *XRError {
 		return xErr
 	}
 
-	xErr := info.Registry.Model.ApplyNewModelFromJSON(body, true)
+	xErr := info.Registry.SetModel(nil, string(body), true)
 	if xErr != nil {
 		return xErr
 	}

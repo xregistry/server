@@ -103,7 +103,6 @@ TODOs:
   check versions, but other updates won't. THey'll validate the constraints
   at the group/resource level, but there's nothing at the version level to check
 - test attribute definitions with enums with strict=true / false
-- clean-up design of model save/apply
 - make sure we support ?ignore  w/o value (or "*") to mean all possible
 ** in dlog, sync the write to the output (see misc test file for why)
 -- make sure conflicting ifvalue attrs are detected, model define time and runtime
