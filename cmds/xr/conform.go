@@ -9,12 +9,13 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-var conformRunAliases = []string{"all", "smoke", "entities"}
+var conformRunAliases = []string{"all", "smoke", "entities", "mutations"}
 
 var conformRunFunctions = map[string]TestFn{
-	"all":      TestTDAll,
-	"smoke":    TestTDSmoke,
-	"entities": TestTDEntities,
+	"all":       TestTDAll,
+	"smoke":     TestTDSmoke,
+	"entities":  TestTDEntities,
+	"mutations": TestTDGroupCreateReadDelete,
 
 	// Retain the existing internal TD test entry points.
 	"TestTDAllPass": TestTDAllPass,
@@ -56,9 +57,18 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	config.ShowStats, _ = cmd.Flags().GetBool("stats")
 	config.ConsoleDepth, _ = cmd.Flags().GetInt("depth")
 	config.Output, _ = cmd.Flags().GetString("output")
+	config.AllowMutations, _ = cmd.Flags().GetBool("allow-mutations")
 	config.RunFuncs = resolveConformRunFuncs(runNames)
 	if config.Output != "text" && config.Output != "json" {
 		Error("--output must be one of: text, json")
+	}
+	if conformMutationSelected(runNames) {
+		if !config.AllowMutations {
+			Error("--run mutations requires --allow-mutations")
+		}
+		if len(servers) != 1 {
+			Error("--run mutations requires exactly one target")
+		}
 	}
 
 	rc := runConform(servers, config)
@@ -144,6 +154,15 @@ func testServer(td *TD) {
 	}
 }
 
+func conformMutationSelected(names []string) bool {
+	for _, name := range names {
+		if name == "mutations" {
+			return true
+		}
+	}
+	return false
+}
+
 func resolveConformRunFuncs(names []string) []TestFn {
 	functions := make([]TestFn, 0, len(names))
 	seen := map[string]bool{}
@@ -200,7 +219,9 @@ func addConformCmd(parent *cobra.Command) {
 	conformCmd.Flags().Bool("failfast", false, "Stop on first failure")
 	conformCmd.Flags().Bool("stats", false, "Show full stats on all groups")
 	conformCmd.Flags().StringArrayP("run", "r", nil,
-		"Run test (all, smoke, entities)")
+		"Run test (all, smoke, entities, mutations)")
+	conformCmd.Flags().Bool("allow-mutations", false,
+		"Authorize explicitly selected mutation tests")
 	conformCmd.Flags().StringP("output", "o", "text",
 		"Output format (text*, json)")
 	conformCmd.Flag("output").DefValue = "" // hide default text
