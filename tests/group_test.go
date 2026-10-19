@@ -208,6 +208,101 @@ func TestGroupRequiredFields(t *testing.T) {
 `)
 }
 
+func TestGroupCreateIgnoresEpochAndCollisionPreservesExisting(t *testing.T) {
+	reg := NewRegistry("TestGroupCreateEpoch")
+	defer PassDeleteReg(t, reg)
+
+	model := `{
+  "groups": {
+    "widgets": {
+      "singular": "widget"
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	XHTTP(t, reg, "PUT", "/widgets/invalid", `{
+  "epoch": "create-only",
+  "name": "original",
+  "description": "original description",
+  "labels": {
+    "owner": "original"
+  }
+}`, 201, `{
+  "widgetid": "invalid",
+  "self": "http://localhost:8181/widgets/invalid",
+  "xid": "/widgets/invalid",
+  "epoch": 1,
+  "name": "original",
+  "description": "original description",
+  "labels": {
+    "owner": "original"
+  },
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/widgets/valid", `{
+  "epoch": 99
+}`, 201, `{
+  "widgetid": "valid",
+  "self": "http://localhost:8181/widgets/valid",
+  "xid": "/widgets/valid",
+  "epoch": 1,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/widgets/null", `{
+  "epoch": null
+}`, 201, `{
+  "widgetid": "null",
+  "self": "http://localhost:8181/widgets/null",
+  "xid": "/widgets/null",
+  "epoch": 1,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/widgets/invalid", `{
+  "epoch": "create-only",
+  "name": "changed",
+  "description": "changed description",
+  "labels": {
+    "owner": "changed"
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/widgets/invalid\" is not valid: must be a uinteger.",
+  "subject": "/widgets/invalid",
+  "args": {
+    "error_detail": "must be a uinteger",
+    "name": "epoch"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/widgets/invalid", "", 200, `{
+  "widgetid": "invalid",
+  "self": "http://localhost:8181/widgets/invalid",
+  "xid": "/widgets/invalid",
+  "epoch": 1,
+  "name": "original",
+  "description": "original description",
+  "labels": {
+    "owner": "original"
+  },
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+}
+`)
+}
+
 func TestGroupDeprecated(t *testing.T) {
 	reg := NewRegistry("TestGroupDeprecated")
 	defer PassDeleteReg(t, reg)
