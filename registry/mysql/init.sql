@@ -62,8 +62,8 @@ FOR EACH ROW
 BEGIN
     DELETE FROM "Groups" WHERE RegistrySID=OLD.SID $$
     DELETE FROM Models   WHERE RegistrySID=OLD.SID $$
-    DELETE FROM Props WHERE RegSID=OLD.SID $$
-    DELETE FROM Entities  WHERE RegSID=OLD.SID $$
+    DELETE FROM Props WHERE RegistrySID=OLD.SID $$
+    DELETE FROM Entities  WHERE RegistrySID=OLD.SID $$
 END ;
 
 CREATE TABLE Models (
@@ -138,8 +138,8 @@ CREATE TRIGGER GroupTrigger BEFORE DELETE ON "Groups"
 FOR EACH ROW
 BEGIN
     DELETE FROM Resources WHERE GroupSID=OLD.SID $$
-    DELETE FROM Props WHERE eSID=OLD.SID $$
-    DELETE FROM Entities  WHERE eSID=OLD.SID $$
+    DELETE FROM Props WHERE SID=OLD.SID $$
+    DELETE FROM Entities  WHERE SID=OLD.SID $$
 END ;
 
 CREATE TABLE Resources (
@@ -175,7 +175,7 @@ BEGIN
 
     # Clear the stale xref mirror on every source Meta that points at
     # this Resource's XID, since Metas.xRefXID is a plain XID string
-    # (not a SID) that ISN'T touched by the eSID/ParentSID=OLD.SID
+    # (not a SID) that ISN'T touched by the SID/ParentSID=OLD.SID
     # deletes below - a source's synthetic mirror rows live under ITS
     # OWN ParentSID (its own owning Resource's SID), not the target's.
     # This single trigger fires for every deletion XID (direct
@@ -187,31 +187,31 @@ BEGIN
     # (fullSaveXrefFanOutForTargetMeta/Version) naturally re-populates
     # these sources again.
     DELETE ft FROM Props AS ft
-    JOIN Metas AS srcM ON (ft.eSID=srcM.SID)
+    JOIN Metas AS srcM ON (ft.SID=srcM.SID)
     WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefXID=OLD.XID
           AND ft.IsXrefPropCopy=true $$
 
     DELETE ft FROM Props AS ft
-    JOIN Metas AS srcM ON (ft.RegSID=srcM.RegistrySID AND
+    JOIN Metas AS srcM ON (ft.RegistrySID=srcM.RegistrySID AND
                             ft.ParentSID=srcM.ResourceSID)
     WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefXID=OLD.XID
           AND ft.IsXrefVerCopy=true $$
 
     DELETE fe FROM Entities AS fe
-    JOIN Metas AS srcM ON (fe.RegSID=srcM.RegistrySID AND
+    JOIN Metas AS srcM ON (fe.RegistrySID=srcM.RegistrySID AND
                             fe.ParentSID=srcM.ResourceSID)
     WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefXID=OLD.XID
           AND fe.IsXrefVerCopy=true $$
 
     DELETE ft FROM Props AS ft
-    JOIN Metas AS srcM ON (ft.eSID=srcM.ResourceSID)
+    JOIN Metas AS srcM ON (ft.SID=srcM.ResourceSID)
     WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefXID=OLD.XID
           AND ft.IsDefaultVerCopy=true $$
 
     DELETE FROM Metas WHERE ResourceSID=OLD.SID $$
     DELETE FROM Versions WHERE ResourceSID=OLD.SID $$
-    DELETE FROM Props WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
-    DELETE FROM Entities  WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
+    DELETE FROM Props WHERE SID=OLD.SID OR ParentSID=OLD.SID $$
+    DELETE FROM Entities  WHERE SID=OLD.SID OR ParentSID=OLD.SID $$
 
     # Lazily clear Registries.UsesXref if this deletion may have
     # removed the last remaining xref in the Registry (e.g. OLD itself
@@ -278,8 +278,8 @@ CREATE TRIGGER VersionsTrigger BEFORE DELETE ON Versions
 FOR EACH ROW
 BEGIN
     DELETE FROM ResourceContents WHERE VersionSID=OLD.SID $$
-    DELETE FROM Props WHERE eSID=OLD.SID $$
-    DELETE FROM Entities  WHERE eSID=OLD.SID $$
+    DELETE FROM Props WHERE SID=OLD.SID $$
+    DELETE FROM Entities  WHERE SID=OLD.SID $$
 END ;
 
 CREATE TABLE ResourceContents (
@@ -290,20 +290,20 @@ CREATE TABLE ResourceContents (
 );
 
 CREATE TABLE Props (
-  RegSID     VARCHAR(64) NOT NULL,
-  Type       BIGINT NOT NUll,
-  Plural     VARCHAR(64) NOT NULL,
-  Singular   VARCHAR(64) NOT NULL,
-  ParentSID  VARCHAR(64) NULL,
-  eSID       VARCHAR(64) NOT NULL,      # Reg,Group,Res,Ver System ID
-  UID        VARCHAR(255) NOT NULL,      # User Defined
-  XID        VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
-  LowerXID   VARCHAR(329) GENERATED ALWAYS AS (LOWER(XID)) STORED,
-  PropName   VARCHAR($MAX_PROPNAME) NOT NULL,
-  PropValue  MEDIUMTEXT NULL, # VARCHAR($MAX_VARCHAR),
-  PropType   CHAR(64) NOT NULL,          # string, boolean, int, ...
-  Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
-  DocView    BOOL NOT NULL,
+  RegistrySID  VARCHAR(64) NOT NULL,
+  Type         BIGINT NOT NUll,
+  Plural       VARCHAR(64) NOT NULL,
+  Singular     VARCHAR(64) NOT NULL,
+  ParentSID    VARCHAR(64) NULL,
+  SID          VARCHAR(64) NOT NULL,       # Reg,Group,Res,Ver System ID
+  UID          VARCHAR(255) NOT NULL,      # User Defined
+  XID          VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  LowerXID     VARCHAR(329) GENERATED ALWAYS AS (LOWER(XID)) STORED,
+  PropName     VARCHAR($MAX_PROPNAME) NOT NULL,
+  PropValue    MEDIUMTEXT NULL, # VARCHAR($MAX_VARCHAR),
+  PropType     CHAR(64) NOT NULL,          # string, boolean, int, ...
+  Abstract     VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+  DocView      BOOL NOT NULL,
 
   # IMPORTANT: PropName always includes a trailing delimiter (DB_IN, which
   # is ','). For example: "fileurl," not "fileurl"
@@ -349,46 +349,46 @@ CREATE TABLE Props (
   IsCalcStatic     BOOL NOT NULL DEFAULT false, # xid, Version.RESOURCEid
   IsCalcDynamic    BOOL NOT NULL DEFAULT false, # Version.isdefault
 
-  PRIMARY KEY(RegSID, XID, PropName),
-  UNIQUE INDEX(RegSID, LowerXID, PropName),
-  UNIQUE INDEX(eSID, PropName),
+  PRIMARY KEY(RegistrySID, XID, PropName),
+  UNIQUE INDEX(RegistrySID, LowerXID, PropName),
+  UNIQUE INDEX(SID, PropName),
   INDEX(ParentSID) # for cascade-copy cleanup (e.g.
                    # fullSaveXrefCascadeDelete's ParentSID scan)
-  # INDEX(RegSID, Abstract)
+  # INDEX(RegistrySID, Abstract)
 );
 
 # This is the authoritative store for all entity properties (own,
 # system, calculated, and cascaded/copied) - see fulltree.go.
 CREATE TABLE Entities (
-  RegSID     VARCHAR(64) NOT NULL,
-  Type       BIGINT NOT NULL,
-  Plural     VARCHAR(64) NOT NULL,
-  Singular   VARCHAR(64) NOT NULL,
-  ParentSID  VARCHAR(64) NULL,
-  eSID       VARCHAR(64) NOT NULL,      # Reg,Group,Res,Ver System ID (or
-                                          # synthetic "-<srcRSID>-<verSID>")
-  UID        VARCHAR(255) NOT NULL,
-  Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
-  XID        VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
-  LowerXID   VARCHAR(329) GENERATED ALWAYS AS (LOWER(XID )) STORED,
+  RegistrySID  VARCHAR(64) NOT NULL,
+  Type         BIGINT NOT NULL,
+  Plural       VARCHAR(64) NOT NULL,
+  Singular     VARCHAR(64) NOT NULL,
+  ParentSID    VARCHAR(64) NULL,
+  SID          VARCHAR(64) NOT NULL,        # Reg,Group,Res,Ver System ID (or
+                                            # synthetic "-<srcRSID>-<verSID>")
+  UID          VARCHAR(255) NOT NULL,
+  Abstract     VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+  XID          VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  LowerXID     VARCHAR(329) GENERATED ALWAYS AS (LOWER(XID )) STORED,
 
   # True for the synthetic Version rows added because a Resource
-  # xref's another Resource (mirrors the "-" eSID prefix convention
+  # xref's another Resource (mirrors the "-" SID prefix convention
   # this table already uses, but as an explicit flag for clarity).
   IsXrefVerCopy BOOL NOT NULL DEFAULT false,
 
-  # eSID is already globally unique (NewUUID()), so it alone can be the
-  # PK - RegSID would be redundant there. RegSID is kept as its own
+  # SID is already globally unique (NewUUID()), so it alone can be the
+  # PK - RegistrySID would be redundant there. RegistrySID is kept as its own
   # index so RegistryTrigger's bulk "DELETE FROM Entities WHERE
-  # RegSID=..." stays fast. ParentSID is also a real (globally unique)
-  # SID, so it needs no RegSID qualifier either. XID  is NOT globally
-  # unique (only unique per-Registry), so RegSID must stay paired with
+  # RegistrySID=..." stays fast. ParentSID is also a real (globally unique)
+  # SID, so it needs no RegistrySID qualifier either. XID  is NOT globally
+  # unique (only unique per-Registry), so RegistrySID must stay paired with
   # it.
-  PRIMARY KEY(eSID),
-  INDEX(RegSID),
+  PRIMARY KEY(SID),
+  INDEX(RegistrySID),
   INDEX(ParentSID),
-  UNIQUE INDEX (RegSID, XID ),
-  UNIQUE INDEX (RegSID, LowerXID )
+  UNIQUE INDEX (RegistrySID, XID ),
+  UNIQUE INDEX (RegistrySID, LowerXID )
 
   # Consider adding "Plural" to INDEX(ParentSID)
 );
@@ -412,15 +412,15 @@ BEGIN
         NEW.IsXrefPropCopy=false AND NEW.IsXrefVerCopy=false) THEN
         IF (NEW.PropName='ancestorid$DB_IN') THEN
           UPDATE Versions SET AncestorID=NEW.PropValue
-              WHERE SID=NEW.eSID $$
+              WHERE SID=NEW.SID $$
         END IF $$
         IF (NEW.PropName='createdat$DB_IN') THEN
           UPDATE Versions SET CreatedAt=NEW.PropValue
-              WHERE SID=NEW.eSID $$
+              WHERE SID=NEW.SID $$
         END IF $$
         IF (NEW.PropName='modifiedat$DB_IN') THEN
           UPDATE Versions SET ModifiedAt=NEW.PropValue
-              WHERE SID=NEW.eSID $$
+              WHERE SID=NEW.SID $$
         END IF $$
     END IF $$
 
@@ -428,11 +428,11 @@ BEGIN
         NEW.IsXrefPropCopy=false AND NEW.IsXrefVerCopy=false) THEN
         IF (NEW.PropName='xref$DB_IN') THEN
           UPDATE Metas AS m SET xRefXID=NEW.PropValue
-            WHERE m.SID=NEW.eSID $$
+            WHERE m.SID=NEW.SID $$
         END IF $$
         IF (NEW.PropName='defaultversionid$DB_IN') THEN
           UPDATE Metas AS m SET defaultVID=NEW.PropValue
-            WHERE m.SID=NEW.eSID $$
+            WHERE m.SID=NEW.SID $$
         END IF $$
     END IF $$
 END ;
@@ -451,31 +451,31 @@ BEGIN
         OLD.IsXrefPropCopy=false AND OLD.IsXrefVerCopy=false) THEN
         IF (OLD.PropName='xref$DB_IN') THEN
           UPDATE Metas SET xRefXID=NULL
-          WHERE SID=OLD.eSID $$
+          WHERE SID=OLD.SID $$
 
           # Lazily clear Registries.UsesXref if this was the last
           # remaining xref in the Registry - see ResourcesTrigger's
           # comment for why this is safe/cheap to run unconditionally.
           UPDATE Registries SET UsesXref = EXISTS(
-              SELECT 1 FROM Metas WHERE RegistrySID=OLD.RegSID
+              SELECT 1 FROM Metas WHERE RegistrySID=OLD.RegistrySID
                                    AND xRefXID IS NOT NULL)
-          WHERE SID=OLD.RegSID AND UsesXref=true $$
+          WHERE SID=OLD.RegistrySID AND UsesXref=true $$
         END IF $$
         IF (OLD.PropName='defaultversionid$DB_IN') THEN
           UPDATE Metas AS m SET defaultVID=NULL
-            WHERE m.SID=OLD.eSID $$
+            WHERE m.SID=OLD.SID $$
         END IF $$
     END IF $$
 END ;
 
 CREATE VIEW Leaves AS
-SELECT eSID FROM Entities
-WHERE eSID NOT IN (
+SELECT SID FROM Entities
+WHERE SID NOT IN (
     SELECT DISTINCT ParentSID FROM Entities WHERE ParentSID IS NOT NULL
 );
 
 # Find all Versions that are part of circular references (circles)
-# Would this be better to do in code and use args(?) for regSID?
+# Would this be better to do in code and use args(?) for RegistrySID?
 CREATE VIEW VersionCircles AS
 WITH RECURSIVE cte (RegistrySID,ResourceSID,UID) AS
 (
@@ -504,13 +504,13 @@ WHERE NOT EXISTS(SELECT 1 FROM cte
 # Just for debugging purposes
 CREATE VIEW VerboseProps AS
 SELECT
-    p.RegSID,
-    p.eSID,
+    p.RegistrySID,
+    p.SID,
     e.Abstract,
     e.XID ,
     p.PropName,
     p.PropValue,
     p.PropType
 FROM Props as p
-JOIN Entities as e ON (e.eSID=p.eSID)
+JOIN Entities as e ON (e.SID=p.SID)
 ORDER by XID  ;

@@ -75,11 +75,11 @@ func TestMiscDBRows(t *testing.T) {
 	be := registry.MustNewDefaultBackend(reg.GetXRServerConfig()).(*mysql.SQLBackend)
 
 	rows, xErr := be.Query(reg.GetTx(), "SELECT XID,PropName,PropValue "+
-		"FROM Props WHERE RegSID=? AND IsDefaultVerCopy=false AND "+
+		"FROM Props WHERE RegistrySID=? AND IsDefaultVerCopy=false AND "+
 		"IsXrefPropCopy=false AND IsXrefVerCopy=false AND "+
 		"IsCalcStatic=false AND IsCalcDynamic=false "+
 		"ORDER BY XID, PropName ",
-		reg.DbSID)
+		reg.SID)
 	XNoErr(t, xErr)
 
 	result := ""
@@ -136,8 +136,8 @@ func TestMiscDBRows(t *testing.T) {
 	// Same query but don't exclude the calculated attributes.
 	// We want to check EVERYTHING!
 	rows, xErr = be.Query(reg.GetTx(), "SELECT XID,PropName,PropValue "+
-		"FROM Props WHERE RegSID=? ORDER BY XID, PropName ",
-		reg.DbSID)
+		"FROM Props WHERE RegistrySID=? ORDER BY XID, PropName ",
+		reg.SID)
 	XNoErr(t, xErr)
 
 	result = ""

@@ -336,7 +336,7 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 		return m, nil
 	}
 
-	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.DbSID,
+	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.SID,
 		r.XID+"/meta", false, anyCase, r.AccessMode)
 
 	if xErr != nil {
@@ -387,7 +387,7 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 	// options here - like find a way to force an entity (w/o any props)
 	// to show up here in cases where it's xref'd in.
 	// Keep an eye on this.
-	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.DbSID,
+	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.SID,
 		r.XID+"/versions/"+id, true, anyCase, r.AccessMode)
 	if xErr != nil {
 		return nil, xErr
@@ -784,8 +784,8 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			Entity: Entity{
 				Tx:        r.Tx,
 				Registry:  r.Registry,
-				DbSID:     NewUUID(),
-				ParentSID: r.DbSID,
+				SID:       NewUUID(),
+				ParentSID: r.SID,
 				Plural:    "metas",
 				Singular:  "meta",
 				UID:       r.UID,
@@ -1110,8 +1110,8 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 				Tx:         r.Tx,
 				AccessMode: FOR_WRITE,
 				Registry:   r.Registry,
-				DbSID:      NewUUID(),
-				ParentSID:  r.DbSID,
+				SID:        NewUUID(),
+				ParentSID:  r.SID,
 				Plural:     "versions",
 				Singular:   "version",
 				UID:        vu.Id,
@@ -1364,9 +1364,9 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// in this batch" correctly sees that r's own validation (and its
 	// unconditional xref fan-out) has now started/is about to run.
 	if r.Tx.ResourcesToValidate != nil {
-		delete(r.Tx.ResourcesToValidate, r.DbSID)
+		delete(r.Tx.ResourcesToValidate, r.SID)
 	}
-	delete(r.Tx.ResourcesValidatingBatch, r.DbSID)
+	delete(r.Tx.ResourcesValidatingBatch, r.SID)
 
 	// On the way out, delete any mark this call's OWN body may have
 	// re-added to ResourcesToValidate (e.g. EnsureLatest()'s
@@ -1377,7 +1377,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// ValidateResource() run later when Registry.Validate() drains the
 	// Tx.
 	defer func() {
-		delete(r.Tx.ResourcesToValidate, r.DbSID)
+		delete(r.Tx.ResourcesToValidate, r.SID)
 	}()
 
 	// If anything changed in the Resource, causing us to validate it, then
@@ -1537,7 +1537,7 @@ func (r *Resource) runCascade() *XRError {
 			// immediately rebuilt anyway.
 			skipInsert := false
 			if _, target, xErr := r.GetXref(); xErr == nil && target != nil {
-				if r.Tx.ResourcesValidatingBatch[target.DbSID] {
+				if r.Tx.ResourcesValidatingBatch[target.SID] {
 					skipInsert = true
 				}
 			}
@@ -1860,7 +1860,7 @@ func (r *Resource) Delete() *XRError {
 	// Registry.Validate() doesn't try to (re-)validate a Resource whose
 	// Meta (and now Resource row) no longer exist.
 	if r.Tx.ResourcesToValidate != nil {
-		delete(r.Tx.ResourcesToValidate, r.DbSID)
+		delete(r.Tx.ResourcesToValidate, r.SID)
 	}
 
 	// Delete any pending changes so dirty check doesn't fail
@@ -2467,7 +2467,7 @@ func (r *Resource) SaveDefaultVersionCascade() *XRError {
 		// "current default" is really the xref target's current
 		// default, copied in as a synthetic Version by
 		// SaveXrefVersionCopies(). Copy from THAT synthetic
-		// Props eSID instead of Props.
+		// Props SID instead of Props.
 		//
 		// This is a source reading its xref TARGET's row (same
 		// direction as SaveXrefCascadeInsert()'s tResults query), so it
@@ -2521,7 +2521,7 @@ func (r *Resource) SaveDefaultVersionCascade() *XRError {
 // *Resource: it's only ever used inside SQL WHERE/JOIN clauses here,
 // never as a Go-level field access, so there's no need to pay for
 // loading/caching that entity just to extract its SID back out again.
-// The synthetic eSID for each target Version is deterministically
+// The synthetic SID for each target Version is deterministically
 // CONCAT('-', sourceResourceSID, '-', v.SID), matching the
 // "-<srcRSID>-<verSID>" convention.
 //
@@ -2606,7 +2606,7 @@ func (r *Resource) SaveXrefFanOutForTarget() *XRError {
 			return xErr
 		}
 
-		if xErr := sourceResource.SaveXrefVersionCopies(r.DbSID); xErr != nil {
+		if xErr := sourceResource.SaveXrefVersionCopies(r.SID); xErr != nil {
 			return xErr
 		}
 		if xErr := sourceResource.SaveDefaultVersionCascade(); xErr != nil {

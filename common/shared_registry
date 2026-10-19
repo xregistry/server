@@ -92,13 +92,13 @@ func NewRegistry(tx *Tx, config *Config, id string) (*Registry, *XRError) {
 				fmt.Sprintf("A registry with ID %q already exists", id))
 	}
 
-	dbSID := NewUUID()
+	SID := NewUUID()
 
 	reg := &Registry{
 		Entity: Entity{
 			Tx:         tx,
 			AccessMode: FOR_WRITE,
-			DbSID:      dbSID,
+			SID:        SID,
 			Plural:     "registries",
 			Singular:   "registry",
 			UID:        id,
@@ -152,7 +152,7 @@ func NewRegistry(tx *Tx, config *Config, id string) (*Registry, *XRError) {
 func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError) {
 	defer log.Trace("tx: %s %s", tx.UUID, sid)()
 
-	if tx.Registry != nil && tx.Registry.DbSID == sid {
+	if tx.Registry != nil && tx.Registry.SID == sid {
 		if accessMode == FOR_WRITE && tx.Registry.AccessMode != FOR_WRITE {
 			if _, xErr := tx.Registry.Lock(); xErr != nil {
 				return nil, xErr

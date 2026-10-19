@@ -229,7 +229,7 @@ func NewRegistry(name string) *registry.Registry {
 		os.Exit(1)
 	}
 
-	MainServer.XRSConfig.Set("DefaultRegDbSID", reg.DbSID)
+	MainServer.XRSConfig.Set("DefaultRegistrySID", reg.SID)
 
 	reg.SaveAllAndCommit()
 
@@ -303,7 +303,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 				panic(xErr.String())
 			}
 		}
-		MainServer.XRSConfig.Set("DefaultRegDbSID", nil)
+		MainServer.XRSConfig.Set("DefaultRegistrySID", nil)
 	}
 
 	/*

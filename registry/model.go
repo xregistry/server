@@ -252,7 +252,7 @@ func (m *Model) Save() *XRError {
 	// so cache hits don't hand out a Model that looks dirty) - lets the
 	// very next request skip re-fetching+re-parsing what we already have.
 	if changedUUID, ok := m.GetStuff("changedUUID"); ok {
-		SetCachedModel(m.Registry.DbSID, changedUUID.(string), m)
+		SetCachedModel(m.Registry.SID, changedUUID.(string), m)
 	}
 
 	return nil

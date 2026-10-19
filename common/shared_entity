@@ -17,7 +17,7 @@ type Entity struct {
 	Tx           *Tx       `json:"-"`
 	AccessMode   int       // FOR_READ, FOR_WRITE
 	Registry     *Registry `json:"-"`
-	DbSID        string    // Entity's SID
+	SID          string    // Entity's SID
 	ParentSID    string    // Parent entity's SID ("" for the Registry root)
 	Plural       string
 	Singular     string
@@ -411,7 +411,7 @@ func InitOrderedSpecProps() {
 						base = info.OriginalBaseURL
 					}
 
-					ss := base + "/r/" + e.DbSID
+					ss := base + "/r/" + e.SID
 
 					selfAny := SpecProps["self"].Internals.GetFn(e)
 					if self, ok := selfAny.(string); ok && len(self) < len(ss) {
@@ -1074,7 +1074,7 @@ func InitOrderedSpecProps() {
 						if !IsNil(v) {
 							e.NewObject[singular+"url"] = nil
 							e.NewObject[singular+"proxyurl"] = nil
-							e.NewObject["#contentid"] = e.DbSID
+							e.NewObject["#contentid"] = e.SID
 						} else {
 							e.NewObject["#contentid"] = nil
 						}
@@ -1097,7 +1097,7 @@ func InitOrderedSpecProps() {
 						if !IsNil(v) {
 							e.NewObject[singular+"url"] = nil
 							e.NewObject[singular+"proxyurl"] = nil
-							e.NewObject["#contentid"] = e.DbSID
+							e.NewObject["#contentid"] = e.SID
 						} else {
 							e.NewObject["#contentid"] = nil
 						}
@@ -2939,7 +2939,7 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	       // Handles both val=nil and non-nil cases
 	       xErr := Do_OneTwo(e.Tx,
 	          `UPDATE Resources SET xRef=? WHERE SID=?`,
-	           val, e.DbSID)
+	           val, e.SID)
 	       if xErr != nil {
 	           return xErr
 	       }
@@ -3044,22 +3044,22 @@ func (e *Entity) Touch() (bool, *XRError) {
 }
 
 func (e *Entity) Lock() (bool, *XRError) { // did we lock it?
-	defer log.Trace("tx: %s %s:%s", e.Tx.UUID, e.XID, e.DbSID)()
+	defer log.Trace("tx: %s %s:%s", e.Tx.UUID, e.XID, e.SID)()
 
 	if e.AccessMode == FOR_WRITE {
 		// Already locked
 		return false, nil
 	}
 
-	log.FuncPrintf("tx: %s Requesting lock for %q eSID=%s connID=%d",
-		e.Tx.UUID, e.XID, e.DbSID, e.Tx.ConnID)
+	log.FuncPrintf("tx: %s Requesting lock for %q SID=%s connID=%d",
+		e.Tx.UUID, e.XID, e.SID, e.Tx.ConnID)
 
 	if xErr := e.Refresh(FOR_WRITE); xErr != nil {
 		return false, xErr
 	}
 
-	log.FuncPrintf("tx: %s Got lock for %q eSID=%s connID=%d",
-		e.Tx.UUID, e.XID, e.DbSID, e.Tx.ConnID)
+	log.FuncPrintf("tx: %s Got lock for %q SID=%s connID=%d",
+		e.Tx.UUID, e.XID, e.SID, e.Tx.ConnID)
 
 	// Resource/Meta/Version are logically one unit - Meta holds the
 	// data most callers actually care about (defaultversionid, epoch,

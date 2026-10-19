@@ -74,13 +74,13 @@ func (r *Registry) GetXRServerConfig() *Config {
 func GetDefaultReg(tx *Tx) (*Registry, *XRError) {
 	PanicIf(tx == nil, "Check me")
 
-	regDbSID := tx.Config.GetAsString("DefaultRegDbSID")
+	regSID := tx.Config.GetAsString("DefaultRegistrySID")
 
-	if regDbSID == "" {
+	if regSID == "" {
 		panic("No registry specified")
 	}
 
-	reg, xErr := FindRegistryBySID(tx, regDbSID, FOR_READ)
+	reg, xErr := FindRegistryBySID(tx, regSID, FOR_READ)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -262,9 +262,9 @@ func (reg *Registry) Delete() *XRError {
 	}
 
 	// Avoid an unbounded leak of dead entries in the in-process Model
-	// cache (see registry/model.go) - the DbSID is never reused, but
+	// cache (see registry/model.go) - the SID is never reused, but
 	// there's no reason to hang on to it once the Registry is gone.
-	EvictCachedModel(reg.DbSID)
+	EvictCachedModel(reg.SID)
 
 	// Delete any pending changes so dirty check doesn't fail
 	reg.NewObject = nil
@@ -502,7 +502,7 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 		return g, nil
 	}
 
-	entity, xErr := reg.Tx.Backend.GetEntityFromXID(reg.Tx, reg.DbSID,
+	entity, xErr := reg.Tx.Backend.GetEntityFromXID(reg.Tx, reg.SID,
 		"/"+gType+"/"+id, false, anyCase, accessMode)
 	if xErr != nil {
 		return nil, xErr
@@ -608,8 +608,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 				Tx:         reg.Tx,
 				AccessMode: FOR_WRITE,
 				Registry:   reg,
-				DbSID:      NewUUID(),
-				ParentSID:  reg.DbSID,
+				SID:        NewUUID(),
+				ParentSID:  reg.SID,
 				Plural:     gType,
 				Singular:   gm.Singular,
 				UID:        id,
@@ -1081,7 +1081,7 @@ func (r *Registry) VerifyData() *XRError {
 
 			// Now do Versions. Filter to just ENTITY_VERSION - a
 			// Resource's Meta shares the same ParentSID
-			// (resource.DbSID), so without this filter we'd also pick
+			// (resource.SID), so without this filter we'd also pick
 			// up the Meta row here and mis-process it as a Version.
 			versions, xErr := resource.GetVersions(FOR_WRITE)
 			if xErr != nil {
@@ -1123,14 +1123,14 @@ func (r *Registry) GenerateResultEntities(what string,
 func (r *Registry) GetEntitiesFromXID(xidStr string, allAttrs bool,
 	children bool, anyCase bool, accessMode int) (EntityIterator, *XRError) {
 
-	return r.Tx.Backend.GetEntitiesFromXID(r.Tx, r.DbSID, xidStr, allAttrs,
+	return r.Tx.Backend.GetEntitiesFromXID(r.Tx, r.SID, xidStr, allAttrs,
 		children, anyCase, accessMode)
 }
 
 func (r *Registry) GetEntityFromXID(xidStr string, allAttrs bool, anyCase bool,
 	accessMode int) (*Entity, *XRError) {
 
-	return r.Tx.Backend.GetEntityFromXID(r.Tx, r.DbSID, xidStr, allAttrs,
+	return r.Tx.Backend.GetEntityFromXID(r.Tx, r.SID, xidStr, allAttrs,
 		anyCase, accessMode)
 }
 

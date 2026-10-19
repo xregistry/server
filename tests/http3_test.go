@@ -4861,7 +4861,7 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	}
 
 	// Plain (default registry) URL. reg1 is the default registry here
-	// (NewRegistry() sets registry.DefaultRegDbSID to whichever Registry
+	// (NewRegistry() sets registry.DefaultRegistrySID to whichever Registry
 	// was created/found most recently - see tests/utils_test.go), so the
 	// bare host base URL (no "/xregs/<name>" suffix - it's just an alias
 	// for whichever registry is currently the default) must show up too.

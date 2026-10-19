@@ -379,7 +379,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	XRSConfig.Set("DefaultRegDbSID", reg.DbSID)
+	XRSConfig.Set("DefaultRegistrySID", reg.SID)
 	xrhttp.NewServer(XRSConfig).Serve()
 }
 

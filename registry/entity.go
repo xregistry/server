@@ -101,7 +101,7 @@ func (e *Entity) ToString() string {
 //     each function's own "if meta.AccessMode==FOR_WRITE" FOR UPDATE
 //     hint, independent of this function.
 //   - Entity.Save()'s Props DELETE-then-INSERT race is handled by
-//     Refresh(FOR_WRITE)'s own "SELECT ... FROM Entities WHERE eSID=?
+//     Refresh(FOR_WRITE)'s own "SELECT ... FROM Entities WHERE SID=?
 //     FOR UPDATE" on the specific entity being saved.
 //
 // The old code below locked the whole family (Metas/Versions/Entities
@@ -123,10 +123,10 @@ func LockResourceFamily(tx *Tx, resourceSID string) *XRError {
 	lock(`SELECT SID FROM Metas WHERE ResourceSID=? FOR UPDATE`)
 	lock(`SELECT SID FROM Versions WHERE ResourceSID=? FOR UPDATE`)
 
-	// Entities holds both this Resource's own row (keyed by eSID) and
+	// Entities holds both this Resource's own row (keyed by SID) and
 	// its children's rows (keyed by ParentSID) - two different indexes
-	// (PRIMARY on eSID, a separate index on ParentSID). A single query
-	// with "WHERE eSID=? OR ParentSID=?" can't use either index (MySQL
+	// (PRIMARY on SID, a separate index on ParentSID). A single query
+	// with "WHERE SID=? OR ParentSID=?" can't use either index (MySQL
 	// falls back to a full index scan of the WHOLE table), which - since
 	// this is a locking FOR UPDATE read - ends up granting X locks on
 	// every OTHER Resource's rows in the table too (verified via
@@ -134,8 +134,8 @@ func LockResourceFamily(tx *Tx, resourceSID string) *XRError {
 	// a missed optimization. Splitting into two separate queries lets
 	// each one use its own index and lock only the rows that actually
 	// belong to this Resource.
-	lock(`SELECT eSID FROM Entities WHERE eSID=? FOR UPDATE`)
-	lock(`SELECT eSID FROM Entities WHERE ParentSID=? FOR UPDATE`)
+	lock(`SELECT SID FROM Entities WHERE SID=? FOR UPDATE`)
+	lock(`SELECT SID FROM Entities WHERE ParentSID=? FOR UPDATE`)
 	*/
 
 	return nil
@@ -171,7 +171,7 @@ func LockEntityFamily(tx *Tx, ent *Entity) *XRError {
 	resourceSID := ""
 	switch ent.Type {
 	case ENTITY_RESOURCE:
-		resourceSID = ent.DbSID
+		resourceSID = ent.SID
 	case ENTITY_META, ENTITY_VERSION:
 		resourceSID = ent.ParentSID
 	}
@@ -190,7 +190,7 @@ func LockEntityFamily(tx *Tx, ent *Entity) *XRError {
 			continue
 		}
 		isFamilyMember :=
-			(cached.Type == ENTITY_RESOURCE && cached.DbSID == resourceSID) ||
+			(cached.Type == ENTITY_RESOURCE && cached.SID == resourceSID) ||
 				((cached.Type == ENTITY_META || cached.Type == ENTITY_VERSION) &&
 					cached.ParentSID == resourceSID)
 		if !isFamilyMember {
@@ -209,8 +209,8 @@ func LockEntityFamily(tx *Tx, ent *Entity) *XRError {
 			continue
 		}
 		log.FuncPrintf("tx: %s lockEntityFamily: upgrading stale cached %q "+
-			"(eSID=%s) to FOR_WRITE now that its family's DB rows are locked",
-			tx.UUID, cached.XID, cached.DbSID)
+			"(SID=%s) to FOR_WRITE now that its family's DB rows are locked",
+			tx.UUID, cached.XID, cached.SID)
 		if xErr := cached.Refresh(FOR_WRITE); xErr != nil {
 			return xErr
 		}
@@ -241,7 +241,7 @@ func (e *Entity) eSetSave(path string, val any) *XRError {
 // This is really just an internal Setter used for testing.
 // It'll set a property and then validate and save the entity in the DB
 func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
-	defer log.Trace("tx: %s %s: %s=%v", e.Tx.UUID, e.DbSID, pp.UI(), val)()
+	defer log.Trace("tx: %s %s: %s=%v", e.Tx.UUID, e.SID, pp.UI(), val)()
 	defer func() {
 		if log.IsFuncVerbose() {
 			log.Printf("tx: %s exit: e.Object:\n%s", e.Tx.UUID, ToJSON(e.Object))
@@ -333,7 +333,7 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 	}
 
 	PanicIf(len(name) > MAX_PROPNAME, "SysProp name is too long: %s", name)
-	PanicIf(e.DbSID == "", "DbSID should not be empty")
+	PanicIf(e.SID == "", "SID should not be empty")
 	PanicIf(e.Registry == nil, "Registry should not be nil")
 
 	if !IsNil(val) {

@@ -81,7 +81,7 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 		return r, nil
 	}
 
-	entity, xErr := g.Tx.Backend.GetEntityFromXID(g.Tx, g.Registry.DbSID,
+	entity, xErr := g.Tx.Backend.GetEntityFromXID(g.Tx, g.Registry.SID,
 		g.XID+"/"+rType+"/"+id, false, anyCase, accessMode)
 	if xErr != nil {
 		return nil, xErr
@@ -297,8 +297,8 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				Tx:         g.Tx,
 				AccessMode: FOR_WRITE,
 				Registry:   g.Registry,
-				DbSID:      NewUUID(),
-				ParentSID:  g.DbSID,
+				SID:        NewUUID(),
+				ParentSID:  g.SID,
 				Plural:     ru.RType,
 				Singular:   rModel.Singular,
 				UID:        ru.Id,
@@ -337,8 +337,8 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				Tx:         g.Tx,
 				AccessMode: FOR_WRITE,
 				Registry:   g.Registry,
-				DbSID:      NewUUID(),
-				ParentSID:  r.DbSID,
+				SID:        NewUUID(),
+				ParentSID:  r.SID,
 				Plural:     "metas",
 				Singular:   "meta",
 				UID:        r.UID,

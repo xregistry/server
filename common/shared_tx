@@ -48,13 +48,13 @@ type Tx struct {
 	// since it's possible only a Resource change could break a constraint.
 	GroupsToValidate map[string]*Group
 
-	// Resources (keyed by DbSID) that need Resource.ValidateResource()
+	// Resources (keyed by SID) that need Resource.ValidateResource()
 	// (re-)run before this Tx's results are visible - including their
 	// default-version-copy cascade and xref fan-out.
 	ResourcesToValidate map[string]*resourceValidation
 
 	// Snapshot of the batch Registry.Validate()'s drain loop is
-	// CURRENTLY iterating over (keyed by DbSID), exposed so
+	// CURRENTLY iterating over (keyed by SID), exposed so
 	// Resource.runCascade() can tell whether an xref TARGET it's about
 	// to fan out to is itself still pending in the very same batch
 	// (i.e. hasn't started its own ValidateResource() yet) - see
@@ -150,7 +150,7 @@ func (tx *Tx) IsOpen() bool {
 func (tx *Tx) String() string {
 	regStr := "<none>"
 	if tx.Registry != nil {
-		regStr = tx.Registry.DbSID
+		regStr = tx.Registry.SID
 	}
 
 	txStr := "<none>"
@@ -350,12 +350,12 @@ func (tx *Tx) AddResourceToValidate(r *Resource, onlyMetaChanged bool, force boo
 	if tx.ResourcesToValidate == nil {
 		tx.ResourcesToValidate = map[string]*resourceValidation{}
 	}
-	if existing, ok := tx.ResourcesToValidate[r.DbSID]; ok {
+	if existing, ok := tx.ResourcesToValidate[r.SID]; ok {
 		existing.onlyMetaChanged = existing.onlyMetaChanged && onlyMetaChanged
 		existing.force = existing.force || force
 		return
 	}
-	tx.ResourcesToValidate[r.DbSID] = &resourceValidation{
+	tx.ResourcesToValidate[r.SID] = &resourceValidation{
 		r:               r,
 		onlyMetaChanged: onlyMetaChanged,
 		force:           force,
