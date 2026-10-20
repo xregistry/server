@@ -71,6 +71,12 @@ func ServeUIStatic(server *Server, uuid string, w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// specattrs.js has a "$COMMIT" placeholder that's filled in at runtime
+	if path == "/specattrs.js" {
+		serveSpecAttrsJS(uuid, server.XRSConfig, w, r)
+		return
+	}
+
 	// For non-root paths that don't exist as files, fall back to index.html
 	// so the SPA's client-side router can handle deep links.
 	//
@@ -153,6 +159,36 @@ func serveXRUIJSON(uuid string, xrsConfig *Config, w http.ResponseWriter, r *htt
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(content)
+}
+
+// readUIFile returns the named UI file from ui.dir if set, else from the
+// embedded fs.
+func readUIFile(xrsConfig *Config, name string) ([]byte, error) {
+	if uiDir := xrsConfig.GetAsString("ui.dir"); uiDir != "" {
+		return os.ReadFile(uiDir + "/" + name)
+	}
+	return uiEmbedded.ReadFile("ui/" + name)
+}
+
+// serveSpecAttrsJS serves specattrs.js with the "$COMMIT" placeholder
+// replaced by this server's git commit ("dev" if unknown).
+func serveSpecAttrsJS(uuid string, xrsConfig *Config, w http.ResponseWriter, r *http.Request) {
+	content, err := readUIFile(xrsConfig, "specattrs.js")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	commit := GitCommit
+	if commit == "" {
+		commit = "dev"
+	}
+	content = bytes.ReplaceAll(content, []byte(`"$COMMIT"`),
+		[]byte(strconv.Quote(commit)))
+
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write(content)
 }

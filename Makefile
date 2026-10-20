@@ -5,11 +5,12 @@ dev: mysql cmds docs test images
 
 # Run for each PR
 pr: dev benchmark
+	@git diff
 	@msg=`git diff --name-only --exit-code HEAD` || \
 		(echo -e "\n**** Uncommitted changes:\n$$msg\n" ; exit 1)
 
 # Run on 'master' change
-master: pr push cmds-all
+master: pr push cmds-all ui.tar
 
 MAKEFLAGS  += --no-print-directory
 SHELL      := /bin/bash -o pipefail
@@ -32,6 +33,7 @@ export MYSQL_IMAGE    ?= mysql:8
 export TAG            ?= $(shell date "+%Y%m%d-$$(git rev-parse --short HEAD)")
 export XR_SPEC        ?= $(HOME)/go/src/github.com/xregistry/spec
 export GIT_COMMIT     ?= $(shell git rev-list -1 HEAD)
+export GIT_COMMIT12   ?= $(shell git rev-list -1 HEAD | cut -c1-12)
 export PKG            := github.com/xregistry/server
 export BUILDFLAGS     := -ldflags '-X=$(PKG)/common.GitCommit=$(GIT_COMMIT)'
 export STATIC         := -ldflags '-X=$(PKG)/common.GitCommit=$(GIT_COMMIT) \
@@ -50,7 +52,8 @@ export TIMEIT         ?= TIMEFORMAT="Time: %0lR" ; time
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 
-REGISTRY_FILES := $(shell find registry -type f)
+REGISTRY_FILES := $(shell find registry -type f | grep -v ui.tar)
+UI_FILES       := $(shell find registry/http/ui -type f)
 
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
@@ -135,6 +138,8 @@ benchmark:
 	 done
 	@touch .sharedfiles
 
+# specattrs.js is checked in so that people can download it w/o needing to
+# build the entire server themselves.
 registry/http/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@echo
 	@echo "# Rebuilding registry/http/ui/specattrs.js"
@@ -146,6 +151,14 @@ xrserver: .sharedfiles registry/http/ui/specattrs.js cmds/xrserver/* \
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \
 		go build $(BUILDFLAGS) -o $@ cmds/xrserver/*.go
+
+ui.tar: .ui.tar
+.ui.tar: registry/http/ui/specattrs.js $(UI_FILES)
+	@(cd registry/http/ui ; \
+	  cat specattrs.js | sed "s/\$$COMMIT/$(GIT_COMMIT12)/g" > tmp.js ; \
+	  tar --transform='s/tmp.js/specattrs.js/' -X specattrs.js -czf ui.tar * )
+	@rm -f registry/http/ui/tmp.js
+	@touch .ui.tar
 
 xrserver-all: .xrserver-all
 .xrserver-all: xrserver
@@ -165,6 +178,8 @@ xr: .sharedfiles cmds/xr/* common/*
 
 docs: docs/xr_help.md docs/xrserver_help.md
 
+# The code-modified help files are checked in so that people can see them
+# via github w/o rebuilding the cli/server themselves.
 docs/xr_help.md docs/xrserver_help.md: xr xrserver
 	@echo
 	@echo "# Regenerating the help text for the docs"
@@ -363,7 +378,7 @@ clean:
 	@echo
 	@echo "# Cleaning"
 	@rm -f cmds/xr/xrlib/shared_*.go registry/shared_*.go
-	@rm -f registry/http/ui/specattrs.js
+	@rm -f registry/http/ui/specattrs.js registry/http/ui/ui.tar
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*

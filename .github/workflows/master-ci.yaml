@@ -52,6 +52,7 @@ jobs:
           artifacts: |
             xr.*
             xrserver.*
+            ui.tar
           artifactErrorsFailBuild: true
           allowUpdates: true
           body: Latest development build of the 'xr(server)' executables.

@@ -4,10 +4,10 @@
 /xrserver.*
 /xr.*
 
-# Generated source code
+# Generated files that are not checked-in. Other generated files are checked-in
 /registry/shared_*.go
-/registry/http/ui/specattrs.js
 /cmds/xr/xrlib/shared_*.go
+/registry/http/ui/ui.tar
 /.mysql-data
 
 # Makefile semi-targets
@@ -27,6 +27,7 @@
 /.sharedfiles
 /.devimage
 /.xrlint
+/.ui.tar
 
 # Junk
 /hostit
