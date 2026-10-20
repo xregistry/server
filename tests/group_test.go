@@ -211,16 +211,9 @@ func TestGroupCreateIgnoresEpochAndCollisionPreservesExisting(t *testing.T) {
 	reg := NewRegistry("TestGroupCreateEpoch")
 	defer PassDeleteReg(t, reg)
 
-	model := `{
-  "groups": {
-    "widgets": {
-      "singular": "widget"
-    }
-  }
-}`
-	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
 
-	XHTTP(t, reg, "PUT", "/widgets/invalid", `{
+	XHTTP(t, reg, "PUT", "/dirs/invalid", `{
   "epoch": "create-only",
   "name": "original",
   "description": "original description",
@@ -228,9 +221,9 @@ func TestGroupCreateIgnoresEpochAndCollisionPreservesExisting(t *testing.T) {
     "owner": "original"
   }
 }`, 201, `{
-  "widgetid": "invalid",
-  "self": "http://localhost:8181/widgets/invalid",
-  "xid": "/widgets/invalid",
+  "dirid": "invalid",
+  "self": "http://localhost:8181/dirs/invalid",
+  "xid": "/dirs/invalid",
   "epoch": 1,
   "name": "original",
   "description": "original description",
@@ -238,35 +231,44 @@ func TestGroupCreateIgnoresEpochAndCollisionPreservesExisting(t *testing.T) {
     "owner": "original"
   },
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/invalid/files",
+  "filescount": 0
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/widgets/valid", `{
+	XHTTP(t, reg, "PUT", "/dirs/valid", `{
   "epoch": 99
 }`, 201, `{
-  "widgetid": "valid",
-  "self": "http://localhost:8181/widgets/valid",
-  "xid": "/widgets/valid",
+  "dirid": "valid",
+  "self": "http://localhost:8181/dirs/valid",
+  "xid": "/dirs/valid",
   "epoch": 1,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/valid/files",
+  "filescount": 0
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/widgets/null", `{
+	XHTTP(t, reg, "PUT", "/dirs/null", `{
   "epoch": null
 }`, 201, `{
-  "widgetid": "null",
-  "self": "http://localhost:8181/widgets/null",
-  "xid": "/widgets/null",
+  "dirid": "null",
+  "self": "http://localhost:8181/dirs/null",
+  "xid": "/dirs/null",
   "epoch": 1,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/null/files",
+  "filescount": 0
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/widgets/invalid", `{
+	XHTTP(t, reg, "PUT", "/dirs/invalid", `{
   "epoch": "create-only",
   "name": "changed",
   "description": "changed description",
@@ -275,8 +277,8 @@ func TestGroupCreateIgnoresEpochAndCollisionPreservesExisting(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"epoch\" for \"/widgets/invalid\" is not valid: must be a uinteger.",
-  "subject": "/widgets/invalid",
+  "title": "The attribute \"epoch\" for \"/dirs/invalid\" is not valid: must be a uinteger.",
+  "subject": "/dirs/invalid",
   "args": {
     "error_detail": "must be a uinteger",
     "name": "epoch"
@@ -286,10 +288,10 @@ func TestGroupCreateIgnoresEpochAndCollisionPreservesExisting(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "GET", "/widgets/invalid", "", 200, `{
-  "widgetid": "invalid",
-  "self": "http://localhost:8181/widgets/invalid",
-  "xid": "/widgets/invalid",
+	XHTTP(t, reg, "GET", "/dirs/invalid", "", 200, `{
+  "dirid": "invalid",
+  "self": "http://localhost:8181/dirs/invalid",
+  "xid": "/dirs/invalid",
   "epoch": 1,
   "name": "original",
   "description": "original description",
@@ -297,7 +299,10 @@ func TestGroupCreateIgnoresEpochAndCollisionPreservesExisting(t *testing.T) {
     "owner": "original"
   },
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/invalid/files",
+  "filescount": 0
 }
 `)
 }

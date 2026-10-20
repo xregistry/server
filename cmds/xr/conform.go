@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -62,7 +63,7 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	if config.Output != "text" && config.Output != "json" {
 		Error("--output must be one of: text, json")
 	}
-	if conformMutationSelected(runNames) {
+	if common.ArrayContains(runNames, "mutations") {
 		if !config.AllowMutations {
 			Error("--run mutations requires --allow-mutations")
 		}
@@ -152,15 +153,6 @@ func testServer(td *TD) {
 			break
 		}
 	}
-}
-
-func conformMutationSelected(names []string) bool {
-	for _, name := range names {
-		if name == "mutations" {
-			return true
-		}
-	}
-	return false
 }
 
 func resolveConformRunFuncs(names []string) []TestFn {
