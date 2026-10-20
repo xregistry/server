@@ -183,13 +183,13 @@ func (tx *Tx) Commit() *XRError {
 
 	if xErr := tx.WriteCache(true); xErr != nil {
 		// ignore any rollback error
-		tx.Rollback()
+		tx.Rollback() //xrlint:ignore
 		return xErr
 	}
 
 	if xErr := tx.Backend.Commit(tx); xErr != nil {
 		// ignore any rollback error
-		tx.Rollback()
+		tx.Rollback() //xrlint:ignore
 		return xErr
 	}
 

@@ -385,10 +385,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	traverseFromXid = func(reg *xrlib.Registry, xid *Xid, root string) *XRError {
-		// fmt.Printf("In %q\n", xid)
-		// defer fmt.Printf("Out %q\n", xid)
-
+	traverseFromXid = func(reg *xrlib.Registry, xid *Xid, root string) {
 		fname := xid.String()
 		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
 			fname += "$details"
@@ -779,8 +776,6 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				}
 			}
 		}
-
-		return nil
 	}
 
 	if len(args) == 0 {
@@ -1028,7 +1023,7 @@ func QueueSize() int {
 
 type traverseFunc func(xid *Xid) ([]byte, *XRError)
 
-var traverseFromXid = (func(reg *xrlib.Registry, xid *Xid, root string) *XRError)(nil)
+var traverseFromXid = (func(reg *xrlib.Registry, xid *Xid, root string))(nil)
 
 func ProcessWorkQueue() {
 	stop := false

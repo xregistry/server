@@ -55,7 +55,7 @@ func (s *Server) Close() {
 
 	// Release the backend's shared resources, e.g. the DB connection pool
 	if be, xErr := registry.NewDefaultBackend(s.XRSConfig); xErr == nil {
-		be.Close(s.XRSConfig)
+		be.Close(s.XRSConfig) //xrlint:ignore
 	}
 }
 
@@ -97,7 +97,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Unless an explicit Commit() is done, we'll always rollback. In
 		// which case this rollback is a no-op
 		if info.Tx != nil {
-			info.Tx.Rollback()
+			info.Tx.Rollback() //xrlint:ignore
 			info.Tx = nil
 		}
 
@@ -221,6 +221,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if xErr != nil {
+		if xErr.Type == "server_error" {
+			log.Printf(">>> Server Error <<<\n%s", xErr.Stack)
+		}
 		HTTPWriteError(info, xErr)
 	}
 
@@ -234,7 +237,7 @@ func (s *Server) serveOneAttempt(info *registry.RequestInfo) (retErr *XRError) {
 	defer func() {
 		if info.Tx != nil {
 			// Make sure we don't leave any dangling TXs on something bad
-			info.Tx.Rollback()
+			info.Tx.Rollback() //xrlint:ignore
 			info.Tx = nil
 		}
 
@@ -317,7 +320,7 @@ func (s *Server) serveOneAttempt(info *registry.RequestInfo) (retErr *XRError) {
 
 	if xErr != nil {
 		// Ignore possible error since we'r already in error state
-		tx.Rollback()
+		tx.Rollback() //xrlint:ignore
 	} else {
 		xErr = tx.Commit()
 	}
@@ -796,6 +799,31 @@ func SerializeQuery(info *registry.RequestInfo, resXIDs map[string][]string,
 
 	defer log.Trace("tx: %s", info.UUID)()
 
+	// ?filter=excludeall returns nothing
+	filters := info.Filters
+	if len(filters) == 1 && filters[0][0].Path == "excludeall"+string(DB_IN) {
+		if what != "Coll" {
+			return NewXRError("bad_filter",
+				info.OriginalRequest.URL.RequestURI(),
+				"value=excludeall",
+				"error_detail=\"excludeall\" must only be used "+
+					"on collections")
+		}
+		return nil
+	}
+
+	sortKey := info.SortKey
+	if sortKey != "" && what != "Coll" {
+		return NewXRError("sort_noncollection",
+			info.OriginalRequest.URL.RequestURI())
+	}
+
+	// Same for ?limit on non-collections:w
+	if info.Limit != 0 && what != "Coll" {
+		return NewXRError("pagination_noncollection",
+			info.OriginalRequest.URL.RequestURI())
+	}
+
 	// Make sure everything is ok before we send back the results
 	if xErr := info.Tx.Validate(); xErr != nil {
 		return xErr
@@ -842,9 +870,15 @@ func SerializeQuery(info *registry.RequestInfo, resXIDs map[string][]string,
 			// but "inline" flag is not enabled
 			info.Inlines = nil
 
-			info.AddInline("*")
-			info.AddInline("capabilities")
-			info.AddInline("modelsource")
+			addInlines := []string{"*", "capabilities", "modelsource"}
+
+			for _, add := range addInlines {
+				if info.Registry.Capabilities.IsAvailable(add) {
+					if xErr := info.AddInline(add); xErr != nil {
+						return xErr
+					}
+				}
+			}
 		}
 	}
 

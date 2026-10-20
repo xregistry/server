@@ -87,7 +87,8 @@ func TestTDDepCacheFail(td *TD) {
 
 func TestTDUtils(td *TD) {
 	reg := td.GetRegistry()
-	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
+	res, xErr := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
+	td.NoErrorStop(xErr, "Retrieving registry root MUST work")
 
 	td.Log("==== PASSing tests ====")
 	td.HTTPStatusMustEqual(res, 200, "GET /")
@@ -102,7 +103,7 @@ func TestTDUtils(td *TD) {
 	td.ObjReqMustEq(res.JSON, "createdat", "ts")
 	td.ObjReqMustEq(res.JSON, "modifiedat", "ts")
 
-	_, xErr := reg.GetCapabilities()
+	_, xErr = reg.GetCapabilities()
 	td.NoErrorStop(xErr, "Retrieving capabilities MUST work")
 
 	if reg.Capabilities == nil {

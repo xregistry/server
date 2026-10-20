@@ -2925,28 +2925,6 @@ func GenerateQuery(reg *registry.Registry, what string, XIDs []string) (string, 
 	limit := info.Limit
 	offset := info.Offset
 
-	// ?filter=excludeall returns nothing
-	if len(filters) == 1 && filters[0][0].Path == "excludeall"+string(DB_IN) {
-		if what != "Coll" {
-			return "", nil, NewXRError("bad_filter",
-				info.OriginalRequest.URL.RequestURI(),
-				"value=excludeall",
-				"error_detail=\"excludeall\" must only be used "+
-					"on collections")
-		}
-		return "", nil, nil
-	}
-
-	if sortKey != "" && what != "Coll" {
-		return "", nil, NewXRError("bad_sort", "",
-			"value="+sortKey,
-			"error_detail=can't sort on a non-collection results")
-	}
-
-	if limit != 0 && what != "Coll" {
-		return "", nil, NewXRError("pagination_noncollection", "")
-	}
-
 	ascDesc := "ASC"
 	sortJoin := ""
 	sortOrder := ""

@@ -764,7 +764,7 @@ func (m *Model) CreateModels(gPlural, gSingular, rPlural, rSingular string) (*Gr
 	}
 	rm, xErr := gm.AddResourceModelSimple(rPlural, rSingular)
 	if xErr != nil {
-		gm.Delete()
+		gm.Delete() //xrlint:ignore
 		return nil, nil, xErr
 	}
 	return gm, rm, nil

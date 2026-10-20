@@ -222,7 +222,7 @@ func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
 		return nil, xErr
 	}
 
-	defer tx.Rollback()
+	defer tx.Rollback() //xrlint:ignore
 
 	return tx.Backend.ListRegistries(tx)
 }

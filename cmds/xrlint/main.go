@@ -107,10 +107,19 @@
 // finds direct calls to that helper from functions or methods whose
 // receiver or parameters include *TD.
 //
+// # errtype details
+//
+// Every call to common.NewXRError must use an error type (arg 1) that is a
+// key in common.Type2Error, otherwise it panics at runtime. Constant
+// strings are checked directly. If arg 1 is a local variable then every
+// constant string assigned to it in the enclosing function is checked.
+// Anything else is reported as unverifiable. A trailing "//xrlint:ignore"
+// comment on the call line opts a call out.
+//
 // Usage:
 //
 //	go run ./cmds/xrlint [--nilcheck] [--unused] [--gofmt]
-//	    [--defertrace] [--tderror] [--xrerror] [packages...]
+//	    [--defertrace] [--tderror] [--xrerror] [--errtype] [packages...]
 //
 // With no package args it checks ./registry/... ./common/... ./cmds/...
 // ./tests/... (the tmp/ directory is intentionally excluded - it's a
@@ -123,6 +132,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/constant"
 	"go/token"
 	"go/types"
 	"os"
@@ -131,6 +141,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/xregistry/server/common"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -142,15 +153,17 @@ func isEmptyInterface(t types.Type) bool {
 func main() {
 	var nilcheckEnabled, unusedEnabled, gofmtEnabled bool
 	var defertraceEnabled, tderrorEnabled, xrerrorEnabled bool
+	var errtypeEnabled bool
 
 	rootCmd := &cobra.Command{
 		Use: "xrlint [packages...]",
 		Short: "Repo-specific static checks (nilcheck, unused funcs," +
-			" gofmt, defertrace, tderror, xrerror)",
+			" gofmt, defertrace, tderror, xrerror, errtype)",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(args, nilcheckEnabled, unusedEnabled, gofmtEnabled,
-				defertraceEnabled, tderrorEnabled, xrerrorEnabled)
+				defertraceEnabled, tderrorEnabled, xrerrorEnabled,
+				errtypeEnabled)
 		},
 	}
 	rootCmd.Flags().BoolVar(&nilcheckEnabled, "nilcheck", true,
@@ -165,6 +178,8 @@ func main() {
 		"check for process-exiting Error() calls in TD functions")
 	rootCmd.Flags().BoolVar(&xrerrorEnabled, "xrerror", true,
 		"check for *XRError results that are ignored/never checked")
+	rootCmd.Flags().BoolVar(&errtypeEnabled, "errtype", true,
+		"check that NewXRError error types exist in Type2Error")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -180,6 +195,7 @@ func run(
 	defertraceEnabled bool,
 	tderrorEnabled bool,
 	xrerrorEnabled bool,
+	errtypeEnabled bool,
 ) error {
 	if len(patterns) == 0 {
 		patterns = []string{
@@ -230,6 +246,9 @@ func run(
 	}
 	if xrerrorEnabled {
 		hits += runXRErrorCheck(pkgs, fset)
+	}
+	if errtypeEnabled {
+		hits += runErrTypeCheck(pkgs, fset)
 	}
 
 	if hits > 0 {
@@ -1086,6 +1105,114 @@ func runXRErrorCheck(pkgs []*packages.Package, fset *token.FileSet) int {
 			"result(s)\n", hits)
 	} else {
 		fmt.Println("\nxrerror: no unprocessed *XRError results found")
+	}
+	return hits
+}
+
+// runErrTypeCheck verifies that the error type passed to NewXRError exists
+// in common.Type2Error.
+func runErrTypeCheck(pkgs []*packages.Package, fset *token.FileSet) int {
+	fmt.Println("\n=== Unknown NewXRError error types ===")
+	hits := 0
+	seen := map[string]bool{}
+
+	for _, pkg := range pkgs {
+		info := pkg.TypesInfo
+		for _, file := range pkg.Syntax {
+			report := func(pos token.Pos, why string) {
+				p := fset.Position(pos)
+				key := fmt.Sprintf("%s:%d:%s", p.Filename, p.Line, why)
+				if seen[key] {
+					return
+				}
+				seen[key] = true
+				text := lineText(fset, pos)
+				if strings.Contains(text, "//xrlint:ignore") {
+					return
+				}
+				fmt.Printf("%s:%d: %s: %s\n", p.Filename, p.Line, why, text)
+				hits++
+			}
+
+			// Assignments of constants to local vars, for tracing 'errType'
+			assigned := map[types.Object][]ast.Expr{}
+			ast.Inspect(file, func(n ast.Node) bool {
+				as, ok := n.(*ast.AssignStmt)
+				if !ok || len(as.Lhs) != len(as.Rhs) {
+					return true
+				}
+				for i, l := range as.Lhs {
+					if id, ok := l.(*ast.Ident); ok {
+						obj := info.ObjectOf(id)
+						if obj != nil {
+							assigned[obj] = append(assigned[obj], as.Rhs[i])
+						}
+					}
+				}
+				return true
+			})
+
+			constStr := func(e ast.Expr) (string, bool) {
+				tv, ok := info.Types[e]
+				if ok && tv.Value != nil && tv.Value.Kind() == constant.String {
+					return constant.StringVal(tv.Value), true
+				}
+				return "", false
+			}
+
+			ast.Inspect(file, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok || len(call.Args) == 0 {
+					return true
+				}
+				var id *ast.Ident
+				switch f := call.Fun.(type) {
+				case *ast.Ident:
+					id = f
+				case *ast.SelectorExpr:
+					id = f.Sel
+				default:
+					return true
+				}
+				fn, ok := info.Uses[id].(*types.Func)
+				if !ok || fn.Name() != "NewXRError" || fn.Pkg() == nil ||
+					fn.Pkg().Path() != "github.com/xregistry/server/common" {
+					return true
+				}
+
+				arg := call.Args[0]
+				if v, ok := constStr(arg); ok {
+					if common.Type2Error[v] == nil {
+						report(call.Pos(), fmt.Sprintf("unknown error type %q", v))
+					}
+					return true
+				}
+
+				if aid, ok := arg.(*ast.Ident); ok {
+					if rhs := assigned[info.ObjectOf(aid)]; len(rhs) > 0 {
+						for _, e := range rhs {
+							v, ok := constStr(e)
+							if !ok {
+								report(call.Pos(),
+									"can't verify error type (non-constant assignment)")
+							} else if common.Type2Error[v] == nil {
+								report(call.Pos(),
+									fmt.Sprintf("unknown error type %q", v))
+							}
+						}
+						return true
+					}
+				}
+				report(call.Pos(), "can't verify error type (non-constant)")
+				return true
+			})
+		}
+	}
+
+	if hits > 0 {
+		fmt.Printf("\nerrtype: found %d problem(s)\n", hits)
+	} else {
+		fmt.Println("\nerrtype: all NewXRError types are known")
 	}
 	return hits
 }

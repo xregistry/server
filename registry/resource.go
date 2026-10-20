@@ -1182,36 +1182,44 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			// removed that logic (and the #-contenttype_ attr). Look for
 			// the ConvertResourceContents func and the hoops I had to just
 			// thru to make sure all cases were handled.
-			if ok && !IsNil(data) && reflect.ValueOf(data).Type().String() != "[]uint8" {
-				// Get the raw bytes of the "rm.Singular" json attribute
-				buf := []byte(nil)
-				switch reflect.ValueOf(data).Kind() {
-				case reflect.Float64, reflect.Map, reflect.Slice, reflect.Bool:
-					var err error
-					buf, err = json.MarshalIndent(data, "", "  ")
-					if err != nil {
-						return nil, false,
-							NewXRError("parsing_data", r.XID, err.Error())
+			if ok && !IsNil(data) {
+				// Not byte array so try to convert it
+				if reflect.ValueOf(data).Type().String() != "[]uint8" {
+					// Get the raw bytes of the "rm.Singular" json attribute
+					buf := []byte(nil)
+					switch reflect.ValueOf(data).Kind() {
+					case reflect.Float64, reflect.Map, reflect.Slice, reflect.Bool:
+						var err error
+						buf, err = json.MarshalIndent(data, "", "  ")
+						if err != nil {
+							return nil, false,
+								NewXRError("parsing_data", r.XID, err.Error())
+						}
+					case reflect.Invalid:
+						// I think this only happens when it's "null".
+						// just let 'buf' stay as nil
+					default:
+						str := fmt.Sprintf("%s", data)
+						buf = []byte(str)
 					}
-				case reflect.Invalid:
-					// I think this only happens when it's "null".
-					// just let 'buf' stay as nil
-				default:
-					str := fmt.Sprintf("%s", data)
-					buf = []byte(str)
-				}
-				vu.Obj[rm.Singular] = buf
+					vu.Obj[rm.Singular] = buf
 
-				// If there's a doc but no "contenttype" value then:
-				// - if existing entity doesn't have one, set it
-				// - if existing entity does have one then only override it
-				//   if we're not doing PATCH (PUT/POST are compelte overrides)
-				if _, ok := vu.Obj["contenttype"]; !ok {
-					val := v.Get("contenttype")
-					if IsNil(val) || vu.AddType != ADD_PATCH {
-						vu.Obj["contenttype"] = "application/json"
+					// If there's a doc but no "contenttype" value then:
+					// - if existing entity doesn't have one, set it
+					// - if existing entity does have one then only override it
+					//   if we're not doing PATCH (PUT/POST are compelte overrides)
+					if _, ok := vu.Obj["contenttype"]; !ok {
+						val := v.Get("contenttype")
+						if IsNil(val) || vu.AddType != ADD_PATCH {
+							vu.Obj["contenttype"] = "application/json"
+						}
 					}
 				}
+
+				// Either way - clear all other RESOURCE* attrs
+				// Don't set base64 to nil otherwise the next "if" will trigger
+				vu.Obj[rm.Singular+"url"] = nil
+				vu.Obj[rm.Singular+"proxyurl"] = nil
 			}
 
 			if d, ok := vu.Obj[r.Singular+"base64"]; ok {
@@ -1219,14 +1227,18 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 					content, err := base64.StdEncoding.DecodeString(d.(string))
 					if err != nil {
 						return nil, false,
-							NewXRError("invalid_atributes", r.XID,
-								"list="+r.Singular+"base64",
+							NewXRError("invalid_attribute", r.XID,
+								"name="+r.Singular+"base64",
 								"error_detail="+err.Error())
 					}
 					d = any(content)
 				}
 				vu.Obj[r.Singular] = d
 				delete(vu.Obj, r.Singular+"base64")
+
+				// clear other RESOURCE* attrs
+				vu.Obj[rm.Singular+"url"] = nil
+				vu.Obj[rm.Singular+"proxyurl"] = nil
 			}
 		}
 

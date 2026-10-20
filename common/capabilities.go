@@ -470,6 +470,11 @@ func (c *Capabilities) SetAvailable(data string, mutable bool) {
 
 // Is the data GET-able
 func (c *Capabilities) IsAvailable(str string) bool {
+	// Always available - even if the real list is empty
+	if str == "*" {
+		return true
+	}
+
 	if c.Available == nil {
 		return false
 	}

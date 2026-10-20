@@ -56,7 +56,7 @@ func NewRequestInfo(uuid string, xrsConfig *Config, w http.ResponseWriter,
 func (info *RequestInfo) Reset() {
 	if info.Tx != nil {
 		// Should never happen, but just incase
-		info.Tx.Rollback()
+		info.Tx.Rollback() //xrlint:ignore
 		info.Tx = nil
 	}
 
@@ -260,15 +260,15 @@ func (info *RequestInfo) ParseFilters() *XRError {
 			}
 
 			/*
-								if info.What != "Coll" && strings.Index(path, "/") < 0 {
-								return NewXRError("bad_filter",
-				                info.OriginalRequest.URL.RequestURI(),
-								"value=" + path,
-								"error_detail=" +
-								fmt.Sprintf("a filter with just an attribute " +
-								"name (%s) isn't allowed in this context",
-								path)
-								}
+				if info.What != "Coll" && strings.Index(path, "/") < 0 {
+					return NewXRError("bad_filter",
+					    info.OriginalRequest.URL.RequestURI(),
+						"value=" + path,
+						"error_detail=" +
+						fmt.Sprintf("a filter with just an attribute " +
+						"name (%s) isn't allowed in this context",
+						path)
+				}
 			*/
 
 			// If the request wasn't at the root, then add in the
@@ -503,7 +503,9 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 					"Registry or Group instance level.")
 		}
 		// Force inline=* to be on
-		info.AddInline("*")
+		if xErr := info.AddInline("*"); xErr != nil {
+			return xErr
+		}
 	}
 
 	if info.HasFlag("sort") {
@@ -551,9 +553,8 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 		(info.HasFlag("limit") || info.HasFlag("offset")) {
 
 		if info.What != "Coll" {
-			return NewXRError("bad_request",
-				info.OriginalRequest.URL.RequestURI(),
-				"error_detail=Can't paginate a non-collection result set")
+			return NewXRError("pagination_noncollection",
+				info.OriginalRequest.URL.RequestURI())
 		}
 
 		if info.HasFlag("limit") {

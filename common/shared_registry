@@ -58,8 +58,7 @@ func NewRegistry(tx *Tx, config *Config, id string) (*Registry, *XRError) {
 			if xErr == nil {
 				xErr = tx.Commit()
 			} else {
-				//xrlint:ignore
-				tx.Rollback()
+				tx.Rollback() //xrlint:ignore
 			}
 		}
 	}()
@@ -233,14 +232,14 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 			// go ahead and close the Tx. It'll be reopened later if needed.
 			// If a Tx was passed in then don't close it, the caller will
 			if newTx { // not needed?
-				tx.Rollback()
+				tx.Rollback() //xrlint:ignore
 			}
 		}()
 	}
 
 	defer func() {
 		if newTx {
-			tx.Rollback()
+			tx.Rollback() //xrlint:ignore
 		}
 	}()
 
@@ -258,7 +257,7 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 
 	if xErr != nil {
 		if newTx {
-			tx.Rollback()
+			tx.Rollback() //xrlint:ignore
 		}
 		return nil, xErr
 	}

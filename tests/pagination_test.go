@@ -317,48 +317,36 @@ func TestPaginationErrors(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "/?limit=2", "", 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't paginate a non-collection result set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#pagination_noncollection",
+  "title": "Can't use pagination on a non-collection result set. Query path: /?limit=2.",
   "subject": "/?limit=2",
-  "args": {
-    "error_detail": "Can't paginate a non-collection result set"
-  },
-  "instance": "3b9a3cbbeb4d40b3",
-  "source": "9f636df17262:registry:info:861"
+  "instance": "27aed0ee71ac4b42",
+  "source": "415c7e40a01c:registry:info:556"
 }
 `)
 	XHTTP(t, reg, "GET", "/dirs/d1?limit=2", "", 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't paginate a non-collection result set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#pagination_noncollection",
+  "title": "Can't use pagination on a non-collection result set. Query path: /dirs/d1?limit=2.",
   "subject": "/dirs/d1?limit=2",
-  "args": {
-    "error_detail": "Can't paginate a non-collection result set"
-  },
-  "instance": "85ef212da7004b22",
-  "source": "9f636df17262:registry:info:861"
+  "instance": "2b4ebdf773324560",
+  "source": "415c7e40a01c:registry:info:556"
 }
 `)
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?limit=2", "", 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't paginate a non-collection result set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#pagination_noncollection",
+  "title": "Can't use pagination on a non-collection result set. Query path: /dirs/d1/files/f1?limit=2.",
   "subject": "/dirs/d1/files/f1?limit=2",
-  "args": {
-    "error_detail": "Can't paginate a non-collection result set"
-  },
-  "instance": "443472164ee1411f",
-  "source": "9f636df17262:registry:info:861"
+  "instance": "99cb237768d643df",
+  "source": "415c7e40a01c:registry:info:556"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?limit=2", "", 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't paginate a non-collection result set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#pagination_noncollection",
+  "title": "Can't use pagination on a non-collection result set. Query path: /dirs/d1/files/f1/versions/v1?limit=2.",
   "subject": "/dirs/d1/files/f1/versions/v1?limit=2",
-  "args": {
-    "error_detail": "Can't paginate a non-collection result set"
-  },
-  "instance": "49e200aea5d94a24",
-  "source": "9f636df17262:registry:info:861"
+  "instance": "9473f17fe9a640e0",
+  "source": "415c7e40a01c:registry:info:556"
 }
 `)
 

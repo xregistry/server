@@ -46,6 +46,7 @@ func MustNewDefaultBackend(c *Config) Backend {
 
 type Backend interface {
 	// DB related stuff
+	/////////////////////////////////////////////////////////////////////
 	DBExists(c *Config, name string) bool
 	DBCreate(c *Config, name string) *XRError
 	DBDelete(c *Config, name string) *XRError
@@ -57,33 +58,54 @@ type Backend interface {
 	Close(c *Config) *XRError
 
 	// Tx related stuff
+	/////////////////////////////////////////////////////////////////////
 	NewTx(tx *Tx) *XRError
 	Commit(tx *Tx) *XRError
 	Rollback(tx *Tx) *XRError
 
 	// Model related stuff
+	/////////////////////////////////////////////////////////////////////
+
+	// Clear the given systemProps from all versions/resources of rm type
 	ClearResourceModelSystemProps(rm *ResourceModel, props []string) *XRError
 
 	// Make Entity known to the backend/DB
+	// Doesn't save any user props yet, just make it known. It will creaet
+	// some system managed props though:
+	// all: xid
+	// version: RESOURCEid, isdefault
 	RegisterEntity(e *Entity) *XRError
 
+	// Populate r.Capabilities with latest
 	LoadCapabilities(r *Registry) (*Capabilities, *XRError)
+	// Store r.Capabilities to DB
 	SaveCapabilities(r *Registry) *XRError
 
-	LoadModel(r *Registry) (*Model, *XRError) // Load but don't set r.Model
+	// Load model from DB but do not store it in r.Model yet
+	LoadModel(r *Registry) (*Model, *XRError)
+	// Save r.Model to DB
 	SaveModel(r *Registry) *XRError
+
+	// Add GM/RM to their Registry model in the DB
 	RegisterGroupModel(gm *GroupModel) *XRError
 	RegisterResourceModel(rm *ResourceModel) *XRError
 
-	// DeleteModelEntitiesByAbstact must delete all entities of that type
+	// DeleteModelEntitiesByAbstact must delete all instances of that type
+	// May need to create one for GM and one for RM
 	DeleteModelEnityByAbstract(reg *Registry, abstract string) *XRError
 
 	// map(Abs->SID)
+	// Load all model entities (GM, RM) by abstract, along with their SIDs
 	GetModelEntitiesByAbstract(r *Registry) (map[string]string, *XRError)
 
+	// How many Group instances use the GM SID?
 	CountGroupModelUsed(r *Registry, gmSID string) (int, *XRError)
+	// How many Resources use the RM SID? Across all Group instances
 	CountResourceModelUsed(r *Registry, rmSID string) (int, *XRError)
-	// versionXID, attribugName, error - vXID of version with hasDoc=true
+
+	// Find all Versions of instances of RM that have document, either in
+	// any of the RESOURCE* props
+	// versionXID, attribugName, error
 	IsHasDocUsed(r *Registry, rm *ResourceModel) (string, string, *XRError)
 
 	// versionXID of version that has doc content
