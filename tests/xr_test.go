@@ -3770,12 +3770,17 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
   },
   "modelsource": {
     "groups": {
-      "widgets": {
-        "singular": "widget"
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file"
+          }
+        }
       }
     }
   },
-  "widgets": {
+  "dirs": {
     "existing": {
       "name": "original",
       "labels": {
@@ -3792,13 +3797,13 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
-  "widgetsurl": "http://localhost:8181/widgets",
-  "widgetscount": 1
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
 }
 `)
 
-		XHTTP(t, reg, "PUT", "/widgets/existing", `{
-  "widgetid": "existing",
+		XHTTP(t, reg, "PUT", "/dirs/existing", `{
+  "dirid": "existing",
   "epoch": "xr-conform-create-only",
   "name": "changed",
   "labels": {
@@ -3806,8 +3811,8 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"epoch\" for \"/widgets/existing\" is not valid: must be a uinteger.",
-  "subject": "/widgets/existing",
+  "title": "The attribute \"epoch\" for \"/dirs/existing\" is not valid: must be a uinteger.",
+  "subject": "/dirs/existing",
   "args": {
     "error_detail": "must be a uinteger",
     "name": "epoch"
@@ -3817,17 +3822,20 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
 }
 `)
 
-		XHTTP(t, reg, "GET", "/widgets/existing", "", 200, `{
-  "widgetid": "existing",
-  "self": "http://localhost:8181/widgets/existing",
-  "xid": "/widgets/existing",
+		XHTTP(t, reg, "GET", "/dirs/existing", "", 200, `{
+  "dirid": "existing",
+  "self": "http://localhost:8181/dirs/existing",
+  "xid": "/dirs/existing",
   "epoch": 1,
   "name": "original",
   "labels": {
     "fixture": "true"
   },
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/existing/files",
+  "filescount": 0
 }
 `)
 
@@ -3836,7 +3844,7 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
 └─ PASS: TestTDGroupCreateReadDelete (skip:1)
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
-   ├─ PASS: Confirm mutation destination is absent
+   ├─ PASS: Confirm target Group is absent
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ PASS: Clean up run-owned Group
@@ -3845,27 +3853,81 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
 
 		expectedCollection := `{
   "existing": {
-    "widgetid": "existing",
-    "self": "http://localhost:8181/widgets/existing",
-    "xid": "/widgets/existing",
+    "dirid": "existing",
+    "self": "http://localhost:8181/dirs/existing",
+    "xid": "/dirs/existing",
     "epoch": 1,
     "name": "original",
     "labels": {
       "fixture": "true"
     },
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/existing/files",
+    "filescount": 0
   }
 }
 `
-		XHTTP(t, reg, "GET", "/widgets", "", 200, expectedCollection)
+		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
 
 		XCLI(t, "conform --run mutations --allow-mutations --output json "+
 			target, "",
 			expectedOutput(t, "files/conform-output/mutations-success.json"),
 			"", 0)
 
-		XHTTP(t, reg, "GET", "/widgets", "", 200, expectedCollection)
+		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
+	})
+
+	t.Run("lifecycle without epoch flag", func(t *testing.T) {
+		reg := NewRegistry("TestXRConformMutationsNoEpochFlag")
+		defer PassDeleteReg(t, reg)
+
+		XHTTP(t, reg, "PUT", "/", `{
+  "capabilities": {
+    "available": {
+      "capabilities": {"mutable": true},
+      "entities": {"mutable": true},
+      "model": {"mutable": false}
+    }
+  },
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {"singular": "file"}
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConformMutationsNoEpochFlag",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+		XCLI(t, "conform --run mutations --allow-mutations -d3 "+target, "",
+			`PASS: http://localhost:8181 (skip:1)
+└─ PASS: TestTDGroupCreateReadDelete (skip:1)
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   ├─ PASS: Confirm target Group is absent
+   ├─ PASS: Create run-owned Group
+   ├─ PASS: Read run-owned Group
+   └─ PASS: Clean up run-owned Group
+Pass: 45   Fail: 0   Warn: 0   Skip: 1
+`, "", 0)
+
+		XHTTP(t, reg, "GET", "/dirs", "", 200, "{}\n")
 	})
 
 	tests := []struct {
@@ -3915,8 +3977,11 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
 				XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
-      "widgets": {
-        "singular": "widget"
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {"singular": "file"}
+        }
       }
     }
   }
@@ -3929,8 +3994,8 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
-  "widgetsurl": "http://localhost:8181/widgets",
-  "widgetscount": 0
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
 }
 `)
 
@@ -3981,8 +4046,11 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
   },
   "modelsource": {
     "groups": {
-      "widgets": {
-        "singular": "widget"%s
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {"singular": "file"}
+        }%s
       }
     }
   }
@@ -3995,8 +4063,8 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
-  "widgetsurl": "http://localhost:8181/widgets",
-  "widgetscount": 0
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
 }
 `)
 			}
@@ -4049,7 +4117,12 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
   },
   "modelsource": {
     "groups": {
-      "widgets": {"singular": "widget"}
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {"singular": "file"}
+        }
+      }
     }
   }
 }`, 200, `{
@@ -4061,8 +4134,8 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
-  "widgetsurl": "http://localhost:8181/widgets",
-  "widgetscount": 0
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
 }
 `)
 
@@ -4083,7 +4156,11 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 								switch r.Method {
 								case http.MethodGet:
 									groupGets++
+									// The first GET is the normal read. The second
+									// is the deferred cleanup ownership probe.
 									if groupGets == 2 {
+										// Fail only cleanup so we can assert that
+										// no DELETE follows and the Group remains.
 										http.Error(w, "cleanup unavailable",
 											http.StatusServiceUnavailable)
 										return
@@ -4092,6 +4169,8 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 									deletes++
 								}
 							}
+							// Keep normal traffic on the real server; this wrapper
+							// only injects the cleanup GET failure above.
 							response := httptest.NewRecorder()
 							MainServer.ServeHTTP(response, r)
 							if r.Method == http.MethodPut {
@@ -4122,7 +4201,7 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 					gotOwner := owner
 					gotDeletes := deletes
 					mu.Unlock()
-					XCheck(t, strings.HasPrefix(path, "/widgets/xr-conform-"),
+					XCheck(t, strings.HasPrefix(path, "/dirs/xr-conform-"),
 						"Expected the run-owned Group path, got %q", path)
 					XEqual(t, "Cleanup DELETE requests", gotDeletes, 0)
 
@@ -4130,12 +4209,13 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 └─ FAIL: TestTDGroupCreateReadDelete (skip:1)
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
-   ├─ PASS: Confirm mutation destination is absent
+   ├─ PASS: Confirm target Group is absent
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ FAIL: Clean up run-owned Group
+      ├─ Cleanup GET response: 503 Service Unavailable; body: "cleanup unavailable"
       ├─ FAIL: Cleanup GET MUST return 200 or 404
-      └─ Run-owned Group may remain: /widgets/xr-conform-RUN
+      └─ Run-owned Group may remain: /dirs/xr-conform-RUN
 Pass: 39   Fail: 4   Warn: 0   Skip: 1
 `
 					if output == "json" {
@@ -4144,12 +4224,12 @@ Pass: 39   Fail: 4   Warn: 0   Skip: 1
 					}
 					got := strings.NewReplacer(
 						server.URL, "http://mutation-test",
-						path, "/widgets/xr-conform-RUN").Replace(result.Stdout)
+						path, "/dirs/xr-conform-RUN").Replace(result.Stdout)
 					XEqual(t, "Cleanup failure output", got, expected)
 
-					id := strings.TrimPrefix(path, "/widgets/")
+					id := strings.TrimPrefix(path, "/dirs/")
 					XHTTP(t, reg, "GET", path, "", 200, fmt.Sprintf(`{
-  "widgetid": "%s",
+  "dirid": "%s",
   "self": "http://localhost:8181%s",
   "xid": "%s",
   "epoch": 1,
@@ -4157,9 +4237,12 @@ Pass: 39   Fail: 4   Warn: 0   Skip: 1
     "xr-conform-run": "%s"
   },
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181%s/files",
+  "filescount": 0
 }
-`, id, path, path, gotOwner))
+`, id, path, path, gotOwner, path))
 				})
 		}
 	}

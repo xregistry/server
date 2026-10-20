@@ -193,7 +193,7 @@
             },
             {
               "subtest": {
-                "name": "Confirm mutation destination is absent",
+                "name": "Confirm target Group is absent",
                 "status": "PASS",
                 "pass": 2,
                 "fail": 0,
