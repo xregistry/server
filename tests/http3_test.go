@@ -2355,6 +2355,58 @@ func TestHTTPSortArray(t *testing.T) {
 }
 `)
 
+	XHTTP(t, reg, "GET", "/dirs?sort", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_sort",
+  "title": "For \"/dirs?sort\", an error was found in \"sort\" value (): missing \"sort\" attribute name.",
+  "subject": "/dirs?sort",
+  "args": {
+    "error_detail": "missing \"sort\" attribute name",
+    "value": ""
+  },
+  "instance": "7c47061875a04d80",
+  "source": "415c7e40a01c:registry:info:520"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?sort=", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_sort",
+  "title": "For \"/dirs?sort=\", an error was found in \"sort\" value (): missing \"sort\" attribute name.",
+  "subject": "/dirs?sort=",
+  "args": {
+    "error_detail": "missing \"sort\" attribute name",
+    "value": ""
+  },
+  "instance": "6d1276e2a9a84f02",
+  "source": "415c7e40a01c:registry:info:520"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?sort=a..", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_sort",
+  "title": "For \"/dirs?sort=a..\", an error was found in \"sort\" value (a..): bad attribute name(a..): Unexpected \".\" in \"a..\" at pos 3.",
+  "subject": "/dirs?sort=a..",
+  "args": {
+    "error_detail": "bad attribute name(a..): Unexpected \".\" in \"a..\" at pos 3",
+    "value": "a.."
+  },
+  "instance": "1ee1fdc32a164985",
+  "source": "415c7e40a01c:registry:info:535"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?sort=strs[0]=foo", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_sort",
+  "title": "For \"/dirs?sort=strs[0]=foo\", an error was found in \"sort\" value (strs[0]=foo): invalid \"sort\" order \"foo\".",
+  "subject": "/dirs?sort=strs[0]=foo",
+  "args": {
+    "error_detail": "invalid \"sort\" order \"foo\"",
+    "value": "strs[0]=foo"
+  },
+  "instance": "18e06377adc64c93",
+  "source": "415c7e40a01c:registry:info:526"
+}
+`)
+
 }
 
 func TestHTTPJsonSchema(t *testing.T) {
@@ -4861,7 +4913,7 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	}
 
 	// Plain (default registry) URL. reg1 is the default registry here
-	// (NewRegistry() sets registry.DefaultRegDbSID to whichever Registry
+	// (NewRegistry() sets registry.DefaultRegistrySID to whichever Registry
 	// was created/found most recently - see tests/utils_test.go), so the
 	// bare host base URL (no "/xregs/<name>" suffix - it's just an alias
 	// for whichever registry is currently the default) must show up too.

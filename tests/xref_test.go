@@ -17,12 +17,11 @@ func TestXrefBasic(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", "{}", 201, `*`)
 	reg.LoadModel()
-	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/", registry.FOR_READ)
+	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/", FOR_READ)
 	XNoErr(t, err)
 
-	rows := reg.Query("select * from Versions where ResourceSID=?",
-		f1.DbSID)
-	XEqual(t, "", len(rows), 1) // Just to be sure Query works ok
+	vers, _ := f1.GetVersionIDs()
+	XEqual(t, "", len(vers), 1) // Just to be sure Query works ok
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"dirs/d1/files/f1"}`, 400, // missing leading /
@@ -57,7 +56,7 @@ func TestXrefBasic(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
 
-	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", registry.FOR_READ)
+	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", FOR_READ)
 	XNoErr(t, err)
 
 	// Grab #createdat so we can make sure it's used when we remove 'xref'
@@ -66,9 +65,8 @@ func TestXrefBasic(t *testing.T) {
 
 	// Make sure the Resource doesn't have any versions in the DB.
 	// Use fx.GetVersions() will grab from xref target so don't use that
-	rows = reg.Query("select * from Versions where ResourceSID=?",
-		fx.DbSID)
-	XEqual(t, "", len(rows), 0)
+	vers, _ = fx.GetVersionIDs()
+	XEqual(t, "", len(vers), 0)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files?inline=meta", "", 200, `{
   "f1": {
@@ -166,10 +164,10 @@ func TestXrefBasic(t *testing.T) {
 }
 `)
 
-	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/", registry.FOR_READ)
+	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/", FOR_READ)
 	XNoErr(t, err)
 
-	fx, err = reg.FindResourceByXID("/dirs/d1/files/fx", "/", registry.FOR_READ)
+	fx, err = reg.FindResourceByXID("/dirs/d1/files/fx", "/", FOR_READ)
 	XNoErr(t, err)
 
 	XEqual(t, "", fx.Get("description"), "testing xref")
@@ -291,9 +289,8 @@ func TestXrefBasic(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":null}`, 200, `*`)
 
-	rows = reg.Query("select * from Versions where ResourceSID=?",
-		fx.DbSID)
-	XEqual(t, "", len(rows), 1)
+	vers, _ = fx.GetVersionIDs()
+	XEqual(t, "", len(vers), 1)
 
 	meta, err = reg.FindXIDMeta("/dirs/d1/files/fx/meta", "/")
 	XNoErr(t, err)
@@ -400,9 +397,8 @@ func TestXrefBasic(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 200, `*`)
 
-	rows = reg.Query("select * from Versions where ResourceSID=?",
-		fx.DbSID)
-	XEqual(t, "", len(rows), 0)
+	vers, _ = fx.GetVersionIDs()
+	XEqual(t, "", len(vers), 0)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
   "f1": {
@@ -1053,7 +1049,7 @@ func TestXrefRevert(t *testing.T) {
 
 	// Grab F0's timestamp so we can compare later
 	reg.LoadModel()
-	f0, err := reg.FindResourceByXID("/dirs/d1/files/f0", "/", registry.FOR_READ)
+	f0, err := reg.FindResourceByXID("/dirs/d1/files/f0", "/", FOR_READ)
 	XNoErr(t, err)
 	f0TS := f0.Get("createdat").(string)
 	XCheck(t, f0TS > "2024", "bad ts: %s", f0TS)
@@ -1095,7 +1091,7 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 1
 }
 `)
-	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", registry.FOR_READ)
+	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", FOR_READ)
 	XNoErr(t, err)
 	fxMeta, err := fx.FindMeta(false)
 	XNoErr(t, err)
@@ -1172,8 +1168,8 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 1
 }
 `)
-	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fxMeta.Refresh(FOR_WRITE))
+	XNoErr(t, fx.Refresh(FOR_WRITE))
 	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1251,8 +1247,8 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fxMeta.Refresh(FOR_WRITE))
+	XNoErr(t, fx.Refresh(FOR_WRITE))
 	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1329,8 +1325,8 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fxMeta.Refresh(FOR_WRITE))
+	XNoErr(t, fx.Refresh(FOR_WRITE))
 	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1424,8 +1420,8 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fxMeta.Refresh(FOR_WRITE))
+	XNoErr(t, fx.Refresh(FOR_WRITE))
 	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1519,8 +1515,8 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 2
 }
 `)
-	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fxMeta.Refresh(FOR_WRITE))
+	XNoErr(t, fx.Refresh(FOR_WRITE))
 	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1578,8 +1574,8 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fxMeta.Refresh(FOR_WRITE))
+	XNoErr(t, fx.Refresh(FOR_WRITE))
 	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -2224,7 +2220,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
 `)
 
 	reg.LoadModel()
-	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", registry.FOR_READ)
+	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", FOR_READ)
 	XNoErr(t, err)
 	numVers, xErr := fx.GetNumberOfVersions()
 	XNoErr(t, xErr)
@@ -2399,7 +2395,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
 }
 `)
 
-	fy, err := reg.FindResourceByXID("/dirs/d1/files/fy", "/", registry.FOR_READ)
+	fy, err := reg.FindResourceByXID("/dirs/d1/files/fy", "/", FOR_READ)
 	XNoErr(t, err)
 	numVers, xErr = fy.GetNumberOfVersions()
 	XNoErr(t, xErr)
@@ -3494,14 +3490,11 @@ func TestXrefOrderTargetDeletedViaGroupBulkDelete(t *testing.T) {
 func getUsesXref(t *testing.T, reg *registry.Registry) bool {
 	t.Helper()
 	tx := reg.GetTx()
-	results := registry.Query(tx, `SELECT UsesXref FROM Registries WHERE SID=?`,
-		reg.DbSID)
-	defer results.Close()
-	row := results.NextRow()
-	if row == nil {
-		t.Fatalf("no Registries row found for %q", reg.UID)
+	usesXref, xErr := tx.Backend.RegistryGetUsesXref(reg)
+	if xErr != nil {
+		t.Fatalf("error checking usesXref: %s", xErr)
 	}
-	return NotNilBoolDef(row[0], false)
+	return usesXref
 }
 
 // A fresh Registry that has never used xref must have UsesXref=false.

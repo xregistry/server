@@ -6,7 +6,7 @@
 
 # Generated source code
 /registry/shared_*.go
-/registry/ui/specattrs.js
+/registry/http/ui/specattrs.js
 /cmds/xr/xrlib/shared_*.go
 /.mysql-data
 

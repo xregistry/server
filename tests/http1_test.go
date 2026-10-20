@@ -13491,3 +13491,171 @@ func TestHTTPNullCollEntity(t *testing.T) {
 }
 `)
 }
+
+func TestHTTPResourceAttrs(t *testing.T) {
+	reg := NewRegistry("TestHTTPResourceAttrs")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+
+        "resources": {
+          "files": {
+            "singular": "file",
+            "hasdocument": true
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {
+          "fileproxyurl": "abc"
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestHTTPResourceAttrs",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-10-20T01:00:33.358023299Z",
+  "modifiedat": "2026-10-20T01:00:33.370002352Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:        "/dirs/d1/files/f1",
+		Method:     "PUT",
+		ReqHeaders: []string{},
+		ReqBody:    "My cool doc",
+		Code:       200,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 1",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xRegistry-xid: /dirs/d1/files/f1",
+			"xRegistry-epoch: 2",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2024-01-01T12:00:01Z",
+			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
+			"xRegistry-ancestorid: 1",
+			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xRegistry-versionscount: 1",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"content-disposition: inline; filename=\"f1\"",
+			"Content-Length: 11",
+		},
+		ResBody: `My cool doc`})
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"fileurl":"qwe"}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2026-10-20T01:12:02.182458905Z",
+  "modifiedat": "2026-10-20T01:12:02.24419918Z",
+  "ancestorid": "1",
+
+  "fileurl": "qwe",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:        "/dirs/d1/files/f1",
+		Method:     "PUT",
+		ReqHeaders: []string{},
+		ReqBody:    "My cool doc",
+		Code:       200,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 1",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xRegistry-xid: /dirs/d1/files/f1",
+			"xRegistry-epoch: 4",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2024-01-01T12:00:01Z",
+			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
+			"xRegistry-ancestorid: 1",
+			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xRegistry-versionscount: 1",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"content-disposition: inline; filename=\"f1\"",
+			"Content-Length: 11",
+		},
+		ResBody: `My cool doc`})
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"fileurl":"qwe"}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 5,
+  "isdefault": true,
+  "createdat": "2026-10-20T01:12:02.182458905Z",
+  "modifiedat": "2026-10-20T01:12:02.24419918Z",
+  "ancestorid": "1",
+
+  "fileurl": "qwe",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"filebase64":"qwe"}`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"filebase64\" for \"/dirs/d1/files/f1\" is not valid: illegal base64 data at input byte 0.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "error_detail": "illegal base64 data at input byte 0",
+    "name": "filebase64"
+  },
+  "instance": "b3bafd5ded434e3b",
+  "source": "415c7e40a01c:registry:resource:1230"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details",
+		`{"filebase64":"aGVsbG8="}`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 6,
+  "isdefault": true,
+  "createdat": "2026-10-20T01:53:16.401410797Z",
+  "modifiedat": "2026-10-20T01:53:16.538910254Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+}

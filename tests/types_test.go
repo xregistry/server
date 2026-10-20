@@ -577,11 +577,11 @@ func TestTypesBasic(t *testing.T) {
 				t.FailNow()
 			}
 			if xErr != nil {
-				// entity.Refresh(registry.FOR_WRITE)
+				// entity.Refresh(FOR_WRITE)
 			}
 		}
 
-		// entity.Refresh(registry.FOR_WRITE) // and then re-get props from DB
+		// entity.Refresh(FOR_WRITE) // and then re-get props from DB
 
 		for _, prop := range test.Props {
 			if prop.ErrMsg != "" {
@@ -813,7 +813,7 @@ func TestTypesBasic(t *testing.T) {
 }
 `)
 
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 
 	// Make sure deleting an array item from missing array is a no-op
 	err = reg.SetSave("regarrayint[0]", nil)
@@ -863,7 +863,7 @@ func TestTypesBasic(t *testing.T) {
 }
 `)
 
-	dir.Refresh(registry.FOR_WRITE)
+	dir.Refresh(FOR_WRITE)
 
 	// Make sure deleting an array item from missing array is a no-op
 	err = dir.SetSave("dirarrayint[0]", nil)
@@ -916,7 +916,7 @@ func TestTypesBasic(t *testing.T) {
 }
 `)
 
-	file.Refresh(registry.FOR_WRITE)
+	file.Refresh(FOR_WRITE)
 
 	// Make sure deleting a string field from a missing/cleared resource is a no-op
 	err = file.SetSave("filestring1", nil)
@@ -939,7 +939,7 @@ func TestTypesBasic(t *testing.T) {
 }
 `)
 
-	ver.Refresh(registry.FOR_WRITE)
+	ver.Refresh(FOR_WRITE)
 
 	// Make sure deleting an integer field from a missing/cleared version is a no-op
 	err = ver.SetSave("fileint1", nil)
@@ -989,13 +989,13 @@ func TestTypesWildcardBool(t *testing.T) {
 
 	err = reg.SetSave("ext1", true)
 	XCheck(t, err == nil, "set ext1: %s", err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	val := reg.Get("ext1")
 	XCheck(t, val == true, "get ext1: %v", val)
 
 	err = reg.SetSave("ext1", false)
 	XCheck(t, err == nil, "set ext1-2: %s", err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	XCheck(t, reg.Get("ext1") == false, "get ext1-2: %v", val)
 }
 
@@ -1009,20 +1009,20 @@ func TestTypesWildcardAny(t *testing.T) {
 	// Make sure we can set the same attr to two different types
 	err := reg.SetSave("ext1", 5.5)
 	XCheck(t, err == nil, "set ext1: %s", err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	val := reg.Get("ext1")
 	XCheck(t, val == 5.5, "get ext1: %v", val)
 
 	err = reg.SetSave("ext1", "foo")
 	XCheck(t, err == nil, "set ext2: %s", err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	val = reg.Get("ext1")
 	XCheck(t, val == "foo", "get ext2: %v", val)
 
 	// Make sure we add one of a different type
 	err = reg.SetSave("ext2", true)
 	XCheck(t, err == nil, "set ext3 %s", err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	val = reg.Get("ext2")
 	XCheck(t, val == true, "get ext3: %v", val)
 }
@@ -1051,7 +1051,7 @@ func TestTypesWildcard2Layers(t *testing.T) {
 
 	err = reg.SetSave("obj.map.k1", 5)
 	XCheck(t, err == nil, "set foo.k1: %s", err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	val := reg.Get("obj.map.k1")
 	XCheck(t, val == 5, "get foo.k1: %v", val)
 
@@ -1066,11 +1066,11 @@ func TestTypesWildcard2Layers(t *testing.T) {
   },
   "source": "e4e59b8a76c4:registry:entity:2388"
 }`)
-	// reg.Refresh(registry.FOR_WRITE) // clear bad data
+	// reg.Refresh(FOR_WRITE) // clear bad data
 
 	err = reg.SetSave("obj.myany.foo.k1.k2", 5)
 	XCheck(t, err == nil, "set obj.myany.foo.k1.k2: %s", err)
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	val = reg.Get("obj.myany.foo.k1.k2")
 	XCheck(t, val == 5, "set obj.myany.foo.k1.k2: %v", val)
 	val = reg.Get("obj.myany.bogus.k1.k2")
@@ -1290,7 +1290,7 @@ func TestTypesNameCharSet(t *testing.T) {
 	err = reg.SetSave("obj1.foo-bar", 5)
 	XCheck(t, err == nil, "set foo.foo-bar: %s", err)
 
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 
 	val := reg.Get("obj1.attr1-")
 	XCheck(t, val == "a1", "set obj1.attr1-: %v", val)

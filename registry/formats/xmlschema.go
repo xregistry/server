@@ -122,7 +122,7 @@
 //   - xs:key / xs:keyref / xs:unique identity constraints
 //     are not analysed.
 
-package registry
+package formats
 
 import (
 	"encoding/xml"
@@ -133,6 +133,7 @@ import (
 	"strings"
 
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 const XMLSCHEMA_FORMAT = "xmlschema*"
@@ -140,14 +141,14 @@ const XMLSCHEMA_FORMAT = "xmlschema*"
 const xmlSchemaNS = "http://www.w3.org/2001/XMLSchema"
 
 func init() {
-	RegisterFormat(XMLSCHEMA_FORMAT, FormatXMLSchema{})
+	registry.RegisterFormat(XMLSCHEMA_FORMAT, FormatXMLSchema{})
 }
 
 // FormatXMLSchema implements the Format interface for XML Schema.
 type FormatXMLSchema struct{}
 
 func (fx FormatXMLSchema) IsValid(
-	ver *Version,
+	ver *registry.Version,
 ) (bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString(
@@ -207,8 +208,8 @@ func (fx FormatXMLSchema) IsValid(
 
 func (fx FormatXMLSchema) IsCompatible(
 	direction string,
-	oldVersion *Version,
-	newVersion *Version,
+	oldVersion *registry.Version,
+	newVersion *registry.Version,
 ) (bool, string, *XRError) {
 	checked, reason, xErr := fx.IsValid(oldVersion)
 	if xErr != nil {

@@ -69,8 +69,8 @@ func TestRegistryCreate(t *testing.T) {
 	}
 
 	// make sure it was really created
-	reg3, err := registry.FindRegistry(nil, reg.GetXRServerConfig(),
-		"TestRegistryCreate", registry.FOR_WRITE)
+	reg3, err := registry.FindRegistryByUID(nil, reg.GetXRServerConfig(),
+		"TestRegistryCreate", FOR_WRITE)
 	defer reg3.Rollback()
 	XCheck(t, err == nil && reg3 != nil,
 		"Finding TestRegistryCreate should have worked")
@@ -106,8 +106,8 @@ func TestRegistryDelete(t *testing.T) {
 	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
-	reg, err = registry.FindRegistry(nil, xrsConfig, "TestRegistryDelete",
-		registry.FOR_WRITE)
+	reg, err = registry.FindRegistryByUID(nil, xrsConfig, "TestRegistryDelete",
+		FOR_WRITE)
 	defer reg.Rollback()
 	XCheck(t, reg == nil && err == nil,
 		"Finding TestRegistryCreate found one but shouldn't")
@@ -120,7 +120,7 @@ func TestRegistryRefresh(t *testing.T) {
 	reg.Entity.Object["xxx"] = "yyy"
 	XCheck(t, reg.Get("xxx") == "yyy", "xxx should be yyy")
 
-	err := reg.Refresh(registry.FOR_WRITE)
+	err := reg.Refresh(FOR_WRITE)
 	XNoErr(t, err)
 
 	XCheck(t, reg.Get("xxx") == nil, "xxx should not be there")
@@ -131,19 +131,18 @@ func TestRegistryFind(t *testing.T) {
 	defer PassDeleteReg(t, dummyReg)
 	xrsConfig := dummyReg.GetXRServerConfig()
 
-	reg, err := registry.FindRegistry(nil, xrsConfig, "TestRegistryFind",
-		registry.FOR_WRITE)
+	reg, err := registry.FindRegistryByUID(nil, xrsConfig, "TestRegistryFind",
+		FOR_WRITE)
 	defer reg.Rollback()
 	XCheck(t, reg == nil && err == nil,
-		"Shouldn't have found TestFindRegistry")
+		"Shouldn't have found TestFindRegistryByUID")
 
-	reg, err = registry.NewRegistry(nil, xrsConfig, "TestFindRegistry")
+	reg, err = registry.NewRegistry(nil, xrsConfig, "TestFindRegistryByUID")
 	defer reg.SaveAllAndCommit()
 	defer reg.Delete() // PassDeleteReg(t, reg)
 	XNoErr(t, err)
 
-	reg2, err := registry.FindRegistry(nil, xrsConfig, reg.UID,
-		registry.FOR_WRITE)
+	reg2, err := registry.FindRegistryByUID(nil, xrsConfig, reg.UID, FOR_WRITE)
 	defer reg2.Rollback()
 	XNoErr(t, err)
 	reg2.AccessMode = reg.AccessMode
@@ -921,15 +920,15 @@ func TestRegistryVerifyDataMissesGroupConstraintOnModelChange(t *testing.T) {
         "files": { "f1": { "mystr": "foo" } } } } }`,
 		200, `*`)
 
-	// Variant 1: pure Go API, no HTTP at all - Model.ApplyNewModelFromJSON()
+	// Variant 1: pure Go API, no HTTP at all - reg.SetModel()
 	// directly, with no subsequent SaveAllAndCommit()/Registry.Validate()
 	// call. This is the clearest, most direct reproduction: nothing else
 	// in this call chain happens to drain tx.GroupsToValidate.
 
 	// v2 model (pure Go API): retarget the constraint to gstr2.
 	// f1.mystr ("foo") no longer equals d1.gstr2 ("bar") - a genuine
-	// violation that ApplyNewModelFromJSON() should catch/reject.
-	xErr := reg.Model.ApplyNewModelFromJSON([]byte(newModelSrc), true)
+	// violation that SetModel() should catch/reject.
+	xErr := reg.SetModel(nil, newModelSrc, true)
 	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
   "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"mystr\".",

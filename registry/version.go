@@ -31,7 +31,11 @@ func (v *Version) Delete() *XRError {
 func (v *Version) JustDelete() *XRError {
 	meta := v.Resource.MustFindMeta(false)
 
-	if v.Resource.Touch() {
+	b, xErr := v.Resource.Touch()
+	if xErr != nil {
+		return xErr
+	}
+	if b {
 		if xErr := meta.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
@@ -41,18 +45,19 @@ func (v *Version) JustDelete() *XRError {
 		return NewXRError("readonly", v.XID)
 	}
 
-	// Zero is ok if it's already been deleted
-	DoZeroOne(v.tx, `DELETE FROM Versions WHERE SID=?`, v.DbSID)
+	if xErr := v.Tx.Backend.DeleteVersion(v); xErr != nil {
+		return xErr
+	}
 
 	// Delete any pending changes so dirty check doesn't fail
 	v.NewObject = nil
-	v.tx.RemoveFromCache(&v.Entity)
+	v.Tx.RemoveFromCache(&v.Entity)
 
 	return nil
 }
 
 func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
-	defer log.Trace("tx: %s %s, %s", v.tx.uuid, v.UID, nextVersionID)()
+	defer log.Trace("tx: %s %s, %s", v.Tx.UUID, v.UID, nextVersionID)()
 
 	if v.Resource.IsXref() {
 		return NewXRError("bad_request", v.XID,
@@ -99,7 +104,9 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
 	// deleting the current default w/o a new vID being given, then unstick it
 	if (nextVersionID == "" && mustChange) || nextVersionID == "null" {
 		// Find the next default version
-		v.Resource.SetDefault(nil)
+		if xErr := v.Resource.SetDefault(nil); xErr != nil {
+			return xErr
+		}
 	} else if nextVersionID != "" {
 		nextVersion, xErr = v.Resource.FindVersion(nextVersionID, false)
 		if xErr != nil {

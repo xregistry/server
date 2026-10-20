@@ -30,10 +30,10 @@ import (
 // 16 hex chars (64 bits of randomness) from a fresh UUIDv4, dashes
 // stripped. No counter is used - a counter-based suffix would reset on
 // every server restart, creating real cross-restart collision risk now
-// that callers trust SID/eSID to be globally unique (e.g. dropped from
+// that callers trust SID to be globally unique (e.g. dropped from
 // composite DB keys/indexes). 64 bits is enough randomness to make
 // collisions negligible (birthday bound ~4 billion IDs for a 50% chance)
-// while staying short enough that a synthetic xref eSID
+// while staying short enough that a synthetic xref SID
 // ("-"+ResourceSID+"-"+VersionSID) still comfortably fits in a
 // VARCHAR(64) column.
 func NewUUID() string {

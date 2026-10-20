@@ -21,6 +21,7 @@ import (
 	"github.com/xregistry/server/common"
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
+	xrhttp "github.com/xregistry/server/registry/http"
 )
 
 var Token string
@@ -63,7 +64,7 @@ func LoadRegistry(regName string, data string) {
 
 	rr := httptest.NewRecorder()
 
-	registry.NewServer(XRSConfig).ServeHTTP(rr, req)
+	xrhttp.NewServer(XRSConfig).ServeHTTP(rr, req)
 
 	if rr.Code != 200 {
 		body, _ := io.ReadAll(rr.Body)
@@ -101,8 +102,8 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "APIs-Guru",
-			registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "APIs-Guru",
+			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
@@ -118,7 +119,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		ErrFatalf(reg.SetSave("name", "APIs-guru Registry"))
 		ErrFatalf(reg.SetSave("description", "xRegistry view of github.com/APIs-guru/openapi-directory"))
 		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
-		ErrFatalf(reg.Refresh(registry.FOR_READ))
+		ErrFatalf(reg.Refresh(FOR_READ))
 		// Verbose( "New registry:\n%#v", reg)
 
 		// TODO Support "model" being part of the Registry struct above
@@ -134,7 +135,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	_, xErr = r.AddAttr("format", STRING)
 	ErrFatalf(xErr)
 
-	ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
+	ErrFatalf(reg.SetModel(newModel, "", true))
 
 	iter := 0
 
@@ -171,7 +172,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		// org/version/file
 
 		group, xErr := reg.FindGroup("apiproviders", parts[0], false,
-			registry.FOR_WRITE)
+			FOR_WRITE)
 		ErrFatalf(xErr)
 
 		if group == nil {
@@ -183,7 +184,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		ErrFatalf(group.SetSave("modifiedat", time.Now().Format(time.RFC3339)))
 		ErrFatalf(group.SetSave("epoch", 5))
 
-		// group2 := reg.FindGroup("apiproviders", parts[0], registry.FOR_WRITE)
+		// group2 := reg.FindGroup("apiproviders", parts[0], FOR_WRITE)
 		// log.Printf("Find Group:\n%s", registry.ToJSON(group2))
 
 		resName := "core"
@@ -238,8 +239,8 @@ var testRegJson string
 func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "TestRegistry",
-			registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "TestRegistry",
+			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
@@ -260,8 +261,8 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Endpoints",
-			registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "Endpoints",
+			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
@@ -331,8 +332,8 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Messages",
-			registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "Messages",
+			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
@@ -366,8 +367,8 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Schemas",
-			registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "Schemas",
+			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
@@ -402,8 +403,8 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	start := time.Now()
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "Large",
-			registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "Large",
+			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
@@ -428,7 +429,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	gm, _ := newModel.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true)
 
-	ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
+	ErrFatalf(reg.SetModel(newModel, "", true))
 
 	maxD, maxF, maxV := 10, 150, 5
 	dirs, files, vers := 0, 0, 0
@@ -466,8 +467,8 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "DocStore",
-			registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "DocStore",
+			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
@@ -488,7 +489,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 
 	// Use JSON for this model so that "modelsource" has something in it
-	ErrFatalf(reg.Model.ApplyNewModelFromJSON([]byte(`{
+	ErrFatalf(reg.SetModel(nil, `{
       "groups": {
         "documents": {
           "singular": "document",
@@ -500,7 +501,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
         }
       }
     }
-    `), true))
+    `, true))
 
 	g, _ := reg.AddGroup("documents", "mydoc1")
 	g.SetSave("labels.group", "g1")
@@ -509,9 +510,9 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(xErr)
 	reg.SaveAllAndCommit()
 
-	g, xErr = reg.FindGroup("documents", "mydoc1", false, registry.FOR_READ)
+	g, xErr = reg.FindGroup("documents", "mydoc1", false, FOR_READ)
 	ErrFatalf(xErr)
-	r, xErr = g.FindResource("docformats", "json", false, registry.FOR_WRITE)
+	r, xErr = g.FindResource("docformats", "json", false, FOR_WRITE)
 	ErrFatalf(xErr)
 	reg.SaveAllAndCommit()
 
@@ -521,7 +522,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	r, xErr = g.AddResource("docformats", "xml", "v1")
 	ErrFatalf(xErr)
 	reg.SaveAllAndCommit()
-	r, xErr = g.FindResource("docformats", "xml", false, registry.FOR_WRITE)
+	r, xErr = g.FindResource("docformats", "xml", false, FOR_WRITE)
 	ErrFatalf(xErr)
 
 	r.SetSaveDefault("contenttype", "application/xml")
@@ -531,9 +532,9 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	r, _ = g.AddResource("docformats", "json", "v1")
 	reg.SaveAllAndCommit()
 
-	g, xErr = reg.FindGroup("documents", "mydoc2", false, registry.FOR_READ)
+	g, xErr = reg.FindGroup("documents", "mydoc2", false, FOR_READ)
 	ErrFatalf(xErr)
-	r, xErr = g.FindResource("docformats", "json", false, registry.FOR_WRITE)
+	r, xErr = g.FindResource("docformats", "json", false, FOR_WRITE)
 	ErrFatalf(xErr)
 
 	r.SetSaveDefault("contenttype", "application/json")
@@ -541,9 +542,9 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 
 	r, _ = g.AddResource("docformats", "xml", "v1")
 	reg.SaveAllAndCommit()
-	g, xErr = reg.FindGroup("documents", "mydoc2", false, registry.FOR_READ)
+	g, xErr = reg.FindGroup("documents", "mydoc2", false, FOR_READ)
 	ErrFatalf(xErr)
-	r, xErr = g.FindResource("docformats", "xml", false, registry.FOR_WRITE)
+	r, xErr = g.FindResource("docformats", "xml", false, FOR_WRITE)
 	ErrFatalf(xErr)
 	r.SetSaveDefault("contenttype", "application/xml")
 	r.SetSaveDefault("docformat", `<elem title="A document 2"/>`)
@@ -559,8 +560,8 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 
 	if reg == nil {
-		reg, xErr = registry.FindRegistry(nil, XRSConfig, "CloudEvents",
-			registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRSConfig, "CloudEvents",
+			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
@@ -716,7 +717,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 					ErrFatalf(info.ParseRequestURL())
 				}
 
-				IncomingObj, xErr := registry.ExtractIncomingObject(info, body)
+				IncomingObj, xErr := xrhttp.ExtractIncomingObject(info, body)
 				ErrFatalf(xErr)
 				_, xErr = info.Registry.UpsertJustGroups(IncomingObj,
 					registry.ADD_UPDATE)

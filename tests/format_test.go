@@ -3748,7 +3748,7 @@ func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
 }
 
 // TestFormatModelOffClearsStaleFormatValidated verifies that turning
-// validateformat off at the model level (ApplyNewModel()'s
+// validateformat off at the model level (SetModel()'s
 // clearValidationSystemProps() bulk sweep) correctly clears a stale
 // formatvalidated/formatvalidatedreason value on a Resource that is
 // NOT touched again after the model change - EnsureCompat() no longer

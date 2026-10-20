@@ -16,13 +16,14 @@ import (
 
 type JsonWriter struct {
 	info        *RequestInfo
-	indent      string
+	writer      io.Writer
+	Indent      string
 	collXIDs    map[int]string   // [eType] XID path+/ to the root of Colls
 	unusedColls map[int][]string // [eType][remaining coll names on this eType]
 
-	results *Result // results of DB query
-	Entity  *Entity // Current row in the DB results
-	hasData bool
+	iter    EntityIterator // results of DB query
+	Entity  *Entity        // Current row in the DB results
+	HasData bool
 
 	// Save the defaultVersionID as we serialize the Versions collection
 	seenDefaultVid string
@@ -34,25 +35,26 @@ type JsonWriter struct {
 	didCapModelSpace bool
 }
 
-func NewJsonWriter(info *RequestInfo, results *Result) *JsonWriter {
+func NewJsonWriter(info *RequestInfo, writer io.Writer, iter EntityIterator) *JsonWriter {
 	return &JsonWriter{
 		info:        info,
-		indent:      "",
+		writer:      writer,
+		Indent:      "",
 		collXIDs:    map[int]string{},
 		unusedColls: map[int][]string{},
-		results:     results,
-		hasData:     false,
+		iter:        iter,
+		HasData:     false,
 	}
 }
 
 func (jw *JsonWriter) Print(str string) {
-	fmt.Fprint(jw.info, str)
-	jw.hasData = true
+	fmt.Fprint(jw.writer, str)
+	jw.HasData = true
 }
 
 func (jw *JsonWriter) Printf(format string, args ...any) {
-	fmt.Fprintf(jw.info, format, args...)
-	jw.hasData = true
+	fmt.Fprintf(jw.writer, format, args...)
+	jw.HasData = true
 }
 
 func (jw *JsonWriter) OptPrintf(format string, args ...any) {
@@ -61,13 +63,13 @@ func (jw *JsonWriter) OptPrintf(format string, args ...any) {
 	}
 }
 
-func (jw *JsonWriter) Indent() {
-	jw.indent += "  "
+func (jw *JsonWriter) doIndent() {
+	jw.Indent += "  "
 }
 
 func (jw *JsonWriter) Outdent() {
-	if l := len(jw.indent); l > 1 {
-		jw.indent = jw.indent[:l-2]
+	if l := len(jw.Indent); l > 1 {
+		jw.Indent = jw.Indent[:l-2]
 	} else {
 		panic("Outdent!!!")
 	}
@@ -78,8 +80,8 @@ func (jw *JsonWriter) NextEntity() (*Entity, *XRError) {
 	var next *Entity
 	var xErr *XRError
 
-	if next = jw.Pop(); next == nil {
-		next, xErr = readNextEntity(jw.info.tx, jw.results, FOR_READ)
+	if next = jw.Pop(); next == nil && jw.iter != nil {
+		next, xErr = jw.iter.Next()
 	}
 	jw.Entity = next
 	return jw.Entity, xErr
@@ -138,7 +140,7 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 	var xErr *XRError
 
 	if inlineCollection {
-		jw.Printf("%s\n%s%q: ", extra, jw.indent, jw.Entity.Plural)
+		jw.Printf("%s\n%s%q: ", extra, jw.Indent, jw.Entity.Plural)
 		count, mask, maskOK, xErr = jw.WriteCollection()
 		if xErr != nil {
 			return "", xErr
@@ -193,9 +195,9 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 			myAbstract, mask, maskOK)
 	}
 
-	jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.indent, myPlural,
+	jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.Indent, myPlural,
 		baseURL+filterString)
-	jw.Printf("%s\"%scount\": %d", jw.indent, myPlural, count)
+	jw.Printf("%s\"%scount\": %d", jw.Indent, myPlural, count)
 
 	return ",", nil
 }
@@ -210,7 +212,7 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 // (i.e. filtering is in play).
 func (jw *JsonWriter) WriteCollection() (int, uint64, bool, *XRError) {
 	jw.Printf("{")
-	jw.Indent()
+	jw.doIndent()
 
 	extra := ""
 	myAbstract := "-"
@@ -250,7 +252,7 @@ func (jw *JsonWriter) WriteCollection() (int, uint64, bool, *XRError) {
 			}
 		}
 
-		jw.Printf("%s\n%s%q: ", extra, jw.indent, jw.Entity.UID)
+		jw.Printf("%s\n%s%q: ", extra, jw.Indent, jw.Entity.UID)
 		if xErr := jw.WriteEntity(); xErr != nil {
 			return count, mask, maskOK, xErr
 		}
@@ -261,7 +263,7 @@ func (jw *JsonWriter) WriteCollection() (int, uint64, bool, *XRError) {
 
 	jw.Outdent()
 	if extra != "" {
-		jw.Printf("\n%s", jw.indent)
+		jw.Printf("\n%s", jw.Indent)
 	}
 	jw.Print("}")
 
@@ -270,7 +272,7 @@ func (jw *JsonWriter) WriteCollection() (int, uint64, bool, *XRError) {
 
 func (jw *JsonWriter) WriteEntity() *XRError {
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s WriteEntity: %v", jw.info.uuid, jw.Entity)
+		log.Printf("tx: %s WriteEntity: %v", jw.info.UUID, jw.Entity)
 	}
 
 	if jw.Entity == nil {
@@ -287,18 +289,20 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	addSpace := false // Add space before next attribute?
 
 	if log.IsFuncVerbose() {
-		log.Printf("tx: %s eType: %d", jw.info.uuid, myType)
-		log.Printf("tx: %s JW:\n%s", jw.info.uuid, ToJSON(jw))
-		log.Printf("tx: %s JW.Obj:\n%s", jw.info.uuid, ToJSON(jw.Entity.Object))
-		log.Printf("tx: %s JW.NObj:\n%s", jw.info.uuid,
+		log.Printf("tx: %s eType: %d", jw.info.UUID, myType)
+		log.Printf("tx: %s JW:\n%s", jw.info.UUID, ToJSON(jw))
+		log.Printf("tx: %s JW.Obj:\n%s", jw.info.UUID, ToJSON(jw.Entity.Object))
+		log.Printf("tx: %s JW.NObj:\n%s", jw.info.UUID,
 			ToJSON(jw.Entity.NewObject))
 	}
 
 	jw.Printf("{")
-	jw.Indent()
+	jw.doIndent()
 
-	jsonIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
-		log.VPrintf("WriteEntity", "tx: %s jsonIt: %q", info.uuid, key)
+	jsonIt := func(e *Entity, key string, val any, attr *Attribute) *XRError {
+		info := e.GetRequestInfo()
+
+		log.VPrintf("WriteEntity", "tx: %s jsonIt: %q", info.UUID, key)
 		if key == "$space" {
 			addSpace = true
 			return nil
@@ -317,7 +321,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 			return nil
 		}
 
-		if attr != nil && attr.internals != nil && attr.internals.neverSerialize {
+		if attr != nil && attr.Internals != nil && attr.Internals.NeverSerialize {
 			return nil
 		}
 
@@ -330,7 +334,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 		if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
 			rm := e.GetResourceModel()
 			if rm.GetHasDocument() && key == rm.Singular {
-				return SerializeResourceContents(jw, jw.Entity, jw.info, &extra)
+				return SerializeResourceContents(jw, jw.Entity, &extra)
 			}
 		}
 
@@ -353,12 +357,12 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 					"alternative", "documentation"}
 
 				gotOne := false
-				extra := "\n  " + jw.indent
+				extra := "\n  " + jw.Indent
 				for _, k := range keys {
 					v, ok := daMap[k]
 					if ok {
 						b.WriteString(fmt.Sprintf("%s%q: %q", extra, k, v))
-						extra = ",\n  " + jw.indent
+						extra = ",\n  " + jw.Indent
 						gotOne = true
 					}
 				}
@@ -371,12 +375,12 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 					v := daMap[k]
 					if v != nil {
 						b.WriteString(fmt.Sprintf("%s%q: %q", extra, k, v))
-						extra = ",\n  " + jw.indent
+						extra = ",\n  " + jw.Indent
 						gotOne = true
 					}
 				}
 				if gotOne {
-					b.WriteString("\n" + jw.indent)
+					b.WriteString("\n" + jw.Indent)
 				}
 
 				b.WriteString("}")
@@ -385,9 +389,9 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 		}
 
 		if buf == nil {
-			buf, _ = json.MarshalIndent(val, jw.indent, "  ")
+			buf, _ = json.MarshalIndent(val, jw.Indent, "  ")
 		}
-		jw.Printf("%s\n%s%q: %s", extra, jw.indent, key, string(buf))
+		jw.Printf("%s\n%s%q: %s", extra, jw.Indent, key, string(buf))
 		extra = ","
 		return nil
 	}
@@ -397,7 +401,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	// Skip serializing the root entity's attributes if ?collections is set
 	// AND we're on the root entity of the response
 	if !jw.info.HasFlag("collections") || jw.info.Root != jw.Entity.XID[1:] {
-		xErr := jw.Entity.SerializeProps(jw.info, jsonIt)
+		xErr := jw.Entity.SerializeProps(jsonIt)
 		if xErr != nil {
 			panic(xErr)
 		}
@@ -442,7 +446,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 					return xErr
 				}
 			} else {
-				jw.Printf("%s\n%s%q: ", extra, jw.indent, "meta")
+				jw.Printf("%s\n%s%q: ", extra, jw.Indent, "meta")
 				if xErr := jw.WriteEntity(); xErr != nil {
 					return xErr
 				}
@@ -485,34 +489,34 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 
 	// After all of the collections, which should include "versions",
 	// check to see if we need to serialize a cached "meta" sub-object.
-	// If so, make sure to pass along the defaultVersionID (via info.extras)
+	// If so, make sure to pass along the defaultVersionID (via info.Extras)
 	// so that the getFn for defaultversionurl has access to it.
 	if cachedMeta != nil {
 		jw.Push(jw.Entity)
 		jw.Entity = cachedMeta
-		jw.info.extras["seenDefaultVid"] = jw.seenDefaultVid
+		jw.info.Extras["seenDefaultVid"] = jw.seenDefaultVid
 
 		if len(extra) > 0 && extra[len(extra)-1] == '\n' {
 			extra = extra[:len(extra)-1]
 		}
-		jw.Printf("%s\n%s%q: ", extra, jw.indent, "meta")
+		jw.Printf("%s\n%s%q: ", extra, jw.Indent, "meta")
 		if xErr := jw.WriteEntity(); xErr != nil {
 			return xErr
 		}
 		extra = ","
 
-		delete(jw.info.extras, "seenDefaultVid")
+		delete(jw.info.Extras, "seenDefaultVid")
 		jw.seenDefaultVid = ""
 	}
 
 	// And finally done with this Entity
 	jw.Outdent()
-	jw.Printf("\n%s}", jw.indent)
+	jw.Printf("\n%s}", jw.Indent)
 
 	return nil
 }
 
-func SerializeResourceContents(jw *JsonWriter, e *Entity, info *RequestInfo, extra *string) *XRError {
+func SerializeResourceContents(jw *JsonWriter, e *Entity, extra *string) *XRError {
 	PanicIf(e.Type != ENTITY_RESOURCE && e.Type != ENTITY_VERSION, "Bad eType: %d", e.Type)
 	// Add the "resource*" props
 	_, rm := jw.Entity.GetModels()
@@ -576,9 +580,9 @@ func SerializeResourceContents(jw *JsonWriter, e *Entity, info *RequestInfo, ext
 			// need to escape things, and in those cases
 			// we just base64 encode it (the 'else' clause)
 			pretty := bytes.Buffer{}
-			err := json.Indent(&pretty, data, jw.indent, "  ")
+			err := json.Indent(&pretty, data, jw.Indent, "  ")
 			PanicIf(err != nil, "Bad JSON: %s", string(data))
-			jw.Printf("%s\n%s%q: %s", *extra, jw.indent,
+			jw.Printf("%s\n%s%q: %s", *extra, jw.Indent,
 				singular, pretty.String())
 		} else {
 			// Write as escaped string
@@ -590,12 +594,12 @@ func SerializeResourceContents(jw *JsonWriter, e *Entity, info *RequestInfo, ext
 		// Write as escaped string
 		buf, err := json.Marshal(string(data))
 		PanicIf(err != nil, "Can't serialize: %s", string(data))
-		jw.Printf("%s\n%s%q: %s", *extra, jw.indent,
+		jw.Printf("%s\n%s%q: %s", *extra, jw.Indent,
 			singular, string(buf))
 	} else if ct == "binary" {
 		str := base64.StdEncoding.EncodeToString(data)
 		jw.Printf("%s\n%s\"%sbase64\": %q",
-			*extra, jw.indent, singular, str)
+			*extra, jw.Indent, singular, str)
 	}
 	*extra = ","
 
@@ -682,15 +686,15 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 	}
 
 	if inlineCollection {
-		jw.Printf("%s\n%s\"%s\": {},\n", extra, jw.indent, collName)
+		jw.Printf("%s\n%s\"%s\": {},\n", extra, jw.Indent, collName)
 		extra = ""
 	} else {
 		extra += "\n"
 	}
-	jw.Printf("%s%s\"%surl\": \"%s%s%s%s\",\n", extra, jw.indent,
+	jw.Printf("%s%s\"%surl\": \"%s%s%s%s\",\n", extra, jw.Indent,
 		collName, baseURL, path, collName, filterString)
 
-	jw.Printf("%s\"%scount\": 0", jw.indent, collName)
+	jw.Printf("%s\"%scount\": 0", jw.Indent, collName)
 	extra = ","
 
 	return extra

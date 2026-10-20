@@ -103,7 +103,6 @@ TODOs:
   check versions, but other updates won't. THey'll validate the constraints
   at the group/resource level, but there's nothing at the version level to check
 - test attribute definitions with enums with strict=true / false
-- clean-up design of model save/apply
 - make sure we support ?ignore  w/o value (or "*") to mean all possible
 ** in dlog, sync the write to the output (see misc test file for why)
 -- make sure conflicting ifvalue attrs are detected, model define time and runtime
@@ -116,3 +115,23 @@ TODOs:
 - only check-in the generated files for xregistry.io, not hub.xreg.io
 - get rid of default writer if we can
 - new http header name/value processing (escaping both, list(,) support)
+- checkin the generated js files so people can easily download it
+
+- Backend
+  - move mysql triggers to be go initiated, if appropriate but I'm not
+    seeing a need to right now since each backend might have optimizations
+    like what we have for mysql
+  - create static prepare statements to avoid reparsing sql each time
+  - make RequestInfo more generic - try to remove http specifics
+  - try to remove the net/http import from jsonWriter, registry and info
+  - Consider a Backend.Open() and one backend per server
+  - turn on --xrerror in xrlint
+- move #attrs into system props if we can
+- make backend define what capabilities are available
+- fix default backend logic so people can choose one via config - default:mysql
+
+
+test:
+- xr update dirs/d1/files/f1 --set name=foo when "fileurl" is set fails
+  - why does it GET dirs/d1/files/abc instaed of just "abc" ?
+- add xrlint test to make sure ALL errors are tested

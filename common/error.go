@@ -23,7 +23,11 @@ type XRError struct {
 	Detail   string            `json:"detail,omitempty"`
 	Instance string            `json:"instance,omitempty"`
 	Source   string            `json:"source,omitempty"`
-	Headers  map[string]string `json:"-"` // HTTP response headers - internal
+
+	// Internal use
+	Headers   map[string]string `json:"-"` // HTTP response headers
+	Retryable bool              // Should we try the op after rollback?
+	Stack     string            // save it just for some errors
 }
 
 func NewXRError(daType string, subject string, args ...string) *XRError {
@@ -40,18 +44,6 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 
 		// But do stop if PANICLOG env var is set
 		TestPanicIf(true, "start with / : %s", subject)
-	}
-
-	if daType == "server_error" {
-		// This is special.
-		// Only show internal info (args) to the logs.
-		// Remove internal stuff from the error that's bubbled up.
-		if len(args) > 0 {
-			log.Printf("%v", args)
-			args = nil
-		}
-		log.Printf(">>> System Error <<<")
-		ShowStack()
 	}
 
 	// Format "source" as "gitCommit:package:fileName:lineNumber"
@@ -77,6 +69,21 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 	}
 
 	tmpXErr.SetArgs(args...)
+
+	if daType == "server_error" {
+		tmpXErr.Stack = strings.Join(GetStack(), "\n")
+		/*
+			// This is special.
+			// Only show internal info (args) to the logs.
+			// Remove internal stuff from the error that's bubbled up.
+			if len(args) > 0 {
+				log.Printf("%v", args)
+				args = nil
+			}
+			log.Printf(">>> System Error <<<")
+			ShowStack()
+		*/
+	}
 
 	// ShowStack()
 	if os.Getenv("SHOWSTACK") != "" {
@@ -261,6 +268,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `Only one attribute from "<list>" can be present at a time for: <subject>.`,
 	},
+	"pagination_noncollection": &XRError{
+		Code:  400,
+		Title: `Can't use pagination on a non-collection result set. Query path: <subject>.`,
+	},
 	"parsing_data": &XRError{
 		Code:  400,
 		Title: `There was an error parsing "<subject>": <error_detail>.`,
@@ -394,6 +405,11 @@ func init() {
 			Type2Error[k].Type = CORE_SPECURL + "#" + k
 		}
 	}
+}
+
+func (xErr *XRError) SetRetryable(v bool) *XRError {
+	xErr.Retryable = v
+	return xErr
 }
 
 func (xErr *XRError) SetSubject(s string) *XRError {

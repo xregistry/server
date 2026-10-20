@@ -50,6 +50,8 @@ export TIMEIT         ?= TIMEFORMAT="Time: %0lR" ; time
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 
+REGISTRY_FILES := $(shell find registry -type f)
+
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
 cmds: .cmds
@@ -66,11 +68,12 @@ errors: .errors
 	@touch .errors
 
 xrlint: .xrlint
-.xrlint: cmds/xrlint/* cmds/xr/* cmds/xrserver/*  registry/* common/* tests/*
+.xrlint: cmds/xrlint/* cmds/xr/* cmds/xrserver/*  $(REGISTRY_FILES) \
+		common/* tests/*
 	@echo
 	@echo "# Running xrlint looking for source issues"
-	@misc/errOutput @go run ./cmds/xrlint --unused=false ./registry/... \
-		./common/... ./cmds/... ./tests/...
+	@misc/errOutput @go run ./cmds/xrlint --unused=false --xrerror=false \
+		./registry/... ./common/... ./cmds/... ./tests/...
 	@touch .xrlint
 
 utest: .utest
@@ -90,7 +93,8 @@ qtest: .qtest
 	@make mysql waitformysql
 	@echo
 	@echo "# Testing"
-	@! grep -e '	' registry/init.sql||(echo "Remove tabs in init.db";exit 1)
+	@! grep -e '	' registry/mysql/init.sql || \
+		(echo "Remove tabs in init.db";exit 1)
 	@if curl localhost:8080 > /dev/null 2>&1 ; then \
      	echo "Stop server on :8080 first" ; exit 1 ; \
 	 else true ; fi
@@ -114,7 +118,7 @@ ftest: .ftest
 	@touch .ftest
 
 test: xrlint errors qtest ftest testimages
-	@msg=`gofmt -l .` && [ -z "$$msg" ] || \
+	@msg=`gofmt -l . common/shared_*` && [ -z "$$msg" ] || \
 		( echo -e "\n**** Run gofmt:\n$$msg\n" ; exit 1 )
 
 benchmark:
@@ -125,19 +129,19 @@ benchmark:
 .sharedfiles: common/shared*
 	@echo
 	@echo "# Copying shared files"
-	@sed "s/XXX/registry/g" common/shared_entity > registry/shared_entity.go
-	@sed "s/XXX/xrlib/g" common/shared_entity > cmds/xr/xrlib/shared_entity.go
-	@sed "s/XXX/registry/g" common/shared_model > registry/shared_model.go
-	@sed "s/XXX/xrlib/g" common/shared_model > cmds/xr/xrlib/shared_model.go
+	@for i in common/shared_* ; do \
+		sed "s/XXX/registry/g" "$$i" > registry/$${i#common/}.go ; \
+		sed "s/XXX/xrlib/g" "$$i" > cmds/xr/xrlib/$${i#common/}.go ; \
+	 done
 	@touch .sharedfiles
 
-registry/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
+registry/http/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
 	@echo
-	@echo "# Rebuilding registry/ui/specattrs.js"
+	@echo "# Rebuilding registry/http/ui/specattrs.js"
 	@go run ./cmds/genspecattrs
 
-xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
-	common/* registry/*
+xrserver: .sharedfiles registry/http/ui/specattrs.js cmds/xrserver/* \
+		common/* $(REGISTRY_FILES)
 	@echo
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \
@@ -249,12 +253,12 @@ push: .push
 start: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver"
-	./xrserver -vv --rootapp=xreg --ui-dir registry/ui $(VERIFY)
+	./xrserver -vv --rootapp=xreg --ui-dir registry/http/ui $(VERIFY)
 
 notest run local: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver from scratch"
-	./xrserver -vv --rootapp=xreg --recreatedb --samples --ui-dir registry/ui $(VERIFY)
+	./xrserver -vv --rootapp=xreg --recreatedb --samples --ui-dir registry/http/ui $(VERIFY)
 
 docker-all: images
 	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -vv --recreatedb --samples
@@ -273,10 +277,12 @@ mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
 	(echo && echo "# Starting mysql" && \
 	docker run -q -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
-		-v $(PWD)/.mysql-data:/var/lib/mysql \
 		-p $(DBPORT):$(DBPORT) --name mysql $(MYSQL_IMAGE) \
 		--port $(DBPORT) > /dev/null )
+
 		@ # -e MYSQL_USER=$(DBUSER) \
+		# --tmpfs /var/lib/mysql \
+		# -v $(PWD)/.mysql-data:/var/lib/mysql \
 
 waitformysql:
 	@while ! docker run -q --network host $(MYSQL_IMAGE) mysqladmin \
@@ -357,7 +363,7 @@ clean:
 	@echo
 	@echo "# Cleaning"
 	@rm -f cmds/xr/xrlib/shared_*.go registry/shared_*.go
-	@rm -f registry/ui/specattrs.js
+	@rm -f registry/http/ui/specattrs.js
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
@@ -368,6 +374,6 @@ clean:
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1
 	@-docker rm -f mysql mysql-client > /dev/null 2>&1
 	@# do "sleep" so that "docker system prune" won't delete the mysql image
-	@-docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
+	@# -docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
 	@-docker system prune -f -a --volumes > /dev/null
-	@rm -rf ./mysql-data
+	@rm -rf ./.mysql-data

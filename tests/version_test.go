@@ -841,7 +841,7 @@ func TestVersionRequiredFields(t *testing.T) {
   "source": "e4e59b8a76c4:registry:entity:2150"
 }`)
 	reg.Rollback()
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 
 	v1, _, err := f1.UpsertVersionWithObject(&registry.VersionUpsert{
 		Id:               "v2",

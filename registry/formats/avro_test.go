@@ -1,4 +1,4 @@
-package registry
+package formats
 
 // Unit tests for Avro IsValid (via IsValidAvro) and IsCompatible
 // (via checkAvroCompat) covering all supported Avro constructs.

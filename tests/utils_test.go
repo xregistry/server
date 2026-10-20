@@ -21,6 +21,9 @@ import (
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
+	_ "github.com/xregistry/server/registry/formats"
+	xrhttp "github.com/xregistry/server/registry/http"
+	"github.com/xregistry/server/registry/mysql"
 )
 
 const TestDBName = "registry"
@@ -29,7 +32,7 @@ const specVersionPlaceholder = "$SPECVERSION"
 const outputSpacePlaceholder = "$SPACE"
 
 var XRServerConfig *Config
-var MainServer *registry.Server
+var MainServer *xrhttp.Server
 var FileServer = testFileServer()
 
 var outputSubstitutions = [][2]string{
@@ -75,15 +78,15 @@ func TestMain(m *testing.M) {
 	registry.SetXRServerConfigFromEnvVars(XRServerConfig)
 
 	// call flag.Parse() here if TestMain uses flags
-	registry.DeleteDB(XRServerConfig, TestRegName)
-	registry.CreateDB(XRServerConfig, TestRegName)
-	registry.OpenDB(XRServerConfig, TestRegName)
+	registry.DBDelete(XRServerConfig, TestRegName)
+	registry.DBCreate(XRServerConfig, TestRegName)
+	XRServerConfig.Set("db.name", TestRegName)
 
 	// DBName := "registry"
 	// if !registry.DBExists(XRServerConfig,DBName) {
-	// registry.CreateDB(XRServerConfig,DBName)
+	// registry.DBCreate(XRServerConfig,DBName)
 	// }
-	// registry.OpenDB(XRServerConfig,DBName)
+	// XRServerConfig.Set("db.name", DBName)
 
 	if IsPortInUse(8181) {
 		panic("Port 8181 is already in use - kill it")
@@ -93,7 +96,7 @@ func TestMain(m *testing.M) {
 	XRServerConfig.Set("rootapp", "xreg")
 	XRServerConfig.Set("http.addr", "")
 	XRServerConfig.Set("http.port", 8181)
-	MainServer = registry.NewServer(XRServerConfig).Start()
+	MainServer = xrhttp.NewServer(XRServerConfig).Start()
 
 	// Start testing fileserver
 	if IsPortInUse(8282) {
@@ -117,10 +120,10 @@ func TestMain(m *testing.M) {
 		// registry.DeleteDB(TestRegName)
 	}
 
-	if dump := registry.DumpTimings(); dump != "" {
+	if dump := mysql.DumpTimings(); dump != "" {
 		now := time.Now()
 		os.WriteFile(fmt.Sprintf("timings-%s.txt", now.Format("15-04-05")),
-			[]byte(registry.DumpTimings()), 0666)
+			[]byte(mysql.DumpTimings()), 0666)
 	}
 	os.Exit(rc)
 }
@@ -212,27 +215,27 @@ func (s *TestFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // testing utils outside of the "testing" dir, so that's why they're split
 // across the 2 dirs this way. Kind of weird I know, but I'll clean it later
 
-func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
-	reg, _ := registry.FindRegistry(nil, XRServerConfig, name, registry.FOR_WRITE)
+func NewRegistry(name string) *registry.Registry {
+	reg, _ := registry.FindRegistryByUID(nil, XRServerConfig, name, FOR_WRITE)
 	if reg != nil {
 		reg.Delete()
 		reg.SaveAllAndCommit()
 	}
 
-	reg, xErr := registry.NewRegistry(nil, XRServerConfig, name, opts...)
+	reg, xErr := registry.NewRegistry(nil, XRServerConfig, name)
 	if xErr != nil {
 		fmt.Fprintf(os.Stderr, "Error creating registry %q: %s\n", name, xErr)
 		ShowStack()
 		os.Exit(1)
 	}
 
-	MainServer.XRSConfig.Set("DefaultRegDbSID", reg.DbSID)
+	MainServer.XRSConfig.Set("DefaultRegistrySID", reg.SID)
 
 	reg.SaveAllAndCommit()
 
 	/*
 		// Now find it again and start a new Tx
-		reg, xErr = registry.FindRegistry(nil, XRServerConfig, name, registry.FOR_WRITE)
+		reg, xErr = registry.FindRegistryByUID(nil, XRServerConfig, name, FOR_WRITE)
 		if xErr != nil {
 			panic(xErr.String())
 		}
@@ -256,7 +259,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 		// Resource/Meta legitimately pending (by design) at this
 		// point, which isn't actually a bug.
 		if tx != nil && tx.IsOpen() {
-			if xErr := reg.Validate(nil); xErr != nil {
+			if xErr := reg.Validate(); xErr != nil {
 				panic(xErr.String())
 			}
 		}
@@ -300,7 +303,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 				panic(xErr.String())
 			}
 		}
-		MainServer.XRSConfig.Set("DefaultRegDbSID", nil)
+		MainServer.XRSConfig.Set("DefaultRegistrySID", nil)
 	}
 
 	/*

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	. "github.com/xregistry/server/common"
-	"github.com/xregistry/server/registry"
 )
 
 func TestHTTPHasDocumentFalse(t *testing.T) {
@@ -458,8 +457,8 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	reg.Refresh(registry.FOR_READ)
-	f1, err := reg.FindResourceByXID("/dirs/dir1/files/f1", "", registry.FOR_WRITE)
+	reg.Refresh(FOR_READ)
+	f1, err := reg.FindResourceByXID("/dirs/dir1/files/f1", "", FOR_WRITE)
 	XNoErr(t, err)
 	XNoErr(t, f1.SetSaveMeta("readonly", true))
 
@@ -4090,10 +4089,10 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	reg.Refresh(registry.FOR_READ)
-	g, err := reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
+	reg.Refresh(FOR_READ)
+	g, err := reg.FindGroup("dirs", "dir1", false, FOR_WRITE)
 	XNoErr(t, err)
-	f, err := g.FindResource("files", "f1", false, registry.FOR_WRITE)
+	f, err := g.FindResource("files", "f1", false, FOR_WRITE)
 	XNoErr(t, err)
 
 	regCre := reg.GetAsString("createdat")
@@ -4130,7 +4129,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	reg.Refresh(registry.FOR_WRITE)
+	reg.Refresh(FOR_WRITE)
 	XEqual(t, "", reg.GetAsString("createdat"), regCre)
 	XCheckNotEqual(t, "", reg.GetAsString("modifiedat"), regMod)
 
@@ -4289,7 +4288,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	g.Refresh(registry.FOR_WRITE)
+	g.Refresh(FOR_WRITE)
 	XCheck(t, g.GetAsString("modifiedat") != gmod, "Should be diff")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
@@ -4423,7 +4422,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	// Test PATCHing a Resource
 	// //////////////////////////////////////////////////////
 
-	f.Refresh(registry.FOR_WRITE)
+	f.Refresh(FOR_WRITE)
 	v, _ := f.GetDefault()
 	vmod := v.GetAsString("modifiedat")
 
@@ -4460,7 +4459,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	v.Refresh(registry.FOR_WRITE)
+	v.Refresh(FOR_WRITE)
 	XCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
@@ -4629,7 +4628,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	// Test PATCHing a Version
 	// //////////////////////////////////////////////////////
 
-	f.Refresh(registry.FOR_WRITE)
+	f.Refresh(FOR_WRITE)
 	v, _ = f.GetDefault()
 	vmod = v.GetAsString("modifiedat")
 
@@ -4661,7 +4660,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	v.Refresh(registry.FOR_WRITE)
+	v.Refresh(FOR_WRITE)
 	XCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{

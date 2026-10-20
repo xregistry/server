@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/duglin/dlog"
@@ -117,20 +118,20 @@ type Attributes map[string]*Attribute // AttrName->Attr
 // that we can just copy them over in one statement in SetSpecPropsFields()
 // and so that if we add more we don't need to remember to update that func
 type AttrInternals struct {
-	types           string   // show only for these eTypes, ""==all
-	dontStore       bool     // don't store this prop in the DB
-	alwaysSerialize bool     // even if nil
-	neverSerialize  bool     // hidden attr
-	httpHeader      string   // custom HTTP header name, not xRegistry-...
-	xrefrequired    bool     // required in meta even when xref is set
-	cantOverride    []string // blindly set from spec defined values
-	noDocView       bool     // exclude from docView
-	uiMonospace     bool     // render value in monospace in the UI
-	uiLabel         string   // display label override for the UI
+	Types           string   // show only for these eTypes, ""==all
+	DontStore       bool     // don't store this prop in the DB
+	AlwaysSerialize bool     // even if nil
+	NeverSerialize  bool     // hidden attr
+	HttpHeader      string   // custom HTTP header name, not xRegistry-...
+	XrefRequired    bool     // required in meta even when xref is set
+	CantOverride    []string // blindly set from spec defined values
+	NoDocView       bool     // exclude from docView
+	UIMonospace     bool     // render value in monospace in the UI
+	UILabel         string   // display label override for the UI
 
-	getFn    func(*Entity) any      // return prop's value
-	checkFn  func(*Entity) *XRError // validate incoming prop
-	updateFn func(*Entity) *XRError // prep prop for saving to DB
+	GetFn    func(*Entity) any      // return prop's value
+	CheckFn  func(*Entity) *XRError // validate incoming prop
+	UpdateFn func(*Entity) *XRError // prep prop for saving to DB
 }
 
 // Use pointers for any attributes that have a default value that differs
@@ -161,7 +162,7 @@ type Attribute struct {
 	// We have them here so we can have access to them in any func that
 	// gets passed the model attribute.
 	// If anything gets added below MAKE SURE to update SetSpecPropsFields too
-	internals *AttrInternals `json:"-"`
+	Internals *AttrInternals `json:"-"`
 }
 
 type Item struct { // for maps and arrays
@@ -294,6 +295,58 @@ type ResourceModel struct {
 	// EffectiveProps are all attrs than can appear on a Res(so Res+Ver attrs)
 	effectivePropsOrdered []*Attribute
 	effectivePropsMap     map[string]*Attribute
+}
+
+// Not all backends use this modelCache, but it's available if they want to.
+// modelCache is an in-process cache of the last-seen parsed *Model per
+// Registry (keyed by RegistrySID), so that loadModel() - called on
+// pretty much every HTTP request via FindRegistry()/FindRegistryBySID() -
+// doesn't have to re-parse the (potentially large) Model JSON blob when
+// nothing has changed since the last time we loaded it. Models.Changed
+// (see init.sql) is the cheap signal we compare against: it's a fresh
+// NewUUID() written by Model.Save() every time the Model row actually
+// changes, whether that happened via this process or another xrserver
+// replica sharing the same DB.
+//
+// The cached *Model is never handed out directly - see Model.Clone() -
+// since it's shared/read by concurrent requests and Model/GroupModel/
+// ResourceModel/Attribute all get mutated in place by callers (e.g.
+// Registry.SetModel(), Model.Save()'s own diffing).
+var modelCacheMutex = sync.Mutex{}
+var modelCache = map[string]*modelCacheEntry{} // RegistrySID -> entry
+
+type modelCacheEntry struct {
+	uuid  string // last known Models.UUID value for this RegistrySID
+	model *Model // parsed as of that UUID value - Clone() before use
+}
+
+func GetCachedModel(regSID string, uuid string) *Model {
+	modelCacheMutex.Lock()
+	entry := modelCache[regSID]
+	modelCacheMutex.Unlock()
+
+	if entry == nil || entry.uuid != uuid {
+		return nil
+	}
+	return entry.model.Clone()
+}
+
+func SetCachedModel(regSID string, uuid string, model *Model) {
+	// Store our own private clone - never the caller's live *Model - so
+	// later in-place mutations by the caller (e.g. Registry.SetModel()) can't
+	// corrupt what we hand out to other requests later.
+	cached := model.Clone()
+	cached.Registry = nil
+
+	modelCacheMutex.Lock()
+	modelCache[regSID] = &modelCacheEntry{uuid: uuid, model: cached}
+	modelCacheMutex.Unlock()
+}
+
+func EvictCachedModel(regSID string) {
+	modelCacheMutex.Lock()
+	delete(modelCache, regSID)
+	modelCacheMutex.Unlock()
 }
 
 func ParseModel(buf []byte, reg *Registry) (*Model, *XRError) {
@@ -433,9 +486,9 @@ func (m *Model) SetPointers() {
 
 // Clone returns a deep copy of m - safe for a caller to hand out to
 // multiple concurrent requests/goroutines, each free to mutate its own
-// copy (e.g. assign its own Registry, or run ApplyNewModel() on it)
+// copy (e.g. assign its own Registry, or run Registry.SetModel() on it)
 // without affecting m or any other clone. Used by the in-process Model
-// cache (see loadModelFromDB in registry/model.go) so concurrent requests
+// cache (see loadModel in registry/model.go) so concurrent requests
 // never share/mutate the same cached *Model (see Attribute.Clone()'s
 // comment for the data-race this guards against).
 func (m *Model) Clone() *Model {
@@ -451,6 +504,7 @@ func (m *Model) Clone() *Model {
 		Labels:        maps.Clone(m.Labels),
 		Attributes:    m.Attributes.Clone(),
 		changed:       m.changed,
+		Stuff:         maps.Clone(m.Stuff),
 	}
 
 	newM.Groups = map[string]*GroupModel{}
@@ -468,25 +522,25 @@ func (m *Model) SetSpecPropsFields() {
 
 	for _, prop := range propsOrdered {
 		if attr, ok := m.Attributes[prop.Name]; ok {
-			attr.internals = prop.internals
+			attr.Internals = prop.Internals
 		}
 	}
 
 	for plural, gm := range m.Groups {
 		if attr, ok := m.Attributes[plural]; ok {
-			attr.internals = CollectionsAttr.internals
+			attr.Internals = CollectionsAttr.Internals
 		}
 		if attr, ok := m.Attributes[plural+"url"]; ok {
-			attr.internals = CollectionsURLAttr.internals
+			attr.Internals = CollectionsURLAttr.Internals
 		}
 		if attr, ok := m.Attributes[plural+"count"]; ok {
-			attr.internals = CollectionsCountAttr.internals
+			attr.Internals = CollectionsCountAttr.Internals
 		}
 
 		propsOrdered, _ := gm.GetPropsOrdered()
 		for _, prop := range propsOrdered {
 			if attr, ok := m.Attributes[prop.Name]; ok {
-				attr.internals = prop.internals
+				attr.Internals = prop.Internals
 			}
 		}
 
@@ -496,44 +550,44 @@ func (m *Model) SetSpecPropsFields() {
 
 			// Make sure our owning Group has the right $COLLECTION attrs
 			if attr, ok := gm.Attributes[plural]; ok {
-				attr.internals = CollectionsAttr.internals
+				attr.Internals = CollectionsAttr.Internals
 			}
 			if attr, ok := gm.Attributes[plural+"url"]; ok {
-				attr.internals = CollectionsURLAttr.internals
+				attr.Internals = CollectionsURLAttr.Internals
 			}
 			if attr, ok := gm.Attributes[plural+"count"]; ok {
-				attr.internals = CollectionsCountAttr.internals
+				attr.Internals = CollectionsCountAttr.Internals
 			}
 
 			// Process Resource-level attributes
 			if attr, ok := rm.ResourceAttributes["versions"]; ok {
-				attr.internals = CollectionsAttr.internals
+				attr.Internals = CollectionsAttr.Internals
 			}
 			if attr, ok := rm.ResourceAttributes["versionsurl"]; ok {
-				attr.internals = CollectionsURLAttr.internals
+				attr.Internals = CollectionsURLAttr.Internals
 			}
 			if attr, ok := rm.ResourceAttributes["versionscount"]; ok {
-				attr.internals = CollectionsCountAttr.internals
+				attr.Internals = CollectionsCountAttr.Internals
 			}
 
 			propsOrdered, _ := rm.GetResourcePropsOrdered()
 			for _, prop := range propsOrdered {
 				if attr, ok := rm.ResourceAttributes[prop.Name]; ok {
-					attr.internals = prop.internals
+					attr.Internals = prop.Internals
 				}
 			}
 
 			propsOrdered, _ = rm.GetVersionPropsOrdered()
 			for _, prop := range propsOrdered {
 				if attr, ok := rm.VersionAttributes[prop.Name]; ok {
-					attr.internals = prop.internals
+					attr.Internals = prop.Internals
 				}
 			}
 
 			propsOrdered, _ = rm.GetMetaPropsOrdered()
 			for _, prop := range propsOrdered {
 				if attr, ok := rm.MetaAttributes[prop.Name]; ok {
-					attr.internals = prop.internals
+					attr.Internals = prop.Internals
 				}
 			}
 		}
@@ -710,7 +764,7 @@ func (m *Model) CreateModels(gPlural, gSingular, rPlural, rSingular string) (*Gr
 	}
 	rm, xErr := gm.AddResourceModelSimple(rPlural, rSingular)
 	if xErr != nil {
-		gm.Delete()
+		gm.Delete() //xrlint:ignore
 		return nil, nil, xErr
 	}
 	return gm, rm, nil
@@ -1086,7 +1140,7 @@ func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 }
 
 func (gm *GroupModel) Delete() *XRError {
-	defer log.Trace("tx: %s %s", gm.Model.Registry.tx.uuid, gm.Plural)()
+	defer log.Trace("tx: %s %s", gm.Model.Registry.Tx.UUID, gm.Plural)()
 
 	gm.Model.RemoveConditionalProps()
 	delete(gm.Model.Groups, gm.Plural)
@@ -1505,7 +1559,7 @@ func (attr *Attribute) Dump(indents ...string) {
 	indent := strings.Join(indents, "")
 	log.Printf("%s%s:", indent, attr.Name)
 	log.Printf("%s  - type: ", indent, attr.Type)
-	log.Printf("%s  - internal: %v", indent, attr.internals != nil)
+	log.Printf("%s  - internal: %v", indent, attr.Internals != nil)
 }
 
 func (rm *ResourceModel) AddResourceAttr(name, daType string) (*Attribute, *XRError) {
@@ -1589,7 +1643,7 @@ func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, *XRError
 }
 
 func (rm *ResourceModel) Delete() *XRError {
-	defer log.Trace("tx: %s %s", rm.GroupModel.Model.Registry.tx.uuid,
+	defer log.Trace("tx: %s %s", rm.GroupModel.Model.Registry.Tx.UUID,
 		rm.Plural)()
 
 	rm.GroupModel.RemoveConditionalProps()
@@ -1778,24 +1832,24 @@ func (a *Attribute) GetMatchVersions() bool {
 }
 
 func (a *Attribute) InOnlyType(eType int) bool {
-	PanicIf(a.internals == nil, "nil")
+	PanicIf(a.Internals == nil, "nil")
 	/*
-		if a.internals == nil {
+		if a.Internals == nil {
 			return false
 		}
 	*/
-	return a.internals.types == string(rune('0'+byte(eType)))
+	return a.Internals.Types == string(rune('0'+byte(eType)))
 }
 
 func (a *Attribute) InType(eType int) bool {
-	PanicIf(a.internals == nil, "nil")
+	PanicIf(a.Internals == nil, "nil")
 	/*
-		if a.internals == nil {
+		if a.Internals == nil {
 			return false
 		}
 	*/
-	return a.internals.types == "" ||
-		strings.ContainsRune(a.internals.types, rune('0'+byte(eType)))
+	return a.Internals.Types == "" ||
+		strings.ContainsRune(a.Internals.Types, rune('0'+byte(eType)))
 }
 
 func (a *Attribute) IsScalar() bool {
@@ -1985,8 +2039,8 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
 	}
 
 	// TODO DUG align other aspects of the attrs too
-	if specAttr.internals != nil {
-		for _, attrName := range specAttr.internals.cantOverride {
+	if specAttr.Internals != nil {
+		for _, attrName := range specAttr.Internals.CantOverride {
 			switch attrName {
 			/*
 				case "MatchCase":
@@ -2149,7 +2203,7 @@ func (m *Model) GetBaseAttributes() Attributes {
 		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
 		} else {
-			attrs[specProp.Name].internals = specProp.internals
+			attrs[specProp.Name].Internals = specProp.Internals
 		}
 	}
 
@@ -2283,7 +2337,9 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 		// Save what our real type is
 		rClone.XImportOrigin = "/" + r.GroupModel.Plural + "/" + r.Plural
 
-		gm.AddResourceModelFull(rClone)
+		if _, xErr := gm.AddResourceModelFull(rClone); xErr != nil {
+			return xErr
+		}
 
 		// Don't save it in the model
 		// It's just for initial construction of the model
@@ -2508,7 +2564,7 @@ func (gm *GroupModel) GetBaseAttributes() Attributes {
 		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
 		} else {
-			attrs[specProp.Name].internals = specProp.internals
+			attrs[specProp.Name].Internals = specProp.Internals
 		}
 	}
 
@@ -2523,25 +2579,25 @@ func (rm *ResourceModel) RemoveConditionalProps() {
 
 	// Only delete them if they're system added
 	if attr, ok := rm.VersionAttributes[rm.Singular]; ok {
-		if attr.internals != nil {
+		if attr.Internals != nil {
 			delete(rm.VersionAttributes, rm.Singular)
 			rm.GroupModel.Model.SetChanged(true)
 		}
 	}
 	if attr, ok := rm.VersionAttributes[rm.Singular+"base64"]; ok {
-		if attr.internals != nil {
+		if attr.Internals != nil {
 			delete(rm.VersionAttributes, rm.Singular+"base64")
 			rm.GroupModel.Model.SetChanged(true)
 		}
 	}
 	if attr, ok := rm.VersionAttributes[rm.Singular+"url"]; ok {
-		if attr.internals != nil {
+		if attr.Internals != nil {
 			delete(rm.VersionAttributes, rm.Singular+"url")
 			rm.GroupModel.Model.SetChanged(true)
 		}
 	}
 	if attr, ok := rm.VersionAttributes[rm.Singular+"proxyurl"]; ok {
-		if attr.internals != nil {
+		if attr.Internals != nil {
 			delete(rm.VersionAttributes, rm.Singular+"proxyurl")
 			rm.GroupModel.Model.SetChanged(true)
 		}
@@ -3047,7 +3103,7 @@ func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {
 		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
 		} else {
-			attrs[specProp.Name].internals = specProp.internals
+			attrs[specProp.Name].Internals = specProp.Internals
 		}
 	}
 
@@ -3065,7 +3121,7 @@ func (rm *ResourceModel) GetBaseVersionAttributes() Attributes {
 		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
 		} else {
-			attrs[specProp.Name].internals = specProp.internals
+			attrs[specProp.Name].Internals = specProp.Internals
 		}
 	}
 
@@ -3094,7 +3150,7 @@ func EnsureJustOneRESOURCE(e *Entity, obj map[string]any, singular string) *XREr
 	return nil
 }
 
-func RESOURCEcheckFn(e *Entity) *XRError {
+func RESOURCECheckFn(e *Entity) *XRError {
 	_, rm := e.GetModels()
 	return EnsureJustOneRESOURCE(e, e.NewObject, rm.Singular)
 }
@@ -3119,7 +3175,7 @@ func (rm *ResourceModel) GetBaseAttributes() Attributes {
 		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
 		} else {
-			attrs[specProp.Name].internals = specProp.internals
+			attrs[specProp.Name].Internals = specProp.Internals
 		}
 	}
 
@@ -3775,7 +3831,7 @@ func (attrs Attributes) SetSpecPropsFields(singular string) {
 			k = "id"
 		}
 		if specProp := SpecProps[k]; specProp != nil {
-			attr.internals = specProp.internals
+			attr.Internals = specProp.Internals
 		}
 	}
 }
