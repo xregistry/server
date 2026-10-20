@@ -196,7 +196,8 @@ function loadUIConfig() {
 // note) without hard-coding it.
 function replaceCommitPlaceholder(s) {
   if (s == null) return s;
-  var commit = (typeof XREG_UI_COMMIT === 'string') ? XREG_UI_COMMIT.slice(0, 12) : '';
+  var commit = (typeof XREG_UI_COMMIT === 'string' &&
+                XREG_UI_COMMIT !== '$COMMIT') ? XREG_UI_COMMIT.slice(0, 12) : '';
   return String(s).split('$COMMIT').join(commit);
 }
 
@@ -5209,7 +5210,8 @@ function cfgRowDrop(e, targetUrl) {
 // whatever registry server happens to be selected at runtime, so nothing
 // here depends on _state/servers/probing.
 function buildAboutSectionHtml() {
-  var commit = (typeof XREG_UI_COMMIT !== 'undefined' && XREG_UI_COMMIT) || '';
+  var commit = (typeof XREG_UI_COMMIT !== 'undefined' &&
+                XREG_UI_COMMIT !== '$COMMIT' && XREG_UI_COMMIT) || '';
   var shortCommit = commit ? commit.slice(0, 12) : '';
 
   var pills = [
