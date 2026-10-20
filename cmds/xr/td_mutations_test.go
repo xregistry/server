@@ -117,9 +117,9 @@ func TestConformMutationGroupModel(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			model := &registry.Model{
 				Groups: map[string]*registry.GroupModel{
-					"widgets": {
-						Plural:   "widgets",
-						Singular: "widget",
+					"dirs": {
+						Plural:   "dirs",
+						Singular: "dir",
 						Attributes: registry.Attributes{
 							test.key: test.attr,
 						},
@@ -143,7 +143,7 @@ func TestTDGroupCreateReadDeleteSkipsReadonlyLabels(t *testing.T) {
 
 	root := newConformMutationTestTD(server.URL)
 	root.Config.AllowMutations = true
-	root.GetRegistry().Model.Groups["widgets"].Attributes["labels"] =
+	root.GetRegistry().Model.Groups["dirs"].Attributes["labels"] =
 		&registry.Attribute{
 			Type:     MAP,
 			ReadOnly: true,
@@ -159,6 +159,7 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 	tests := []struct {
 		name             string
 		failFast         bool
+		withoutEpochFlag bool
 		preflightExists  bool
 		wrongLocation    bool
 		foreignObject    bool
@@ -171,12 +172,20 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 		wantMethods      string
 		wantDeletes      int
 		wantRetained     bool
+		wantLog          string
 	}{
 		{
 			name:        "success",
 			wantStatus:  PASS,
 			wantMethods: "GET,PUT,GET,GET,DELETE,GET",
 			wantDeletes: 1,
+		},
+		{
+			name:             "success without epoch flag",
+			withoutEpochFlag: true,
+			wantStatus:       PASS,
+			wantMethods:      "GET,PUT,GET,GET,DELETE,GET",
+			wantDeletes:      1,
 		},
 		{
 			name:            "preflight object retained",
@@ -239,6 +248,7 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 			wantStatus:     FAIL,
 			wantMethods:    "GET,PUT,GET",
 			wantDeletes:    0,
+			wantLog:        "Create PUT response: 307 Temporary Redirect",
 		},
 		{
 			name:           "delete redirect rejected",
@@ -247,6 +257,7 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 			wantMethods:    "GET,PUT,GET,GET,DELETE",
 			wantDeletes:    1,
 			wantRetained:   true,
+			wantLog:        "Cleanup DELETE response: 307 Temporary Redirect",
 		},
 		{
 			name:         "large epoch change retained",
@@ -265,6 +276,7 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 			deletes := 0
 			current := map[string]any(nil)
 			ownedGets := 0
+			ownedID := ""
 			foreignTouched := false
 			var server *httptest.Server
 
@@ -296,7 +308,7 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 					case http.MethodPut:
 						if test.createRedirect {
 							w.Header().Set("Location",
-								server.URL+"/widgets/foreign")
+								server.URL+"/dirs/foreign")
 							w.WriteHeader(http.StatusTemporaryRedirect)
 							return
 						}
@@ -309,18 +321,19 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 							t.Errorf("epoch sentinel: %#v", body["epoch"])
 						}
 
-						id := strings.TrimPrefix(r.URL.Path, "/widgets/")
-						if body["widgetid"] != id {
-							t.Errorf("widgetid: %#v, want %q", body["widgetid"], id)
+						id := strings.TrimPrefix(r.URL.Path, "/dirs/")
+						ownedID = id
+						if body["dirid"] != id {
+							t.Errorf("dirid: %#v, want %q", body["dirid"], id)
 						}
 						labels, _ := body["labels"].(map[string]any)
 						owner, _ := labels[conformMutationLabel].(string)
 
 						if test.foreignObject {
 							current = map[string]any{
-								"widgetid": id,
-								"xid":      r.URL.Path,
-								"epoch":    7,
+								"dirid": id,
+								"xid":   r.URL.Path,
+								"epoch": 7,
 								"labels": map[string]any{
 									conformMutationLabel: "foreign",
 								},
@@ -335,10 +348,10 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 							epoch = uint64(9007199254740995)
 						}
 						current = map[string]any{
-							"widgetid":    id,
-							"xid":         r.URL.Path,
-							"epoch":       epoch,
-							"thingscount": 0,
+							"dirid":      id,
+							"xid":        r.URL.Path,
+							"epoch":      epoch,
+							"filescount": 0,
 							"labels": map[string]any{
 								conformMutationLabel: owner,
 							},
@@ -356,11 +369,11 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 						_ = json.NewEncoder(w).Encode(current)
 						if test.foreignResource {
 							current = map[string]any{
-								"widgetid":    id,
-								"xid":         r.URL.Path,
-								"epoch":       2,
-								"thingscount": 1,
-								"things": map[string]any{
+								"dirid":      id,
+								"xid":        r.URL.Path,
+								"epoch":      2,
+								"filescount": 1,
+								"files": map[string]any{
 									"foreign": map[string]any{},
 								},
 								"labels": map[string]any{
@@ -371,12 +384,43 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 					case http.MethodDelete:
 						deletes++
 						expectedEpoch := fmt.Sprint(current["epoch"])
-						if r.URL.Query().Get("epoch") != expectedEpoch {
-							t.Errorf("delete epoch: %q", r.URL.Query().Get("epoch"))
+						if test.withoutEpochFlag {
+							if r.URL.Path != "/dirs" {
+								t.Errorf("delete path: %q, want /dirs", r.URL.Path)
+							}
+							if r.URL.RawQuery != "" {
+								t.Errorf("delete query: %q, want empty", r.URL.RawQuery)
+							}
+							deleteBody := map[string]map[string]json.Number{}
+							decoder := json.NewDecoder(r.Body)
+							decoder.UseNumber()
+							if err := decoder.Decode(&deleteBody); err != nil {
+								t.Errorf("decode delete body: %v", err)
+							}
+							if len(deleteBody) != 1 {
+								t.Errorf("delete body entries: %d, want 1",
+									len(deleteBody))
+							}
+							entry, ok := deleteBody[ownedID]
+							if !ok {
+								t.Errorf("delete body missing %q", ownedID)
+							} else if fmt.Sprint(entry["epoch"]) != expectedEpoch {
+								t.Errorf("delete body epoch: %q, want %q",
+									entry["epoch"], expectedEpoch)
+							}
+						} else {
+							if r.URL.Path != "/dirs/"+ownedID {
+								t.Errorf("delete path: %q, want /dirs/%s",
+									r.URL.Path, ownedID)
+							}
+							if r.URL.Query().Get("epoch") != expectedEpoch {
+								t.Errorf("delete epoch: %q",
+									r.URL.Query().Get("epoch"))
+							}
 						}
 						if test.deleteRedirect {
 							w.Header().Set("Location",
-								server.URL+"/widgets/foreign")
+								server.URL+"/dirs/foreign")
 							w.WriteHeader(http.StatusTemporaryRedirect)
 							return
 						}
@@ -392,6 +436,9 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 			root := newConformMutationTestTD(server.URL)
 			root.Config.AllowMutations = true
 			root.Config.FailFast = test.failFast
+			if test.withoutEpochFlag {
+				root.GetRegistry().Capabilities.Flags = nil
+			}
 			result := root.Run(TestTDGroupCreateReadDelete)
 
 			mu.Lock()
@@ -403,6 +450,10 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 			XEqual(t, "Methods", gotMethods, test.wantMethods)
 			XEqual(t, "Deletes", gotDeletes, test.wantDeletes)
 			XEqual(t, "Foreign redirect target", gotForeignTouched, false)
+			if test.wantLog != "" {
+				XCheck(t, conformMutationHasLog(result, test.wantLog),
+					"Expected diagnostic containing %q", test.wantLog)
+			}
 			if test.wantRetained {
 				XCheck(t, current != nil, "Object must remain")
 			} else {
@@ -412,20 +463,32 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 	}
 }
 
+func conformMutationHasLog(td *TD, text string) bool {
+	for _, entry := range td.Logs {
+		if strings.Contains(entry.Text, text) {
+			return true
+		}
+		if entry.Subtest != nil && conformMutationHasLog(entry.Subtest, text) {
+			return true
+		}
+	}
+	return false
+}
+
 func newConformMutationTestTD(serverURL string) *TD {
 	root := newTestTD("Mutation")
 	reg, xErr := registry.DefineRegistry(serverURL, XRConfig)
 	root.NoErrorStop(xErr)
 	reg.Model = &registry.Model{
 		Groups: map[string]*registry.GroupModel{
-			"widgets": {
-				Plural:     "widgets",
-				Singular:   "widget",
+			"dirs": {
+				Plural:     "dirs",
+				Singular:   "dir",
 				Attributes: registry.Attributes{},
 				Resources: map[string]*registry.ResourceModel{
-					"things": {
-						Plural:   "things",
-						Singular: "thing",
+					"files": {
+						Plural:   "files",
+						Singular: "file",
 					},
 				},
 			},

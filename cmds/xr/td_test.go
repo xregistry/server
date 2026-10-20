@@ -311,7 +311,12 @@ func TestModelCachesVerifiedRegistryModel(t *testing.T) {
 				modelRequests.Add(1)
 				_, _ = w.Write([]byte(`{
   "groups": {
-    "widgets": {"singular": "widget"}
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {"singular": "file"}
+      }
+    }
   }
 }`))
 			} else {
@@ -333,7 +338,7 @@ func TestModelCachesVerifiedRegistryModel(t *testing.T) {
 	XCheck(t, model == verifiedModel, "GetModel MUST reuse the verified model")
 	XEqual(t, "Model requests", modelRequests.Load(), int32(1))
 	XCheck(t, root.Config.Model == nil, "TDConfig MUST NOT cache another model")
-	XCheck(t, model.Groups["widgets"].Attributes["labels"] != nil,
+	XCheck(t, model.Groups["dirs"].Attributes["labels"] != nil,
 		"Cached model MUST include verified core attributes")
 }
 

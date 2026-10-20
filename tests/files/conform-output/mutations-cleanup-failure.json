@@ -193,7 +193,7 @@
             },
             {
               "subtest": {
-                "name": "Confirm mutation destination is absent",
+                "name": "Confirm target Group is absent",
                 "status": "PASS",
                 "pass": 2,
                 "fail": 0,
@@ -277,12 +277,16 @@
                 "skip": 0,
                 "entries": [
                   {
+                    "status": "LOG",
+                    "text": "Cleanup GET response: 503 Service Unavailable; body: \"cleanup unavailable\""
+                  },
+                  {
                     "status": "FAIL",
                     "text": "Cleanup GET MUST return 200 or 404"
                   },
                   {
                     "status": "MSG",
-                    "text": "Run-owned Group may remain: /widgets/xr-conform-RUN"
+                    "text": "Run-owned Group may remain: /dirs/xr-conform-RUN"
                   }
                 ]
               }
