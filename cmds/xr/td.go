@@ -12,6 +12,7 @@ import (
 
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 	"golang.org/x/term"
 )
 
@@ -42,8 +43,8 @@ type TDConfig struct {
 	Out          io.Writer
 	Output       string
 	Server       string
-	Registry     *xrlib.Registry
-	Model        *xrlib.Model
+	Registry     *registry.Registry
+	Model        *registry.Model
 	Capabilities *Capabilities
 
 	FailFast     bool
@@ -173,7 +174,7 @@ func (td *TD) Print(out io.Writer, indent string, depth int) {
 		td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
 }
 
-func Debug(out io.Writer, fmtStr string, args ...any) {
+func TDDebug(out io.Writer, fmtStr string, args ...any) {
 	if tdDebug {
 		str := fmt.Sprintf(fmtStr, args...)
 		if str[len(str)-1] != '\n' {
@@ -222,7 +223,7 @@ func (td *TD) writeHeader(out io.Writer, indent string, depth int) {
 	}
 	out.Write([]byte(str + "\n"))
 
-	// Debug(out,"%s %d/%d/%d/%d",
+	// TDDebug(out,"%s %d/%d/%d/%d",
 	// str, td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
 }
 
@@ -239,7 +240,7 @@ func (td *TD) writeBody(out io.Writer, indent string, depth int) {
 
 	// Calc the last logEntry - skipping the LOG messages at the end
 	lastLog := len(td.Logs) - 1
-	Debug(out, "%sstat:%s sl:%v", indent, StatusText[td.Status],
+	TDDebug(out, "%sstat:%s sl:%v", indent, StatusText[td.Status],
 		td.Config.ShowLogs)
 	// if td.Status != FAIL && td.Config.ShowLogs == false {
 	// I can't remember why I wanted to skip the trailing LOG messages, so
@@ -249,7 +250,7 @@ func (td *TD) writeBody(out io.Writer, indent string, depth int) {
 					for ; lastLog > 0; lastLog-- {
 						log := td.Logs[lastLog]
 						if log.Type == LOG {
-							Debug(out, "%s  dropping  le:%s", indent, log.Text)
+							TDDebug(out, "%s  dropping  le:%s", indent, log.Text)
 							continue
 						}
 
@@ -258,15 +259,15 @@ func (td *TD) writeBody(out io.Writer, indent string, depth int) {
 		                depth > 0 {
 							break
 						}
-						Debug(out, "%s  dropping  le:%s", indent, log.Text)
+						TDDebug(out, "%s  dropping  le:%s", indent, log.Text)
 					}
 				}
 	*/
-	Debug(out, "%sLL:%d len:%d depth:%d", indent, lastLog, len(td.Logs), depth)
+	TDDebug(out, "%sLL:%d len:%d depth:%d", indent, lastLog, len(td.Logs), depth)
 
 	for i := 0; i <= lastLog; i++ {
 		le := td.Logs[i]
-		Debug(out, "%sprocessing %s l#%d depth:%d", indent, le.Text, i, depth)
+		TDDebug(out, "%sprocessing %s l#%d depth:%d", indent, le.Text, i, depth)
 		str := ""
 		// date := le.Date.Format(time.RFC3339)
 		if i == lastLog {
@@ -738,9 +739,15 @@ func (td *TD) ShouldEqual(exp any, got any, args ...any) {
 
 // HTTPGetJSON records a request subtest and returns nil after a failed check.
 // FailFast still stops execution on the first failure.
-func (td *TD) HTTPGetJSON(path string) *xrlib.HttpResponse {
+func (td *TD) HTTPGetJSON(path string) *HttpResponse {
 	nTD := NewTD(td, "GET %s", path)
-	res, xErr := td.GetRegistry().HttpDo(VerboseCount > 2, "GET", path, nil)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     td.GetRegistry().WithPath(path),
+		Headers: xrlib.HTTPHeaders,
+		Body:    nil,
+		Debug:   VerboseCount > 2,
+	})
 	nTD.NoError(xErr, "GET %s", path)
 	if nTD.Status == FAIL {
 		return nil
@@ -758,7 +765,7 @@ func (td *TD) HTTPGetJSON(path string) *xrlib.HttpResponse {
 	return res
 }
 
-func (td *TD) HTTPStatusMustEqual(res *xrlib.HttpResponse, exp int, args ...any) {
+func (td *TD) HTTPStatusMustEqual(res *HttpResponse, exp int, args ...any) {
 	if res == nil {
 		td.Fail(args...)
 		return
@@ -770,7 +777,7 @@ func (td *TD) HTTPStatusMustEqual(res *xrlib.HttpResponse, exp int, args ...any)
 	td.MustEqual(exp, res.Code, "%sMUST return %d", str, exp)
 }
 
-func (td *TD) HTTPStatusShouldEqual(res *xrlib.HttpResponse, exp int, args ...any) {
+func (td *TD) HTTPStatusShouldEqual(res *HttpResponse, exp int, args ...any) {
 	if res == nil {
 		td.Fail(args...)
 		return
@@ -778,7 +785,7 @@ func (td *TD) HTTPStatusShouldEqual(res *xrlib.HttpResponse, exp int, args ...an
 	td.ShouldEqual(exp, res.Code, args...)
 }
 
-func (td *TD) HTTPHeaderMustEqual(res *xrlib.HttpResponse, header, exp string, args ...any) {
+func (td *TD) HTTPHeaderMustEqual(res *HttpResponse, header, exp string, args ...any) {
 	if res == nil {
 		td.Fail(args...)
 		return
@@ -787,7 +794,7 @@ func (td *TD) HTTPHeaderMustEqual(res *xrlib.HttpResponse, header, exp string, a
 	td.MustEqual(exp, gotHeader, args...)
 }
 
-func (td *TD) HTTPGetProp(res *xrlib.HttpResponse, prop string) any {
+func (td *TD) HTTPGetProp(res *HttpResponse, prop string) any {
 	if res == nil {
 		td.Fail("No HttpResponse")
 		return nil
@@ -795,7 +802,7 @@ func (td *TD) HTTPGetProp(res *xrlib.HttpResponse, prop string) any {
 	return res.JSON[prop]
 }
 
-func (td *TD) HTTPPropMustEqual(res *xrlib.HttpResponse, prop string, exp any) {
+func (td *TD) HTTPPropMustEqual(res *HttpResponse, prop string, exp any) {
 	if res == nil {
 		td.Fail("No HttpResponse")
 		return
@@ -803,7 +810,7 @@ func (td *TD) HTTPPropMustEqual(res *xrlib.HttpResponse, prop string, exp any) {
 	td.ObjPropMustEqual(res.JSON, prop, exp)
 }
 
-func (td *TD) HTTPPropMustNotEqual(res *xrlib.HttpResponse, prop string, exp any) {
+func (td *TD) HTTPPropMustNotEqual(res *HttpResponse, prop string, exp any) {
 	if res == nil {
 		td.Fail("No HttpResponse")
 		return
@@ -811,7 +818,7 @@ func (td *TD) HTTPPropMustNotEqual(res *xrlib.HttpResponse, prop string, exp any
 	td.ObjPropMustNotEqual(res.JSON, prop, exp)
 }
 
-func (td *TD) HTTPPropMustBeTimestamp(res *xrlib.HttpResponse, prop string) {
+func (td *TD) HTTPPropMustBeTimestamp(res *HttpResponse, prop string) {
 	if res == nil {
 		td.Fail("No HttpResponse")
 		return
@@ -819,7 +826,7 @@ func (td *TD) HTTPPropMustBeTimestamp(res *xrlib.HttpResponse, prop string) {
 	td.ObjPropMustBeTimestamp(res.JSON, prop)
 }
 
-func (td *TD) HTTPBodyMustJSON(res *xrlib.HttpResponse, args ...any) {
+func (td *TD) HTTPBodyMustJSON(res *HttpResponse, args ...any) {
 	str := ""
 	if len(args) > 0 {
 		str = "'" + fmt.Sprintf(args[0].(string), args[1:]...) + "' "
@@ -896,26 +903,26 @@ func PrettyPrint(indent string, prefix string, text string) string {
 	return string(str)
 }
 
-func (td *TD) GetRegistry() *xrlib.Registry {
+func (td *TD) GetRegistry() *xrlib.CLIReg {
 	if td.Config.Registry == nil {
 		td.FailNow("Registry isn't set")
 	}
-	return td.Config.Registry
+	return (*xrlib.CLIReg)(td.Config.Registry)
 }
 
-func (td *TD) SetRegistry(r *xrlib.Registry) *TD {
+func (td *TD) SetRegistry(r *registry.Registry) *TD {
 	td.Config.Registry = r
 	return td
 }
 
-func (td *TD) GetModel() *xrlib.Model {
+func (td *TD) GetModel() *registry.Model {
 	if td.Config.Model == nil {
 		td.FailNow("Model isn't set")
 	}
 	return td.Config.Model
 }
 
-func (td *TD) SetModel(m *xrlib.Model) *TD {
+func (td *TD) SetModel(m *registry.Model) *TD {
 	td.Config.Model = m
 	return td
 }

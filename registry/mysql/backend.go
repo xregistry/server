@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
@@ -242,9 +241,6 @@ func (sqlBE *SQLBackend) NewTx(tx *registry.Tx) *XRError {
 	}
 
 	tx.Tx = t
-	tx.CreateTime = time.Now().UTC().Format(time.RFC3339Nano)
-	tx.Cache = map[string]*registry.Entity{}
-	// tx.Stack = GetStack()
 
 	log.FuncPrintf("tx: %s Begin transaction", tx.UUID)
 

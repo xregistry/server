@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
 )
 
@@ -87,7 +88,14 @@ func TestTDDepCacheFail(td *TD) {
 
 func TestTDUtils(td *TD) {
 	reg := td.GetRegistry()
-	res, xErr := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
+	cliReg := (*xrlib.CLIReg)(reg)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     cliReg.WithPath("/"),
+		Headers: xrlib.HTTPHeaders,
+		Body:    nil,
+		Debug:   VerboseCount > 2,
+	})
 	td.NoErrorStop(xErr, "Retrieving registry root MUST work")
 
 	td.Log("==== PASSing tests ====")

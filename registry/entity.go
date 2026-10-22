@@ -5,22 +5,11 @@ import (
 	"maps"
 	"reflect"
 	"strconv"
+	"strings"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
-
-func (e *Entity) GetRequestInfo() *RequestInfo {
-	if e.Tx == nil {
-		return nil
-	}
-
-	if e.Tx.RequestInfo == nil {
-		return nil
-	}
-
-	return e.Tx.RequestInfo
-}
 
 type EntitySetter interface {
 	Get(name string) any
@@ -29,51 +18,3089 @@ type EntitySetter interface {
 	Delete() *XRError
 }
 
-func GoToOurType(val any) string {
-	// Fast path: type switch avoids the reflect.ValueOf() overhead for
-	// the concrete types that make up the overwhelming majority of calls
-	// (JSON-decoded values, plus our own int/uint64/struct{}{} usages).
-	switch val.(type) {
-	case bool:
-		return BOOLEAN
-	case int:
-		return INTEGER
-	case uint64:
-		return UINTEGER
-	case float64:
-		return DECIMAL
-	case string:
-		return STRING
-	case []any:
-		return ARRAY
-	case map[string]any:
-		return MAP
-	case struct{}:
-		return OBJECT
-	}
+type Entity struct {
+	Tx           *Tx       `json:"-"`
+	AccessMode   int       // FOR_READ, FOR_WRITE
+	Registry     *Registry `json:"-"`
+	SID          string    // Entity's SID
+	ParentSID    string    // Parent entity's SID ("" for the Registry root)
+	Plural       string
+	Singular     string
+	UID          string         // Entity's UID
+	Object       map[string]any `json:"-"`
+	NewObject    map[string]any `json:"-"` // updated version, save() will store
+	OriginObject map[string]any `json:"-"` // pre-Tx values
+	// I'm not sure if OriginObject is the best way to go. I added it so that
+	// EnsureCompat could view the original value of "compat" but I also could
+	// have just set a flag on Meta when "compat" changed (via the
+	// UpdateFn(), and then avoid cloning the entire Object. Just something
+	// to think about for the future
 
-	panic(fmt.Sprintf("Bad type: %s", reflect.ValueOf(val).Type()))
+	// System/NewSystem mirror Object/NewObject but for "system" props
+	// (currently just formatvalidated/formatvalidatedreason/
+	// compatibilityvalidated/compatibilityvalidatedreason - the
+	// IsSystemProp=true attrs). These are kept separate because setting
+	// them must NOT bump epoch/modifiedat (so they can't just live in
+	// Object/NewObject). SetSystemDBProperty() buffers changes into
+	// NewSystem (like Set() buffers into NewObject); SaveSystemProps()
+	// flushes NewSystem to the DB (and re-runs the default-version
+	// cascade, if needed) at most once per entity per Tx, at commit
+	// time - see tx.WriteCache().
+	System       map[string]any `json:"-"`
+	NewSystem    map[string]any `json:"-"`
+	OriginSystem map[string]any `json:"-"` // pre-Tx values,mirrors OriginObject
 
-	// Slow path: fall back to reflect.Kind for anything not covered above
-	// (e.g. some other named slice/map/struct type), so behavior stays
-	// identical to before for any case we didn't anticipate.
-	switch reflect.ValueOf(val).Kind() {
-	case reflect.Interface:
-		return ANY
-	case reflect.Slice:
-		return ARRAY
-	case reflect.Map:
-		return MAP
-	case reflect.Struct:
-		return OBJECT
-	}
-	panic(fmt.Sprintf("Bad Kind: %v", reflect.ValueOf(val).Kind()))
+	// OriginSystem is captured once, by EnsureNewSystem(), the first
+	// time SetSystemDBProperty() genuinely buffers a change this Tx
+	// (mirrors OriginObject/EnsureNewObject()). Like OriginObject, it's
+	// never touched by Refresh(), so comparing it against System at any
+	// later point in the Tx (e.g. Resource.runCascade()'s cascade-skip
+	// optimization) reliably answers "did a system prop really change
+	// this Tx" regardless of any mid-Tx Refresh() calls - unlike
+	// EpochSet, which Refresh() resets as part of reloading.
+
+	// These were added just for convenience and so we can use the same
+	// struct for traversing the SQL results
+	Type     int    // ENTITY_REGISTRY(0)/GROUP(1)/RESOURCE(2)/VERSION(3)/...
+	XID      string // /[GROUPS[/GID[/RESOURCES[/RID[/versions[/vID]]]]]]
+	Abstract string // [GROUPS[,RESOURCES[,versions]]]
+	EpochSet bool   `json:"-"` // Has epoch changed this tx?
+	ModSet   bool   `json:"-"` // Has modifiedat changed this tx?
+	Self     any    `json:"-"` // ptr to typed Entity (e.g. *Group)
+
+	// Save these values in memory so we only need to get them once
+	GroupModel    *GroupModel    `json:"-"` // gModel if it's not a Registry
+	ResourceModel *ResourceModel `json:"-"` // If Res,Ver,Meta save rmModel
+
+	// Debugging
+	NewObjectStack []string `json:"-"` // stack when NewObj created via Ensure
+
+	// Extensions to 'common'
+	stuff map[string]any
 }
 
-func (e *Entity) ToString() string {
-	str := fmt.Sprintf("%s/%s\n  Object: %s\n  NewObject: %s",
-		e.Singular, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
+func (e *Entity) GetStuff(key string) (any, bool) {
+	if e.stuff == nil {
+		return nil, false
+	}
+
+	val, ok := e.stuff[key]
+	return val, ok
+}
+
+func (e *Entity) GetStuffAsString(key string) string {
+	val, ok := e.GetStuff(key)
+	if !ok {
+		return ""
+	}
+	return val.(string)
+}
+
+func (e *Entity) SetStuff(key string, val any) {
+	if IsNil(val) && e.stuff == nil {
+		return
+	}
+
+	if e.stuff == nil {
+		e.stuff = map[string]any{}
+	}
+
+	if IsNil(val) {
+		delete(e.stuff, key)
+	} else {
+		e.stuff[key] = val
+	}
+}
+
+type Registry struct {
+	Entity
+	Model        *Model        `json:"-"`
+	Capabilities *Capabilities `json:"-"`
+
+	oldCapabilities *Capabilities // as seen at the start of the tx
+
+	// UsesXref mirrors Registries.UsesXref (a raw DB column, NOT a
+	// model/user-visible attribute - never serialized, never bumps
+	// epoch/modifiedAt). Loaded once per Tx by FindRegistryBySID().
+	// Lets Resource.runCascade() skip the xref-target fan-out check
+	// entirely for Registries that never use xref. See init.sql's
+	// Registries.UsesXref doc comment for the full design.
+	UsesXref bool `json:"-"`
+}
+
+type Group struct {
+	Entity
+	Registry *Registry
+
+	// "constraints" is the full set of constraints for the group.
+	// - the ones defined at the instance + groupType/model level
+	// nil means we haven't built the list of constraints yet.
+	// Zero-len  map means we've done the analysis & there are no constraints.
+	// So nil is NOT the same as {} !!!
+	constraints map[string]*Constraint
+
+	// there are just the ones defined at the group instance level.
+	// basically just parse "constraints" attribute
+	groupConstraints map[string]*Constraint
+}
+
+type Resource struct {
+	Entity
+	Group *Group
+}
+
+type Meta struct {
+	Entity
+	Resource *Resource
+}
+
+type Version struct {
+	Entity
+	Resource *Resource
+}
+
+// This allows for us to choose the order and define custom logic per prop
+var OrderedSpecProps = []*Attribute{}
+
+func InitOrderedSpecProps() {
+	OrderedSpecProps = []*Attribute{
+		{
+			Name:     "specversion",
+			Type:     STRING,
+			ReadOnly: true,
+			Required: true,
+			Default:  SPECVERSION,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_REGISTRY),
+				DontStore:   true,
+				UIMonospace: true,
+				UILabel:     "Spec Version",
+
+				GetFn: func(e *Entity) any {
+					return SPECVERSION
+				},
+				CheckFn: func(e *Entity) *XRError {
+					tmp := e.NewObject["specversion"]
+					if !IsNil(tmp) && tmp != "" {
+						sv, _ := tmp.(string)
+						norm := NormalizeSpecVersion(sv)
+						if norm != NormalizeSpecVersion(SPECVERSION) {
+							return NewXRError("invalid_attribute", e.XID,
+								"name=specversion",
+								"error_detail="+
+									fmt.Sprintf("invalid value: %v", tmp))
+						}
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name:      "id",
+			Type:      STRING,
+			Immutable: true,
+			Required:  true,
+
+			Internals: &AttrInternals{
+				Types:        "", // Yes even ENTITY_RESOURCE
+				XrefRequired: true,
+				UIMonospace:  true,
+
+				CheckFn: func(e *Entity) *XRError {
+					singular := e.Singular
+					// PanicIf(singular == "", "singular is '' :  %v", e)
+					if e.Type == ENTITY_VERSION || e.Type == ENTITY_META {
+						_, rm := e.GetModels()
+						singular = rm.Singular
+					}
+					justSingular := singular
+					singular += "id"
+
+					oldID := any(e.UID)
+					if e.Type == ENTITY_VERSION || e.Type == ENTITY_META {
+						// Grab rID from /GROUPs/gID/RESOURCEs/rID/versions/vID
+						parts := strings.Split(e.XID, "/")
+						oldID = parts[4]
+					}
+					newID := any(e.NewObject[singular])
+
+					if IsNil(newID) {
+						return nil // Not trying to be updated, so skip it
+					}
+
+					if newID == "" {
+						return NewXRError("invalid_attribute", e.XID,
+							"name="+singular,
+							"error_detail=can't be an empty string")
+					}
+
+					if xErr := IsValidID(newID.(string), singular); xErr != nil {
+						xErr.Subject = e.XID
+						return xErr
+					}
+					if oldID != "" && !IsNil(oldID) && newID != oldID {
+						info := e.GetRequestInfo()
+						if info.HasIgnore("id") && "/"+info.Root == e.XID {
+							// Don't check and reset to old ID (if changed)
+							e.NewObject[singular] = oldID
+						} else {
+							return NewXRError("mismatched_id", e.XID,
+								"singular="+justSingular,
+								"expected_id="+fmt.Sprintf("%v", oldID),
+								"invalid_id="+fmt.Sprintf("%v", newID))
+						}
+					}
+					return nil
+				},
+				UpdateFn: func(e *Entity) *XRError {
+					// Make sure the ID is always set
+					singular := e.Singular
+					if e.Type == ENTITY_VERSION || e.Type == ENTITY_META {
+						singular = e.GetResourceSingular()
+					}
+					singular += "id"
+
+					if e.Type == ENTITY_VERSION {
+						// Versions shouldn't store the RESOURCEid
+						delete(e.NewObject, singular)
+					} else if IsNil(e.NewObject[singular]) {
+						log.Printf("tx: %s (%s) %q is nil - "+
+							"e.UID=%q e.Type=%d e.Object=%s e.NewObject=%s "+
+							"e.OriginObject=%s",
+							e.Tx.UUID, e.XID, singular, e.UID, e.Type,
+							ToJSON(e.Object), ToJSON(e.NewObject),
+							ToJSON(e.OriginObject))
+						panic(fmt.Sprintf(`tx: %s (%s) %q is nil - `+
+							`that's bad, fix it!`,
+							e.Tx.UUID, e.XID, singular))
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name:      "versionid",
+			Type:      STRING,
+			Immutable: true,
+			Required:  true,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				UIMonospace: true,
+				UILabel:     "Version ID",
+
+				CheckFn: func(e *Entity) *XRError {
+					oldID := any(e.UID)
+					newID := any(e.NewObject["versionid"])
+
+					if IsNil(newID) {
+						return nil // Not trying to be updated, so skip it
+					}
+
+					if newID == "" {
+						return NewXRError("invalid_attribute", e.XID,
+							"name=versionid",
+							"error_detail="+"can't be an empty string")
+					}
+
+					if xErr := IsValidID(newID.(string), "versionid"); xErr != nil {
+						xErr.Subject = e.XID
+						return xErr
+					}
+
+					if oldID != "" && !IsNil(oldID) && newID != oldID {
+						info := e.GetRequestInfo()
+						if info.HasIgnore("id") && "/"+info.Root == e.XID {
+							// Don't check and reset to old ID (if changed)
+							e.NewObject["versionid"] = oldID
+						} else {
+							return NewXRError("mismatched_id", e.XID,
+								"singular=version",
+								"invalid_id="+fmt.Sprintf("%v", newID),
+								"expected_id="+fmt.Sprintf("%v", oldID))
+						}
+					}
+					return nil
+				},
+				UpdateFn: func(e *Entity) *XRError {
+					// Make sure the ID is always set
+					if IsNil(e.NewObject["versionid"]) {
+						log.Printf("tx: %s (%s) versionid is nil - "+
+							"e.UID=%q e.Object=%s e.NewObject=%s e.OriginObject=%s",
+							e.Tx.UUID, e.XID, e.UID, ToJSON(e.Object),
+							ToJSON(e.NewObject), ToJSON(e.OriginObject))
+						panic(fmt.Sprintf(`"tx: %s (%s) versionid" is nil - " +
+                    "fix it!`, e.Tx.UUID, e.XID))
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name:      "self",
+			Type:      URL,
+			ReadOnly:  true,
+			Immutable: true,
+			Required:  true,
+
+			Internals: &AttrInternals{
+				Types:        "", // Yes even ENTITY_RESOURCE
+				DontStore:    true,
+				XrefRequired: true,
+
+				GetFn: func(e *Entity) any {
+					base := ""
+					xid := e.XID
+					isAbs := false
+
+					info := e.GetRequestInfo()
+					if info != nil {
+						if info.DoDocView() {
+							// remove GET's base path
+							xid = xid[1+len(info.Root):] // 1+ for leading /
+							// if len(xid) == 0 || xid[0] != '/' {
+							// Root returns "#" not "#/"
+							if len(xid) > 0 && xid[0] != '/' {
+								xid = "/" + xid
+							}
+							base = DOCVIEW_BASE
+						} else {
+							isAbs = true
+							base = info.BaseURL
+						}
+					}
+
+					if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
+						details := info != nil && (info.ShowDetails ||
+							info.ResourceUID == "" || len(info.Parts) == 5)
+
+						if (info != nil && info.DoDocView() && !isAbs) ||
+							e.GetResourceModel().GetHasDocument() == false {
+							details = false
+						}
+
+						if details {
+							xid += "$details"
+						}
+					}
+					return base + xid
+				},
+			},
+		},
+		{
+			Name:      "shortself",
+			Type:      URL,
+			ReadOnly:  true,
+			Immutable: true,
+
+			Internals: &AttrInternals{
+				Types:        "",
+				DontStore:    true,
+				XrefRequired: true,
+
+				GetFn: func(e *Entity) any {
+					// Capabilities.ShortSelf isn't enabled, so stop
+					if e.Registry.Capabilities.ShortSelfEnabled() == false {
+						return nil
+					}
+
+					base := ""
+
+					// ?doc view shouldn't include it
+					info := e.GetRequestInfo()
+					if info != nil {
+						if info.DoDocView() {
+							return nil
+						}
+						base = info.OriginalBaseURL
+					}
+
+					ss := base + "/r/" + e.SID
+
+					selfAny := SpecProps["self"].Internals.GetFn(e)
+					if self, ok := selfAny.(string); ok && len(self) < len(ss) {
+						ss = self
+					}
+
+					return ss
+				},
+			},
+		},
+		{
+			Name:      "xid",
+			Type:      XID,
+			ReadOnly:  true,
+			Immutable: true,
+			Required:  true,
+
+			Internals: &AttrInternals{
+				Types:        "",
+				DontStore:    true,
+				XrefRequired: true,
+			},
+		},
+		{
+			Name: "xref",
+			Type: URL,
+
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_META),
+			},
+		},
+		{
+			Name:     "epoch",
+			Type:     UINTEGER,
+			ReadOnly: true,
+			Required: true,
+
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+
+				CheckFn: func(e *Entity) *XRError {
+					// If we explicitly setEpoch via internal API then don't check
+					if e.EpochSet {
+						return nil
+					}
+
+					val := e.NewObject["epoch"]
+					if IsNil(val) {
+						return nil
+					}
+
+					tmp := e.Object["epoch"]
+					oldEpoch := NotNilInt(&tmp)
+					if oldEpoch < 0 {
+						panic("WHY????")
+						oldEpoch = 0
+					}
+
+					newEpoch, err := AnyToUInt(val)
+					if err != nil {
+						return NewXRError("invalid_attribute", e.XID,
+							"name=epoch",
+							"error_detail=must be a uinteger")
+					}
+
+					if !e.GetRequestInfo().HasIgnore("epoch") && oldEpoch != 0 && newEpoch != oldEpoch {
+						return NewXRError("mismatched_epoch", e.XID,
+							"bad_epoch="+fmt.Sprintf("%v", val),
+							"epoch="+fmt.Sprintf("%d", oldEpoch))
+					}
+					return nil
+				},
+				UpdateFn: func(e *Entity) *XRError {
+					// Very special, if we're in meta and xref set then
+					// erase 'epoch'. We can't do it earlier because we need
+					// the CheckFn to be run to make sure any incoming value
+					// was valid
+					if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
+						e.NewObject["epoch"] = nil
+						return nil
+					}
+
+					// If we already set Epoch in this Tx, just exit
+					if e.EpochSet {
+						// If we already set epoch this tx but there's no value
+						// then grab it from Object, otherwise we'll be missing a
+						// value during Save(). This can happen when we Save()
+						// more than once on this Entity during the same Tx and
+						// the 2nd Save() didn't have epoch as part of the incoming
+						// Object
+						if IsNil(e.NewObject["epoch"]) {
+							e.NewObject["epoch"] = e.Object["epoch"]
+						}
+						return nil
+					}
+
+					// This assumes that ALL entities must have an Epoch property
+					// that we want to set. At one point this wasn't true for
+					// Resources but hopefully that's no longer true
+
+					oldEpoch := e.Object["epoch"]
+					epoch := NotNilInt(&oldEpoch)
+
+					e.NewObject["epoch"] = epoch + 1
+					e.EpochSet = true
+					return nil
+				},
+			},
+		},
+		{
+			Name: "name",
+			Type: STRING,
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+				UILabel: "Name",
+			},
+		},
+		{
+			Name:     "isdefault",
+			Type:     BOOLEAN,
+			ReadOnly: true,
+			Required: true,
+			Default:  false,
+
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_VERSION),
+				DontStore: true,
+				UILabel:   "Is Default",
+			},
+		},
+		{
+			Name: "description",
+			Type: STRING,
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+				UILabel: "Description",
+			},
+		},
+		{
+			Name: "documentation",
+			Type: URL,
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+				UILabel: "Documentation",
+			},
+		},
+		{
+			Name: "icon",
+			Type: URL,
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+				UILabel: "Icon",
+			},
+		},
+		{
+			Name: "labels",
+			Type: MAP,
+			Item: &Item{
+				Type: STRING,
+			},
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+				UILabel: "Labels",
+			},
+		},
+		{
+			Name:     "createdat",
+			Type:     TIMESTAMP,
+			Required: true,
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+				UILabel: "Created",
+
+				UpdateFn: func(e *Entity) *XRError {
+					if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
+						e.NewObject["createdat"] = nil
+
+						// If for some reason there is no saved createTime
+						// assume this is a new meta so save 'now'
+						if IsNil(e.NewObject["#createdat"]) {
+							e.NewObject["#createdat"] = e.Tx.CreateTime
+						}
+						return nil
+					}
+
+					ca, ok := e.NewObject["createdat"]
+					// If not there use the existing value, if present
+					if !ok {
+						ca = e.Object["createdat"]
+						e.NewObject["createdat"] = ca
+					}
+					// Still no value, so use "now"
+					if IsNil(ca) {
+						ca = e.Tx.CreateTime
+					}
+
+					e.NewObject["createdat"] = ca
+
+					return nil
+				},
+			},
+		},
+		{
+			Name:     "modifiedat",
+			Type:     TIMESTAMP,
+			Required: true,
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+				UILabel: "Modified",
+
+				UpdateFn: func(e *Entity) *XRError {
+					if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
+						e.NewObject["modifiedat"] = nil
+						return nil
+					}
+
+					ma := e.NewObject["modifiedat"]
+
+					// If we already set modifiedat in this Tx, just exit
+					if e.ModSet && !IsNil(ma) && ma != "" {
+						return nil
+					}
+
+					// If there's no value, or it's the same as the existing
+					// value, set to "now"
+					if IsNil(ma) || (ma == e.Object["modifiedat"]) {
+						ma = e.Tx.CreateTime
+					}
+
+					e.NewObject["modifiedat"] = ma
+					e.ModSet = true
+
+					return nil
+				},
+			},
+		},
+		{
+			Name: "$extensions",
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_REGISTRY),
+			},
+		},
+		{
+			Name: "capabilities",
+			Type: OBJECT, // This ensures the client sent a map
+			Attributes: Attributes{
+				"*": &Attribute{
+					Name: "*",
+					Type: ANY,
+				},
+			},
+
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_REGISTRY),
+				DontStore: true,
+
+				GetFn: func(e *Entity) any {
+					// Need to explicitly ask for "capabilities", ?inline=*
+					// won't return it
+					info := e.GetRequestInfo()
+					if info != nil && info.ShouldInline(NewPPP("capabilities").DB()) {
+						// Should have been caught in "info" processing
+						if !info.IsAvailable("capabilities") {
+							return NewXRError("not_available", "/capabilities")
+						}
+
+						return e.Registry.Capabilities
+					}
+					return nil
+				},
+				CheckFn: func(e *Entity) *XRError {
+					// never part of NewObject, it'll be in reg.Capabilities.
+					// Any incoming Object["capabilities"] would have been
+					// processed in RequestInfo pre-processing
+					return nil
+				},
+				UpdateFn: func(e *Entity) *XRError {
+					return nil
+				},
+			},
+		},
+		{
+			Name:     "model",
+			Type:     OBJECT,
+			ReadOnly: true,
+			Attributes: Attributes{
+				"*": &Attribute{
+					Name: "*",
+					Type: ANY,
+				},
+			},
+
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_REGISTRY),
+				DontStore: true,
+
+				GetFn: func(e *Entity) any {
+					// Need to explicitly ask for "model", ?inline=* won't
+					// do it
+					info := e.GetRequestInfo()
+					if info != nil && info.ShouldInline(NewPPP("model").DB()) {
+						// Should have been caught in "info" processing
+						if !info.IsAvailable("model") {
+							return NewXRError("not_available", "model")
+						}
+						model := info.Registry.Model
+						if model == nil {
+							model = &Model{}
+						}
+						httpModel := model // ModelToHTTPModel(model)
+						return (*UserModel)(httpModel)
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "modelsource",
+			Type: OBJECT,
+			Attributes: Attributes{
+				"*": &Attribute{
+					Name: "*",
+					Type: ANY,
+				},
+			},
+
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_REGISTRY),
+
+				GetFn: func(e *Entity) any {
+					// Need to explicitly ask for "modelsource", ?inline=* won't
+					// do it
+					info := e.GetRequestInfo()
+					if info != nil && info.ShouldInline(NewPPP("modelsource").DB()) {
+						// Should have been caught in "info" processing
+						if !info.IsAvailable("modelsource") {
+							return NewXRError("not_available", "modelsource")
+						}
+						model := info.Registry.Model
+						if model == nil || model.Source == "" {
+							return struct{}{}
+						}
+
+						obj, err := ParseJSONToObject([]byte(model.Source))
+						PanicIf(err != nil, "Failed: %s", err)
+						return obj
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name:     "readonly",
+			Type:     BOOLEAN,
+			ReadOnly: true,
+			Required: true,
+			Default:  false,
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_META),
+				UILabel: "Read Only",
+			},
+		},
+		{
+			Name: "compatibility",
+			Type: STRING,
+			Enum: []any{"backward", "backward_transitive", "forward",
+				"forward_transitive", "full", "full_transitive"},
+			Strict:   PtrBool(true),
+			Required: false,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_META),
+				UIMonospace: true,
+				UILabel:     "Compatibility",
+
+				UpdateFn: func(e *Entity) *XRError {
+					compat, ok := e.NewObject["compatibility"]
+					if ok && compat == "" {
+						return NewXRError("invalid_attribute", e.XID,
+							"name=compatibility",
+							"error_detail=can't be an empty string")
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "deprecated",
+			Type: OBJECT,
+			Attributes: Attributes{
+				"effective": &Attribute{
+					Type: TIMESTAMP,
+				},
+				"removal": &Attribute{
+					Type: TIMESTAMP,
+				},
+				"alternative": &Attribute{
+					Type: URL,
+				},
+				"documentation": &Attribute{
+					Type: URL,
+				},
+				"*": &Attribute{
+					Type: ANY,
+				},
+			},
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_GROUP, ENTITY_META),
+				UILabel: "Deprecated",
+
+				UpdateFn: func(e *Entity) *XRError {
+					dep, ok := e.NewObject["deprecated"]
+					if !ok || IsNil(dep) {
+						return nil
+					}
+					depMap, ok := dep.(map[string]any)
+					if !ok {
+						return nil
+					}
+					effectiveStr, _ := depMap["effective"].(string)
+					removalStr, _ := depMap["removal"].(string)
+					if effectiveStr != "" && removalStr != "" {
+						effectiveTime, err1 := ConvertStrToTime(effectiveStr)
+						removalTime, err2 := ConvertStrToTime(removalStr)
+						if err1 == nil && err2 == nil &&
+							removalTime.Before(effectiveTime) {
+							return NewXRError("invalid_attribute", e.XID,
+								"name=deprecated.removal",
+								"error_detail="+
+									"must not be sooner than"+
+									" deprecated.effective")
+						}
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "constraints",
+			Type: MAP,
+			Item: &Item{
+				Type: OBJECT,
+				Attributes: Attributes{
+					"enum": &Attribute{
+						Type: ARRAY,
+						Item: &Item{
+							Type: ANY,
+						},
+					},
+					"default": &Attribute{
+						Type: ANY,
+					},
+					"equals": &Attribute{
+						Type: STRING,
+					},
+				},
+			},
+
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_GROUP),
+
+				CheckFn: func(e *Entity) *XRError {
+					g := e.Self.(*Group)
+					// Note, this will not actually do the constaint checks,
+					// this just verifies the constraint defintions are valid.
+					// The checks over the data will happen right before we
+					// commit the tx - in g.Validate()
+					constraints := map[string]*Constraint(nil)
+					val := e.Get("constraints")
+					if !IsNil(val) {
+						err := Unmarshal([]byte(ToJSON(val)), &constraints)
+						if err != nil {
+							return NewXRError("bad_request", g.XID,
+								"error_detail="+err.Error())
+						}
+						g.groupConstraints = constraints
+						return g.GroupModel.ValidateConstraints(g, constraints)
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name:     "ancestorid",
+			Type:     STRING,
+			Required: true,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				UIMonospace: true,
+				UILabel:     "Ancestor Version ID",
+
+				UpdateFn: func(e *Entity) *XRError {
+					_, ok := e.NewObject["ancestorid"]
+					PanicIf(!ok, "Missing versionid")
+					if !ok {
+						_, ok := e.NewObject["versionid"]
+						PanicIf(!ok, "Missing versionid")
+						// Just assign a placeholder to get past validation.
+						// CheckAncestors() should fix this before we commit
+						// the tx
+						e.NewObject["ancestorid"] = ANCESTORID_TBD
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "contenttype",
+			Type: STRING,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				HttpHeader:  "Content-Type",
+				UIMonospace: true,
+				UILabel:     "Content Type",
+			},
+		},
+		{
+			Name: "format",
+			Type: STRING,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				UIMonospace: true,
+				UILabel:     "Format",
+
+				UpdateFn: func(e *Entity) *XRError {
+					format, ok := e.NewObject["format"]
+					if ok && format == "" {
+						return NewXRError("invalid_attribute", e.XID,
+							"name=format",
+							"error_detail=can't be an empty string")
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name:     "formatvalidated",
+			Type:     BOOLEAN,
+			ReadOnly: true,
+
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_VERSION),
+				NoDocView: true,
+				UILabel:   "Format Validated",
+			},
+		},
+		{
+			Name:     "formatvalidatedreason",
+			Type:     STRING,
+			ReadOnly: true,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				NoDocView:   true,
+				UIMonospace: true,
+				UILabel:     "Format Validated Reason",
+			},
+		},
+		{
+			Name:     "compatibilityvalidated",
+			Type:     BOOLEAN,
+			ReadOnly: true,
+
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_VERSION),
+				NoDocView: true,
+				UILabel:   "Compatibility Validated",
+			},
+		},
+		{
+			Name:     "compatibilityvalidatedreason",
+			Type:     STRING,
+			ReadOnly: true,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_VERSION),
+				NoDocView:   true,
+				UIMonospace: true,
+				UILabel:     "Compatibility Validated Reason",
+			},
+		},
+		{
+			Name: "$extensions",
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION),
+			},
+		},
+		{
+			Name: "$space",
+			Internals: &AttrInternals{
+				Types: "",
+			},
+		},
+		// For the $RESOURCE ones, make sure to use attr.Clone("newname")
+		// when the $RESOURCE is substituded with the Resource's singular
+		// name. Otherwise you'll be updating this shared entry.
+		{
+			Name: "$RESOURCEurl",
+			Type: URL,
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_VERSION),
+
+				CheckFn: RESOURCECheckFn,
+				UpdateFn: func(e *Entity) *XRError {
+					singular := e.GetResourceSingular()
+					v, ok := e.NewObject[singular+"url"]
+					if ok && !IsNil(v) {
+						e.NewObject[singular] = nil
+						e.NewObject[singular+"proxyurl"] = nil
+						e.NewObject["#contentid"] = nil
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "$RESOURCEproxyurl",
+			Type: URL,
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_VERSION),
+
+				CheckFn: RESOURCECheckFn,
+				UpdateFn: func(e *Entity) *XRError {
+					singular := e.GetResourceSingular()
+					v, ok := e.NewObject[singular+"proxyurl"]
+					if ok && !IsNil(v) {
+						e.NewObject[singular] = nil
+						e.NewObject[singular+"url"] = nil
+						e.NewObject["#contentid"] = nil
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "$RESOURCE",
+			Type: ANY,
+
+			Internals: &AttrInternals{
+				Types:           StrTypes(ENTITY_VERSION),
+				AlwaysSerialize: true, // Will always be missing, so need this
+
+				CheckFn: RESOURCECheckFn,
+				UpdateFn: func(e *Entity) *XRError {
+					singular := e.GetResourceSingular()
+					v, ok := e.NewObject[singular]
+					if ok {
+						if !IsNil(v) {
+							e.NewObject[singular+"url"] = nil
+							e.NewObject[singular+"proxyurl"] = nil
+							e.NewObject["#contentid"] = e.SID
+						} else {
+							e.NewObject["#contentid"] = nil
+						}
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "$RESOURCEbase64",
+			Type: STRING,
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_VERSION),
+
+				CheckFn: RESOURCECheckFn,
+				UpdateFn: func(e *Entity) *XRError {
+					singular := e.GetResourceSingular()
+					v, ok := e.NewObject[singular]
+					if ok {
+						if !IsNil(v) {
+							e.NewObject[singular+"url"] = nil
+							e.NewObject[singular+"proxyurl"] = nil
+							e.NewObject["#contentid"] = e.SID
+						} else {
+							e.NewObject["#contentid"] = nil
+						}
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "$space",
+			Internals: &AttrInternals{
+				Types: "",
+			},
+		},
+		{
+			Name: "meta",
+			Type: OBJECT,
+			Attributes: Attributes{
+				"*": &Attribute{
+					Name: "*",
+					Type: ANY,
+				},
+			},
+			Internals: &AttrInternals{
+				Types: StrTypes(ENTITY_RESOURCE),
+			},
+		},
+		{
+			Name:      "metaurl",
+			Type:      URL,
+			ReadOnly:  true,
+			Immutable: true,
+			Required:  true,
+
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_RESOURCE),
+				DontStore: true,
+
+				GetFn: func(e *Entity) any {
+					base := ""
+					xid := e.XID
+
+					info := e.GetRequestInfo()
+					if info != nil {
+						inlineMeta := info.ShouldInline(e.Abstract +
+							string(DB_IN) + "meta")
+
+						if !info.DoDocView() || !inlineMeta {
+							base = info.BaseURL
+						} else {
+							base = DOCVIEW_BASE
+
+							// remove GET's base path
+							xid = xid[1+len(info.Root):]
+							// Not sure this is ever true
+							if len(xid) > 0 && xid[0] != '/' {
+								xid = "/" + xid
+							}
+						}
+					}
+
+					return base + xid + "/meta"
+				},
+			},
+		},
+		{
+			Name: "$space",
+			Internals: &AttrInternals{
+				Types: "",
+			},
+		},
+		{
+			Name:     "defaultversionid",
+			Type:     STRING,
+			Required: true,
+
+			Internals: &AttrInternals{
+				Types:       StrTypes(ENTITY_META),
+				UIMonospace: true,
+				UILabel:     "Default Version ID",
+
+				UpdateFn: func(e *Entity) *XRError {
+					// Make sure it has a value, if not copy from existing
+					xRef := e.NewObject["xref"]
+					PanicIf(xRef == "", "xref is ''")
+
+					/* Really should check this
+					   newVal := e.NewObject["defaultversionid"]
+					   PanicIf(IsNil(xRef) && IsNil(newVal), "defverid is nil")
+					*/
+
+					/*
+					   if IsNil(xRef) && IsNil(newVal) {
+					       oldVal := e.Object["defaultversionid"]
+					       e.NewObject["defaultversionid"] = oldVal
+					   }
+					*/
+
+					// non-xRef resources MUST have a valid defaultversionid
+					if IsNil(xRef) {
+						meta, ok := e.Self.(*Meta)
+						PanicIf(!ok, "e isn't a meta: %#v", e)
+
+						val := meta.GetAsString("defaultversionid")
+						ver, xErr := meta.Resource.FindVersion(val, false)
+						if xErr != nil {
+							return xErr
+						}
+						if IsNil(ver) {
+							// ShowStack()
+							// meta.Resource.DumpOrderedVersions()
+							return NewXRError("unknown_id", meta.XID,
+								"singular=version",
+								"id="+val)
+						}
+					}
+
+					return nil
+				},
+			},
+		},
+		{
+			Name:     "defaultversionurl",
+			Type:     URL,
+			ReadOnly: true,
+			Required: true,
+
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_META),
+				DontStore: true,
+				UILabel:   "Default Version URL",
+
+				GetFn: func(e *Entity) any {
+					val := e.Object["defaultversionid"]
+					if IsNil(val) {
+						return nil
+					}
+					valStr := val.(string)
+
+					// replace "meta" with "versions/VID"
+					xid := e.XID[:len(e.XID)-4] + "versions/" + valStr
+					result := ""
+					isAbsURL := false
+					suffix := ""
+
+					info := e.GetRequestInfo()
+					if info != nil {
+						// s/meta/versions/
+						abs := e.Abstract[:len(e.Abstract)-4] + "versions"
+						inlineVers := info.ShouldInline(abs)
+						seenDefVid := info.Extras["seenDefaultVid"]
+
+						if len(info.Parts) == 5 { // pointing directly to /meta
+							isAbsURL = true
+						}
+
+						if !info.DoDocView() {
+							isAbsURL = true
+						}
+
+						if !inlineVers {
+							isAbsURL = true
+						}
+
+						if len(info.Filters) > 0 && seenDefVid != valStr {
+							isAbsURL = true
+						}
+
+						if isAbsURL {
+							result = info.BaseURL
+							if e.GetResourceModel().GetHasDocument() == true {
+								suffix = "$details"
+							}
+						} else {
+							if info.DoDocView() {
+								result = DOCVIEW_BASE
+
+								// remove GET's base path
+								xid = xid[1+len(info.Root):]
+								if len(xid) == 0 || xid[0] != '/' {
+									xid = "/" + xid
+								}
+							}
+						}
+					}
+
+					// remove "/meta" so we can add "/versions/vID"
+					result += xid + suffix
+
+					return result
+				},
+			},
+		},
+		{
+			Name:     "defaultversionsticky",
+			Type:     BOOLEAN,
+			Required: true,
+			Default:  false,
+
+			Internals: &AttrInternals{
+				Types:   StrTypes(ENTITY_META),
+				UILabel: "Default Version Sticky",
+
+				CheckFn: func(e *Entity) *XRError {
+					if e.GetResourceModel().GetMaxVersions() == 1 {
+						if e.NewObject["defaultversionsticky"] == true {
+							return NewXRError("setdefaultversionsticky_false", e.XID)
+						}
+					}
+					return nil
+				},
+			},
+		},
+		{
+			Name: "$space",
+			Internals: &AttrInternals{
+				Types: "",
+			},
+		},
+		{
+			Name: "$COLLECTIONS", // Implicitly creates the url and count ones
+			Type: MAP,
+			Item: &Item{
+				Type: OBJECT,
+				Attributes: Attributes{
+					"*": {
+						Type: ANY,
+					},
+				},
+			},
+			Internals: &AttrInternals{
+				Types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+				DontStore: true,
+			},
+		},
+	}
+}
+
+var SpecProps = map[string]*Attribute{}
+var CollectionsURLAttr *Attribute
+var CollectionsCountAttr *Attribute
+var CollectionsAttr *Attribute
+var SpecialAttrHeaders = map[string]*Attribute{} // attrs using HTTP names
+
+func init() {
+	// Can't init the funcs at the same time as we define OrderedSpecProps,
+	// due to a circular dependency. So we populate the array after its been
+	// defined.
+	InitOrderedSpecProps()
+
+	// Load map via lower-case version of prop name
+	for _, sp := range OrderedSpecProps {
+		SpecProps[sp.Name] = sp
+	}
+
+	// Load-up the attributes that have custom http header names
+	for _, attr := range OrderedSpecProps {
+		if attr.Internals != nil && attr.Internals.HttpHeader != "" {
+			SpecialAttrHeaders[strings.ToLower(attr.Internals.HttpHeader)] =
+				attr
+		}
+	}
+
+	CollectionsAttr = SpecProps["$COLLECTIONS"]
+
+	CollectionsURLAttr = &Attribute{
+		Name:      "$COLLECTIONSurl",
+		Type:      URL,
+		ReadOnly:  true,
+		Immutable: true,
+		Required:  true,
+		Internals: &AttrInternals{
+			Types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+			DontStore: true,
+		},
+	}
+
+	CollectionsCountAttr = &Attribute{
+		Name:     "$COLLECTIONScount",
+		Type:     UINTEGER,
+		ReadOnly: true,
+		Required: true,
+		Internals: &AttrInternals{
+			Types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+			DontStore: true,
+		},
+	}
+}
+
+func StrTypes(types ...int) string {
+	res := strings.Builder{}
+	for _, eType := range types {
+		res.WriteByte('0' + byte(eType))
+	}
+	return res.String()
+}
+
+func (e *Entity) GetRequestInfo() *RequestInfo {
+	if e.Tx == nil {
+		return nil
+	}
+
+	return e.Tx.RequestInfo
+}
+
+func (e *Entity) GetModels() (*GroupModel, *ResourceModel) {
+	if e.GroupModel != nil {
+		return e.GroupModel, e.ResourceModel
+	}
+
+	if e.Type == ENTITY_REGISTRY || e.Type == ENTITY_MODEL {
+		return nil, nil
+	}
+
+	e.GroupModel, e.ResourceModel = AbstractToModels(e.Registry, e.Abstract)
+	return e.GroupModel, e.ResourceModel
+}
+
+// SpecAttrInfo carries the name and entity-type membership for one spec-defined attribute.
+// Types is the StrTypes string: "0"=Registry, "1"=Group, "2"=Resource, "3"=Meta, "4"=Version;
+// empty string means the attribute applies to all entity types.
+type SpecAttrInfo struct {
+	Name        string
+	Types       string
+	UIMonospace bool
+	UILabel     string
+}
+
+// GetOrderedSpecAttrTypes returns name+types for every entry in
+// OrderedSpecProps, in declaration order. Used by cmds/genspecattrs to
+// generate registry/http/ui/specattrs.js.
+//
+// Note: nested attributes of spec-defined complex (object) attrs — e.g.
+// "deprecated"'s effective/removal/alternative/documentation — are NOT
+// enumerated here. Their types are already fully described in the runtime
+// /model response (which the UI caches per-server), so the UI resolves
+// monospace formatting for nested fields by walking that cached model at
+// render time (see getExplicitAttrTypeAtPath() in registry/http/ui/app.js)
+// rather than via codegen — this keeps nested-field handling generic for
+// any current or future spec-defined (or model-defined extension) complex
+// attribute, without hardcoding attribute names here.
+func GetOrderedSpecAttrTypes() []SpecAttrInfo {
+	result := make([]SpecAttrInfo, 0, len(OrderedSpecProps))
+	for _, attr := range OrderedSpecProps {
+		types := ""
+		mono := false
+		label := ""
+		if attr.Internals != nil {
+			types = attr.Internals.Types
+			mono = attr.Internals.UIMonospace
+			label = attr.Internals.UILabel
+		}
+		result = append(result, SpecAttrInfo{Name: attr.Name, Types: types, UIMonospace: mono, UILabel: label})
+	}
+	return result
+}
+
+// ---- Canonical-order JSON pretty-printer (TODO.md "json-pretty-printer") --
+//
+// CanonicalPrettyPrintJSON re-orders + reformats arbitrary xRegistry JSON
+// (a single entity, or a full nested Registry doc, possibly captured from
+// another server) into the spec's canonical attribute order (core/
+// spec.md "Design: JSON Serialization"), using this package's own
+// OrderedSpecProps (via GetOrderedSpecAttrTypes(), same source
+// cmds/genspecattrs uses for the SPA's mirror table) as the ordering
+// source of truth. See common.CanonicalReorderJSON() for the generic
+// (level-order-agnostic) walk/reorder/stringify engine this just feeds.
+//
+// Deliberate simplifications (this is a utility function only — nothing
+// calls it yet; see plan.md/TODO.md for the full design discussion):
+//   - Every nested entity is found structurally, via its own "xid" field
+//     — no server/model round-trip is needed or attempted.
+//   - Extension (non-spec) attributes are alphabetized at each level's
+//     "$extensions" position.
+//   - The Registry's own "id" attribute has a fixed, model-independent
+//     wire name ("registryid"), hardcoded directly into the ordering
+//     table. Group/Resource/Meta/Version's own "id" attribute wire name
+//     (e.g. "messageid") instead depends on the model's singular name —
+//     resolved by VALUE (not by guessing): the entity's own xid already
+//     tells us the exact ID string it must hold, so whichever of the
+//     entity's own keys holds that value (and ends in "id") is treated
+//     as the resolved "id" attribute (see common.resolveIDKeyByValue()).
+//   - "$RESOURCE"-family attrs on a Version (<singular>url/proxyurl/
+//     <singular>/<singular>base64) are resolved directly from that same
+//     singular name once found — no further guessing needed.
+//   - "$COLLECTIONS": a Resource's own collection is always the fixed,
+//     model-independent "versions"/"versionscount"/"versionsurl" triple.
+//     Registry's (group-type) and Group's (resource-type) collections
+//     have no fixed name and there can be any number of them, so those
+//     ARE detected heuristically instead: any "<name>count" key with a
+//     matching "<name>url" sibling is treated as one collection (see
+//     common.detectHeuristicCollections()).
+//   - If none of the above heuristics find a match (e.g. minimal/foreign
+//     JSON omitting the relevant keys), the corresponding token is
+//     simply skipped and the real data — if present under some other
+//     name — falls through to being treated as an ordinary (alphabetized)
+//     extension instead.
+func CanonicalPrettyPrintJSON(data []byte) ([]byte, error) {
+	return CanonicalReorderJSON(data, canonicalLevelOrderFor)
+}
+
+// CanonicalPrettyReorderTree is the level-order-aware entry point for
+// CanonicalReorderTree() (this file dot-imports 'common', so it's
+// referenced unqualified below — can't reuse its exact name here, that
+// would be a duplicate declaration): parses data and returns it as a
+// live *OrderedMap tree with every nested entity's own attributes
+// ALREADY reordered into canonical spec order (including blank-line
+// sentinels — see canonicalBlankKey) — but NOT yet stringified.
+//
+// This exists for callers that need to delete keys from an
+// already-canonically-ordered tree BEFORE turning it into bytes — e.g.
+// cmds/xr/get.go's minimize() (the "xr get -m" flag), which used to
+// delete keys from the raw JSON FIRST and only then try to reorder what
+// was left. That approach requires guessing at classifying/ordering
+// information (xid, ids, model-driven attribute names) that minimize()
+// itself had just deleted. Reordering first — while everything is still
+// exactly classifiable via the real xid/model — and minimizing
+// afterward on the ordered tree (via *OrderedMap.Delete(), which
+// preserves the order of what's left) sidesteps that problem entirely:
+// no heuristics are needed, and the blank-line spacing collapses
+// correctly around whatever got deleted (see stringifyOrderedMap()'s
+// doc comment).
+func CanonicalPrettyReorderTree(data []byte) (interface{}, error) {
+	return CanonicalReorderTree(data, canonicalLevelOrderFor)
+}
+
+// CanonicalPrettyReorderTreeOrRaw is CanonicalPrettyReorderTree(), unless
+// rawJSON is true (see the "rawjson" .xr config option — cmds/xr/xr.go's
+// GetRawJSON()), in which case it just parses data into the same
+// OrderedMap/[]any tree shape (via ParseJSONToObject()) WITHOUT
+// reordering into canonical attribute order or inserting any blank-line
+// separators — i.e. exactly the attribute order the server itself
+// returned. This lets a single caller-side pipeline (parse -> optional
+// minimize/noDiff -> stringify, see cmds/xr/get.go/set.go/create.go/
+// download.go) serve both the default (canonically reordered) output
+// and the "rawjson" (server's own raw attribute order) output, without
+// duplicating the whole minimize/noDiff logic per mode. "--min"/
+// "--nodiff" (see cmds/xr/download.go) still fully apply either way -
+// only the reordering/blank-line step is skipped when rawJSON is true.
+func CanonicalPrettyReorderTreeOrRaw(data []byte, rawJSON bool) (interface{}, error) {
+	if rawJSON {
+		return ParseJSONToObject(data)
+	}
+	return CanonicalReorderTree(data, canonicalLevelOrderFor)
+}
+
+var canonicalLevelOrders map[int][]string
+
+// canonicalLevelOrderFor lazily builds (once) and returns the ordered
+// token list (spec attr names, in declaration order, plus surviving
+// "$space"/"$extensions" markers) for the given ENTITY_* level — mirrors
+// cmds/genspecattrs/main.go's identical per-level filter/collapse logic
+// (both consume the exact same GetOrderedSpecAttrTypes() declaration
+// order, so the Go and JS canonical printers can never silently diverge).
+func canonicalLevelOrderFor(entityType int) []string {
+	if canonicalLevelOrders == nil {
+		canonicalLevelOrders = buildCanonicalLevelOrders()
+	}
+	return canonicalLevelOrders[entityType]
+}
+
+func buildCanonicalLevelOrders() map[int][]string {
+	levels := []int{ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION}
+	attrs := GetOrderedSpecAttrTypes()
+	result := make(map[int][]string, len(levels))
+
+	for _, lvl := range levels {
+		digit := byte('0' + byte(lvl))
+		// A Resource's own HTTP GET response isn't just its own
+		// RESOURCE-typed attrs: the server mirrors its default
+		// Version's own attrs (isdefault/createdat/modifiedat/
+		// ancestorid/contenttype/the "$RESOURCE*" content family/etc.)
+		// directly onto the Resource's own row (see
+		// registry/resource.go's SaveDefaultVersionCascade()/
+		// IsDefaultVerCopy mechanism), so the Resource-level canonical
+		// order must ALSO include ENTITY_VERSION-typed attrs, in the
+		// same master declaration order — otherwise those mirrored
+		// attrs aren't recognized as spec attrs and incorrectly fall
+		// through to being alphabetized as plain extensions.
+		extraDigit := byte(0)
+		if lvl == ENTITY_RESOURCE {
+			extraDigit = '0' + byte(ENTITY_VERSION)
+		}
+		seen := map[string]bool{}
+		tokens := make([]string, 0, len(attrs))
+		for _, a := range attrs {
+			applies := a.Types == "" || strings.IndexByte(a.Types, digit) >= 0 ||
+				(extraDigit != 0 && strings.IndexByte(a.Types, extraDigit) >= 0)
+			if !applies {
+				continue
+			}
+			if a.Name == "$space" || a.Name == "$extensions" {
+				tokens = append(tokens, a.Name)
+				continue
+			}
+			if seen[a.Name] {
+				continue
+			}
+			seen[a.Name] = true
+			// The Registry's generic "id" attribute always has the fixed,
+			// model-independent wire name "registryid" — safe to
+			// hardcode (see CanonicalPrettyPrintJSON's doc comment).
+			// Group/Resource/Meta's own "<singular>id" wire name DOES
+			// depend on the model and is intentionally NOT substituted
+			// here (falls through to being treated as an extension).
+			if a.Name == "id" && lvl == ENTITY_REGISTRY {
+				tokens = append(tokens, "registryid")
+				continue
+			}
+			tokens = append(tokens, a.Name)
+		}
+
+		// Collapse consecutive "$space" runs, drop leading/trailing.
+		collapsed := make([]string, 0, len(tokens))
+		for _, t := range tokens {
+			if t == "$space" && (len(collapsed) == 0 || collapsed[len(collapsed)-1] == "$space") {
+				continue
+			}
+			collapsed = append(collapsed, t)
+		}
+		for len(collapsed) > 0 && collapsed[len(collapsed)-1] == "$space" {
+			collapsed = collapsed[:len(collapsed)-1]
+		}
+		result[lvl] = collapsed
+	}
+	return result
+}
+
+func (e *Entity) ValidateAndSave(force bool) *XRError {
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
+
+	// Force will do a validate even if it doesn't look like anything changed.
+	// BUT if after validate() nothing still hasn't changed then it doesn't
+	// call save()
+
+	// If nothing changed, then exit
+	if !force && e.NewObject == nil {
+		return nil
+	}
+
+	// Make sure we have a tx since Validate assumes it
+	if xErr := e.Tx.EnsureTx(); xErr != nil {
+		return xErr
+	}
+
+	verb := log.IsFuncVerbose()
+	if verb {
+		log.Printf("tx: %s "+
+			"Pre validate %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
+			e.Tx.UUID,
+			e.Abstract, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
+	}
+
+	if xErr := e.Validate(); xErr != nil {
+		return xErr
+	}
+
+	if verb {
+		log.Printf("tx: %s Post validate(%s): %s", e.Tx.UUID,
+			e.XID, ToJSON(e.NewObject))
+	}
+
+	if e.NewObject == nil {
+		return nil
+	}
+
+	return e.Save()
+}
+
+// Doesn't fully validate in the sense that it'll assume read-only fields
+// are not worth checking since the server generated them.
+// This is mainly used for validating input from a client.
+// NOTE!!! This isn't a read-only operation. Normally it would be, but to
+// avoid traversing the entity more than once, we will tweak things if needed.
+// For example, if a missing attribute has a Default value then we'll add it.
+func (e *Entity) Validate() *XRError {
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
+	// Don't touch what was passed in
+	attrs := e.GetAttributes(e.NewObject)
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s Attrs:\n%s", e.Tx.UUID, ToJSON(attrs))
+	}
+
+	// Skip xref's versions since its owning resource should have done it
+	/* should not need this, but save as comment just in case
+	   if e.Type == ENTITY_VERSION {
+	       v := e.Self.(*Version)
+	       r := v.Resource
+	       if r.IsXref() {
+	           return nil
+	       }
+	   }
+	*/
+
+	if e.Type == ENTITY_RESOURCE {
+		// Skip Resources // TODO DUG - would prefer to not do this
+		return nil
+		// If we ever support extensions in resourceattributes
+		/*
+		   RemoveVersionAttributes(e.ResourceModel, e.NewObject)
+
+		   // Not really correct yet.
+		   // should just use resourceattributes + ifvaluesattrs
+		   for _, k := range Keys(attrs) {
+		       a := attrs[k]
+		       if a.InType(ENTITY_VERSION) && !a.InType(ENTITY_RESOURCE) {
+		           delete(attrs, k)
+		       }
+		   }
+		*/
+	}
+
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s ========", e.Tx.UUID)
+		log.Printf("tx: %s NewObject:\n%s", e.Tx.UUID, ToJSON(e.NewObject))
+		log.Printf("tx: %s Attrs: %v", e.Tx.UUID, SortedKeys(attrs))
+	}
+
+	// If nothing changed then use the original data for validation
+	if e.NewObject == nil {
+		return e.ValidateObject(e.Object, "strict", attrs, NewPP())
+	} else {
+		return e.ValidateObject(e.NewObject, "strict", attrs, NewPP())
+	}
+}
+
+// This should be called after all type-specific calculated properties have
+// been removed - such as collections
+func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attributes, path *PropPath) *XRError {
+
+	defer log.Trace("tx: %s %s", e.Tx.UUID, path)()
+
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s Check Obj:\n%s", e.Tx.UUID, ToJSON(val))
+		log.Printf("tx: %s OrigAttrs:\n%s", e.Tx.UUID,
+			ToJSON(SortedKeys(origAttrs)))
+	}
+
+	newObj, ok := val.(map[string]any)
+	if !ok {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+path.UI(),
+			"error_detail="+"must be a map[string] or object")
+	}
+
+	// Convert origAttrs to a slice of *Attribute where "*" is first, if there
+	attrs := make([]*Attribute, len(origAttrs))
+	allAttrNames := map[string]bool{}
+	count := 1
+	for _, attr := range origAttrs {
+		allAttrNames[attr.Name] = true
+		if attr.Name == "*" {
+			attrs[0] = attr // "*" must appear first in the slice
+		} else if count == len(attrs) {
+			attrs[0] = attr // at last one and no "*" so use [0]
+		} else {
+			attrs[count] = attr
+			count++
+		}
+	}
+
+	// Don't touch what was passed in
+	objKeys := maps.Clone(newObj)
+
+	attr := (*Attribute)(nil)
+	key := ""
+	for len(attrs) > 0 {
+		l := len(attrs)
+		attr = attrs[l-1] // grab last one & remove it
+		attrs = attrs[:l-1]
+
+		// Keys are all of the attribute names in newObj we need to check.
+		// Normally there's just one (attr.Name) but if attr.Name is "*"
+		// then we'll have a list of all remaining attribute names in newObj to
+		// check, hence it's a slice not a single string
+		keys := []string{}
+		if attr.Name != "*" {
+			keys = []string{attr.Name}
+		} else {
+			keys = SortedKeys(objKeys) // no need to be sorted, just grab keys
+
+			// However, look for extensions in Versions that might overlap
+			// with Resource attribute, like "meta"
+			if path.Len() == 0 && e.Type == ENTITY_VERSION {
+				special := map[string]bool{
+					"versions":    true,
+					"versionsurl": true,
+				}
+				for _, key := range keys {
+					prop := SpecProps[key]
+					if special[key] ||
+						(prop != nil && prop.InOnlyType(ENTITY_RESOURCE)) {
+
+						return NewXRError("invalid_attribute", e.XID,
+							"name="+path.P(key).UI(),
+							"error_detail=Versions can't define an "+
+								"extension called: "+key)
+					}
+				}
+			}
+		}
+
+		// For each attribute (key) in newObj, check its type
+		for _, key = range keys {
+			if len(key) > 0 && key[0] == '#' && path.Len() == 0 {
+				// Skip system attributes, but only at top level
+				continue
+			}
+
+			val, keyPresent := newObj[key]
+
+			// A Default value is defined but there's no value, so set it
+			// and then let normal processing continue
+			daDefault := e.CalcAttrDefault(attr, path)
+
+			if !IsNil(daDefault) && (!keyPresent || IsNil(val)) {
+				// When meta.xref is set we skip any attributes with default
+				// values. However, if this ever changes where some do need
+				// to be set, add a flag to the OrderedSpecProps stuff
+				// so we don't need to special case each one
+				if e.Type != ENTITY_META || e.GetAsString("xref") == "" {
+					val = daDefault
+					newObj[key] = val
+					keyPresent = true
+				}
+			}
+
+			/* Not sure what this was for :-)  save for now
+			   if path.Len() > 0 {
+			       if xErr := IsValidAttributeName(path.Bottom(), e.XID, path.UI()); xErr != nil {
+			           return xErr
+			       }
+			   }
+			*/
+
+			// Based on the attribute's type check the incoming 'val'.
+			// This will check for adherence to the model (eg type),
+			// the next section (CheckFn) will allow for more detailed
+			// checking, like for valid values
+			if !IsNil(val) {
+				xErr, haveReplacement, newValue := e.ValidateAttribute(val,
+					attr, path.P(key))
+				if xErr != nil {
+					return xErr
+				}
+				if haveReplacement {
+					val = newValue
+					newObj[key] = val
+					keyPresent = true
+				}
+			}
+
+			// GetAttributes already added IfValues for Registry attributes
+			if path.Len() >= 1 && len(attr.IfValues) > 0 {
+				valStr := strings.ToLower(fmt.Sprintf("%v", val))
+				for ifValStr, ifValueData := range attr.IfValues {
+					if valStr != strings.ToLower(ifValStr) {
+						continue
+					}
+
+					for _, newAttr := range ifValueData.SiblingAttributes {
+						if _, ok := allAttrNames[newAttr.Name]; ok {
+							return NewXRError("invalid_attribute", e.XID,
+								"name="+path.P(key).UI(),
+								"error_detail="+
+									fmt.Sprintf(`has an "ifvalues"`+
+										`(%s) that defines a conflictng `+
+										`siblingattribute: %s`,
+										valStr, newAttr.Name))
+						}
+						// add new attr to the list so we can check its ifValues
+						if newAttr.Name == "*" {
+							attrs = append([]*Attribute{newAttr}, attrs...)
+						} else {
+							attrs = append(attrs, newAttr)
+						}
+						allAttrNames[newAttr.Name] = true
+					}
+				}
+			}
+
+			// Call the attr's CheckFn if there to make sure any
+			// incoming value is ok
+			if attr.Internals != nil && attr.Internals.CheckFn != nil {
+				if xErr := attr.Internals.CheckFn(e); xErr != nil {
+					return xErr
+				}
+			}
+
+			// Skip/remove 'DontStore' attrs
+			if attr.Internals != nil && attr.Internals.DontStore {
+				// TODO find a way to allow an admin to set the
+				// meta.ReadOnly flag itself
+				delete(objKeys, key) // Remove from to-process list
+				delete(newObj, key)
+				continue
+			}
+
+			// If this attr has a func to update its value, call it
+			if attr.Internals != nil && attr.Internals.UpdateFn != nil {
+				if e.NewObject != nil {
+					if xErr := attr.Internals.UpdateFn(e); xErr != nil {
+						return xErr
+					}
+				}
+
+				// grab value in case it changed
+				val, keyPresent = newObj[key]
+			}
+
+			// Required but not present - note that nil means will be deleted
+			if attr.Required && (!keyPresent || IsNil(val)) {
+				flagit := true // Assume we'll err
+
+				// Most "meta" attribute aren't actually required when xref
+				// is set, so only flag the ones w/o 'XrefRequired=true'
+				if e.Type == ENTITY_META && e.GetAsString("xref") != "" &&
+					!attr.Internals.XrefRequired {
+					flagit = false
+				}
+
+				// Version.RESOURCEid MUST be missing, so don't flag it
+				// All other entities need that attribute though
+				if path.Len() == 0 && e.Type == ENTITY_VERSION &&
+					key == e.GetResourceSingular()+"id" {
+					flagit = false
+				}
+
+				if flagit {
+					return NewXRError("required_attribute_missing", e.XID,
+						"list="+path.P(key).UI())
+				}
+			}
+
+			// And finally check to make sure it's a valid attribute name,
+			// but only if it's actually present in the object.
+			if keyPresent {
+				lowerNCS := strings.ToLower(namecharset)
+				if lowerNCS == "extended" {
+					if xErr := IsValidMapKey(key, e.XID, path.UI()); xErr != nil {
+						return xErr
+					}
+				} else if lowerNCS == "" || lowerNCS == "strict" {
+					if xErr := IsValidAttributeName(key, e.XID, path.UI()); xErr != nil {
+						return xErr
+					}
+				} else {
+					return NewXRError("bad_request", e.XID,
+						"error_detail="+
+							fmt.Sprintf("Unknown \"namecharset\" value: %s",
+								namecharset))
+				}
+			}
+
+			// Everything is good, so remove it from to-process list
+			delete(objKeys, key)
+		}
+	}
+
+	// See if we have any extra keys and if so, generate an error
+	del := []string{}
+	for k, _ := range objKeys {
+		if k[0] == '#' {
+			del = append(del, k)
+		}
+	}
+	for _, k := range del {
+		delete(objKeys, k)
+	}
+	if len(objKeys) != 0 {
+		where := path.UI()
+		if where != "" {
+			where += "."
+		}
+
+		xErr := NewXRError("unknown_attribute", e.XID,
+			"name="+where+SortedKeys(objKeys)[0])
+		if len(objKeys) > 1 {
+			xErr.SetDetailf("Full list: %s.",
+				strings.Join(SortedKeys(objKeys), ","))
+		}
+		return xErr
+
+		/*
+		   list := ""
+		   for i, k := range SortedKeys(objKeys) {
+		       if i > 0 {
+		           list += ","
+		       }
+		       list += where + k
+		   }
+		   return NewXRError("unknown_attribute", e.XID,
+		       "name="+list)
+		*/
+	}
+
+	return nil
+}
+
+// Return: error, haveReplaceValue, newValue
+func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s val: %v", e.Tx.UUID, ToJSON(val))
+		log.Printf("tx: %s attr: %v", e.Tx.UUID, ToJSON(attr))
+	}
+
+	if attr.Type == ANY {
+		// All good - let it thru
+		return nil, false, nil
+	} else if IsScalar(attr.Type) {
+		return e.ValidateScalar(val, attr, path)
+	} else if attr.Type == MAP {
+		return e.ValidateMap(attr, val, path), false, nil
+	} else if attr.Type == ARRAY {
+		return e.ValidateArray(attr, val, path), false, nil
+	} else if attr.Type == OBJECT {
+		/*
+		   attrs := e.GetBaseAttributes()
+		   if useNew {
+		       attrs.AddIfValuesAttributes(e.NewObject)
+		   } else {
+		       attrs.AddIfValuesAttributes(e.Object)
+		   }
+		*/
+
+		return e.ValidateObject(val, attr.NameCharSet, attr.Attributes, path),
+			false, nil
+	}
+
+	ShowStack()
+	panic(fmt.Sprintf("Unknown type(%s): %s", path.UI(), attr.Type))
+}
+
+func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRError {
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s item: %v", e.Tx.UUID, ToJSON(mapAttr.Item))
+		log.Printf("tx: %s val: %v", e.Tx.UUID, ToJSON(val))
+	}
+
+	if IsNil(val) {
+		return nil
+	}
+
+	valValue := reflect.ValueOf(val)
+	if valValue.Kind() != reflect.Map {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+path.UI(),
+			"error_detail=must be a map")
+	}
+
+	// All values in the map must be of the same type
+	attr := &Attribute{
+		Type: mapAttr.Item.Type,
+
+		Enum:        mapAttr.Item.Enum,
+		Strict:      mapAttr.Item.Strict,
+		Target:      mapAttr.Item.Target,
+		NameCharSet: mapAttr.Item.NameCharSet,
+
+		Attributes: mapAttr.Item.Attributes,
+		Item:       mapAttr.Item.Item,
+	}
+
+	for _, k := range valValue.MapKeys() {
+		keyName, ok := k.Interface().(string)
+		if !ok {
+			return NewXRError("invalid_attribute",
+				"name="+path.RemoveLast().UI(),
+				"error_detail="+
+					fmt.Sprintf("map key (%s) needs to be a string, "+
+						"not %s", path.Last().Text, k.Kind().String()))
+		}
+
+		if path.Len() > 0 {
+			if xErr := IsValidMapKey(keyName, e.XID, path.UI()); xErr != nil {
+				return xErr
+			}
+		}
+
+		v := valValue.MapIndex(k).Interface()
+		if IsNil(v) {
+			continue
+		}
+		xErr, haveReplacement, newValue := e.ValidateAttribute(v, attr,
+			path.P(keyName))
+		if xErr != nil {
+			return xErr
+		}
+		if haveReplacement {
+			valValue.SetMapIndex(k, reflect.ValueOf(newValue))
+		}
+	}
+
+	return nil
+}
+
+func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *XRError {
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s item: %s", e.Tx.UUID, ToJSON(arrayAttr.Item))
+		log.Printf("tx: %s val: %s", e.Tx.UUID, ToJSON(val))
+	}
+
+	if IsNil(val) {
+		return nil
+	}
+
+	valValue := reflect.ValueOf(val)
+	if valValue.Kind() != reflect.Slice {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+path.UI(),
+			"error_detail="+"must be an array")
+	}
+
+	// All values in the array must be of the same type
+	attr := &Attribute{
+		Type: arrayAttr.Item.Type,
+
+		Enum:   arrayAttr.Item.Enum,
+		Strict: arrayAttr.Item.Strict,
+		Target: arrayAttr.Item.Target,
+
+		NameCharSet: arrayAttr.Item.NameCharSet,
+		Attributes:  arrayAttr.Item.Attributes,
+		Item:        arrayAttr.Item.Item,
+	}
+
+	for i := 0; i < valValue.Len(); i++ {
+		v := valValue.Index(i).Interface()
+		xErr, haveReplacement, newValue := e.ValidateAttribute(v, attr,
+			path.I(i))
+		if xErr != nil {
+			return xErr
+		}
+		if haveReplacement {
+			valValue.Index(i).Set(reflect.ValueOf(newValue))
+		}
+	}
+
+	return nil
+}
+
+// returns: Error, haveReplacementValue, replacementValue
+func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s val: %s", e.Tx.UUID, ToJSON(val))
+	}
+
+	replace := false
+	newValue := (any)(nil)
+
+	// Precompute the type assertions used below - cheaper than repeated
+	// reflect.ValueOf(val).Kind() calls, and avoids re-asserting
+	// val.(string) in each string-typed case.
+	_, isBool := val.(bool)
+	valInt, isInt := val.(int)
+	valFloat, isFloat := val.(float64)
+	valStr, isStr := val.(string)
+
+	switch attr.Type {
+	case BOOLEAN:
+		if !isBool {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail=must be a boolean"), false, nil
+		}
+	case DECIMAL:
+		if !isInt && !isFloat {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a decimal"), false, nil
+		}
+	case INTEGER:
+		if isFloat {
+			if valFloat != float64(int(valFloat)) {
+				return NewXRError("invalid_attribute", e.XID,
+					"name="+path.UI(),
+					"error_detail="+"must be an integer"), false, nil
+			}
+		} else if !isInt {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be an integer"), false, nil
+		}
+	case UINTEGER:
+		i := 0
+		if isFloat {
+			i = int(valFloat)
+			if valFloat != float64(i) {
+				return NewXRError("invalid_attribute", e.XID,
+					"name="+path.UI(),
+					"error_detail="+"must be a uinteger"), false, nil
+			}
+		} else if !isInt {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a uinteger"), false, nil
+		} else {
+			i = valInt
+		}
+		if i < 0 {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a uinteger"), false, nil
+		}
+	case XID:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be an xid"), false, nil
+		}
+		str := valStr
+
+		if attr.Target != "" {
+			xErr := e.MatchXID(str, attr.Target, attr.Name)
+			if xErr != nil {
+				return xErr, false, nil
+				/*
+				   return NewXRError("invalid_attribute", e.XID,
+				   "name=" + path.UI(),
+				   "error_detail="+err.Error()), false, nil
+				*/
+			}
+		}
+
+		xid, err := ParseXid(str)
+		if err != nil {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value (%s) isn't a valid xid, %s",
+						str, err)), false, nil
+		}
+
+		if xid.VersionID != "" && xid.Version == "meta" {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value (%s) isn't a valid xid, "+
+						"it must be in the form of: "+
+						"/[GROUPS[/GID[/RESOURCES[/GID[/versions[/vid]]]]]]",
+						str)), false, nil
+		}
+
+		if xid.Type != ENTITY_REGISTRY {
+			gm := e.Registry.Model.FindGroupModel(xid.Group)
+			if gm == nil {
+				return NewXRError("invalid_attribute", e.XID,
+					"name="+path.UI(),
+					"error_detail="+
+						fmt.Sprintf("value (%s) references an unknown "+
+							"Group type %q", str, xid.Group)), false, nil
+			}
+
+			if xid.Resource != "" {
+				rm := gm.Resources[xid.Resource]
+				if rm == nil {
+					return NewXRError("invalid_attribute", e.XID,
+						"name="+path.UI(),
+						"error_detail="+
+							fmt.Sprintf("value (%s) references an "+
+								"unknown Resource type %q", str,
+								xid.Resource)), false, nil
+				}
+			}
+		}
+
+	case XIDTYPE:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value  must be an xidtype")), false, nil
+		}
+		str := valStr
+
+		xidType, err := ParseXidType(str)
+		if err != nil {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value (%s) isn't a valid xidtype, %s",
+						str, err)), false, nil
+		}
+
+		if xidType.Group != "" {
+			gm := e.Registry.Model.FindGroupModel(xidType.Group)
+			if gm == nil {
+				return NewXRError("invalid_attribute", e.XID,
+					"name="+path.UI(),
+					"error_detail="+
+						fmt.Sprintf("value (%s) references an unknown "+
+							"Group type %q", str, xidType.Group)), false, nil
+			}
+
+			if xidType.Resource != "" {
+				rm := gm.Resources[xidType.Resource]
+				if rm == nil {
+					return NewXRError("invalid_attribute", e.XID,
+						"name="+path.UI(),
+						"error_detail="+
+							fmt.Sprintf("value (%s) references an "+
+								"unknown Resource type %q", str,
+								xidType.Resource)), false, nil
+				}
+			}
+		}
+	case STRING:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a string"), false, nil
+		}
+	case URI:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a uri"), false, nil
+		}
+	case URIABSOLUTE:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a uriabsolute"), false, nil
+		}
+	case URIRELATIVE:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a urirelative"), false, nil
+		}
+	case URITEMPLATE:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a uritemplate"), false, nil
+		}
+	case URL:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name= "+path.UI(),
+				"error_detail="+"must be a url"), false, nil
+		}
+	case URLABSOLUTE:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name= "+path.UI(),
+				"error_detail="+"must be a urlabsolute"), false, nil
+		}
+	case URLRELATIVE:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name= "+path.UI(),
+				"error_detail="+"must be a urlrelative"), false, nil
+		}
+	case TIMESTAMP:
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a timestamp"), false, nil
+		}
+		str := valStr
+
+		var err error
+		newValue, err = NormalizeStrTime(str)
+		if err != nil {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"is a malformed timestamp"), false, nil
+		}
+		replace = (newValue != str)
+	default:
+		panic(fmt.Sprintf("Unknown type: %v", attr.Type))
+	}
+
+	// check against enum values - group-level "enum" constraints are
+	// enforced separately (and more completely, incl. xref-mirrored
+	// data) via Group.validateEnum(), not here.
+	enums, strict := attr.Enum, attr.GetStrict()
+	// log.Printf("tx: %s Checking: %q: %q vs %q", e.Tx.UUID,
+	// attr.Name, val, EnumAsString(enums))
+	if strict && !IsValidEnum(val, enums) {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+path.UI(),
+			"error_detail="+
+				fmt.Sprintf("value (%v) must be one of the enum "+
+					"values: %s", val, EnumAsString(enums))), false, nil
+	}
+
+	return nil, replace, newValue
+}
+
+func (e *Entity) GetAttributes(obj Object) Attributes {
+	attrs := e.GetBaseAttributes()
+	if obj == nil {
+		if e.NewObject != nil {
+			obj = e.NewObject
+		} else {
+			obj = e.Object
+		}
+	}
+
+	attrs.AddIfValuesAttributes(obj)
+
+	return attrs
+}
+
+// Returns the initial set of attributes defined for the entity.
+func (e *Entity) GetBaseAttributes() Attributes {
+	// Add attributes from the model (core and user-defined)
+	gm, rm := e.GetModels()
+
+	if e.Type == ENTITY_REGISTRY {
+		return e.Registry.Model.GetBaseAttributes()
+	}
+
+	if e.Type == ENTITY_GROUP {
+		return gm.GetBaseAttributes()
+	}
+
+	if e.Type == ENTITY_RESOURCE {
+		return rm.GetBaseAttributes()
+	}
+
+	if e.Type == ENTITY_META {
+		return rm.GetBaseMetaAttributes()
+	}
+
+	if e.Type == ENTITY_VERSION {
+		// This seems to work for now.
+		// At some point we may want to have it only include version-level
+		// attributes and not resource-level ones - like versionscount.
+		// At which point we may need to add back in the code that removes
+		// those resource-level attributes before we create/update a Version
+		// (e.g. POST .../rID)
+		return rm.GetBaseVersionAttributes()
+	}
+
+	panic(fmt.Sprintf("Bad type: %v", e.Type))
+}
+
+func (e *Entity) CalcAttrDefault(attr *Attribute, path *PropPath) any {
+	if e.Type != ENTITY_VERSION {
+		return attr.Default
+	}
+
+	v := e.Self.(*Version)
+	g := v.Resource.Group
+
+	if c := g.GetAttrConstraint(v, attr, path.P(attr.Name)); c != nil {
+		if !IsNil(c.Default) {
+			return c.Default
+		}
+	}
+
+	return attr.Default
+}
+
+func (e *Entity) GetOrigin(path string) any {
+	// Note this will NOT do any special processing for things like
+	// Resources that Get() does - we may need to do that one day
+	pp, err := PropPathFromUI(path)
+	PanicIf(err != nil, "%s", err)
+
+	var val any
+	if e.OriginObject != nil {
+		var ok bool
+		val, ok, _ = ObjectGetProp(e.OriginObject, pp)
+		if !ok {
+			// TODO: DUG - we should not need this
+			// val, _, _ = ObjectGetProp(e.Object, pp)
+		}
+	} else {
+		val, _, _ = ObjectGetProp(e.Object, pp)
+	}
+	return val
+}
+
+func (e *Entity) Get(path string) any {
+	pp, err := PropPathFromUI(path)
+	PanicIf(err != nil, "%s", err)
+	return e.GetPP(pp)
+}
+
+func (e *Entity) GetAsString(path string) string {
+	val := e.Get(path)
+	if IsNil(val) {
+		return ""
+	}
+
+	if _, ok := val.(string); !ok {
+		panic(fmt.Sprintf("Not a string - got %T(%v)", val, val))
+	}
+
+	str, _ := val.(string)
 	return str
+}
+
+func (e *Entity) GetOriginAsString(path string) string {
+	val := e.GetOrigin(path)
+	if IsNil(val) {
+		return ""
+	}
+
+	if _, ok := val.(string); !ok {
+		panic(fmt.Sprintf("Not a string - got %T(%v)", val, val))
+	}
+
+	str, _ := val.(string)
+	return str
+}
+
+func (e *Entity) GetAsInt(path string) int {
+	val := e.Get(path)
+	if IsNil(val) {
+		return -1
+	}
+	i, ok := val.(int)
+	PanicIf(!ok, "Val: %v  T: %T", val, val)
+	return i
+}
+
+func (e *Entity) GetPP(pp *PropPath) any {
+	if (e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION) && pp.Len() == 1 {
+		rm := e.GetResourceModel()
+		if rm.GetHasDocument() && pp.Top() == rm.Singular {
+			buf, xErr := e.Tx.Backend.GetResourceContents(e)
+			PanicIf(xErr != nil, "bubble up?")
+			return buf
+		}
+	}
+
+	// We used to just grab from Object, not NewObject
+	/*
+	   // An error from ObjectGetProp is ignored because if they tried to
+	   // go into something incorrect/bad we should just return 'nil'.
+	   // This may not be the best choice in the long-run - which in case we
+	   // should return the 'error'
+	   val, _ , _ := ObjectGetProp(e.Object, pp)
+	*/
+
+	// See if we have an updated value in NewObject, if not grab from Object
+	var val any
+	if e.NewObject != nil {
+		var ok bool
+		val, ok, _ = ObjectGetProp(e.NewObject, pp)
+		if !ok {
+			// TODO: DUG - we should not need this
+			// val, _, _ = ObjectGetProp(e.Object, pp)
+		}
+	} else {
+		val, _, _ = ObjectGetProp(e.Object, pp)
+	}
+
+	log.FuncPrintf("tx: %s %s(%s).Get(%s) -> %v", e.Tx.UUID, e.Plural, e.UID,
+		pp.DB(), val)
+	return val
+}
+
+func (e *Entity) GetResourceSingular() string {
+	rm := e.GetResourceModel()
+	if rm != nil {
+		return rm.Singular
+	}
+	return ""
+}
+
+func (e *Entity) GetResourceModel() *ResourceModel {
+	_, rm := e.GetModels()
+	return rm
+}
+
+func (e *Entity) GetGroupModel() *GroupModel {
+	gm, _ := e.GetModels()
+	return gm
+}
+
+// If no match then return an error saying why
+func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
+	// 0=all  1=GROUPS  2=RESOURCES  3=versions|""  4=[/versions]|""
+	targetParts := targetRE.FindStringSubmatch(xid)
+
+	if len(str) == 0 {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail=must be an xid, not empty")
+	}
+	if str[0] != '/' {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail=must be an xid, and start with /")
+	}
+	strParts := strings.Split(str, "/")
+	if len(strParts) < 2 {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail=must be a valid xid")
+	}
+	if len(strParts[0]) > 0 {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail=must be an xid, and start with /")
+	}
+	if xid == "/" {
+		if str != "/" {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+attr,
+				"error_detail="+fmt.Sprintf("must match %q target", xid))
+		}
+		return nil
+	}
+	if targetParts[1] != strParts[1] { // works for "" too
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+fmt.Sprintf("must match %q target", xid))
+	}
+
+	gm := e.Registry.Model.Groups[targetParts[1]]
+	if gm == nil {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("uses an unknown group %q", targetParts[1]))
+	}
+	if len(strParts) < 3 || len(strParts[2]) == 0 {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing \"%sid\"",
+					xid, str, gm.Singular))
+	}
+	if xErr := IsValidID(strParts[2], attr); xErr != nil {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf(`the %q ID is not valid: %s`,
+					gm.Singular, xErr.Args["error_detail"]))
+	}
+
+	if targetParts[2] == "" { // /GROUPS
+		if len(strParts) == 3 {
+			return nil
+		}
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, extra stuff after %q",
+					xid, strParts[2]))
+	}
+
+	// targetParts has RESOURCES
+	if len(strParts) < 4 { //    /GROUPS/GID/RESOURCES
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing %q",
+					xid, str, targetParts[2]))
+	}
+
+	if targetParts[2] != strParts[3] {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing %q",
+					xid, str, targetParts[2]))
+	}
+
+	rm := gm.Resources[targetParts[2]]
+	if rm == nil {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("uses an unknown resource %q", targetParts[2]))
+	}
+
+	if len(strParts) < 5 || len(strParts[4]) == 0 {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing \"%sid\"",
+					xid, str, rm.Singular))
+	}
+	if xErr := IsValidID(strParts[4], attr); xErr != nil {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf(`the %q ID is not valid: %s`,
+					rm.Singular, xErr.Args["error_detail"]))
+	}
+
+	if targetParts[3] == "" && targetParts[4] == "" {
+		if len(strParts) == 5 {
+			return nil
+		}
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, extra stuff after %q",
+					xid, strParts[4]))
+
+	}
+
+	if targetParts[4] != "" { // has [/versions]
+		if len(strParts) == 5 {
+			//   /GROUPS/RESOURCES[/version]  vs /GROUPS/GID/RESOURCES/RID
+			return nil
+		}
+	}
+
+	if len(strParts) < 6 || strParts[5] != "versions" {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing \"versions\"",
+					xid, str))
+	}
+
+	if len(strParts) < 7 || len(strParts[6]) == 0 {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing a \"version\" ID",
+					xid, str))
+	}
+	if xErr := IsValidID(strParts[6], attr); xErr != nil {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf(`the "version" ID is not valid: %s`,
+					xErr.Args["error_detail"]))
+	}
+
+	if len(strParts) > 7 {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, too long", xid))
+	}
+
+	return nil
+}
+
+func (e *Entity) JustSet(path string, val any) *XRError {
+	return e.eJustSetPath(path, val)
+}
+
+// Set the prop in the Entity (parsing path) but don't Validate or Save
+// to the DB
+func (e *Entity) eJustSetPath(path string, val any) *XRError {
+	pp, err := PropPathFromUI(path)
+	if err != nil {
+		return NewXRError("bad_request", e.XID,
+			"error_detail="+
+				fmt.Sprintf("Bad attribute path in \"%s\": %s",
+					e.XID, err))
+	}
+	return e.eJustSet(pp, val)
+}
+
+// Set the prop in the Entity but don't Validate or Save to the DB
+func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
+	defer log.Trace("tx: %s %s.%s=%v", e.Tx.UUID, e.XID, pp.UI(), val)()
+
+	PanicIf(e.AccessMode != FOR_WRITE, "ejustset: %q isn't FOR_WRITE", e.XID)
+
+	// Assume no other edits are pending
+	// e.Refresh() // trying not to have this here
+
+	// If we don't have a NewObject yet then this is our first update
+	// so clone the current values before adding the new prop/val
+	e.EnsureNewObject()
+
+	// Cheat a little just to make caller's life easier by converting
+	// empty structs and maps need to be of the type we like (meaning 'any's)
+	if !IsNil(val) {
+		if val == struct{}{} {
+			val = map[string]any{}
+		}
+		valValue := reflect.ValueOf(val)
+		if valValue.Kind() == reflect.Slice && valValue.Len() == 0 {
+			val = []any{}
+		}
+		if valValue.Kind() == reflect.Map && valValue.Len() == 0 {
+			val = map[string]any{}
+		}
+	}
+	// end of cheat
+
+	if pp.Top() == "epoch" {
+		e.EpochSet = true
+	}
+	if pp.Top() == "modifiedat" {
+		e.ModSet = true
+	}
+
+	// Since "xref" is also a Property on the Resources table we need to
+	// set it manually. We can't do it lower down (closer to the DB funcs)
+	// because down there "xref" won't appear in NewObject when it's set to nil
+	/*
+	   if e.Type == ENTITY_RESOURCE && pp.Top() == "xref" {
+	       // Handles both val=nil and non-nil cases
+	       xErr := Do_OneTwo(e.Tx,
+	          `UPDATE Resources SET xRef=? WHERE SID=?`,
+	           val, e.SID)
+	       if xErr != nil {
+	           return xErr
+	       }
+	   }
+	*/
+
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s Abstract/ID: %s/%s", e.Tx.UUID, e.Abstract, e.UID)
+		log.Printf("tx: %s e.Object:\n%s", e.Tx.UUID, ToJSON(e.Object))
+		log.Printf("tx: %s e.NewObject:\n%s", e.Tx.UUID, ToJSON(e.NewObject))
+	}
+
+	err := ObjectSetProp(e.NewObject, pp, val)
+	if err != nil {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+pp.UI(),
+			"error_detail="+err.Error())
+	}
+	return nil
+}
+
+func (e *Entity) EnsureNewObject() bool {
+	// Any buffered change must only ever happen on an entity we've
+	// already FOR_WRITE-locked (see Entity.Lock()) - otherwise we'd be
+	// buffering an edit against a row we never actually took a DB lock
+	// on, which is exactly the kind of bug this whole locking-strategy
+	// rework is trying to prevent. Catch it here, as early as possible.
+	PanicIf(e.AccessMode != FOR_WRITE, "EnsureNewObject: %q isn't FOR_WRITE",
+		e.XID)
+
+	// Save pre-Tx values in case we need to diff. NewObject will be erased
+	// and Object will be updated during a Save() so we can't diff NewObject
+	// vs Object. Use an empty (non-nil) map, not nil, when e.Object is
+	// nil (brand-new entity) - maps.Clone(nil) returns nil, which would
+	// otherwise be indistinguishable from "not captured this Tx yet"
+	// (see the OriginObject != nil check in GetOrigin()).
+	if e.OriginObject == nil {
+		// e.OriginObject = maps.Clone(e.Object)
+		if e.Object == nil {
+			e.OriginObject = map[string]any{}
+		} else {
+			e.OriginObject = maps.Clone(e.Object)
+		}
+	}
+
+	if e.NewObject == nil {
+		if e.Object == nil {
+			e.SetNewObject(map[string]any{})
+		} else {
+			e.SetNewObject(maps.Clone(e.Object))
+		}
+		return true
+	}
+	return false
+}
+
+// We use this just to make sure we can set NewObjectStack when we need to
+// debug stuff
+func (e *Entity) SetNewObject(newObj map[string]any) {
+	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
+	e.NewObject = newObj
+
+	// Copy all system attributes from old Object so we don't lose them
+	for k, _ := range e.Object {
+		if k[0] == '#' {
+			e.NewObject[k] = e.Object[k]
+		}
+	}
+
+	// Enable the next line when we need to debug when NewObject was created
+	// e.NewObjectStack = GetStack()
+
+	// And then use e.ShowStack() to dump it
+
+	/* Sample code to print the stack for where this NewObject was created:
+	   log.Printf("tx: %s Stack for NewObject:", e.Tx.UUID)
+	   for _, s := range e.NewObjectStack {
+	       log.Printf("tx: %s %s", e.Tx.UUID, s)
+	   }
+	*/
+}
+
+func (e *Entity) WasTouched() bool {
+	log.FuncPrintf("tx: %s WasTouch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
+	return e.EpochSet
+}
+
+func (e *Entity) Touch() (bool, *XRError) {
+	log.FuncPrintf("tx: %s Touch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
+
+	// See if it's already been modified (and saved) this Tx, if so exit
+	if e.ModSet && e.EpochSet {
+		return false, nil
+	}
+
+	if _, xErr := e.Lock(); xErr != nil {
+		return false, xErr
+	}
+
+	e.EnsureNewObject()
+	return true, nil
+}
+
+func (e *Entity) Lock() (bool, *XRError) { // did we lock it?
+	defer log.Trace("tx: %s %s:%s", e.Tx.UUID, e.XID, e.SID)()
+
+	if e.AccessMode == FOR_WRITE {
+		// Already locked
+		return false, nil
+	}
+
+	log.FuncPrintf("tx: %s Requesting lock for %q SID=%s connID=%d",
+		e.Tx.UUID, e.XID, e.SID, e.Tx.ConnID)
+
+	if xErr := e.Refresh(FOR_WRITE); xErr != nil {
+		return false, xErr
+	}
+
+	log.FuncPrintf("tx: %s Got lock for %q SID=%s connID=%d",
+		e.Tx.UUID, e.XID, e.SID, e.Tx.ConnID)
+
+	// Resource/Meta/Version are logically one unit - Meta holds the
+	// data most callers actually care about (defaultversionid, epoch,
+	// etc) and CheckAncestors()/EnsureLatest() need a consistent view
+	// across all of a Resource's Versions to compute their answers, but
+	// individually FOR_WRITE-locking just "e" only ever locks e's own
+	// row. Whenever e is a Resource, Meta, or Version, also lock the
+	// whole Resource+Meta+Versions family together here, in one place,
+	// so callers never need to remember to do this themselves at each
+	// call site.
+	if xErr := LockEntityFamily(e.Tx, e); xErr != nil {
+		return false, xErr
+	}
+
+	return true, nil
+}
+
+func (e *Entity) ShowStack() {
+	log.Printf("tx: %s Stack for NewObject (%s):", e.Tx.UUID, e.XID)
+	for _, s := range e.NewObjectStack {
+		log.Printf("tx: %s  %s", e.Tx.UUID, s)
+	}
+}
+
+// Update the entity's Object - not the other props in Entity. Similar to
+// Raw EntityFromXID
+func (e *Entity) Refresh(accessMode int) *XRError {
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
+
+	// If there's a buffered, not-yet-persisted system-prop change on
+	// this entity (see SetSystemDBProperty()'s doc comment), flush it
+	// to the DB now, BEFORE reloading fresh state from the DB below -
+	// otherwise this Refresh() would silently discard it. Concretely:
+	// ClearResourceSystemDBProperty() calls FindVersion(uid, false,
+	// FOR_WRITE) on every Version of a Resource, which upgrades and
+	// Lock()s/Refresh()es any Version that's already cached at a lower
+	// access mode - including one that EnsureCompat()'s earlier
+	// format-validation loop may have JUST buffered a
+	// formatvalidated/formatvalidatedreason change on (via
+	// SetSystemDBProperty(), itself still unflushed at that point).
+	// Without this, that buffered write would be wiped out here before
+	// ever reaching the DB, right before EnsureCompat() returns.
+	if e.NewSystem != nil {
+		if xErr := e.SaveSystemProps(); xErr != nil {
+			return xErr
+		}
+	}
+
+	if xErr := e.Tx.Backend.RefreshEntity(e, accessMode); xErr != nil {
+		return xErr
+	}
+
+	// Erase "new" props
+	e.NewObject = nil
+	e.NewSystem = nil
+
+	// TODO see if we can remove this - it scares me.
+	// Added when I added Touch() - touching parent on add/remove child
+	e.EpochSet = false
+	e.ModSet = false
+
+	if accessMode == FOR_WRITE {
+		e.AccessMode = FOR_WRITE
+	}
+	if e.AccessMode == 0 {
+		e.AccessMode = FOR_READ
+	}
+
+	e.Tx.AddToCache(e)
+
+	return nil
+}
+
+func (e *Entity) Save() *XRError {
+	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
+
+	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
+
+	if log.IsFuncVerbose() {
+		log.Printf("tx: %s NewObject:\n%s", e.Tx.UUID, ToJSON(e.NewObject))
+		// ShowStack()
+	}
+
+	xErr := e.Tx.Backend.SaveEntity(e)
+	if xErr != nil {
+		return xErr
+	}
+
+	// Set e.Object to e.NewObject, skipping all 'nil' attributes
+	e.Object = map[string]any{}
+	for k, v := range e.NewObject {
+		if !IsNil(v) {
+			e.Object[k] = v
+		}
+	}
+	e.NewObject = nil
+
+	// Update tx-wide Validate lists based on e.Type - processed at end of tx
+	if e.Type == ENTITY_GROUP {
+		e.Tx.AddGroupToValidate(e.Self.(*Group))
+	} else if e.Type == ENTITY_VERSION {
+		// onlyMetaChanged=false because we need the full validation code
+		e.Tx.AddResourceToValidate(e.Self.(*Version).Resource, false, false)
+	} else if e.Type == ENTITY_META {
+		e.Tx.AddResourceToValidate(e.Self.(*Meta).Resource, true, false)
+	}
+
+	return nil
+}
+
+// Set, Validate and Save to DB but not Commit
+func (e *Entity) eSetSave(path string, val any) *XRError {
+	defer log.Trace("tx: %s %s=%v", e.Tx.UUID, path, val)()
+
+	pp, err := PropPathFromUI(path)
+	if err != nil {
+		return NewXRError("bad_request", e.XID,
+			"error_detail="+
+				fmt.Sprintf("Bad attribute path in \"%s\": %s", e.XID, err))
+	}
+
+	// Set, Validate and Save
+	xErr := e.SetPP(pp, val)
+	if xErr != nil {
+		return xErr.SetSubject(e.XID)
+	}
+	return nil
+}
+
+// SaveSystemProps flushes any system-prop changes buffered by
+// SetSystemDBProperty() (into e.NewSystem) since the last flush. It's
+// called once per cached entity at Tx-commit time (see
+// tx.WriteCache()) and is a no-op if nothing was buffered. It diffs
+// NewSystem against System so only props that actually changed get
+// written to the DB.
+func (e *Entity) SaveSystemProps() *XRError {
+	if e.NewSystem == nil {
+		return nil
+	}
+
+	newSystem := e.NewSystem
+	e.NewSystem = nil
+
+	changed := map[string]any{}
+	for name, newVal := range newSystem {
+		oldVal, existed := e.System[name]
+		if IsNil(newVal) {
+			if existed && !IsNil(oldVal) {
+				changed[name] = nil
+			}
+			continue
+		}
+		if !existed || !reflect.DeepEqual(oldVal, newVal) {
+			changed[name] = newVal
+		}
+	}
+
+	e.System = newSystem
+
+	if len(changed) == 0 {
+		return nil
+	}
+	xErr := e.Tx.Backend.SaveChangedSystemProps(e, changed)
+	if xErr != nil {
+		return xErr
+	}
+
+	// If this is a Version, make sure we fully validate its owning Resource
+	if e.Type == ENTITY_VERSION {
+		if v, ok := e.Self.(*Version); ok {
+			e.Tx.AddResourceToValidate(v.Resource, true, false)
+		}
+	}
+
+	return nil
 }
 
 // LockResourceFamily locks (FOR UPDATE) just the Resource's own row in
@@ -111,31 +3138,31 @@ func LockResourceFamily(tx *Tx, resourceSID string) *XRError {
 	return tx.Backend.LockResourceBySID(tx, resourceSID)
 
 	/* OLD
-	lock := func(query string) {
-		results := Q uery(tx, query, resourceSID)
-		results.Close()
-	}
+	   lock := func(query string) {
+	       results := Q uery(tx, query, resourceSID)
+	       results.Close()
+	   }
 
-	lock(`SELECT SID FROM Resources WHERE SID=? FOR UPDATE`)
+	   lock(`SELECT SID FROM Resources WHERE SID=? FOR UPDATE`)
 	*/
 
 	/* OLD
-	lock(`SELECT SID FROM Metas WHERE ResourceSID=? FOR UPDATE`)
-	lock(`SELECT SID FROM Versions WHERE ResourceSID=? FOR UPDATE`)
+	   lock(`SELECT SID FROM Metas WHERE ResourceSID=? FOR UPDATE`)
+	   lock(`SELECT SID FROM Versions WHERE ResourceSID=? FOR UPDATE`)
 
-	// Entities holds both this Resource's own row (keyed by SID) and
-	// its children's rows (keyed by ParentSID) - two different indexes
-	// (PRIMARY on SID, a separate index on ParentSID). A single query
-	// with "WHERE SID=? OR ParentSID=?" can't use either index (MySQL
-	// falls back to a full index scan of the WHOLE table), which - since
-	// this is a locking FOR UPDATE read - ends up granting X locks on
-	// every OTHER Resource's rows in the table too (verified via
-	// performance_schema.data_locks), a real over-locking bug, not just
-	// a missed optimization. Splitting into two separate queries lets
-	// each one use its own index and lock only the rows that actually
-	// belong to this Resource.
-	lock(`SELECT SID FROM Entities WHERE SID=? FOR UPDATE`)
-	lock(`SELECT SID FROM Entities WHERE ParentSID=? FOR UPDATE`)
+	   // Entities holds both this Resource's own row (keyed by SID) and
+	   // its children's rows (keyed by ParentSID) - two different indexes
+	   // (PRIMARY on SID, a separate index on ParentSID). A single query
+	   // with "WHERE SID=? OR ParentSID=?" can't use either index (MySQL
+	   // falls back to a full index scan of the WHOLE table), which - since
+	   // this is a locking FOR UPDATE read - ends up granting X locks on
+	   // every OTHER Resource's rows in the table too (verified via
+	   // performance_schema.data_locks), a real over-locking bug, not just
+	   // a missed optimization. Splitting into two separate queries lets
+	   // each one use its own index and lock only the rows that actually
+	   // belong to this Resource.
+	   lock(`SELECT SID FROM Entities WHERE SID=? FOR UPDATE`)
+	   lock(`SELECT SID FROM Entities WHERE ParentSID=? FOR UPDATE`)
 	*/
 
 	return nil
@@ -219,25 +3246,6 @@ func LockEntityFamily(tx *Tx, ent *Entity) *XRError {
 	return nil
 }
 
-// Set, Validate and Save to DB but not Commit
-func (e *Entity) eSetSave(path string, val any) *XRError {
-	defer log.Trace("tx: %s %s=%v", e.Tx.UUID, path, val)()
-
-	pp, err := PropPathFromUI(path)
-	if err != nil {
-		return NewXRError("bad_request", e.XID,
-			"error_detail="+
-				fmt.Sprintf("Bad attribute path in \"%s\": %s", e.XID, err))
-	}
-
-	// Set, Validate and Save
-	xErr := e.SetPP(pp, val)
-	if xErr != nil {
-		return xErr.SetSubject(e.XID)
-	}
-	return nil
-}
-
 // This is really just an internal Setter used for testing.
 // It'll set a property and then validate and save the entity in the DB
 func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
@@ -267,6 +3275,53 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 	}
 
 	return xErr
+}
+
+func GoToOurType(val any) string {
+	// Fast path: type switch avoids the reflect.ValueOf() overhead for
+	// the concrete types that make up the overwhelming majority of calls
+	// (JSON-decoded values, plus our own int/uint64/struct{}{} usages).
+	switch val.(type) {
+	case bool:
+		return BOOLEAN
+	case int:
+		return INTEGER
+	case uint64:
+		return UINTEGER
+	case float64:
+		return DECIMAL
+	case string:
+		return STRING
+	case []any:
+		return ARRAY
+	case map[string]any:
+		return MAP
+	case struct{}:
+		return OBJECT
+	}
+
+	panic(fmt.Sprintf("Bad type: %s", reflect.ValueOf(val).Type()))
+
+	// Slow path: fall back to reflect.Kind for anything not covered above
+	// (e.g. some other named slice/map/struct type), so behavior stays
+	// identical to before for any case we didn't anticipate.
+	switch reflect.ValueOf(val).Kind() {
+	case reflect.Interface:
+		return ANY
+	case reflect.Slice:
+		return ARRAY
+	case reflect.Map:
+		return MAP
+	case reflect.Struct:
+		return OBJECT
+	}
+	panic(fmt.Sprintf("Bad Kind: %v", reflect.ValueOf(val).Kind()))
+}
+
+func (e *Entity) ToString() string {
+	str := fmt.Sprintf("%s/%s\n  Object: %s\n  NewObject: %s",
+		e.Singular, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
+	return str
 }
 
 // Clears system prop(s) for all versions of this resource. Accepts
@@ -625,43 +3680,6 @@ func (e *Entity) SerializeProps(
 	return nil
 }
 
-func (e *Entity) Save() *XRError {
-	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
-
-	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
-
-	if log.IsFuncVerbose() {
-		log.Printf("tx: %s NewObject:\n%s", e.Tx.UUID, ToJSON(e.NewObject))
-		// ShowStack()
-	}
-
-	xErr := e.Tx.Backend.SaveEntity(e)
-	if xErr != nil {
-		return xErr
-	}
-
-	// Set e.Object to e.NewObject, skipping all 'nil' attributes
-	e.Object = map[string]any{}
-	for k, v := range e.NewObject {
-		if !IsNil(v) {
-			e.Object[k] = v
-		}
-	}
-	e.NewObject = nil
-
-	// Update tx-wide Validate lists based on e.Type - processed at end of tx
-	if e.Type == ENTITY_GROUP {
-		e.Tx.AddGroupToValidate(e.Self.(*Group))
-	} else if e.Type == ENTITY_VERSION {
-		// onlyMetaChanged=false because we need the full validation code
-		e.Tx.AddResourceToValidate(e.Self.(*Version).Resource, false, false)
-	} else if e.Type == ENTITY_META {
-		e.Tx.AddResourceToValidate(e.Self.(*Meta).Resource, true, false)
-	}
-
-	return nil
-}
-
 // This will add in the calculated properties into the entity. This will
 // normally be called after a query using FullTree view and before we serialize
 // the entity we need to add the non-DB-stored properties (meaning, the
@@ -834,54 +3852,5 @@ func CheckAttrs(obj map[string]any, source string) *XRError {
 			return xErr
 		}
 	}
-	return nil
-}
-
-// SaveSystemProps flushes any system-prop changes buffered by
-// SetSystemDBProperty() (into e.NewSystem) since the last flush. It's
-// called once per cached entity at Tx-commit time (see
-// tx.WriteCache()) and is a no-op if nothing was buffered. It diffs
-// NewSystem against System so only props that actually changed get
-// written to the DB.
-func (e *Entity) SaveSystemProps() *XRError {
-	if e.NewSystem == nil {
-		return nil
-	}
-
-	newSystem := e.NewSystem
-	e.NewSystem = nil
-
-	changed := map[string]any{}
-	for name, newVal := range newSystem {
-		oldVal, existed := e.System[name]
-		if IsNil(newVal) {
-			if existed && !IsNil(oldVal) {
-				changed[name] = nil
-			}
-			continue
-		}
-		if !existed || !reflect.DeepEqual(oldVal, newVal) {
-			changed[name] = newVal
-		}
-	}
-
-	e.System = newSystem
-
-	if len(changed) == 0 {
-		return nil
-	}
-
-	xErr := e.Tx.Backend.SaveChangedSystemProps(e, changed)
-	if xErr != nil {
-		return xErr
-	}
-
-	// If this is a Version, make sure we fully validate its owning Resource
-	if e.Type == ENTITY_VERSION {
-		if v, ok := e.Self.(*Version); ok {
-			e.Tx.AddResourceToValidate(v.Resource, true, false)
-		}
-	}
-
 	return nil
 }

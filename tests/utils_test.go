@@ -858,7 +858,10 @@ func XServer(t *testing.T, line string, in, Eout, Eerr string, code int) {
 
 func WaitForURL(url string) error {
 	for i := 0; ; i++ {
-		res, xErr := CommonHttpDo("GET", url, nil, nil)
+		res, xErr := HttpDo(&HttpRequest{
+			Verb: "GET",
+			URL:  url,
+		})
 		if res.Code == 200 {
 			return nil
 		}

@@ -5021,15 +5021,24 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 
 	XNoErr(t, WaitForURL("http://localhost:8383"))
 
-	res, xErr := CommonHttpDo("GET", "http://localhost:8383/.xregistry", nil, nil)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb: "GET",
+		URL:  "http://localhost:8383/.xregistry",
+	})
 	XNoErr(t, xErr)
 	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*localhost:8383"(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
 
-	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xreg/.xregistry", nil, nil)
+	res, xErr = HttpDo(&HttpRequest{
+		Verb: "GET",
+		URL:  "http://localhost:8383/xreg/.xregistry",
+	})
 	XNoErr(t, xErr)
 	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*localhost:8383"(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
 
-	res, xErr = CommonHttpDo("GET", "http://localhost:8383/xregs/treg1/.xregistry", nil, nil)
+	res, xErr = HttpDo(&HttpRequest{
+		Verb: "GET",
+		URL:  "http://localhost:8383/xregs/treg1/.xregistry",
+	})
 	XNoErr(t, xErr)
 	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*localhost:8383"(.|\n)*8383/xreg"(.|\n)*8383/xregs/treg1"`)
 
@@ -5045,15 +5054,24 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	XNoErr(t, WaitForURL("http://localhost:8484"))
 
 	// Even when /ui is the UI, .xregistry should still work
-	res, xErr = CommonHttpDo("GET", "http://localhost:8484/.xregistry", nil, nil)
+	res, xErr = HttpDo(&HttpRequest{
+		Verb: "GET",
+		URL:  "http://localhost:8484/.xregistry",
+	})
 	XNoErr(t, xErr)
 	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8484/xreg"(.|\n)*8484/xregs/treg1"`)
 
-	res, xErr = CommonHttpDo("GET", "http://localhost:8484/xreg/.xregistry", nil, nil)
+	res, xErr = HttpDo(&HttpRequest{
+		Verb: "GET",
+		URL:  "http://localhost:8484/xreg/.xregistry",
+	})
 	XNoErr(t, xErr)
 	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8484/xreg"(.|\n)*8484/xregs/treg1"`)
 
-	res, xErr = CommonHttpDo("GET", "http://localhost:8484/xregs/treg1/.xregistry", nil, nil)
+	res, xErr = HttpDo(&HttpRequest{
+		Verb: "GET",
+		URL:  "http://localhost:8484/xregs/treg1/.xregistry",
+	})
 	XNoErr(t, xErr)
 	XEqual(t, "", string(res.Body), `^(?m)"registries":(.|\n)*8484/xreg"(.|\n)*8484/xregs/treg1"`)
 

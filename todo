@@ -129,9 +129,11 @@ TODOs:
 - move #attrs into system props if we can
 - make backend define what capabilities are available
 - fix default backend logic so people can choose one via config - default:mysql
+- consider a CLIContext (to hold XRConfig/be/tx) so we don't get a new tx per
+  Registry. And we can then Clear/Close() to clean-up the tx cache.
 
 
 test:
 - xr update dirs/d1/files/f1 --set name=foo when "fileurl" is set fails
-  - why does it GET dirs/d1/files/abc instaed of just "abc" ?
+  - why does it GET dirs/d1/files/abc instead of just "abc" ?
 - add xrlint test to make sure ALL errors are tested

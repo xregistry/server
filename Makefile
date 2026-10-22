@@ -52,7 +52,7 @@ export TIMEIT         ?= TIMEFORMAT="Time: %0lR" ; time
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 
-REGISTRY_FILES := $(shell find registry -type f | grep -v ui.tar)
+REGISTRY_FILES := $(shell find registry -type f | grep -v -e ui.tar -e "^\." )
 UI_FILES       := $(shell find registry/http/ui -type f)
 
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
@@ -92,7 +92,7 @@ utest: .utest
 
 qtest: .qtest
 .qtest: export PANICLOG=true
-.qtest: .sharedfiles .cmds */*test.go $(FORCETEST)
+.qtest: .cmds */*test.go $(FORCETEST)
 	@make mysql waitformysql
 	@echo
 	@echo "# Testing"
@@ -113,39 +113,30 @@ ifndef TEST
 endif
 
 ftest: .ftest
-.ftest: .sharedfiles .cmds */*test.go .qtest
+.ftest: .cmds */*test.go .qtest
 	@echo "# Run tests w/o deleting the Registry after each one"
 	@go clean -testcache
 	@echo NO_DELETE_REGISTRY=1 go test -failfast $(TESTDIRS)
 	@$(TIMEIT) NO_DELETE_REGISTRY=1 $(GO_TEST) $(TESTDIRS) $(SED)
 	@touch .ftest
 
-test: xrlint errors qtest ftest testimages
-	@msg=`gofmt -l . common/shared_*` && [ -z "$$msg" ] || \
+test: .test
+.test: .xrlint .errors .qtest .ftest .testimages
+	@msg=`gofmt -l .` && [ -z "$$msg" ] || \
 		( echo -e "\n**** Run gofmt:\n$$msg\n" ; exit 1 )
+	@touch .test
 
-benchmark:
-	@rm -f .ftest
-	@make ftest
+benchmark: .cmds .ftest
 	@misc/largetest
-
-.sharedfiles: common/shared*
-	@echo
-	@echo "# Copying shared files"
-	@for i in common/shared_* ; do \
-		sed "s/XXX/registry/g" "$$i" > registry/$${i#common/}.go ; \
-		sed "s/XXX/xrlib/g" "$$i" > cmds/xr/xrlib/$${i#common/}.go ; \
-	 done
-	@touch .sharedfiles
 
 # specattrs.js is checked in so that people can download it w/o needing to
 # build the entire server themselves.
-registry/http/ui/specattrs.js: .sharedfiles cmds/genspecattrs/* registry/entity.go
+registry/http/ui/specattrs.js: cmds/genspecattrs/* registry/entity.go
 	@echo
 	@echo "# Rebuilding registry/http/ui/specattrs.js"
 	@go run ./cmds/genspecattrs
 
-xrserver: .sharedfiles registry/http/ui/specattrs.js cmds/xrserver/* \
+xrserver: registry/http/ui/specattrs.js cmds/xrserver/* \
 		common/* $(REGISTRY_FILES)
 	@echo
 	@echo "# Building xrserver"
@@ -170,7 +161,7 @@ xrserver-all: .xrserver-all
 	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xrserver.mac.arm64 cmds/xrserver/*.go
 	@touch .xrserver-all
 
-xr: .sharedfiles cmds/xr/* common/*
+xr: cmds/xr/* common/* registry/*
 	@echo
 	@echo "# Building xr (cli)"
 	@misc/errOutput -"go build -o $@ cmds/xr/*.go" \
@@ -377,12 +368,11 @@ devenv: devimage mysql waitformysql
 clean:
 	@echo
 	@echo "# Cleaning"
-	@rm -f cmds/xr/xrlib/shared_*.go registry/shared_*.go
 	@rm -f registry/http/ui/specattrs.js registry/http/ui/ui.tar
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .sharedfiles .errors .xrlint .cmds .utest .qtest .ftest \
+	@rm -f .errors .xrlint .cmds .utest .qtest .ftest .test \
 		.testimages .devimage .images .push \
 		.xr-all .xrserver-all
 	@go clean -cache -testcache

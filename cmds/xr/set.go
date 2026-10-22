@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func addSetCmd(parent *cobra.Command) {
@@ -38,12 +39,10 @@ Notes:
 }
 
 func setFunc(cmd *cobra.Command, args []string) {
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
+
+	cliReg := (*xrlib.CLIReg)(reg)
 
 	if len(args) < 2 {
 		Error("Must specify an XID and one or more NAME[=VALUE] expressions")
@@ -72,7 +71,7 @@ func setFunc(cmd *cobra.Command, args []string) {
 	Error(xErr)
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
-	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
+	if xid.ResourceID != "" && rm.GetHasDocument() && xid.IsEntity {
 		xid.HasDetails = true // set even if already set via $details
 	}
 
@@ -134,7 +133,7 @@ func setFunc(cmd *cobra.Command, args []string) {
 				Error("Bad name in: %s", arg)
 			}
 			if oldData == nil {
-				oldData, xErr = reg.DownloadObject(xid.String())
+				oldData, xErr = cliReg.DownloadObject(xid.String())
 				Error(xErr)
 			}
 			tmpName, _, _ := strings.Cut(name, ".")
@@ -164,7 +163,13 @@ func setFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	Verbose("Updating %q", xid)
-	res, xErr := reg.HttpDo(VerboseCount > 1, "PATCH", xid.String(), data)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "PATCH",
+		URL:     cliReg.WithPath(xid.String()),
+		Headers: xrlib.HTTPHeaders,
+		Body:    data,
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 
 	if !resIsJSON {
@@ -185,7 +190,7 @@ func setFunc(cmd *cobra.Command, args []string) {
 			}
 			return
 		}
-		tree, xErr := xrlib.CanonicalPrettyReorderTree(res.Body)
+		tree, xErr := registry.CanonicalPrettyReorderTree(res.Body)
 		Error(xErr, NewXRError("parsing_response", xid.String(),
 			"error_detail="+Err2String(xErr)))
 		buf, err := StringifyCanonicalTree(tree)

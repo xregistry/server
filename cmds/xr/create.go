@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func addCreateCmd(parent *cobra.Command) {
@@ -123,12 +124,10 @@ Notes:
 func createFunc(cmd *cobra.Command, args []string) {
 	action, _, _ := strings.Cut(cmd.Use, " ")
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
+
+	cliReg := (*xrlib.CLIReg)(reg)
 
 	if len(args) == 0 {
 		Error("Must specify the XID of an entity")
@@ -173,14 +172,22 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 		ops := GetArgOrder(cmd, os.Args)
 
-		Objectpath := xid.String()
+		ObjectPath := xid.String()
 		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
-			Objectpath += "$details"
+			ObjectPath += "$details"
 		}
-		oldData, xErr := reg.DownloadObject(Objectpath)
+
+		httpRes, xErr := HttpDo(&HttpRequest{
+			Verb:    "GET",
+			URL:     cliReg.WithPath(ObjectPath),
+			Headers: xrlib.HTTPHeaders,
+			Debug:   VerboseCount > 2,
+		})
+		// httpRes, xErr := cliReg.DownloadObject(ObjectPath)
 		if !xErr.IsType("not_found") {
 			Error(xErr)
 		}
+		oldData := httpRes.JSON
 
 		doc_data := false
 		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
@@ -190,7 +197,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 				doc_data = true
 				ops = append([]Operation{{
 					Action: "set",
-					Value:  rm.Singular + "base64=" + base64.StdEncoding.EncodeToString([]byte(data)),
+					Value: rm.Singular + "base64=" +
+						base64.StdEncoding.EncodeToString([]byte(data)),
 				}}, ops...)
 			}
 		}
@@ -371,7 +379,12 @@ func createFunc(cmd *cobra.Command, args []string) {
 	// Make sure none of the top-level entities already exist
 	if xid.IsEntity {
 		if !force && action != "upsert" {
-			res, xErr := reg.HttpDo(VerboseCount > 2, "GET", xid.String(), nil)
+			res, xErr := HttpDo(&HttpRequest{
+				Verb:    "GET",
+				URL:     cliReg.WithPath(xid.String()),
+				Headers: xrlib.HTTPHeaders,
+				Debug:   VerboseCount > 2,
+			})
 			if xErr != nil && res == nil {
 				Error(xErr)
 			}
@@ -400,7 +413,12 @@ func createFunc(cmd *cobra.Command, args []string) {
 			IDs += id
 			if !force && action != "upsert" {
 				id = xid.String() + "/" + id
-				_, xErr = reg.HttpDo(VerboseCount > 2, "GET", id, nil)
+				_, xErr := HttpDo(&HttpRequest{
+					Verb:    "GET",
+					URL:     cliReg.WithPath(id),
+					Headers: xrlib.HTTPHeaders,
+					Debug:   VerboseCount > 2,
+				})
 				Error(xErr)
 				if action == "update" && xErr != nil {
 					Error(NewXRError("not_found", id))
@@ -428,7 +446,13 @@ func createFunc(cmd *cobra.Command, args []string) {
 		path = AddQuery(path, "ignore="+strings.Join(ignores, ","))
 	}
 
-	res, xErr := reg.HttpDo(VerboseCount > 1, method, path, []byte(data))
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    method,
+		URL:     cliReg.WithPath(path),
+		Headers: xrlib.HTTPHeaders,
+		Body:    []byte(data),
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 
 	// Verbose("Processed: %s", IDs)
@@ -457,7 +481,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 				}
 				return
 			}
-			tree, xErr := xrlib.CanonicalPrettyReorderTree(res.Body)
+			tree, xErr := registry.CanonicalPrettyReorderTree(res.Body)
 			Error(xErr, NewXRError("parsing_response", path,
 				"error_detail="+Err2String(xErr)))
 			buf, err := StringifyCanonicalTree(tree)

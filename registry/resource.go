@@ -14,6 +14,120 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+// Maybe replace error with a panic? same for other finds??
+func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
+	defer log.Trace("tx: %s %s,%v", r.Tx.UUID, id, anyCase)()
+
+	if id == "" { // just incase
+		return nil, nil
+	}
+
+	// Same reasoning as FindMeta() above - Resource/Meta/Version are
+	// locked together as one family, so a Version's effective access
+	// mode always mirrors its parent Resource's - no separate
+	// accessMode arg for callers to get wrong.
+
+	if v := r.Tx.GetVersion(r, id); v != nil {
+		if r.AccessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
+			if _, xErr := v.Lock(); xErr != nil {
+				return nil, xErr
+			}
+		}
+		return v, nil
+	}
+
+	// This is a bit scary to have allProps=true but for some reason
+	// it doesn't hurt. We need it to make sure that xref'd versions
+	// are found. We used to be ok with it being 'false' because we used
+	// to query over Entities and then JOIN'd in the Props. I think we
+	// we just getting lucky that xref'd versions weren't hidden but
+	// xref'd versions props are. Seems inconsistent.
+	// Normally, we set allProps to false to avoid pulling in the
+	// system/non-user-set props. Maybe one day we should explore better
+	// options here - like find a way to force an entity (w/o any props)
+	// to show up here in cases where it's xref'd in.
+	// Keep an eye on this.
+	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.SID,
+		r.XID+"/versions/"+id, true, anyCase, r.AccessMode)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	if entity == nil {
+		log.FuncPrintf("tx: %s None found", r.Tx.UUID)
+		return nil, nil
+	}
+
+	v := &Version{Entity: *entity, Resource: r}
+
+	v.Self = v
+	v.Tx.AddVersion(v)
+	return v, nil
+}
+
+func (r *Resource) IsXref() bool {
+	tmp := r.MustFindMeta(false).Get("xref")
+	return !IsNil(tmp) && tmp != ""
+}
+
+func (r *Resource) GetVersions(accessMode int) ([]*Version, *XRError) {
+	return r.Tx.Backend.GetVersions(r, accessMode)
+}
+
+func (r *Resource) MustFindMeta(anyCase bool) *Meta {
+	meta, xErr := r.FindMeta(anyCase)
+	if xErr != nil {
+		panic(xErr)
+	}
+	if IsNil(meta) {
+		panic(fmt.Sprintf("tx: %s Meta is missing: %s (rXID=%s)",
+			r.Tx.UUID, r.UID, r.XID))
+	}
+	return meta
+}
+
+func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
+	defer log.Trace("tx: %s %v", r.Tx.UUID, anyCase)()
+
+	// Resource/Meta/Version are locked together as one family (see
+	// lockEntityFamily()) - Meta's effective access mode is always
+	// derived from its parent Resource's lock state, never chosen
+	// independently by the caller. If you need a FOR_WRITE Meta, call
+	// r.Lock() first (which locks the whole family), then call
+	// FindMeta()/MustFindMeta() - there's no separate "accessMode" to
+	// think about. This removes the caller-mistake class of bug fixed
+	// in newestVersionID()/HTTPDeleteVersions() (passing FOR_READ by
+	// mistake, or simply not realizing the family is already locked,
+	// and silently getting a stale RR snapshot for a row that's
+	// conceptually already locked in this Tx).
+
+	if m := r.Tx.GetMeta(r); m != nil {
+		if r.AccessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
+			if _, xErr := m.Lock(); xErr != nil {
+				return nil, xErr
+			}
+		}
+		return m, nil
+	}
+
+	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.SID,
+		r.XID+"/meta", false, anyCase, r.AccessMode)
+
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	if entity == nil {
+		log.FuncPrintf("tx: %s None found", r.Tx.UUID)
+		return nil, nil
+	}
+
+	m := &Meta{Entity: *entity, Resource: r}
+	m.Self = m
+	r.Tx.AddMeta(m)
+	return m, nil
+}
+
 // These attributes are on the Resource not the Version
 // We used to use a "." as a prefix to know - may still need to at some point
 var specialResourceAttrs = map[string]bool{
@@ -221,11 +335,6 @@ func (r *Resource) GetXref() (string, *Resource, *XRError) {
 	return xref, res, nil
 }
 
-func (r *Resource) IsXref() bool {
-	tmp := r.MustFindMeta(false).Get("xref")
-	return !IsNil(tmp) && tmp != ""
-}
-
 func (m *Meta) JustSet(name string, val any) *XRError {
 	log.FuncPrintf("tx: %s JustSet: m(%s).JustSet(%s,%v)",
 		m.Tx.UUID, m.Resource.UID, name, val)
@@ -298,111 +407,6 @@ func (r *Resource) SetSaveDefault(name string, val any) *XRError {
 
 func (r *Resource) Touch() (bool, *XRError) {
 	return r.MustFindMeta(false).Touch()
-}
-
-func (r *Resource) MustFindMeta(anyCase bool) *Meta {
-	meta, xErr := r.FindMeta(anyCase)
-	if xErr != nil {
-		panic(xErr)
-	}
-	if IsNil(meta) {
-		panic(fmt.Sprintf("tx: %s Meta is missing: %s (rXID=%s)",
-			r.Tx.UUID, r.UID, r.XID))
-	}
-	return meta
-}
-
-func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
-	defer log.Trace("tx: %s %v", r.Tx.UUID, anyCase)()
-
-	// Resource/Meta/Version are locked together as one family (see
-	// lockEntityFamily()) - Meta's effective access mode is always
-	// derived from its parent Resource's lock state, never chosen
-	// independently by the caller. If you need a FOR_WRITE Meta, call
-	// r.Lock() first (which locks the whole family), then call
-	// FindMeta()/MustFindMeta() - there's no separate "accessMode" to
-	// think about. This removes the caller-mistake class of bug fixed
-	// in newestVersionID()/HTTPDeleteVersions() (passing FOR_READ by
-	// mistake, or simply not realizing the family is already locked,
-	// and silently getting a stale RR snapshot for a row that's
-	// conceptually already locked in this Tx).
-
-	if m := r.Tx.GetMeta(r); m != nil {
-		if r.AccessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
-			if _, xErr := m.Lock(); xErr != nil {
-				return nil, xErr
-			}
-		}
-		return m, nil
-	}
-
-	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.SID,
-		r.XID+"/meta", false, anyCase, r.AccessMode)
-
-	if xErr != nil {
-		return nil, xErr
-	}
-
-	if entity == nil {
-		log.FuncPrintf("tx: %s None found", r.Tx.UUID)
-		return nil, nil
-	}
-
-	m := &Meta{Entity: *entity, Resource: r}
-	m.Self = m
-	r.Tx.AddMeta(m)
-	return m, nil
-}
-
-// Maybe replace error with a panic? same for other finds??
-func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
-	defer log.Trace("tx: %s %s,%v", r.Tx.UUID, id, anyCase)()
-
-	if id == "" { // just incase
-		return nil, nil
-	}
-
-	// Same reasoning as FindMeta() above - Resource/Meta/Version are
-	// locked together as one family, so a Version's effective access
-	// mode always mirrors its parent Resource's - no separate
-	// accessMode arg for callers to get wrong.
-
-	if v := r.Tx.GetVersion(r, id); v != nil {
-		if r.AccessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
-			if _, xErr := v.Lock(); xErr != nil {
-				return nil, xErr
-			}
-		}
-		return v, nil
-	}
-
-	// This is a bit scary to have allProps=true but for some reason
-	// it doesn't hurt. We need it to make sure that xref'd versions
-	// are found. We used to be ok with it being 'false' because we used
-	// to query over Entities and then JOIN'd in the Props. I think we
-	// we just getting lucky that xref'd versions weren't hidden but
-	// xref'd versions props are. Seems inconsistent.
-	// Normally, we set allProps to false to avoid pulling in the
-	// system/non-user-set props. Maybe one day we should explore better
-	// options here - like find a way to force an entity (w/o any props)
-	// to show up here in cases where it's xref'd in.
-	// Keep an eye on this.
-	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.SID,
-		r.XID+"/versions/"+id, true, anyCase, r.AccessMode)
-	if xErr != nil {
-		return nil, xErr
-	}
-
-	if entity == nil {
-		log.FuncPrintf("tx: %s None found", r.Tx.UUID)
-		return nil, nil
-	}
-
-	v := &Version{Entity: *entity, Resource: r}
-
-	v.Self = v
-	v.Tx.AddVersion(v)
-	return v, nil
 }
 
 // Maybe replace error with a panic?
@@ -1894,10 +1898,6 @@ func (m *Meta) Delete() *XRError {
 	m.Tx.RemoveFromCache(&m.Entity)
 
 	return nil
-}
-
-func (r *Resource) GetVersions(accessMode int) ([]*Version, *XRError) {
-	return r.Tx.Backend.GetVersions(r, accessMode)
 }
 
 func (r *Resource) GetHasDocument() bool {

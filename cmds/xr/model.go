@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func addModelCmd(parent *cobra.Command) {
@@ -346,7 +347,7 @@ func VerifyModel(fileName string, buf []byte, skipTarget, fullModel bool) *XRErr
 	delete(tmp, "$schema")
 	buf, _ = json.Marshal(tmp)
 
-	model := &xrlib.Model{}
+	model := &registry.Model{}
 
 	if err := Unmarshal(buf, model); err != nil {
 		return NewXRError("parsing_data", fileName,
@@ -385,12 +386,10 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error("Only one FILE is allowed to be specified")
 	}
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
+
+	cliReg := (*xrlib.CLIReg)(reg)
 
 	fileName := ""
 	if len(args) > 0 {
@@ -418,17 +417,19 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error("Missing model data")
 	}
 
-	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", []byte(buf))
+	_, xErr = HttpDo(&HttpRequest{
+		Verb:    "PUT",
+		URL:     cliReg.WithPath("/modelsource"),
+		Headers: xrlib.HTTPHeaders,
+		Body:    []byte(buf),
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 	Verbose("Model updated")
 }
 
 func modelGetFunc(cmd *cobra.Command, args []string) {
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
 
 	output, _ := cmd.Flags().GetString("output")
@@ -483,7 +484,7 @@ func PrintNotEmpty(title, val any, w io.Writer) {
 	}
 }
 
-func PrintGroupModelsByName(model *xrlib.Model, gmNames []string, format, indent string, resources, all bool) {
+func PrintGroupModelsByName(model *registry.Model, gmNames []string, format, indent string, resources, all bool) {
 	if format == "none" {
 		return
 	}
@@ -516,7 +517,7 @@ func PrintGroupModelsByName(model *xrlib.Model, gmNames []string, format, indent
 	}
 }
 
-func PrintGroupModel(gm *xrlib.GroupModel, format, indent string, showResources bool, all bool) {
+func PrintGroupModel(gm *registry.GroupModel, format, indent string, showResources bool, all bool) {
 	if format == "none" {
 		// Should probably never see this, but just in case
 		return
@@ -558,7 +559,7 @@ func PrintGroupModel(gm *xrlib.GroupModel, format, indent string, showResources 
 	}
 }
 
-func PrintResourceModel(rm *xrlib.ResourceModel, format string, indent string, all bool) {
+func PrintResourceModel(rm *registry.ResourceModel, format string, indent string, all bool) {
 	fmt.Printf(indent+"RESOURCE: %s / %s\n", rm.Plural, rm.Singular)
 
 	PrintNotEmpty(indent+"  Description         ", rm.Description, os.Stdout)
@@ -599,7 +600,7 @@ func PrintMap(daMap map[string]string, title string, indent string, w io.Writer)
 	}
 }
 
-func RemoveSystemAttributes(attrs xrlib.Attributes, level int, singular string) xrlib.Attributes {
+func RemoveSystemAttributes(attrs registry.Attributes, level int, singular string) registry.Attributes {
 	newAttrs := maps.Clone(attrs)
 
 	for aName, _ := range attrs {
@@ -608,7 +609,7 @@ func RemoveSystemAttributes(attrs xrlib.Attributes, level int, singular string) 
 			continue
 		}
 
-		if xrlib.SpecProps[aName] != nil {
+		if registry.SpecProps[aName] != nil {
 			delete(newAttrs, aName)
 			continue
 		}
@@ -636,7 +637,7 @@ func RemoveSystemAttributes(attrs xrlib.Attributes, level int, singular string) 
 
 var useTree = false
 
-func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
+func PrintAttributes(level int, attrPrefix string, attrs registry.Attributes,
 	singular string, indent string, w io.Writer, all bool) {
 
 	if !all {
@@ -679,10 +680,10 @@ func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 	middleItem := '\u251c' // rune('├')
 	passThru := '\u2502'   // rune('│')
 
-	processList := func(list xrlib.Attributes, counts *[]int, atDepth int) {}
-	showAttr := func(attr *xrlib.Attribute, counts *[]int, atDepth int) {}
+	processList := func(list registry.Attributes, counts *[]int, atDepth int) {}
+	showAttr := func(attr *registry.Attribute, counts *[]int, atDepth int) {}
 
-	processList = func(list xrlib.Attributes, counts *[]int, atDepth int) {
+	processList = func(list registry.Attributes, counts *[]int, atDepth int) {
 		// Count the number of attributes that will appear at this level.
 		// Start with the current list, then we'll add ones from nested ifVals
 		count := len(list)
@@ -715,7 +716,7 @@ func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 		*counts = (*counts)[:len(*counts)-1]
 	}
 
-	showAttr = func(attr *xrlib.Attribute, counts *[]int, atDepth int) {
+	showAttr = func(attr *registry.Attribute, counts *[]int, atDepth int) {
 		// First get the values for all columsn except attr name (1st col)
 		nestedAttrs := attr.Attributes
 		typeStr := ""
@@ -798,7 +799,7 @@ func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 				keys := SortedKeys(attr.IfValues)
 				for _, valStr := range keys {
 					ifVal := attr.IfValues[valStr]
-					showAttr(&xrlib.Attribute{
+					showAttr(&registry.Attribute{
 						Name:       fmt.Sprintf("%q", valStr),
 						Type:       "(if value)",
 						Attributes: ifVal.SiblingAttributes,
@@ -811,12 +812,12 @@ func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 				keys := SortedKeys(attr.IfValues)
 				for _, valStr := range keys {
 					ifVal := attr.IfValues[valStr]
-					showAttr(&xrlib.Attribute{
+					showAttr(&registry.Attribute{
 						Name:       fmt.Sprintf(">> if %s=%q", attr.Name, valStr),
 						Type:       "(if value)",
 						Attributes: ifVal.SiblingAttributes,
 					}, counts, atDepth)
-					showAttr(&xrlib.Attribute{
+					showAttr(&registry.Attribute{
 						Name: fmt.Sprintf("<< endif"),
 						Type: "(if value)",
 					}, counts, atDepth)
@@ -861,11 +862,7 @@ func modelGroupListFunc(cmd *cobra.Command, args []string) {
 		Error("--output must be one of 'json', 'table'")
 	}
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
 
 	model, xErr := reg.GetModel()
@@ -898,11 +895,7 @@ func modelGroupGetFunc(cmd *cobra.Command, args []string) {
 		Error("--output must be one of 'json', 'table'")
 	}
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
 
 	model, xErr := reg.GetModel()
@@ -924,14 +917,12 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 		Error("--output must be one of 'json', 'none', 'table'")
 	}
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
 
-	modelSrc, xErr := reg.GetModelSource()
+	cliReg := (*xrlib.CLIReg)(reg)
+
+	modelSrc, xErr := cliReg.GetModelSource()
 	Error(xErr)
 
 	verMsg := ""
@@ -946,12 +937,12 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 		Error(ValidateNewGroup(modelSrc, parts[0], parts[1]))
 
 		if modelSrc.Groups == nil {
-			modelSrc.Groups = map[string]*xrlib.GroupModel{}
+			modelSrc.Groups = map[string]*registry.GroupModel{}
 		}
 
 		gmNames = append(gmNames, parts[0])
 
-		modelSrc.Groups[parts[0]] = &xrlib.GroupModel{
+		modelSrc.Groups[parts[0]] = &registry.GroupModel{
 			Model:    modelSrc,
 			Plural:   parts[0],
 			Singular: parts[1],
@@ -966,7 +957,13 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	if xErr != nil {
 		Error(xErr)
 	}
-	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
+	_, xErr = HttpDo(&HttpRequest{
+		Verb:    "PUT",
+		URL:     cliReg.WithPath("/modelsource"),
+		Headers: xrlib.HTTPHeaders,
+		Body:    []byte(buf),
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 	Verbose(verMsg)
 
@@ -974,12 +971,12 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	Error(reg.RefreshModel())
+	Error(cliReg.RefreshModel())
 
 	PrintGroupModelsByName(reg.Model, gmNames, output, "", resources, all)
 }
 
-func ValidateNewGroup(model *xrlib.Model, plural, singular string) *XRError {
+func ValidateNewGroup(model *registry.Model, plural, singular string) *XRError {
 	if plural == singular {
 		Error("Group PLURAL and SINGULAR names must be different")
 	}
@@ -1012,14 +1009,12 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 
 	force, _ := cmd.Flags().GetBool("force")
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
 
-	model, xErr := reg.GetModelSource()
+	cliReg := (*xrlib.CLIReg)(reg)
+
+	model, xErr := cliReg.GetModelSource()
 	Error(xErr)
 	verMsg := ""
 	for _, arg := range args {
@@ -1045,7 +1040,13 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 
 	buf, xErr := model.SerializeForUser()
 	Error(xErr)
-	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
+	_, xErr = HttpDo(&HttpRequest{
+		Verb:    "PUT",
+		URL:     cliReg.WithPath("/modelsource"),
+		Headers: xrlib.HTTPHeaders,
+		Body:    buf,
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 	Verbose(verMsg)
 }
@@ -1066,11 +1067,7 @@ func modelResourceListFunc(cmd *cobra.Command, args []string) {
 		Error("A Group type name must be provided via the --group flag")
 	}
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
 
 	model, xErr := reg.GetModel()
@@ -1115,11 +1112,7 @@ func modelResourceGetFunc(cmd *cobra.Command, args []string) {
 		Error("A Group type name must be provided via the --group flag")
 	}
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
 
 	model, xErr := reg.GetModel()
@@ -1168,16 +1161,14 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		Error("A Group type name must be provided via the --group flag")
 	}
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
+
+	cliReg := (*xrlib.CLIReg)(reg)
 
 	groupPlural, groupSingular, _ := strings.Cut(group, ":")
 
-	modelSrc, xErr := reg.GetModelSource()
+	modelSrc, xErr := cliReg.GetModelSource()
 	Error(xErr)
 	gm := modelSrc.FindGroupModel(groupPlural)
 	verMsg := ""
@@ -1193,10 +1184,10 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		Error(ValidateNewGroup(modelSrc, groupPlural, groupSingular))
 
 		if modelSrc.Groups == nil {
-			modelSrc.Groups = map[string]*xrlib.GroupModel{}
+			modelSrc.Groups = map[string]*registry.GroupModel{}
 		}
 
-		modelSrc.Groups[groupPlural] = &xrlib.GroupModel{
+		modelSrc.Groups[groupPlural] = &registry.GroupModel{
 			Model:    modelSrc,
 			Plural:   groupPlural,
 			Singular: groupSingular,
@@ -1257,10 +1248,10 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 			}
 
 			if gm.Resources == nil {
-				gm.Resources = map[string]*xrlib.ResourceModel{}
+				gm.Resources = map[string]*registry.ResourceModel{}
 			}
 
-			rm = &xrlib.ResourceModel{
+			rm = &registry.ResourceModel{
 				GroupModel: gm,
 				Plural:     resourcePlural,
 				Singular:   resourceSingular,
@@ -1368,7 +1359,13 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 	buf, xErr := modelSrc.SerializeForUser()
 	Error(xErr)
-	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
+	_, xErr = HttpDo(&HttpRequest{
+		Verb:    "PUT",
+		URL:     cliReg.WithPath("/modelsource"),
+		Headers: xrlib.HTTPHeaders,
+		Body:    buf,
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 	Verbose(verMsg)
 
@@ -1376,7 +1373,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	Error(reg.RefreshModel())
+	Error(cliReg.RefreshModel())
 	gm = reg.Model.FindGroupModel(gm.Plural)
 	if gm == nil {
 		Error("Unknown Group type: %s", gm.Plural)
@@ -1418,14 +1415,12 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 
 	force, _ := cmd.Flags().GetBool("force")
 
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
 
-	model, xErr := reg.GetModelSource()
+	cliReg := (*xrlib.CLIReg)(reg)
+
+	model, xErr := cliReg.GetModelSource()
 	Error(xErr)
 	gm := model.FindGroupModel(group)
 	if gm == nil {
@@ -1456,7 +1451,13 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 
 	buf, xErr := model.SerializeForUser()
 	Error(xErr)
-	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
+	_, xErr = HttpDo(&HttpRequest{
+		Verb:    "PUT",
+		URL:     cliReg.WithPath("/modelsource"),
+		Headers: xrlib.HTTPHeaders,
+		Body:    buf,
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 	Verbose(verMsg)
 }

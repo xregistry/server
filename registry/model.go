@@ -1,13 +1,4873 @@
 package registry
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"reflect"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
+
+// GroupModel Singular is slightly longer than the other 3 (GM-Plural + RM)
+var RegexpGMSingularName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,60}$")
+var RegexpModelName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,56}$")
+
+var RegexpPropName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,62}$")
+var RegexpMapKey = regexp.MustCompile("^[a-z0-9][a-z0-9_.:\\-]{0,62}$")
+var RegexpID = regexp.MustCompile("^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$")
+
+type ModelSerializer func(*Model, string) ([]byte, *XRError)
+
+var ModelSerializers = map[string]ModelSerializer{}
+
+func IsValidModelName(name string, isGroup bool, isPlural bool) *XRError {
+	if isGroup == true && isPlural == false {
+		if RegexpGMSingularName.MatchString(name) {
+			return nil
+		}
+		return NewXRError("model_error", "/model",
+			"error_detail="+fmt.Sprintf("model type name %q must match: %s",
+				name, RegexpGMSingularName.String())).AddSourceParent()
+	}
+
+	if RegexpModelName.MatchString(name) {
+		return nil
+	}
+
+	return NewXRError("model_error", "/model",
+		"error_detail="+fmt.Sprintf("model type name %q must match: %s", name,
+			RegexpModelName.String())).AddSourceParent()
+}
+
+func IsValidAttributeName(name string, subject string, attrPath string) *XRError {
+	if RegexpPropName.MatchString(name) {
+		return nil
+	}
+
+	if attrPath != "" {
+		attrPath = fmt.Sprintf("in %q ", attrPath)
+	}
+
+	return NewXRError("invalid_attribute", subject,
+		"name="+name,
+		"error_detail="+fmt.Sprintf("%q %smust match: %s",
+			name, attrPath, RegexpPropName.String())).AddSourceParent()
+}
+
+func IsValidMapKey(key string, subject string, attrPath string) *XRError {
+	if RegexpMapKey.MatchString(key) {
+		return nil
+	}
+
+	if attrPath != "" {
+		attrPath = fmt.Sprintf("in %q ", attrPath)
+	}
+
+	return NewXRError("model_error", subject,
+		"error_detail="+fmt.Sprintf("map key name %q %smust match: %s",
+			key, attrPath, RegexpMapKey.String())).AddSourceParent()
+}
+
+func IsValidID(id string, errIDName string) *XRError {
+	if RegexpID.MatchString(id) {
+		return nil
+	}
+	if errIDName != "" {
+		return NewXRError("invalid_attribute", "/model",
+			"name="+errIDName,
+			"error_detail="+fmt.Sprintf("value %q must match: %s",
+				id, RegexpID.String()))
+	} else {
+		return NewXRError("malformed_id", "/model",
+			"id="+id,
+			"error_detail="+
+				fmt.Sprintf("ID value %q must match: %s",
+					id, RegexpID.String())).AddSourceParent()
+	}
+}
+
+type Model struct {
+	Registry      *Registry              `json:"-"`
+	Source        string                 `json:"source,omitempty"`
+	Description   string                 `json:"description,omitempty"`
+	Documentation string                 `json:"documentation,omitempty"`
+	Labels        map[string]string      `json:"labels,omitempty"`
+	Attributes    Attributes             `json:"attributes,omitempty"`
+	Groups        map[string]*GroupModel `json:"groups,omitempty"` // Plural
+
+	propsOrdered []*Attribute
+	propsMap     map[string]*Attribute // Attrs+calculated attrs
+	changed      bool
+	Stuff        map[string]any `json:"-"` // random stuff to pass around
+}
+
+type Attributes map[string]*Attribute // AttrName->Attr
+
+// Defined a separate struct instead of just inlining these attributes so
+// that we can just copy them over in one statement in SetSpecPropsFields()
+// and so that if we add more we don't need to remember to update that func
+type AttrInternals struct {
+	Types           string   // show only for these eTypes, ""==all
+	DontStore       bool     // don't store this prop in the DB
+	AlwaysSerialize bool     // even if nil
+	NeverSerialize  bool     // hidden attr
+	HttpHeader      string   // custom HTTP header name, not xRegistry-...
+	XrefRequired    bool     // required in meta even when xref is set
+	CantOverride    []string // blindly set from spec defined values
+	NoDocView       bool     // exclude from docView
+	UIMonospace     bool     // render value in monospace in the UI
+	UILabel         string   // display label override for the UI
+
+	GetFn    func(*Entity) any      // return prop's value
+	CheckFn  func(*Entity) *XRError // validate incoming prop
+	UpdateFn func(*Entity) *XRError // prep prop for saving to DB
+}
+
+// Use pointers for any attributes that have a default value that differs
+// from the golang default value, or for any attr that you don't want to
+// show-up in modelsource by default
+type Attribute struct {
+	Model       *Model `json:"-"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Type        string `json:"type,omitempty"`
+
+	Enum        []any  `json:"enum,omitempty"` // just scalars though
+	Strict      *bool  `json:"strict,omitempty"`
+	Target      string `json:"target,omitempty"`
+	NameCharSet string `json:"namecharset,omitempty"`
+
+	MatchVersions bool `json:"matchversions,omitempty"`
+	ReadOnly      bool `json:"readonly,omitempty"`
+	Immutable     bool `json:"immutable,omitempty"`
+	Required      bool `json:"required,omitempty"`
+	Default       any  `json:"default,omitempty"`
+
+	Attributes Attributes `json:"attributes,omitempty"` // for Objs
+	Item       *Item      `json:"item,omitempty"`       // for maps & arrays
+	IfValues   IfValues   `json:"ifvalues,omitempty"`   // Value
+
+	// Internal fields
+	// We have them here so we can have access to them in any func that
+	// gets passed the model attribute.
+	// If anything gets added below MAKE SURE to update SetSpecPropsFields too
+	Internals *AttrInternals `json:"-"`
+}
+
+type Item struct { // for maps and arrays
+	Model *Model `json:"-"`
+	Type  string `json:"type,omitempty"`
+
+	Enum        []any  `json:"enum,omitempty"` // just scalars though
+	Strict      *bool  `json:"strict,omitempty"`
+	Target      string `json:"target,omitempty"`
+	NameCharSet string `json:"namecharset,omitempty"` // when 'type'=obj
+
+	Attributes Attributes `json:"attributes,omitempty"` // when 'type'=obj
+	Item       *Item      `json:"item,omitempty"`       // when 'type'=map,array
+}
+
+type IfValues map[string]*IfValue
+
+type IfValue struct {
+	SiblingAttributes Attributes `json:"siblingattributes,omitempty"`
+}
+
+type GroupModel struct {
+	SID   string `json:"sid,omitempty"`
+	Model *Model `json:"-"`
+
+	Plural              string            `json:"plural"`
+	Singular            string            `json:"singular"`
+	Description         string            `json:"description,omitempty"`
+	Documentation       string            `json:"documentation,omitempty"`
+	Icon                string            `json:"icon,omitempty"`
+	Labels              map[string]string `json:"labels,omitempty"`
+	ModelVersion        string            `json:"modelversion,omitempty"`
+	ModelCompatibleWith string            `json:"modelcompatiblewith,omitempty"`
+	Attributes          Attributes        `json:"attributes,omitempty"`
+
+	// [ /GROUPS/RESOURCES * ]
+	XImportResources []string                  `json:"ximportresources,omitempty"`
+	Constraints      Constraints               `json:"constraints,omitempty"`
+	Resources        map[string]*ResourceModel `json:"resources,omitempty"` // Plural
+
+	propsOrdered []*Attribute
+	propsMap     map[string]*Attribute
+	imports      map[string]*ResourceModel
+}
+
+type Constraints map[string]*Constraint
+
+func (cs Constraints) Clone() Constraints {
+	if cs == nil {
+		return nil
+	}
+
+	newCS := Constraints{}
+	for key, c := range cs {
+		newCS[key] = c.Clone()
+	}
+
+	return newCS
+}
+
+type Constraint struct {
+	Default any    `json:"default,omitempty"`
+	Enum    []any  `json:"enum,omitempty"`
+	Equals  string `json:"equals,omitempty"`
+
+	// Cached for performance
+	rm   *ResourceModel
+	attr *Attribute
+}
+
+func (c *Constraint) Clone() *Constraint {
+	return &Constraint{
+		Default: c.Default,
+		Enum:    slices.Clone(c.Enum),
+		Equals:  c.Equals,
+
+		rm:   c.rm,
+		attr: c.attr,
+	}
+}
+
+type MatchVersionsInfo struct {
+	Path      *PropPath
+	Attribute *Attribute
+}
+
+type ResourceModel struct {
+	SID        string      `json:"sid,omitempty"`
+	GroupModel *GroupModel `json:"-"`
+
+	Plural              string            `json:"plural"`
+	Singular            string            `json:"singular"`
+	Description         string            `json:"description,omitempty"`
+	Documentation       string            `json:"documentation,omitempty"`
+	Icon                string            `json:"icon,omitempty"`
+	Labels              map[string]string `json:"labels,omitempty"`
+	ModelVersion        string            `json:"modelversion,omitempty"`
+	ModelCompatibleWith string            `json:"modelcompatiblewith,omitempty"`
+
+	MaxVersions           *int              `json:"maxversions,omitempty"`
+	SetVersionId          *bool             `json:"setversionid,omitempty"`
+	HasDocument           *bool             `json:"hasdocument,omitempty"`
+	VersionMode           string            `json:"versionmode,omitempty"`
+	SingleVersionRoot     *bool             `json:"singleversionroot,omitempty"`
+	ValidateFormat        *bool             `json:"validateformat,omitempty"`
+	ValidateCompatibility *bool             `json:"validatecompatibility,omitempty"`
+	StrictValidation      *bool             `json:"strictvalidation,omitempty"`
+	TypeMap               map[string]string `json:"typemap,omitempty"`
+	XImportOrigin         string            `json:"ximportorigin,omitempty"`
+
+	// Version-level Attributes (yes we do a rename for clarity in the code)
+	VersionAttributes   Attributes `json:"attributes,omitempty"`
+	versionPropsOrdered []*Attribute
+	versionPropsMap     map[string]*Attribute
+
+	// List of "version attributes" that have a "matchversions" aspect=true.
+	// Is []string{} (empty) when there are none. nil=haven't built list yet
+	matchVersions []*MatchVersionsInfo // `json:"matchversions,omitempty"`
+
+	// "ResourceAttributes" are Resource-only (not Version-level) attributes
+	ResourceAttributes   Attributes `json:"resourceattributes,omitempty"`
+	resourcePropsOrdered []*Attribute
+	resourcePropsMap     map[string]*Attribute
+
+	// "MetaAttributes" are Meta-level only attributes
+	MetaAttributes   Attributes `json:"metaattributes,omitempty"`
+	metaPropsOrdered []*Attribute
+	metaPropsMap     map[string]*Attribute
+
+	// EffectiveProps are all attrs than can appear on a Res(so Res+Ver attrs)
+	effectivePropsOrdered []*Attribute
+	effectivePropsMap     map[string]*Attribute
+}
+
+// Not all backends use this modelCache, but it's available if they want to.
+// modelCache is an in-process cache of the last-seen parsed *Model per
+// Registry (keyed by RegistrySID), so that loadModel() - called on
+// pretty much every HTTP request via FindRegistry()/FindRegistryBySID() -
+// doesn't have to re-parse the (potentially large) Model JSON blob when
+// nothing has changed since the last time we loaded it. Models.Changed
+// (see init.sql) is the cheap signal we compare against: it's a fresh
+// NewUUID() written by Model.Save() every time the Model row actually
+// changes, whether that happened via this process or another xrserver
+// replica sharing the same DB.
+//
+// The cached *Model is never handed out directly - see Model.Clone() -
+// since it's shared/read by concurrent requests and Model/GroupModel/
+// ResourceModel/Attribute all get mutated in place by callers (e.g.
+// Registry.SetModel(), Model.Save()'s own diffing).
+var modelCacheMutex = sync.Mutex{}
+var modelCache = map[string]*modelCacheEntry{} // RegistrySID -> entry
+
+type modelCacheEntry struct {
+	uuid  string // last known Models.UUID value for this RegistrySID
+	model *Model // parsed as of that UUID value - Clone() before use
+}
+
+func GetCachedModel(regSID string, uuid string) *Model {
+	modelCacheMutex.Lock()
+	entry := modelCache[regSID]
+	modelCacheMutex.Unlock()
+
+	if entry == nil || entry.uuid != uuid {
+		return nil
+	}
+	return entry.model.Clone()
+}
+
+func SetCachedModel(regSID string, uuid string, model *Model) {
+	// Store our own private clone - never the caller's live *Model - so
+	// later in-place mutations by the caller (e.g. Registry.SetModel()) can't
+	// corrupt what we hand out to other requests later.
+	cached := model.Clone()
+	cached.Registry = nil
+
+	modelCacheMutex.Lock()
+	modelCache[regSID] = &modelCacheEntry{uuid: uuid, model: cached}
+	modelCacheMutex.Unlock()
+}
+
+func EvictCachedModel(regSID string) {
+	modelCacheMutex.Lock()
+	delete(modelCache, regSID)
+	modelCacheMutex.Unlock()
+}
+
+func ParseModel(buf []byte, reg *Registry) (*Model, *XRError) {
+	buf, err := RemoveSchema(buf)
+	if err != nil {
+		return nil, NewXRError("parsing_data", "model",
+			"error_detail="+err.Error())
+	}
+
+	// Now do the real work
+	model := Model{}
+	if err := Unmarshal(buf, &model); err != nil {
+		return nil, NewXRError("parsing_data", "model",
+			"error_detail="+err.Error())
+	}
+	model.ApplyDefaults(reg)
+	model.SetSpecPropsFields()
+	model.SetPointers()
+	return &model, nil
+}
+
+func (attrs Attributes) MarshalJSON() ([]byte, error) {
+	// Just alphabetize the list (which go already does) BUT put "*" last
+	list := SortedKeys(attrs)
+	if len(list) > 0 && list[0] == "*" {
+		list = append(list[1:], list[0])
+	}
+
+	buf := bytes.Buffer{}
+	buf.WriteRune('{')
+	for i, k := range list {
+		if i > 0 {
+			buf.WriteString(`,"`)
+		} else {
+			buf.WriteRune('"')
+		}
+		buf.WriteString(k)
+		buf.WriteString(`":`)
+		b, _ := json.Marshal(attrs[k])
+		buf.Write(b)
+	}
+	buf.WriteRune('}')
+	return buf.Bytes(), nil
+}
+
+/*
+func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
+	// Set the default values before we unmarshal
+	r.MaxVersions = MAXVERSIONS
+
+	type tmpResourceModel ResourceModel
+	err := Unmarshal(data, (*tmpResourceModel)(r))
+	if err != nil {
+		return NewXRError("parsing_data", "model",
+        "error_detail=" + err.Error())
+	}
+
+	if r.SetVersionId == nil {
+		r.SetVersionId = PtrBool(SETVERSIONID)
+	}
+	if r.HasDocument == nil {
+		r.HasDocument = PtrBool(HASDOCUMENT)
+	}
+    if r.VersionMode = "" {
+        r.VersionMode = VERSIONMODE
+    }
+	if r.SingleVersionRoot == nil {
+		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
+	}
+	if r.ValidateFormat == nil {
+		r.ValidateFormat = PtrBool(VALIDATEFORMAT)
+	}
+	if r.ValidateCompatibility == nil {
+		r.ValidateCompatibility = PtrBool(VALIDATECOMPATIBILITY)
+	}
+	if r.StrictValidation == nil {
+		r.StrictValidation = PtrBool(STRICTVALIDATION)
+	}
+	return nil
+}
+*/
+
+func (m *Model) GetSourceAsModel() *Model {
+	if m.Source == "" {
+		return nil
+	}
+
+	srcModel, xErr := ParseModel([]byte(m.Source), m.Registry)
+	PanicIf(xErr != nil, "Error with src: %s", m.Source)
+	return srcModel
+}
+
+func (m *Model) ApplyDefaults(reg *Registry) {
+	for _, gm := range m.Groups {
+		for _, rm := range gm.Resources {
+			rm.ApplyDefaults(reg)
+		}
+	}
+}
+
+func (r *ResourceModel) ApplyDefaults(reg *Registry) {
+	if r.MaxVersions == nil {
+		r.MaxVersions = PtrInt(MAXVERSIONS)
+	}
+	if r.SetVersionId == nil {
+		r.SetVersionId = PtrBool(SETVERSIONID)
+	}
+	if r.HasDocument == nil {
+		r.HasDocument = PtrBool(HASDOCUMENT)
+	}
+	if r.VersionMode == "" {
+		r.VersionMode = VERSIONMODE
+	}
+	if r.SingleVersionRoot == nil {
+		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
+	}
+	if r.ValidateFormat == nil {
+		r.ValidateFormat = PtrBool(VALIDATEFORMAT)
+	}
+	if r.ValidateCompatibility == nil {
+		r.ValidateCompatibility = PtrBool(VALIDATECOMPATIBILITY)
+	}
+	if r.StrictValidation == nil {
+		r.StrictValidation = PtrBool(STRICTVALIDATION)
+	}
+}
+
+func (m *Model) SetPointers() {
+	for _, attr := range m.Attributes {
+		attr.SetModel(m)
+	}
+
+	for _, gm := range m.Groups {
+		gm.SetModel(m)
+	}
+}
+
+// Clone returns a deep copy of m - safe for a caller to hand out to
+// multiple concurrent requests/goroutines, each free to mutate its own
+// copy (e.g. assign its own Registry, or run Registry.SetModel() on it)
+// without affecting m or any other clone. Used by the in-process Model
+// cache (see loadModel in registry/model.go) so concurrent requests
+// never share/mutate the same cached *Model (see Attribute.Clone()'s
+// comment for the data-race this guards against).
+func (m *Model) Clone() *Model {
+	if m == nil {
+		return nil
+	}
+
+	newM := &Model{
+		Registry:      m.Registry,
+		Source:        m.Source,
+		Description:   m.Description,
+		Documentation: m.Documentation,
+		Labels:        maps.Clone(m.Labels),
+		Attributes:    m.Attributes.Clone(),
+		changed:       m.changed,
+		Stuff:         maps.Clone(m.Stuff),
+	}
+
+	newM.Groups = map[string]*GroupModel{}
+	for plural, gm := range m.Groups {
+		newM.Groups[plural] = gm.Clone(newM)
+	}
+
+	newM.SetPointers()
+
+	return newM
+}
+
+func (m *Model) SetSpecPropsFields() {
+	propsOrdered, _ := m.GetPropsOrdered()
+
+	for _, prop := range propsOrdered {
+		if attr, ok := m.Attributes[prop.Name]; ok {
+			attr.Internals = prop.Internals
+		}
+	}
+
+	for plural, gm := range m.Groups {
+		if attr, ok := m.Attributes[plural]; ok {
+			attr.Internals = CollectionsAttr.Internals
+		}
+		if attr, ok := m.Attributes[plural+"url"]; ok {
+			attr.Internals = CollectionsURLAttr.Internals
+		}
+		if attr, ok := m.Attributes[plural+"count"]; ok {
+			attr.Internals = CollectionsCountAttr.Internals
+		}
+
+		propsOrdered, _ := gm.GetPropsOrdered()
+		for _, prop := range propsOrdered {
+			if attr, ok := m.Attributes[prop.Name]; ok {
+				attr.Internals = prop.Internals
+			}
+		}
+
+		for plural, rm := range gm.Resources {
+			// Make sure we have our PropsOrdered lists ready to go
+			rm.GetPropsOrdered()
+
+			// Make sure our owning Group has the right $COLLECTION attrs
+			if attr, ok := gm.Attributes[plural]; ok {
+				attr.Internals = CollectionsAttr.Internals
+			}
+			if attr, ok := gm.Attributes[plural+"url"]; ok {
+				attr.Internals = CollectionsURLAttr.Internals
+			}
+			if attr, ok := gm.Attributes[plural+"count"]; ok {
+				attr.Internals = CollectionsCountAttr.Internals
+			}
+
+			// Process Resource-level attributes
+			if attr, ok := rm.ResourceAttributes["versions"]; ok {
+				attr.Internals = CollectionsAttr.Internals
+			}
+			if attr, ok := rm.ResourceAttributes["versionsurl"]; ok {
+				attr.Internals = CollectionsURLAttr.Internals
+			}
+			if attr, ok := rm.ResourceAttributes["versionscount"]; ok {
+				attr.Internals = CollectionsCountAttr.Internals
+			}
+
+			propsOrdered, _ := rm.GetResourcePropsOrdered()
+			for _, prop := range propsOrdered {
+				if attr, ok := rm.ResourceAttributes[prop.Name]; ok {
+					attr.Internals = prop.Internals
+				}
+			}
+
+			propsOrdered, _ = rm.GetVersionPropsOrdered()
+			for _, prop := range propsOrdered {
+				if attr, ok := rm.VersionAttributes[prop.Name]; ok {
+					attr.Internals = prop.Internals
+				}
+			}
+
+			propsOrdered, _ = rm.GetMetaPropsOrdered()
+			for _, prop := range propsOrdered {
+				if attr, ok := rm.MetaAttributes[prop.Name]; ok {
+					attr.Internals = prop.Internals
+				}
+			}
+		}
+	}
+}
+
+func (m *Model) ClearAllPropsOrdered() {
+	m.ClearPropsOrdered()
+	for _, gm := range m.Groups {
+		gm.ClearPropsOrdered()
+		for _, rm := range gm.Resources {
+			rm.ClearPropsOrdered()
+		}
+	}
+}
+
+func (m *Model) ClearPropsOrdered() {
+	m.propsOrdered = nil
+	m.propsMap = nil
+}
+
+func (m *Model) SetChanged(val bool) {
+	m.changed = val
+	// ShowStack()
+}
+
+func (m *Model) GetLabel(name string) (string, bool) {
+	if m.Labels == nil {
+		return "", false
+	}
+	val, ok := m.Labels[name]
+	return val, ok
+}
+
+func (m *Model) AddLabel(name string, value string) {
+	if m.Labels == nil {
+		m.Labels = map[string]string{}
+	}
+	if m.Labels[name] == value {
+		return
+	}
+	m.Labels[name] = value
+	m.SetChanged(true)
+}
+
+func (m *Model) RemoveLabel(name string) {
+	if m.Labels == nil {
+		return
+	}
+
+	if _, ok := m.Labels[name]; !ok {
+		return
+	}
+
+	delete(m.Labels, name)
+	if len(m.Labels) == 0 {
+		m.Labels = nil
+	}
+	m.SetChanged(true)
+}
+
+func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if m.propsOrdered == nil {
+		m.propsOrdered = []*Attribute{}
+		m.propsMap = map[string]*Attribute{}
+
+		for _, prop := range OrderedSpecProps {
+			if prop.InType(ENTITY_REGISTRY) {
+				if prop.Name == "id" {
+					prop = prop.Clone("registryid")
+					prop.SetModel(m)
+					prop.ReadOnly = true
+				}
+
+				if prop.Name == "$COLLECTIONS" {
+					for _, plural := range SortedKeys(m.Groups) {
+						prop = CollectionsURLAttr.Clone(plural + "url")
+						prop.SetModel(m)
+						m.propsOrdered = append(m.propsOrdered, prop)
+						m.propsMap[prop.Name] = prop
+
+						prop = CollectionsCountAttr.Clone(plural + "count")
+						prop.SetModel(m)
+						m.propsOrdered = append(m.propsOrdered, prop)
+						m.propsMap[prop.Name] = prop
+
+						prop = CollectionsAttr.Clone(plural)
+						prop.SetModel(m)
+						m.propsOrdered = append(m.propsOrdered, prop)
+						m.propsMap[prop.Name] = prop
+					}
+					continue
+				}
+
+				prop = prop.Clone("")
+				prop.SetModel(m)
+				m.propsOrdered = append(m.propsOrdered, prop)
+				m.propsMap[prop.Name] = prop
+			}
+		}
+	}
+	return m.propsOrdered, m.propsMap
+}
+
+func (m *Model) AddAttr(name, daType string) (*Attribute, *XRError) {
+	return m.AddAttribute(&Attribute{Name: name, Type: daType})
+}
+
+func (m *Model) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
+	return m.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
+}
+
+func (m *Model) AddAttrObj(name string) (*Attribute, *XRError) {
+	return m.AddAttribute(&Attribute{Name: name, Type: OBJECT})
+}
+
+func (m *Model) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
+	return m.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
+}
+
+func (m *Model) AddAttrXID(name string, tgt string) (*Attribute, *XRError) {
+	return m.AddAttribute(&Attribute{Name: name, Type: XID, Target: tgt})
+}
+
+func (m *Model) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
+	if attr == nil {
+		return nil, nil
+	}
+
+	if attr.Name != "*" {
+		if xErr := IsValidAttributeName(attr.Name, "/", ""); xErr != nil {
+			return nil, xErr
+		}
+	}
+
+	if m.Attributes == nil {
+		m.Attributes = Attributes{}
+	} else if _, ok := m.Attributes[attr.Name]; ok {
+		return nil, NewXRError("model_error", "/",
+			"error_detail="+
+				fmt.Sprintf("attribute %q already exists", attr.Name))
+	}
+
+	attr.SetModel(m)
+	m.Attributes[attr.Name] = attr
+
+	ld := NewLevelData(m)
+	if xErr := m.Attributes.Verify("strict", ld); xErr != nil {
+		delete(m.Attributes, attr.Name)
+		return nil, xErr
+	}
+
+	m.SetChanged(true)
+
+	return attr, nil
+}
+
+func (m *Model) DelAttribute(name string) *XRError {
+	if m.Attributes == nil {
+		return nil
+	}
+
+	delete(m.Attributes, name)
+
+	m.SetChanged(true)
+
+	return nil
+}
+
+func (m *Model) CreateModels(gPlural, gSingular, rPlural, rSingular string) (*GroupModel, *ResourceModel, *XRError) {
+	gm, xErr := m.AddGroupModel(gPlural, gSingular)
+	if xErr != nil {
+		return nil, nil, xErr
+	}
+	rm, xErr := gm.AddResourceModelSimple(rPlural, rSingular)
+	if xErr != nil {
+		gm.Delete() //xrlint:ignore
+		return nil, nil, xErr
+	}
+	return gm, rm, nil
+}
+
+func (m *Model) MustAddGroupModel(plural, singular string) *GroupModel {
+	gm, xErr := m.AddGroupModel(plural, singular)
+	Must(xErr)
+	return gm
+}
+
+func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, *XRError) {
+	if plural == "" {
+		return nil,
+			NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("can't add a GroupModel with an empty "+
+						"plural name"))
+	}
+	if singular == "" {
+		return nil,
+			NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("can't add a GroupModel with an empty "+
+						"singular name"))
+	}
+
+	if xErr := IsValidModelName(plural, true, true); xErr != nil {
+		return nil, xErr
+	}
+
+	if xErr := IsValidModelName(singular, true, false); xErr != nil {
+		return nil, xErr
+	}
+
+	for _, gm := range m.Groups {
+		if gm.Plural == plural {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group definition plural name %q already "+
+						"exists", plural))
+		}
+		if gm.Singular == singular {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group definition singular name %q already "+
+						"exists", singular))
+		}
+	}
+
+	newSID := NewUUID()
+	gm := &GroupModel{
+		SID:      newSID,
+		Model:    m,
+		Singular: singular,
+		Plural:   plural,
+
+		Resources: map[string]*ResourceModel{},
+	}
+
+	if m.Groups == nil {
+		m.Groups = map[string]*GroupModel{}
+	}
+	m.Groups[plural] = gm
+	m.SetChanged(true)
+
+	return gm, nil
+}
+
+func (m *Model) GetChanged() bool {
+	return m.changed
+}
+
+func (m *Model) GetStuff(key string) (any, bool) {
+	if m.Stuff == nil {
+		return nil, false
+	}
+	return m.Stuff[key], true
+}
+
+func (m *Model) SetStuff(key string, val any) {
+	if m.Stuff == nil {
+		m.Stuff = map[string]any{}
+	}
+	m.Stuff[key] = val
+}
+
+func (m *Model) SetDescription(val string) {
+	m.Description = val
+	m.SetChanged(true)
+}
+
+func (m *Model) GetDescription() string {
+	return m.Description
+}
+
+func (m *Model) SetDocumentation(val string) {
+	m.Documentation = val
+	m.SetChanged(true)
+}
+
+func (m *Model) GetDocumentation() string {
+	return m.Documentation
+}
+
+func NewItem() *Item {
+	return &Item{
+		// Model: m, // will be set when Item is added to attribute
+	}
+}
+func NewItemType(daType string) *Item {
+	return &Item{
+		// Model: m, // will be set when Item is added to attribute
+		Type: daType,
+	}
+}
+
+func NewItemObject() *Item {
+	return &Item{
+		// Model: m,  // will be set when Item is added to attribute
+		Type: OBJECT,
+	}
+}
+
+func NewItemMap(item *Item) *Item {
+	return &Item{
+		Model: item.Model,
+		Type:  MAP,
+		Item:  item,
+	}
+}
+
+func NewItemArray(item *Item) *Item {
+	return &Item{
+		Model: item.Model,
+		Type:  ARRAY,
+		Item:  item,
+	}
+}
+
+func (i *Item) SetModel(m *Model) {
+	if i == nil {
+		return
+	}
+
+	i.Model = m
+	i.Attributes.SetModel(m)
+	i.Item.SetModel(m)
+}
+
+func (i *Item) SetItem(item *Item) {
+	i.Item = item
+	item.SetModel(i.Model)
+
+	i.Model.SetChanged(true)
+}
+
+func (i *Item) AddAttr(name, daType string) (*Attribute, *XRError) {
+	return i.AddAttribute(&Attribute{Name: name, Type: daType})
+}
+
+func (i *Item) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
+	return i.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
+}
+
+func (i *Item) AddAttrObj(name string) (*Attribute, *XRError) {
+	return i.AddAttribute(&Attribute{Name: name, Type: OBJECT})
+}
+
+func (i *Item) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
+	return i.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
+}
+
+func (i *Item) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
+	if attr == nil {
+		return nil, nil
+	}
+
+	if i.Type != OBJECT {
+		return nil,
+			NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("item must be of type OBJECT in order to "+
+						"add attributes, it's %q", i.Type))
+	}
+
+	if attr.Name != "*" {
+		if i.Type == OBJECT {
+			lowerNCS := strings.ToLower(i.NameCharSet)
+			if lowerNCS == "extended" {
+				if xErr := IsValidMapKey(attr.Name, "/model", ""); xErr != nil {
+					return nil,
+						NewXRError("model_error", "/model",
+							"error_detail="+
+								fmt.Sprintf("invalid attribute name %q must "+
+									"match: %s", attr.Name,
+									RegexpMapKey.String()))
+				}
+			} else if lowerNCS == "strict" || lowerNCS == "" {
+				xErr := IsValidAttributeName(attr.Name, "/model", "")
+				if xErr != nil {
+					return nil, xErr
+				}
+			} else {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("invalid \"namecharset\" value: %s",
+							i.NameCharSet))
+			}
+		} else {
+			if attr.NameCharSet != "" {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("attribute %q must not have a "+
+							"\"namecharset\" value unless its type "+
+							"is \"object\"", attr.Name))
+			}
+		}
+	}
+
+	if i.Attributes == nil {
+		i.Attributes = Attributes{}
+	} else if _, ok := i.Attributes[attr.Name]; ok {
+		return nil, NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("attribute %q already exists", attr.Name))
+	}
+
+	i.Attributes[attr.Name] = attr
+
+	attr.Model = i.Model
+	attr.Item.SetModel(i.Model)
+
+	if i.Model != nil {
+		i.Model.SetChanged(true)
+	}
+
+	return attr, nil
+}
+
+func (i *Item) DelAttribute(name string) *XRError {
+	if i.Attributes != nil {
+		delete(i.Attributes, name)
+	}
+
+	i.Model.SetChanged(true)
+
+	return nil
+}
+
+func (m *Model) FindGroupModel(gType string) *GroupModel {
+	if m.Groups == nil {
+		return nil
+	}
+	return m.Groups[gType]
+}
+
+func (m *Model) FindResourceModel(gType string, rType string) *ResourceModel {
+	gm := m.FindGroupModel(gType)
+	if gm == nil {
+		return nil
+	}
+
+	return gm.Resources[rType]
+}
+
+// Starting on "gm" (but don't look at gm's ximportresources or resources */
+// Given GROUPTYPE + RESOURCEType, find Resource, following ximports if needed
+func (gm *GroupModel) FindXImportResource(gType string, rType string) (*ResourceModel, *XRError) {
+
+	seen := []string{gm.Plural} // "GROUPTYPE"
+	origXID := "/" + gType + "/" + rType
+
+	checkFn := (func(gm *GroupModel, gType, rType string) (*ResourceModel, *XRError))(nil)
+	checkFn = func(gm *GroupModel, gType, rType string) (*ResourceModel, *XRError) {
+		if ArrayContains(seen, gType) {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("The ximportresources reference %q is "+
+						"circular", origXID))
+		}
+		seen = append(seen, gType)
+
+		rm := gm.Resources[rType]
+		if rm != nil {
+			// Found it, but it might be ximport'd in so get its origin
+			return rm.GetOriginResourceModel(), nil
+		}
+
+		// Not already there, so if we haven't processed the XImportResources
+		// yet, just scan those for what we're looking for (recursively)
+		for _, xr := range gm.XImportResources {
+			parts := strings.Split(xr, "/")
+			if len(parts) != 3 {
+				// Someone else will report this as an error
+				continue
+			}
+			if parts[2] != rType {
+				// Not the right ResourceModel.Plural name
+				continue
+			}
+			g := gm.Model.Groups[parts[1]]
+			if g == nil {
+				// Someone else will report this as an error
+				continue
+			}
+
+			// Found one with a matching resource.plural, so keep traversing
+			rm, xErr := checkFn(g, parts[1], rType)
+			if rm != nil || xErr != nil {
+				return rm, xErr
+			}
+		}
+
+		return nil, nil
+	}
+
+	gm = gm.Model.Groups[gType]
+	if gm == nil {
+		// Group not found
+		return nil, nil
+	}
+
+	return checkFn(gm, gType, rType)
+}
+
+func (gm *GroupModel) ClearPropsOrdered() {
+	gm.propsOrdered = nil
+	gm.propsMap = nil
+}
+
+func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if gm.propsOrdered == nil {
+		gm.propsOrdered = []*Attribute{}
+		gm.propsMap = map[string]*Attribute{}
+
+		for _, prop := range OrderedSpecProps {
+			if prop.InType(ENTITY_GROUP) {
+				if prop.Name == "id" {
+					prop = prop.Clone(gm.Singular + "id")
+				}
+
+				if prop.Name == "$COLLECTIONS" {
+					for _, plural := range SortedKeys(gm.Resources) {
+						prop = CollectionsURLAttr.Clone(plural + "url")
+						prop.SetModel(gm.Model)
+						gm.propsOrdered = append(gm.propsOrdered, prop)
+						gm.propsMap[prop.Name] = prop
+
+						prop = CollectionsCountAttr.Clone(plural + "count")
+						prop.SetModel(gm.Model)
+						gm.propsOrdered = append(gm.propsOrdered, prop)
+						gm.propsMap[prop.Name] = prop
+
+						prop = CollectionsAttr.Clone(plural)
+						prop.SetModel(gm.Model)
+						gm.propsOrdered = append(gm.propsOrdered, prop)
+						gm.propsMap[prop.Name] = prop
+					}
+					continue
+				} else {
+					prop = prop.Clone("")
+				}
+
+				prop.SetModel(gm.Model)
+				gm.propsOrdered = append(gm.propsOrdered, prop)
+				gm.propsMap[prop.Name] = prop
+				prop.SetModel(gm.Model)
+			}
+		}
+	}
+	return gm.propsOrdered, gm.propsMap
+}
+
+func (gm *GroupModel) Delete() *XRError {
+	defer log.Trace("tx: %s %s", gm.Model.Registry.Tx.UUID, gm.Plural)()
+
+	gm.Model.RemoveConditionalProps()
+	delete(gm.Model.Groups, gm.Plural)
+
+	gm.Model.SetChanged(true)
+
+	return nil
+}
+
+func (gm *GroupModel) AddAttr(name, daType string) (*Attribute, *XRError) {
+	return gm.AddAttribute(&Attribute{Name: name, Type: daType})
+}
+
+func (gm *GroupModel) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
+	return gm.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
+}
+
+func (gm *GroupModel) AddAttrObj(name string) (*Attribute, *XRError) {
+	return gm.AddAttribute(&Attribute{Name: name, Type: OBJECT})
+}
+
+func (gm *GroupModel) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
+	return gm.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
+}
+
+func (gm *GroupModel) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
+	if attr == nil {
+		return nil, nil
+	}
+
+	if attr.Name != "*" {
+		if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
+			return nil, xErr
+		}
+	}
+
+	if gm.Attributes == nil {
+		gm.Attributes = Attributes{}
+	} else if _, ok := gm.Attributes[attr.Name]; ok {
+		return nil, NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("attribute %q already exists", attr.Name))
+	}
+
+	gm.Attributes[attr.Name] = attr
+
+	attr.SetModel(gm.Model)
+
+	ld := NewLevelData(gm.Model).P("groups").P(gm.Plural)
+	if xErr := gm.Attributes.Verify("strict", ld); xErr != nil {
+		delete(gm.Attributes, attr.Name)
+		return nil, xErr
+	}
+
+	attr.Model.SetChanged(true)
+
+	return attr, nil
+}
+
+func (gm *GroupModel) DelAttribute(name string) *XRError {
+	if gm.Attributes != nil {
+		delete(gm.Attributes, name)
+	}
+
+	gm.Model.SetChanged(true)
+
+	return nil
+}
+
+func (gm *GroupModel) MustAddResourceModel(plural, singular string) *ResourceModel {
+	// All other attributes will be set by the Verify() funcs
+	rm, xErr := gm.AddResourceModelFull(&ResourceModel{
+		Plural:   plural,
+		Singular: singular,
+	})
+	Must(xErr)
+	return rm
+}
+
+func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*ResourceModel, *XRError) {
+	// All other attributes will be set by the Verify() funcs
+	return gm.AddResourceModelFull(&ResourceModel{
+		Plural:   plural,
+		Singular: singular,
+	})
+}
+
+func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersions int, setVerId bool, hasDocument bool) (*ResourceModel, *XRError) {
+	// All other attributes will be set by the Verify() funcs
+	return gm.AddResourceModelFull(&ResourceModel{
+		Plural:       plural,
+		Singular:     singular,
+		MaxVersions:  PtrInt(maxVersions),
+		SetVersionId: PtrBool(setVerId),
+		HasDocument:  PtrBool(hasDocument),
+	})
+}
+
+func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, *XRError) {
+	rm.GroupModel = gm
+
+	if rm.Plural == "" {
+		return nil, NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("can't add a Group with an empty plural name"))
+	}
+	if rm.Singular == "" {
+		return nil, NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("can't add a Group with an empty singular name"))
+	}
+
+	if rm.MaxVersions != nil {
+		if *rm.MaxVersions < 0 {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`"maxversions"(%d) must be >= 0`,
+						*(rm.MaxVersions)))
+		}
+	}
+
+	if xErr := IsValidModelName(rm.Plural, false, true); xErr != nil {
+		return nil, xErr
+	}
+	if xErr := IsValidModelName(rm.Singular, false, false); xErr != nil {
+		return nil, xErr
+	}
+
+	for _, r := range gm.Resources {
+		if r.Plural == rm.Plural {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Resource model plural name %q already "+
+						"exists for Group %q", rm.Plural, gm.Plural))
+		}
+		if r.Singular == rm.Singular {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Resource model singular name %q already "+
+						"exists for Group %q", rm.Singular, gm.Plural))
+		}
+	}
+
+	rm.SID = NewUUID()
+	gm.Resources[rm.Plural] = rm
+	rm.GroupModel.Model.SetChanged(true)
+
+	return rm, nil
+}
+
+func (gm *GroupModel) AddXImportResource(absXID string) *XRError {
+	xidType, err := ParseXidType(absXID)
+	if err != nil {
+		return NewXRError("model_error", "/model",
+			"error_detail="+fmt.Sprintf("'ximportresources' value %s", err))
+	}
+	if xidType.Type != ENTITY_RESOURCE_TYPE {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("'ximportresources' value of %q must be "+
+					"of the form: /GROUPS/RESOURCES", absXID))
+	}
+
+	if xidType.Group == gm.Plural {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("'ximportresources' value of %q is not allowed to "+
+					"reference its own GroupModel %q", absXID, gm.Plural))
+	}
+
+	for _, grName := range gm.XImportResources {
+		if grName == absXID {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("'ximportresources' list already has "+
+						"an entry for %q", absXID))
+		}
+	}
+
+	gm.XImportResources = append(gm.XImportResources, absXID)
+
+	gm.Model.SetChanged(true)
+	return nil
+}
+
+// Return the abstract type of this Resource (meaning its /Groups/Resources
+// value) but not just it's current value w/o the IDs, but instead the true
+// abstract /Groups/Resources its based on if it's here due to an ximport.
+func (rm *ResourceModel) GetOriginAbstractModel() string {
+	if rm.XImportOrigin != "" {
+		return rm.XImportOrigin
+	}
+
+	if len(rm.GroupModel.Resources) > 0 &&
+		rm.GroupModel.Resources[rm.Plural] != nil {
+
+		return "/" + rm.GroupModel.Plural + "/" + rm.Plural
+	}
+
+	panic(fmt.Sprintf("Can't find myself! %s/%s",
+		rm.GroupModel.Plural, rm.Plural))
+}
+
+func (rm *ResourceModel) GetOriginResourceModel() *ResourceModel {
+	if rm.XImportOrigin != "" {
+
+		parts := strings.Split(rm.XImportOrigin, "/")
+		PanicIf(len(parts) != 3, "%q must be abstract xid", rm.XImportOrigin)
+		rm = rm.GroupModel.Model.Groups[parts[1]].Resources[parts[2]]
+	}
+	return rm
+}
+
+func (rm *ResourceModel) Clone(newGM *GroupModel) *ResourceModel {
+	newRM := &ResourceModel{
+		SID:        rm.SID,
+		GroupModel: newGM,
+
+		Plural:              rm.Plural,
+		Singular:            rm.Singular,
+		Description:         rm.Description,
+		Documentation:       rm.Documentation,
+		Icon:                rm.Icon,
+		Labels:              maps.Clone(rm.Labels),
+		ModelVersion:        rm.ModelVersion,
+		ModelCompatibleWith: rm.ModelCompatibleWith,
+
+		MaxVersions:           rm.MaxVersions,
+		SetVersionId:          ClonePtrBool(rm.SetVersionId),
+		HasDocument:           ClonePtrBool(rm.HasDocument),
+		VersionMode:           rm.VersionMode,
+		SingleVersionRoot:     ClonePtrBool(rm.SingleVersionRoot),
+		ValidateFormat:        ClonePtrBool(rm.ValidateFormat),
+		ValidateCompatibility: ClonePtrBool(rm.ValidateCompatibility),
+		StrictValidation:      ClonePtrBool(rm.StrictValidation),
+		TypeMap:               maps.Clone(rm.TypeMap),
+		XImportOrigin:         rm.XImportOrigin,
+
+		VersionAttributes:  rm.VersionAttributes.Clone(),
+		ResourceAttributes: rm.ResourceAttributes.Clone(),
+		MetaAttributes:     rm.MetaAttributes.Clone(),
+	}
+
+	newRM.SetModel(newGM.Model)
+
+	return newRM
+}
+
+// Clone returns a deep copy of gm, linked to newModel. Every nested
+// Resource/Attribute/Item/IfValue is cloned too (see Attribute.Clone()'s
+// comment for why a shallow copy would be unsafe to share across
+// concurrent requests).
+func (gm *GroupModel) Clone(newModel *Model) *GroupModel {
+	if gm == nil {
+		return nil
+	}
+
+	newGM := &GroupModel{
+		SID:   gm.SID,
+		Model: newModel,
+
+		Plural:              gm.Plural,
+		Singular:            gm.Singular,
+		Description:         gm.Description,
+		Documentation:       gm.Documentation,
+		Icon:                gm.Icon,
+		Labels:              maps.Clone(gm.Labels),
+		ModelVersion:        gm.ModelVersion,
+		ModelCompatibleWith: gm.ModelCompatibleWith,
+		Attributes:          gm.Attributes.Clone(),
+
+		XImportResources: slices.Clone(gm.XImportResources),
+		Constraints:      gm.Constraints.Clone(),
+	}
+
+	newGM.Resources = map[string]*ResourceModel{}
+	for plural, rm := range gm.Resources {
+		newGM.Resources[plural] = rm.Clone(newGM)
+	}
+
+	newGM.SetModel(newModel)
+
+	return newGM
+}
+
+func (rm *ResourceModel) ClearPropsOrdered() {
+	rm.versionPropsOrdered = nil
+	rm.versionPropsMap = nil
+
+	rm.resourcePropsOrdered = nil
+	rm.resourcePropsMap = nil
+
+	rm.metaPropsOrdered = nil
+	rm.metaPropsMap = nil
+
+	rm.effectivePropsOrdered = nil
+	rm.effectivePropsMap = nil
+}
+
+func (rm *ResourceModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if rm.effectivePropsOrdered == nil {
+		rm.versionPropsOrdered = []*Attribute{}
+		rm.versionPropsMap = map[string]*Attribute{}
+		rm.resourcePropsOrdered = []*Attribute{}
+		rm.resourcePropsMap = map[string]*Attribute{}
+		rm.metaPropsOrdered = []*Attribute{}
+		rm.metaPropsMap = map[string]*Attribute{}
+		rm.effectivePropsOrdered = []*Attribute{}
+		rm.effectivePropsMap = map[string]*Attribute{}
+
+		for _, prop := range OrderedSpecProps {
+			// The order of the if-statements is important to ensure
+			// that we only try to clone the prop once (for perf reasons)
+
+			if prop.Name == "$COLLECTIONS" {
+				prop = CollectionsURLAttr.Clone("versionsurl")
+				rm.effectivePropsOrdered = append(rm.effectivePropsOrdered, prop)
+				rm.effectivePropsMap[prop.Name] = prop
+				rm.resourcePropsOrdered = append(rm.resourcePropsOrdered, prop)
+				rm.resourcePropsMap[prop.Name] = prop
+
+				prop = CollectionsCountAttr.Clone("versionscount")
+				rm.effectivePropsOrdered = append(rm.effectivePropsOrdered, prop)
+				rm.effectivePropsMap[prop.Name] = prop
+				rm.resourcePropsOrdered = append(rm.resourcePropsOrdered, prop)
+				rm.resourcePropsMap[prop.Name] = prop
+
+				prop = CollectionsAttr.Clone("versions")
+				rm.effectivePropsOrdered = append(rm.effectivePropsOrdered, prop)
+				rm.effectivePropsMap[prop.Name] = prop
+				rm.resourcePropsOrdered = append(rm.resourcePropsOrdered, prop)
+				rm.resourcePropsMap[prop.Name] = prop
+
+				continue
+			}
+
+			if prop.Name == "id" { // singular=Resource's for all 3
+				prop = prop.Clone(rm.Singular + "id")
+			} else if strings.HasPrefix(prop.Name, "$RESOURCE") {
+				if rm.GetHasDocument() {
+					name := rm.Singular + prop.Name[len("$RESOURCE"):]
+					prop = prop.Clone(name)
+				} else {
+					continue // hasDoc==false so skip it
+				}
+			} else {
+				prop = prop.Clone("")
+			}
+
+			if prop.InType(ENTITY_RESOURCE) {
+				rm.resourcePropsOrdered = append(rm.resourcePropsOrdered, prop)
+				rm.resourcePropsMap[prop.Name] = prop
+			}
+
+			if prop.InType(ENTITY_VERSION) {
+				rm.versionPropsOrdered = append(rm.versionPropsOrdered, prop)
+				rm.versionPropsMap[prop.Name] = prop
+			}
+
+			if prop.InType(ENTITY_META) {
+				rm.metaPropsOrdered = append(rm.metaPropsOrdered, prop)
+				rm.metaPropsMap[prop.Name] = prop
+			}
+
+			if prop.InType(ENTITY_RESOURCE) || prop.InType(ENTITY_VERSION) {
+				rm.effectivePropsOrdered = append(rm.effectivePropsOrdered, prop)
+				rm.effectivePropsMap[prop.Name] = prop
+			}
+		}
+	}
+	return rm.effectivePropsOrdered, rm.effectivePropsMap
+}
+
+func (rm *ResourceModel) Refresh() *ResourceModel {
+	// Weird we need to assume the current rm's info (except Reg) is bad
+	gm := rm.GroupModel
+	return gm.Model.Registry.Model.FindResourceModel(gm.Plural, rm.Plural)
+}
+
+func (rm *ResourceModel) GetResourcePropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if rm.resourcePropsOrdered == nil {
+		rm.GetPropsOrdered()
+	}
+
+	return rm.resourcePropsOrdered, rm.resourcePropsMap
+}
+
+func (rm *ResourceModel) GetMetaPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if rm.metaPropsOrdered == nil {
+		rm.GetPropsOrdered()
+	}
+
+	return rm.metaPropsOrdered, rm.metaPropsMap
+}
+
+func (rm *ResourceModel) GetVersionPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if rm.versionPropsOrdered == nil {
+		rm.GetPropsOrdered()
+	}
+
+	return rm.versionPropsOrdered, rm.versionPropsMap
+}
+
+func (rm *ResourceModel) Dump(indents ...string) {
+	indent := strings.Join(indents, "")
+	log.Printf("%sRM: %s/%s", indent, rm.Plural, rm.Singular)
+	log.Printf("%s  - HasDoc: %v", indent, rm.GetHasDocument())
+	log.Printf("%s  - VerMode: %v", indent, rm.VersionMode)
+	log.Printf("%s  - Attributes:", indent)
+	for _, attr := range rm.VersionAttributes {
+		attr.Dump(indent + "  ")
+	}
+}
+
+func (attr *Attribute) Dump(indents ...string) {
+	indent := strings.Join(indents, "")
+	log.Printf("%s%s:", indent, attr.Name)
+	log.Printf("%s  - type: ", indent, attr.Type)
+	log.Printf("%s  - internal: %v", indent, attr.Internals != nil)
+}
+
+func (rm *ResourceModel) AddResourceAttr(name, daType string) (*Attribute, *XRError) {
+	return rm.AddResourceAttribute(&Attribute{Name: name, Type: daType})
+}
+
+func (rm *ResourceModel) AddResourceAttrMap(name string, item *Item) (*Attribute, *XRError) {
+	return rm.AddResourceAttribute(&Attribute{Name: name, Type: MAP, Item: item})
+}
+
+func (rm *ResourceModel) AddResourceAttrObj(name string) (*Attribute, *XRError) {
+	return rm.AddResourceAttribute(&Attribute{Name: name, Type: OBJECT})
+}
+
+func (rm *ResourceModel) AddResourceAttrArray(name string, item *Item) (*Attribute, *XRError) {
+	return rm.AddResourceAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
+}
+
+func (rm *ResourceModel) AddResourceAttribute(attr *Attribute) (*Attribute, *XRError) {
+	if attr == nil {
+		return nil, nil
+	}
+
+	if attr.Name != "*" {
+		if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
+			return nil, xErr
+		}
+	}
+
+	if rm.ResourceAttributes == nil {
+		rm.ResourceAttributes = Attributes{}
+	}
+
+	rm.ResourceAttributes[attr.Name] = attr
+
+	attr.SetModel(rm.GroupModel.Model)
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return attr, nil
+}
+
+func (rm *ResourceModel) AddMetaAttr(name, daType string) (*Attribute, *XRError) {
+	return rm.AddMetaAttribute(&Attribute{Name: name, Type: daType})
+}
+
+func (rm *ResourceModel) AddMetaAttrMap(name string, item *Item) (*Attribute, *XRError) {
+	return rm.AddMetaAttribute(&Attribute{Name: name, Type: MAP, Item: item})
+}
+
+func (rm *ResourceModel) AddMetaAttrObj(name string) (*Attribute, *XRError) {
+	return rm.AddMetaAttribute(&Attribute{Name: name, Type: OBJECT})
+}
+
+func (rm *ResourceModel) AddMetaAttrArray(name string, item *Item) (*Attribute, *XRError) {
+	return rm.AddMetaAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
+}
+
+func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, *XRError) {
+	if attr == nil {
+		return nil, nil
+	}
+
+	if attr.Name != "*" {
+		if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
+			return nil, xErr
+		}
+	}
+
+	if rm.MetaAttributes == nil {
+		rm.MetaAttributes = Attributes{}
+	}
+
+	rm.MetaAttributes[attr.Name] = attr
+
+	attr.SetModel(rm.GroupModel.Model)
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return attr, nil
+}
+
+func (rm *ResourceModel) Delete() *XRError {
+	defer log.Trace("tx: %s %s", rm.GroupModel.Model.Registry.Tx.UUID,
+		rm.Plural)()
+
+	rm.GroupModel.RemoveConditionalProps()
+	delete(rm.GroupModel.Resources, rm.Plural)
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
+}
+
+func (rm *ResourceModel) AddAttr(name, daType string) (*Attribute, *XRError) {
+	return rm.AddAttribute(&Attribute{Name: name, Type: daType})
+}
+
+func (rm *ResourceModel) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
+	return rm.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
+}
+
+func (rm *ResourceModel) AddAttrObj(name string) (*Attribute, *XRError) {
+	return rm.AddAttribute(&Attribute{Name: name, Type: OBJECT})
+}
+
+func (rm *ResourceModel) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
+	return rm.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
+}
+
+func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
+	if attr == nil {
+		return nil, nil
+	}
+
+	if attr.Name != "*" {
+		if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
+			return nil, xErr
+		}
+	}
+
+	if rm.GetHasDocument() == true {
+		invalidNames := []string{
+			rm.Singular,
+			rm.Singular + "url",
+			rm.Singular + "base64",
+			rm.Singular + "proxyurl",
+		}
+
+		for _, name := range invalidNames {
+			if attr.Name == name {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("attribute name is reserved: %s", name))
+			}
+		}
+	}
+
+	if rm.VersionAttributes == nil {
+		rm.VersionAttributes = Attributes{}
+	} else if _, ok := rm.VersionAttributes[attr.Name]; ok {
+		return nil, NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("attribute %q already exists", attr.Name))
+	}
+
+	rm.VersionAttributes[attr.Name] = attr
+
+	attr.SetModel(rm.GroupModel.Model)
+
+	// Not sure we need this here other than for fast-failure since we'll
+	// do this same check in ResourceModel.Verify()
+	ld := NewLevelData(rm.GroupModel.Model).P("resources").P(rm.Plural)
+	if xErr := rm.VersionAttributes.Verify("strict", ld); xErr != nil {
+		delete(rm.VersionAttributes, attr.Name)
+		return nil, xErr
+	}
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return attr, nil
+}
+
+func (rm *ResourceModel) DelResourceAttribute(name string) *XRError {
+	if rm.ResourceAttributes != nil {
+		delete(rm.ResourceAttributes, name)
+	}
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
+}
+
+func (rm *ResourceModel) DelMetaAttribute(name string) *XRError {
+	if rm.MetaAttributes != nil {
+		delete(rm.MetaAttributes, name)
+	}
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
+}
+
+func (rm *ResourceModel) DelAttribute(name string) *XRError {
+	if rm.VersionAttributes != nil {
+		delete(rm.VersionAttributes, name)
+	}
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
+}
+
+func (attrs Attributes) SetModel(m *Model) {
+	if attrs == nil {
+		return
+	}
+
+	for _, attr := range attrs {
+		attr.SetModel(m)
+	}
+}
+
+// This just does the top-level attributes with the assumption that we'll
+// do the lower-level ones later on in Entity.ValidateObject
+func (attrs Attributes) AddIfValuesAttributes(obj map[string]any) {
+	attrNames := Keys(attrs)
+	for i := 0; i < len(attrNames); i++ { // since attrs changes
+		attr := attrs[attrNames[i]]
+		if len(attr.IfValues) == 0 || attr.Name == "*" {
+			continue
+		}
+
+		val, ok := obj[attr.Name]
+		if !ok {
+			continue
+		}
+
+		valStr := strings.ToLower(fmt.Sprintf("%v", val))
+		for ifValStr, ifValueData := range attr.IfValues {
+			if strings.ToLower(ifValStr) != valStr {
+				continue
+			}
+
+			for _, newAttr := range ifValueData.SiblingAttributes {
+				if _, ok := attrs[newAttr.Name]; ok {
+					Panicf(`Attribute %q has an ifvalue(%s) that `+
+						`defines a conflicting siblingattribute: %s`,
+						attr.Name, ifValStr, newAttr.Name)
+				}
+				attrs[newAttr.Name] = newAttr
+				// Add new attr name to the list so we can check its ifValues
+				attrNames = append(attrNames, newAttr.Name)
+			}
+		}
+		// Don't set changed since we don't want to save the ifvalue attrs
+		// attr.Model.SetChanged(true)
+	}
+}
+
+func KindIsScalar(k reflect.Kind) bool {
+	// SOOOO risky :-)
+	return k < reflect.Array || k == reflect.String
+}
+
+func IsScalar(daType string) bool {
+	return daType == BOOLEAN || daType == DECIMAL || daType == INTEGER ||
+		daType == STRING || daType == TIMESTAMP || daType == UINTEGER ||
+		daType == URI || daType == URIABSOLUTE || daType == URIRELATIVE ||
+		daType == URITEMPLATE ||
+		daType == URL || daType == URLABSOLUTE || daType == URLRELATIVE ||
+		daType == XID || daType == XIDTYPE
+}
+
+// Is some string variant
+func IsString(daType string) bool {
+	return daType == STRING || daType == TIMESTAMP ||
+		daType == URI || daType == URIABSOLUTE || daType == URIRELATIVE ||
+		daType == URITEMPLATE ||
+		daType == URL || daType == URLABSOLUTE || daType == URLRELATIVE ||
+		daType == XID || daType == XIDTYPE
+}
+
+func (a *Attribute) GetStrict() bool {
+	return a.Strict == nil || *a.Strict == true
+}
+
+func (a *Attribute) GetMatchVersions() bool {
+	return a.MatchVersions
+}
+
+func (a *Attribute) InOnlyType(eType int) bool {
+	PanicIf(a.Internals == nil, "nil")
+	/*
+		if a.Internals == nil {
+			return false
+		}
+	*/
+	return a.Internals.Types == string(rune('0'+byte(eType)))
+}
+
+func (a *Attribute) InType(eType int) bool {
+	PanicIf(a.Internals == nil, "nil")
+	/*
+		if a.Internals == nil {
+			return false
+		}
+	*/
+	return a.Internals.Types == "" ||
+		strings.ContainsRune(a.Internals.Types, rune('0'+byte(eType)))
+}
+
+func (a *Attribute) IsScalar() bool {
+	return IsScalar(a.Type)
+}
+
+func (a *Attribute) SetModel(m *Model) {
+	if a == nil {
+		return
+	}
+
+	a.Model = m
+	a.Attributes.SetModel(m)
+	a.Item.SetModel(m)
+	a.IfValues.SetModel(m)
+}
+
+// TODO add more setters
+func (a *Attribute) SetStrict(val bool) {
+	if IsNil(a.Strict) || *(a.Strict) != val {
+		a.Strict = PtrBool(val)
+		a.Model.SetChanged(true)
+	}
+}
+
+func (a *Attribute) SetMatchVersions(val bool) {
+	if a.MatchVersions != val {
+		a.MatchVersions = val
+		a.Model.SetChanged(true)
+	}
+}
+
+func (a *Attribute) AddAttr(name, daType string) (*Attribute, *XRError) {
+	return a.AddAttribute(&Attribute{
+		Model: a.Model,
+		Name:  name,
+		Type:  daType,
+	})
+}
+
+func (a *Attribute) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
+	return a.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
+}
+
+func (a *Attribute) AddAttrObj(name string) (*Attribute, *XRError) {
+	return a.AddAttribute(&Attribute{Name: name, Type: OBJECT})
+}
+
+func (a *Attribute) AddAttrArray(n string, item *Item) (*Attribute, *XRError) {
+	return a.AddAttribute(&Attribute{Name: n, Type: ARRAY, Item: item})
+}
+
+func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
+	if attr.Name != "*" {
+		if a.Type == OBJECT {
+			lowerNCS := strings.ToLower(a.NameCharSet)
+			if lowerNCS == "extended" {
+				if xErr := IsValidMapKey(attr.Name, "/model", ""); xErr != nil {
+					return nil, NewXRError("model_error", "/model",
+						"error_detail="+
+							fmt.Sprintf("invalid attribute name %q must "+
+								"match: %s", attr.Name, RegexpMapKey.String()))
+				}
+			} else if lowerNCS == "strict" || a.NameCharSet == "" {
+				xErr := IsValidAttributeName(attr.Name, "/model", "")
+				if xErr != nil {
+					return nil, xErr
+				}
+			} else {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("invalid \"namecharset\" value: %s",
+							a.NameCharSet))
+			}
+		} else {
+			if a.NameCharSet != "" {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("attribute %q must not have a "+
+							"\"namecharset\" value unless it is of "+
+							"type \"object\"", a.Name))
+			}
+		}
+	}
+
+	if a.Attributes == nil {
+		a.Attributes = Attributes{}
+	} else if _, ok := a.Attributes[attr.Name]; ok {
+		return nil, NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("attribute %q already exists", attr.Name))
+	}
+
+	a.Attributes[attr.Name] = attr
+	attr.SetModel(a.Model)
+
+	attr.Model.SetChanged(true)
+
+	return attr, nil
+}
+
+// Make sure that the attribute doesn't deviate too much from the
+// spec defined version of it. There's only so much that we allow the
+// user to customize
+func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
+	if userAttr.Name == "" {
+		userAttr.Name = specAttr.Name
+	}
+
+	// Just blindly ignore any updates made to "model"
+	if userAttr.Name == "model" || userAttr.Name == "capabilities" {
+		*userAttr = *specAttr
+		return nil
+	}
+
+	if specAttr.Type != userAttr.Type {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`"model.%s" must have a "type" of %q`,
+					userAttr.Name, specAttr.Type))
+	}
+
+	if specAttr.Required {
+		if userAttr.Required == false {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`"model.%s" must have its "required" `+
+						`attribute set to "true"`, specAttr.Name))
+		}
+		if specAttr.ReadOnly && !userAttr.ReadOnly {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`"model.%s" must have its "readonly" `+
+						`attribute set to "true"`, specAttr.Name))
+		}
+	}
+
+	if !IsNil(specAttr.Default) && IsNil(userAttr.Default) {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`"model.%s" must have a default value defined`,
+					specAttr.Name))
+	}
+
+	if len(specAttr.Enum) > 0 && specAttr.GetStrict() {
+		if len(userAttr.Enum) == 0 {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`"model.%s" must have an "enum" set that `+
+						`contains at least one of: %s`,
+						specAttr.Name, specAttr.EnumsAsString()))
+		}
+
+		for _, uVal := range userAttr.Enum {
+			match := false
+			for _, sVal := range specAttr.Enum {
+				if uVal == sVal {
+					match = true
+					break
+				}
+			}
+			if match == false {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf(`"model.%s" has an "enum" val (%s) that `+
+							`isn't allowed. Must be one of: %s`,
+							specAttr.Name, uVal, specAttr.EnumsAsString()))
+			}
+		}
+	}
+
+	// Strict needs to match ONLY IF there's an enum at the spec level
+	if len(specAttr.Enum) > 0 && specAttr.GetStrict() == true &&
+		userAttr.GetStrict() == false {
+
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`"model.%s" must have "strict" set to "true"`,
+					specAttr.Name))
+	}
+
+	if specAttr.GetMatchVersions() && !userAttr.GetMatchVersions() {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`"model.%s" must have "matchversions" set to `+
+					`"true"`, specAttr.Name))
+	}
+
+	// TODO DUG align other aspects of the attrs too
+	if specAttr.Internals != nil {
+		for _, attrName := range specAttr.Internals.CantOverride {
+			switch attrName {
+			/*
+				case "MatchCase":
+					if specAttr.MatchCase != userAttr.MatchCase {
+						return NewXRError("model_error", "/model",
+							"error_detail="+
+								fmt.Sprintf(`"model.%s" can not `+
+									`change its "matchcase" property, it must `+
+									`be "%v"`, userAttr.Name, specAttr.MatchCase))
+					}
+			*/
+			default:
+				panic(attrName)
+			}
+		}
+	}
+
+	return nil
+}
+
+func RemoveCollectionProps(plural string, attrs Attributes,
+	propsOrdered []*Attribute, propsMap map[string]*Attribute) []*Attribute {
+
+	if attrs != nil {
+		if attr, ok := attrs[plural]; ok && attr.Model != nil {
+			attr.Model.SetChanged(true)
+		}
+		delete(attrs, plural)
+		delete(attrs, plural+"count")
+		delete(attrs, plural+"url")
+	}
+
+	if propsMap != nil {
+		delete(propsMap, plural)
+		delete(propsMap, plural+"count")
+		delete(propsMap, plural+"url")
+	}
+
+	if propsOrdered != nil {
+		for i := 0; i < len(propsOrdered); i++ {
+			// Starts with "plural"
+			prop := propsOrdered[i]
+			if strings.HasPrefix(prop.Name, plural) {
+				// Grab rest of string
+				rest := prop.Name[len(plural):]
+				if rest == "" || rest == "count" || rest == "url" {
+					// Match, one of them so remove from array
+					propsOrdered = append(propsOrdered[:i],
+						propsOrdered[i+1:]...)
+					i--
+				}
+			}
+		}
+	}
+
+	return propsOrdered
+}
+
+func (m *Model) RemoveConditionalProps() {
+	for _, gm := range m.Groups {
+		m.propsOrdered = RemoveCollectionProps(gm.Plural, m.Attributes,
+			m.propsOrdered, m.propsMap)
+	}
+}
+
+// Technically, this operates on "modelsource" not "model".
+// At some point we may want to be more explicit about this split.
+func (m *Model) Verify() *XRError {
+	m.ClearPropsOrdered()
+	m.SetPointers()
+
+	// Make sure groups and resources have their plural values set.
+	// Too much is dependent on that
+	for gmName, gm := range m.Groups {
+		// can be nil for testing but not in reality
+		if gm != nil {
+			if gm.Plural == "" {
+				gm.Plural = gmName
+			}
+
+			for rmName, rm := range gm.Resources {
+				if rm != nil && rm.Plural == "" {
+					rm.Plural = rmName
+				}
+			}
+		}
+	}
+
+	// Check Groups first so that if the Group name isn't valid we'll
+	// flag that instead of an invalid GROUPScount attribute name.
+	// Sort it to ensure consistent errors in testing.
+	for _, gmName := range SortedKeys(m.Groups) {
+		gm := m.Groups[gmName]
+		if gm == nil {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group definition for %q can't be empty",
+						gmName))
+		}
+
+		gm.Model = m
+
+		// PanicIf(m.Registry.Model == nil, "nil")
+		if xErr := gm.Verify(gmName); xErr != nil {
+			return xErr
+		}
+	}
+
+	// Make sure we have the xRegistry core/spec defined attributes
+	// in the list and they're not changed in an inappropriate way.
+	// This just checks the Registry.Attributes. Groups and Resources will
+	// be done in their own Verify funcs
+
+	if m.Attributes == nil {
+		m.Attributes = Attributes{}
+	}
+
+	propsOrdered, _ := m.GetPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if specProp.Name[0] == '$' {
+			continue
+		}
+
+		modelAttr, ok := m.Attributes[specProp.Name]
+		if !ok {
+			// Missing in model, so add it
+			m.Attributes[specProp.Name] = specProp
+			m.SetChanged(true)
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if xErr := EnsureAttrOK(modelAttr, specProp); xErr != nil {
+				return xErr
+			}
+		}
+	}
+
+	// Now check Registry attributes for correctness
+	for key, _ := range m.Labels {
+		if xErr := IsValidMapKey(key, "/model", "labels"); xErr != nil {
+			return xErr
+		}
+	}
+
+	ld := NewLevelData(m)
+	if xErr := m.Attributes.Verify("strict", ld); xErr != nil {
+		return xErr
+	}
+
+	return nil
+}
+
+func (m *Model) GetBaseAttributes() Attributes {
+	attrs := Attributes{}
+	maps.Copy(attrs, m.Attributes)
+
+	// Add xReg defined attributes
+	// TODO Check for conflicts
+	propsOrdered, _ := m.GetPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
+			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].Internals = specProp.Internals
+		}
+	}
+
+	return attrs
+}
+
+func (gm *GroupModel) RemoveConditionalProps() {
+	for _, rm := range gm.Resources {
+		gm.propsOrdered = RemoveCollectionProps(rm.Plural, gm.Attributes,
+			gm.propsOrdered, gm.propsMap)
+	}
+}
+
+func (gm *GroupModel) Verify(gmName string) *XRError {
+	gm.ClearPropsOrdered()
+
+	if xErr := IsValidModelName(gmName, true, true); xErr != nil {
+		return xErr
+	}
+
+	if gm.Plural == "" {
+		// Allow auto-populate
+		gm.Plural = gmName
+		gm.Model.SetChanged(true)
+	} else if gm.Plural != gmName {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("Group %q must have a `plural` value of %q, not %q",
+					gmName, gmName, gm.Plural))
+	}
+
+	if gm.SID == "" {
+		gm.SID = NewUUID()
+	}
+
+	if gm.Singular == "" {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`Group %q is missing a "singular" value`, gmName))
+	}
+
+	if gm.Singular == gm.Plural {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`Group %q has same value for "plural" `+
+					`and "singular"`, gmName))
+	}
+
+	if gm.Model.Groups[gm.Singular] != nil {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`Group %q has a "singular" value (%s) that `+
+					`matches another Group's "plural" value`,
+					gmName, gm.Singular))
+	}
+
+	if xErr := IsValidModelName(gm.Singular, true, false); xErr != nil {
+		return xErr
+	}
+
+	// TODO: verify the Groups data are model compliant
+
+	// Save the plurals/singulars as we go so we can quickly see when
+	// dups are specified. We don't use the values, yet... maybe one day
+	plurals := map[string]string{}   // plural->singular
+	singulars := map[string]string{} // singular->plural
+
+	// Verify the "ximportresources" list, save names for later checking
+	for _, grName := range gm.XImportResources {
+		// In this func be careful using the *.Plural value because some
+		// may not be filled in yet - like r.Plural.  gm.Plural is done above
+
+		if grName[0] != '/' {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has an invalid \"ximportresources\" "+
+						"value (%s), must start with \"/\" and be of the form "+
+						"\"/GROUP/RESOURCE\"", gm.Plural, grName))
+		}
+
+		parts := strings.Split(grName, "/")
+		// parts[0] is always ""
+		if len(parts) != 3 || len(parts[1]) == 0 || len(parts[2]) == 0 {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has an invalid \"ximportresources\" "+
+						"value (%s), must be of the form \"/GROUP/RESOURCE\"",
+						gm.Plural, grName))
+		}
+
+		if parts[1] == gm.Plural {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has a bad \"ximportresources\" "+
+						"value (%s), it can't reference its own Group",
+						gm.Plural, grName))
+		}
+
+		r, xErr := gm.FindXImportResource(parts[1], parts[2])
+		if xErr != nil {
+			return xErr
+		}
+
+		if r == nil {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q references a non-existing "+
+						"Resource %q", gm.Plural, grName))
+		}
+
+		if gm.Resources[parts[2]] != nil {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q is trying to ximport a Resource "+
+						"(%s) but a Resource with that name (%s) already "+
+						"exists",
+						gm.Plural, grName, parts[2]))
+		}
+
+		if gm.Resources == nil {
+			gm.Resources = map[string]*ResourceModel{}
+		}
+
+		if r.Plural == "" {
+			r.Plural = parts[2] // in case it's not set yet
+		}
+
+		rClone := r.Clone(gm)
+		rClone.SID = "" // this is a brand new ResourceModel, not a copy of r
+
+		// Save what our real type is
+		rClone.XImportOrigin = "/" + r.GroupModel.Plural + "/" + r.Plural
+
+		if _, xErr := gm.AddResourceModelFull(rClone); xErr != nil {
+			return xErr
+		}
+
+		// Don't save it in the model
+		// It's just for initial construction of the model
+		gm.XImportResources = nil
+	}
+
+	// Verify the Resources to catch invalid Resource names early
+	// Just so we always do them in order for consistent testing
+	rList := SortedKeys(gm.Resources)
+	for _, rmName := range rList {
+		rm := gm.Resources[rmName]
+		if rm == nil {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has an empty Resource %q",
+						gm.Plural, rmName))
+		}
+
+		if _, ok := plurals[rmName]; ok {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has a Resource %q that has a "+
+						"duplicate \"plural\" name", gm.Plural, rmName))
+		}
+
+		if _, ok := singulars[rmName]; ok {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has a Resource %q that has a "+
+						"duplicate \"singular\" name", gm.Plural, rmName))
+		}
+
+		rm.GroupModel = gm
+
+		if err := rm.Verify(rmName); err != nil {
+			return err
+		}
+
+		if _, ok := plurals[rm.Singular]; ok {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has a Resource %q that has a "+
+						"\"singular\" name that conflicts with an existing "+
+						"\"plural\" name", gm.Plural, rmName))
+		}
+
+		if _, ok := singulars[rm.Singular]; ok {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has a Resource %q that has a "+
+						"duplicate \"singular\" name %q",
+						gm.Plural, rmName, rm.Singular))
+		}
+
+		plurals[rmName] = rm.Singular
+		singulars[rm.Singular] = rmName
+	}
+
+	// Make sure we have the xRegistry core/spec defined attributes
+	// in the list and they're not changed in an inappropriate way.
+	// This just checks the Group level Attributes
+	if gm.Attributes == nil {
+		gm.Attributes = Attributes{}
+
+	}
+
+	propsOrdered, _ := gm.GetPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if specProp.Name[0] == '$' {
+			continue
+		}
+
+		modelAttr, ok := gm.Attributes[specProp.Name]
+		if !ok {
+			// Missing in model, so add it
+			specProp = specProp.Clone("")
+			specProp.SetModel(gm.Model)
+			gm.Attributes[specProp.Name] = specProp
+			gm.Model.SetChanged(true)
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
+				return err
+			}
+		}
+	}
+
+	ld := NewLevelData(gm.Model).P("groups").P(gm.Plural)
+
+	for key, _ := range gm.Labels {
+		err := IsValidMapKey(key, "/model", ld.P("labels").UI())
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := gm.Attributes.Verify("strict", ld); err != nil {
+		return err
+	}
+
+	// Validate any Group-type level constraints
+	xErr := gm.ValidateConstraints(nil, gm.Constraints)
+	if xErr != nil {
+		return xErr
+	}
+
+	return nil
+}
+
+func (gm *GroupModel) SetModel(m *Model) {
+	if gm == nil {
+		return
+	}
+
+	gm.Model = m
+	if gm.Attributes == nil {
+		gm.Attributes = map[string]*Attribute{}
+	}
+
+	gm.Attributes.SetModel(m)
+
+	for _, rm := range gm.Resources {
+		rm.GroupModel = gm
+		rm.SetModel(m)
+	}
+}
+
+func (gm *GroupModel) GetDescription() string {
+	return gm.Description
+}
+
+func (gm *GroupModel) SetDescription(val string) {
+	gm.Description = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetDocumentation() string {
+	return gm.Documentation
+}
+
+func (gm *GroupModel) SetDocumentation(val string) {
+	gm.Documentation = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetIcon() string {
+	return gm.Icon
+}
+
+func (gm *GroupModel) SetIcon(val string) {
+	gm.Icon = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetLabel(name string) (string, bool) {
+	if gm.Labels == nil {
+		return "", false
+	}
+	val, ok := gm.Labels[name]
+	return val, ok
+}
+
+func (gm *GroupModel) AddLabel(name string, value string) {
+	if gm.Labels == nil {
+		gm.Labels = map[string]string{}
+	}
+	if gm.Labels[name] == value {
+		return
+	}
+	gm.Labels[name] = value
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) RemoveLabel(name string) {
+	if gm.Labels == nil {
+		return
+	}
+
+	if _, ok := gm.Labels[name]; !ok {
+		return
+	}
+
+	delete(gm.Labels, name)
+	if len(gm.Labels) == 0 {
+		gm.Labels = nil
+	}
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetModelVersion() string {
+	return gm.ModelVersion
+}
+
+func (gm *GroupModel) SetModelVersion(val string) {
+	if gm.ModelVersion == val {
+		return
+	}
+	gm.ModelVersion = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetModelCompatibleWith() string {
+	return gm.ModelCompatibleWith
+}
+
+func (gm *GroupModel) SetModelCompatibleWith(val string) {
+	if gm.ModelCompatibleWith == val {
+		return
+	}
+	gm.ModelCompatibleWith = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetBaseAttributes() Attributes {
+	attrs := Attributes{}
+	maps.Copy(attrs, gm.Attributes)
+
+	// Add xReg defined attributes
+	// TODO Check for conflicts
+	propsOrdered, _ := gm.GetPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
+			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].Internals = specProp.Internals
+		}
+	}
+
+	return attrs
+}
+
+func (rm *ResourceModel) RemoveConditionalProps() {
+	rm.effectivePropsOrdered = RemoveCollectionProps("versions",
+		rm.VersionAttributes, rm.effectivePropsOrdered, rm.effectivePropsMap)
+	rm.versionPropsOrdered = RemoveCollectionProps("versions", nil,
+		rm.versionPropsOrdered, rm.versionPropsMap)
+
+	// Only delete them if they're system added
+	if attr, ok := rm.VersionAttributes[rm.Singular]; ok {
+		if attr.Internals != nil {
+			delete(rm.VersionAttributes, rm.Singular)
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	}
+	if attr, ok := rm.VersionAttributes[rm.Singular+"base64"]; ok {
+		if attr.Internals != nil {
+			delete(rm.VersionAttributes, rm.Singular+"base64")
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	}
+	if attr, ok := rm.VersionAttributes[rm.Singular+"url"]; ok {
+		if attr.Internals != nil {
+			delete(rm.VersionAttributes, rm.Singular+"url")
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	}
+	if attr, ok := rm.VersionAttributes[rm.Singular+"proxyurl"]; ok {
+		if attr.Internals != nil {
+			delete(rm.VersionAttributes, rm.Singular+"proxyurl")
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	}
+}
+
+func (rm *ResourceModel) Verify(rmName string) *XRError {
+	rm.ClearPropsOrdered()
+
+	if xErr := IsValidModelName(rmName, false, false); xErr != nil {
+		return xErr
+	}
+
+	if rm.Plural == "" {
+		// Allow auto-populate
+		rm.Plural = rmName
+		rm.GroupModel.Model.SetChanged(true)
+	} else if rm.Plural != rmName {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("Resource %q must have a 'plural' value of %q, "+
+					"not %q", rmName, rmName, rm.Plural))
+	}
+
+	if rm.SID == "" {
+		rm.SID = NewUUID()
+	}
+
+	if rm.Singular == "" {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`Resource %q is missing a "singular" value`,
+					rmName))
+	}
+
+	if rm.Singular == rm.Plural {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`Resource %q has same value for "plural" `+
+					`and "singular"`, rmName))
+	}
+
+	if rm.GroupModel.Resources[rm.Singular] != nil {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`Resource %q has a "singular" value (%s) that `+
+					`matches another Resource's "plural" value`,
+					rmName, rm.Singular))
+	}
+
+	if xErr := IsValidModelName(rm.Singular, false, false); xErr != nil {
+		return xErr
+	}
+
+	// Look for overlap with RESOURCE attribute if hasDoc=true
+	if rm.GetHasDocument() {
+		if _, ok := SpecProps[rm.Singular]; ok {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`Resource %q has a singular name of %q which `+
+						`conflicts with a specification defined attribute`,
+						rmName, rm.Singular))
+		}
+	}
+
+	rm.ApplyDefaults(rm.GroupModel.Model.Registry)
+
+	if rm.MaxVersions != nil {
+		if *rm.MaxVersions < 0 {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`"maxversions"(%d) must be >= 0`,
+						*(rm.MaxVersions)))
+		}
+	}
+
+	if rm.GetValidateCompatibility() && !rm.GetValidateFormat() {
+		return NewXRError("bad_request", "/model",
+			"error_detail="+
+				fmt.Sprintf(`Resource %q must have "validateformat" set to `+
+					`"true" when "validatecompatibility" is "true"`,
+					rm.Plural))
+	}
+
+	// Make sure we have the xRegistry core/spec defined attributes
+	// in the list and they're not changed in an inappropriate way.
+	// This just checks the Group level Attributes
+	if rm.VersionAttributes == nil {
+		rm.VersionAttributes = Attributes{}
+	}
+
+	if rm.MetaAttributes == nil {
+		rm.MetaAttributes = Attributes{}
+	}
+
+	if rm.ResourceAttributes == nil {
+		rm.ResourceAttributes = Attributes{}
+	}
+
+	// Blindly remove the conditional attrs (e.g. versions*, $RESOURCE*) attrs
+	// so that if hasDoc was changed to 'false' then they won't be there.
+	// They'll be re-added later if needed
+	rm.RemoveConditionalProps()
+
+	propsOrdered, _ := rm.GetResourcePropsOrdered()
+	for _, specProp := range propsOrdered {
+		if specProp.Name[0] == '$' {
+			continue
+		}
+
+		modelAttr, ok := rm.ResourceAttributes[specProp.Name]
+		if !ok {
+			// Missing in model, so add it
+			specProp := specProp.Clone("")
+			specProp.SetModel(rm.GroupModel.Model)
+			rm.ResourceAttributes[specProp.Name] = specProp
+			rm.GroupModel.Model.SetChanged(true)
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if xErr := EnsureAttrOK(modelAttr, specProp); xErr != nil {
+				return xErr
+			}
+		}
+	}
+
+	// Make sure we don't have any extensions in ResourceAttributes
+	list := map[string]bool{}
+	for attrName, _ := range rm.ResourceAttributes {
+		specProp := rm.resourcePropsMap[attrName]
+		if specProp == nil {
+			list[attrName] = true
+		}
+	}
+	if len(list) > 0 {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("extension attributes are not allowed in "+
+					"\"resourceattributes\": %s",
+					strings.Join(SortedKeys(list), ",")))
+	}
+
+	propsOrdered, _ = rm.GetVersionPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if specProp.Name[0] == '$' {
+			continue
+		}
+
+		modelAttr, ok := rm.VersionAttributes[specProp.Name]
+		if !ok {
+			// Missing in model, so add it
+			specProp := specProp.Clone("")
+			specProp.SetModel(rm.GroupModel.Model)
+			rm.VersionAttributes[specProp.Name] = specProp
+			rm.GroupModel.Model.SetChanged(true)
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if xErr := EnsureAttrOK(modelAttr, specProp); xErr != nil {
+				return xErr
+			}
+		}
+	}
+
+	propsOrdered, _ = rm.GetMetaPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if specProp.Name[0] == '$' {
+			continue
+		}
+		modelAttr, ok := rm.MetaAttributes[specProp.Name]
+		if !ok {
+			// Missing in model, so add it
+			specProp := specProp.Clone("")
+			specProp.SetModel(rm.GroupModel.Model)
+			rm.MetaAttributes[specProp.Name] = specProp
+			rm.GroupModel.Model.SetChanged(true)
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if xErr := EnsureAttrOK(modelAttr, specProp); xErr != nil {
+				return xErr
+			}
+		}
+	}
+
+	ld := NewLevelData(rm.GroupModel.Model).
+		P("groups").P(rm.GroupModel.Plural).P("resources").P(rm.Plural)
+
+	for key, _ := range rm.Labels {
+		xErr := IsValidMapKey(key, "/model", ld.P("labels").UI())
+		if xErr != nil {
+			return xErr
+		}
+	}
+
+	if xErr := rm.ResourceAttributes.Verify("strict", ld); xErr != nil {
+		return xErr
+	}
+	if xErr := rm.VersionAttributes.Verify("strict", ld); xErr != nil {
+		return xErr
+	}
+	if xErr := rm.MetaAttributes.Verify("strict", ld); xErr != nil {
+		return xErr
+	}
+
+	// Validate "versionmode"
+	if rm.VersionMode == "" {
+		rm.VersionMode = VERSIONMODE
+	}
+
+	// TODO: verify the Resources data are model compliant
+	// Only do this if we have a Registry. It assumes that if we have
+	// no Registry then we're not connected to a backend and there's no data
+	// to verify
+	if rm.GroupModel.Model.Registry != nil {
+		reg := rm.GroupModel.Model.Registry
+
+		// Should we be able to verify this when Registry is nil ?
+		if !reg.Capabilities.VersionModeEnabled(rm.VersionMode) {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Resource %q has an invalid 'versionmode' "+
+						"value (%s). Must be one of: %s",
+						rmName, rm.VersionMode,
+						strings.Join(SupportedVersionModes, ",")))
+		}
+	}
+
+	// Make sure the typemap's values are just certain strings
+	for _, v := range rm.TypeMap {
+		if v != "string" && v != "json" && v != "binary" {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Resource %q has an invalid 'typemap' value "+
+						"(%s). Must be one of 'string', 'json' or 'binary'",
+						rmName, v))
+		}
+	}
+
+	return nil
+}
+
+func (rm *ResourceModel) SetModel(m *Model) {
+	if rm == nil {
+		return
+	}
+
+	if rm.VersionAttributes == nil {
+		rm.VersionAttributes = map[string]*Attribute{}
+	}
+
+	rm.ResourceAttributes.SetModel(m)
+	rm.VersionAttributes.SetModel(m)
+	rm.MetaAttributes.SetModel(m)
+}
+
+func (rm *ResourceModel) GetDescription() string {
+	return rm.Description
+}
+
+func (rm *ResourceModel) SetDescription(val string) {
+	if rm.Description == val {
+		return
+	}
+	rm.Description = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetDocumentation() string {
+	return rm.Documentation
+}
+
+func (rm *ResourceModel) SetDocumentation(val string) {
+	if rm.Documentation == val {
+		return
+	}
+	rm.Documentation = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetIcon() string {
+	return rm.Icon
+}
+
+func (rm *ResourceModel) SetIcon(val string) {
+	if rm.Icon == val {
+		return
+	}
+	rm.Icon = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetLabel(name string) (string, bool) {
+	if rm.Labels == nil {
+		return "", false
+	}
+	val, ok := rm.Labels[name]
+	return val, ok
+}
+
+func (rm *ResourceModel) AddLabel(name string, value string) {
+	if rm.Labels == nil {
+		rm.Labels = map[string]string{}
+	}
+	if rm.Labels[name] == value {
+		return
+	}
+	rm.Labels[name] = value
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) RemoveLabel(name string) {
+	if rm.Labels == nil {
+		return
+	}
+
+	delete(rm.Labels, name)
+	if len(rm.Labels) == 0 {
+		rm.Labels = nil
+	}
+
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetModelVersion() string {
+	return rm.ModelVersion
+}
+
+func (rm *ResourceModel) SetModelVersion(val string) {
+	rm.ModelVersion = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetModelCompatibleWith() string {
+	return rm.ModelCompatibleWith
+}
+
+func (rm *ResourceModel) SetModelCompatibleWith(val string) {
+	rm.ModelCompatibleWith = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetMaxVersions() int {
+	if rm.MaxVersions == nil {
+		return MAXVERSIONS
+	}
+	return *rm.MaxVersions
+}
+
+func (rm *ResourceModel) SetMaxVersions(maxV int) {
+	if rm.MaxVersions == nil || *rm.MaxVersions != maxV {
+		rm.MaxVersions = PtrInt(maxV)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) ClearMaxVersions() {
+	if rm.MaxVersions != nil {
+		rm.MaxVersions = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) GetSetVersionId() bool {
+	if rm.SetVersionId == nil {
+		return SETVERSIONID
+	}
+	return *rm.SetVersionId
+}
+
+func (rm *ResourceModel) SetSetVersionId(val bool) {
+	if rm.SetVersionId == nil || *rm.SetVersionId != val {
+		rm.SetVersionId = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) GetHasDocument() bool {
+	if rm.HasDocument == nil {
+		return HASDOCUMENT
+	}
+	return *rm.HasDocument
+}
+
+func (rm *ResourceModel) SetHasDocument(val bool) {
+	if rm.HasDocument == nil || *rm.HasDocument != val {
+		rm.HasDocument = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) ClearHasDocument() {
+	if rm.HasDocument != nil {
+		rm.HasDocument = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) GetVersionMode() string {
+	if rm.VersionMode == "" {
+		return VERSIONMODE
+	}
+	return rm.VersionMode
+}
+
+func (rm *ResourceModel) SetVersionMode(val string) {
+	if rm.VersionMode == val {
+		return
+	}
+	rm.VersionMode = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetSingleVersionRoot() bool {
+	if rm.SingleVersionRoot == nil {
+		return SINGLEVERSIONROOT
+	}
+	return *rm.SingleVersionRoot
+}
+
+func (rm *ResourceModel) SetSingleVersionRoot(val bool) {
+	if rm.SingleVersionRoot == nil || *rm.SingleVersionRoot != val {
+		rm.SingleVersionRoot = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) ClearSingleVersionRoot() {
+	if rm.SingleVersionRoot != nil {
+		rm.SingleVersionRoot = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) GetValidateFormat() bool {
+	if rm.ValidateFormat == nil {
+		return VALIDATEFORMAT
+	}
+	return *rm.ValidateFormat
+}
+
+func (rm *ResourceModel) SetValidateFormat(val bool) {
+	if rm.ValidateFormat == nil || *rm.ValidateFormat != val {
+		rm.ValidateFormat = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) ClearValidateFormat() {
+	if rm.ValidateFormat != nil {
+		rm.ValidateFormat = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) GetValidateCompatibility() bool {
+	if rm.ValidateCompatibility == nil {
+		return VALIDATECOMPATIBILITY
+	}
+	return *rm.ValidateCompatibility
+}
+
+func (rm *ResourceModel) SetValidateCompatibility(val bool) {
+	if rm.ValidateCompatibility == nil || *rm.ValidateCompatibility != val {
+		rm.ValidateCompatibility = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) ClearValidateCompatibility() {
+	if rm.ValidateCompatibility != nil {
+		rm.ValidateCompatibility = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) GetStrictValidation() bool {
+	if rm.StrictValidation == nil {
+		return STRICTVALIDATION
+	}
+	return *rm.StrictValidation
+}
+
+func (rm *ResourceModel) SetStrictValidation(val bool) {
+	if rm.StrictValidation == nil || *rm.StrictValidation != val {
+		rm.StrictValidation = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) ClearStrictValidation() {
+	if rm.StrictValidation != nil {
+		rm.StrictValidation = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {
+	attrs := Attributes{}
+	maps.Copy(attrs, rm.MetaAttributes)
+
+	// Add xReg defined attributes
+	// TODO Check for conflicts
+	propsOrdered, _ := rm.GetMetaPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
+			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].Internals = specProp.Internals
+		}
+	}
+
+	return attrs
+}
+
+func (rm *ResourceModel) GetBaseVersionAttributes() Attributes {
+	attrs := Attributes{}
+	maps.Copy(attrs, rm.VersionAttributes)
+
+	// Add xReg defined attributes
+	// TODO Check for conflicts
+	propsOrdered, _ := rm.GetVersionPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
+			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].Internals = specProp.Internals
+		}
+	}
+
+	return attrs
+}
+
+func EnsureJustOneRESOURCE(e *Entity, obj map[string]any, singular string) *XRError {
+	count := 0
+	list := []string{"", "url", "base64", "proxyurl"}
+	for _, suffix := range list {
+		name := singular + suffix
+		if v, ok := obj[name]; ok && !IsNil(v) {
+			count++
+		}
+	}
+	if count > 1 {
+		allowed := ""
+		for _, suffix := range list {
+			if allowed != "" {
+				allowed += ","
+			}
+			allowed += singular + suffix
+		}
+		return NewXRError("one_resource", e.XID, "list="+allowed)
+	}
+	return nil
+}
+
+func RESOURCECheckFn(e *Entity) *XRError {
+	_, rm := e.GetModels()
+	return EnsureJustOneRESOURCE(e, e.NewObject, rm.Singular)
+}
+
+func (rm *ResourceModel) GetBaseAttributes() Attributes {
+	attrs := Attributes{}
+	maps.Copy(attrs, rm.VersionAttributes)
+
+	/* If we ever support extensions for resourceattributes
+	for k, v := range rm.ResourceAttributes {
+		attrs[k] = v
+	}
+	*/
+
+	// Add xReg defined attributes
+	// TODO Check for conflicts
+
+	// Find all Resource level attributes (not Meta) so we can show them
+	// mixed in with the Default Version attributes - e.g. metaurl
+	propsOrdered, _ := rm.GetPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
+			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].Internals = specProp.Internals
+		}
+	}
+
+	return attrs
+}
+
+func (rm *ResourceModel) AddTypeMap(ct string, format string) *XRError {
+	if format != "binary" && format != "json" && format != "string" {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("invalid typemap format: %q", format))
+	}
+	if rm.TypeMap == nil {
+		rm.TypeMap = map[string]string{}
+	}
+	rm.TypeMap[ct] = format
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
+}
+
+func (rm *ResourceModel) RemoveTypeMap(ct string) *XRError {
+	if rm.TypeMap == nil {
+		return nil
+	}
+	delete(rm.TypeMap, ct)
+	if len(rm.TypeMap) == 0 {
+		rm.TypeMap = nil
+	}
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
+}
+
+// Map incoming "contentType" (ct) to its typemap value.
+// If there is no match (or more than one match with a different type)
+// then default to "binary"
+func (rm *ResourceModel) MapContentType(ct string) string {
+	result := ""
+
+	// Strip all parameters
+	ct, _ = strings.CutSuffix(ct, ";")
+	ct = strings.ToLower(strings.TrimSpace(ct))
+	if ct == "" {
+		return "binary"
+	}
+
+	for k, v := range rm.TypeMap {
+		k = strings.ToLower(k)
+		if Match(k, ct) {
+			// We got another match but it's a different value, so "binary"
+			if result != "" && result != v {
+				return "binary"
+			}
+			// Save result so we can check to see if there's another match
+			result = v
+		}
+	}
+	// If we have at least one match, with the same value, return the value
+	if result != "" {
+		return result
+	}
+
+	// Check our implied/default typemaps before we give up
+	if Match("application/json", ct) || Match("*+json", ct) {
+		return "json"
+	}
+	if Match("text/plain", ct) {
+		return "string"
+	}
+
+	return "binary"
+}
+
+func (rm *ResourceModel) EnableSticky(b bool) {
+	attr := rm.MetaAttributes["defaultversionsticky"]
+
+	if attr == nil {
+		var xErr *XRError
+		attr, xErr = rm.AddMetaAttr("defaultversionsticky", BOOLEAN)
+		PanicIf(xErr != nil, "Error: %s", xErr)
+		attr.Default = false
+		attr.Required = true
+		attr.SetModel(rm.GroupModel.Model)
+	}
+
+	if b {
+		if attr.Enum != nil || attr.Default != false {
+			attr.Enum = nil
+			attr.Default = false
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	} else {
+		if attr.Enum == nil || len(attr.Enum) != 1 ||
+			attr.Enum[0] != false || attr.Default != false {
+
+			attr.Enum = []any{false}
+			attr.Default = false
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	}
+}
+
+/*
+func (rm *ResourceModel) StickyEnabled() bool {
+	attr := rm.MetaAttributes["defaultversionsticky"]
+	if attr == nil || attr.Enum == nil {
+		return true
+	}
+	for _, v := range attr.Enum {
+		if v == true {
+			return true
+		}
+	}
+	return false
+}
+*/
+
+func (rm *ResourceModel) GetMatchVersionAttributes() []*MatchVersionsInfo {
+	if rm.matchVersions != nil {
+		return rm.matchVersions
+	}
+
+	rm.matchVersions = []*MatchVersionsInfo{}
+
+	var processAttrs func(*PropPath, Attributes, *[]*MatchVersionsInfo)
+	// var processItem func(*PropPath, *Item, *[]*MatchVersionsInfo)
+
+	processAttrs = func(path *PropPath, attrs Attributes,
+		mvi *[]*MatchVersionsInfo) {
+
+		for _, attr := range attrs {
+			if attr.GetMatchVersions() {
+				*mvi = append(*mvi, &MatchVersionsInfo{
+					Path:      path.P(attr.Name),
+					Attribute: attr,
+				})
+			}
+
+			if attr.Attributes != nil {
+				processAttrs(path.P(attr.Name), attr.Attributes, mvi)
+			} /* only do the else if we want to support maps of scalars
+			            else if attr.Type == MAP && attr.Item != nil {
+							processItem(path.P(attr.Name), attr.Item, mvi)
+						}
+			*/
+		}
+	}
+
+	/*
+		processItem = func(path *PropPath, item *Item, mvi *[]*MatchVersionsInfo) {
+			if item != nil {
+				if item.Attributes != nil {
+					processAttrs(path, item.Attributes, mvi)
+				}
+				            else if item.Type == MAP && item.Item != nil {
+								processItem(path, item.Item, mvi)
+							}
+			}
+		}
+	*/
+
+	processAttrs(NewPP(), rm.VersionAttributes, &rm.matchVersions)
+
+	return rm.matchVersions
+}
+
+type LevelData struct {
+	Model *Model
+	// AttrNames is the list of known attribute names for a certain eType
+	// of entity (basically the Attributes list + ifValues). We use this to know
+	// if an IfValue SiblingAttribute would conflict if another attribute's name
+	AttrNames map[string]bool
+	Path      *PropPath
+
+	// Use these to keep track of what types of entities are in the path as
+	// we walk the heirarchy. We use these when trying to look for errors.
+	InMap           bool
+	InArray         bool
+	InIfValues      bool
+	InStarExtension bool
+}
+
+func NewLevelData(m *Model) *LevelData {
+	return &LevelData{
+		Model:     m,
+		AttrNames: map[string]bool{},
+		Path:      NewPP(),
+	}
+}
+
+func (ld *LevelData) Clone() *LevelData {
+	newLD := &LevelData{
+		Model:     ld.Model,
+		AttrNames: maps.Clone(ld.AttrNames),
+		Path:      ld.Path.Clone(),
+
+		InArray:         ld.InArray,
+		InMap:           ld.InMap,
+		InIfValues:      ld.InIfValues,
+		InStarExtension: ld.InStarExtension,
+	}
+	return newLD
+}
+
+func (ld *LevelData) P(name string) *LevelData {
+	newLD := ld.Clone()
+	newLD.Path = newLD.Path.P(name)
+	return newLD
+}
+
+func (ld *LevelData) Append(p *PropPath) *LevelData {
+	newLD := ld.Clone()
+	newLD.Path = newLD.Path.Append(p)
+	return newLD
+}
+
+func (ld *LevelData) UI() string {
+	return ld.Path.UI()
+}
+
+func (ld *LevelData) ClearAttrs() *LevelData {
+	ld.AttrNames = map[string]bool{}
+	return ld
+}
+
+func (attrs Attributes) ConvertStrings(obj Object) {
+	for key, val := range obj {
+		attr := attrs[key]
+		if attr == nil {
+			attr = attrs["*"]
+			if attr == nil {
+				// Can't find it, so it must be an error.
+				// Assume we'll catch it during the normal verification checks
+				continue
+			}
+		}
+
+		// We'll only try to convert strings and one-level-scalar maps
+		valMap, isMap := val.(map[string]any)
+		_, isStr := val.(string)
+		if !isStr && !isMap {
+			continue
+		}
+		valStr := fmt.Sprintf("%v", val)
+
+		// If not one of these, just skip it
+		switch attr.Type {
+		case BOOLEAN, DECIMAL, INTEGER, UINTEGER:
+			if newVal, ok := ConvertString(valStr, attr.Type); ok {
+				// Replace the string with the non-string value
+				obj[key] = newVal
+			}
+		case MAP:
+			if isMap {
+				for k, v := range valMap {
+					vStr := fmt.Sprintf("%v", v)
+					// Only saved the converted string if we did a conversion
+					if nV, ok := ConvertString(vStr, attr.Item.Type); ok {
+						valMap[k] = nV
+					}
+				}
+			}
+		}
+	}
+}
+
+func ConvertString(val string, toType string) (any, bool) {
+	switch toType {
+	case BOOLEAN:
+		if val == "true" {
+			return true, true
+		} else if val == "false" {
+			return false, true
+		}
+	case DECIMAL:
+		tmpFloat, err := strconv.ParseFloat(val, 64)
+		if err == nil {
+			return tmpFloat, true
+		}
+	case INTEGER, UINTEGER:
+		tmpInt, err := strconv.Atoi(val)
+		if err == nil {
+			return tmpInt, true
+		}
+	}
+	return nil, false
+}
+
+// 0=complete 1=GROUPS 2=RESOURCES|"" 3=versions|""  4=[/versions]|""
+// nil, or [0]="" means error
+var targetREstr = `^(?:/([^/]+)(?:/([^[/]+)(?:(?:/(versions)|(\[(?:/versions)]))?))?)?$`
+var targetRE = regexp.MustCompile(targetREstr)
+
+func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
+	ld = ld.Clone()
+	lowerNCS := strings.ToLower(namecharset)
+
+	// First add the new attribute names, while checking the attr
+	for name, attr := range attrs {
+		if attr == nil {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(
+						"attribute %q can't be empty", ld.P(name).UI()))
+		}
+		if name == "" { // attribute key empty?
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("while processing %q, "+
+						"it has an empty attribute key", "/"+ld.UI()))
+		}
+		if name[0] == '$' {
+			continue
+		}
+		if ld.AttrNames[name] == true { // Dup attr name?
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("duplicate attribute name (%s) at: %s", name,
+						ld.UI()))
+		}
+		// Not sure why we look at SpecProp, I suspect it's because at one
+		// point in time we had non-conforming (special) names in there and
+		// we wanted to let those pass.
+		// Technically we should convert the ...id into id but any ...id needs
+		// to be a valid name/string so we should be ok
+		if name != "*" && SpecProps[name] == nil {
+			if lowerNCS == "extended" {
+				if xErr := IsValidMapKey(name, "/model", ld.UI()); xErr != nil {
+					return xErr
+				}
+			} else if lowerNCS == "strict" || lowerNCS == "" {
+				xErr := IsValidAttributeName(name, "/model", ld.UI())
+				if xErr != nil {
+					return xErr
+				}
+			} else {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("invalid \"namecharset\" value: %s",
+							namecharset))
+			}
+		}
+
+		tmpLD := ld.P(name)
+		if attr.Type == ARRAY {
+			tmpLD.InArray = true
+		}
+		if attr.Type == MAP {
+			tmpLD.InMap = true
+		}
+		if name == "*" {
+			tmpLD.InStarExtension = true
+		}
+
+		if attr.Name == "" {
+			// auto-populate
+			attr.Name = name
+			if attr.Model != nil {
+				attr.Model.SetChanged(true)
+			}
+		}
+		if name != attr.Name { // missing Name: field?
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q must have a \"name\" set to %q", tmpLD.UI(),
+						name))
+		}
+		if attr.Type == "" {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q is missing a \"type\"", tmpLD.UI()))
+		}
+		if DefinedTypes[attr.Type] != true { // valid Type: field?
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q has an invalid type: %s", tmpLD.UI(),
+						attr.Type))
+		}
+
+		if attr.Type == XID {
+			/* no longer required
+			if attr.Target == "" {
+			return NewXRError("model_error", "/model",
+			"error_detail=" +
+			fmt.Sprintf("%q must have a \"target\" value "+
+			"since \"type\" is \"xid\"", tmpLD.UI()))
+			}
+			*/
+			skip := false
+			if attr.Model.Stuff != nil {
+				_, skip = attr.Model.Stuff["skipTargetCheck"]
+			}
+			if !skip && attr.Target != "" {
+				target := strings.TrimSpace(attr.Target)
+				parts := targetRE.FindStringSubmatch(target)
+				// 0=all  1=GROUPS  2=RESOURCES  3=versions|""  4=[/versions]|""
+				if len(parts) == 0 || parts[0] == "" {
+					return NewXRError("model_error", "/model",
+						"error_detail="+
+							fmt.Sprintf("%q \"target\" must be of the form: "+
+								"/GROUPS[/RESOURCES[/versions | "+
+								"\\[/versions\\] ]]",
+								tmpLD.UI()))
+				}
+
+				gm := ld.Model.FindGroupModel(parts[1])
+				if gm == nil {
+					return NewXRError("model_error", "/model",
+						"error_detail="+
+							fmt.Sprintf("%q has an unknown Group type: %q",
+								tmpLD.UI(), parts[1]))
+				}
+				if parts[2] != "" {
+					if rm := gm.Resources[parts[2]]; rm == nil {
+						return NewXRError("model_error", "/model",
+							"error_detail="+
+								fmt.Sprintf("%q has an unknown Resource "+
+									"type: %q", tmpLD.UI(), parts[2]))
+					}
+				}
+			}
+		}
+
+		if attr.Target != "" && attr.Type != XID && attr.Type != URI &&
+			attr.Type != URIABSOLUTE && attr.Type != URIRELATIVE &&
+			attr.Type != URL && attr.Type != URLABSOLUTE &&
+			attr.Type != URLRELATIVE {
+
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q must not have a \"target\" value "+
+						"since \"type\" is not \"xid\", \"uri*\" or \"url*\"",
+						tmpLD.UI()))
+		}
+
+		// Is it ok for strict=true and enum=[] ? Require no value???
+		// if attr.Strict == true && len(attr.Enum) == 0 {
+		// }
+
+		// Object doesn't need an Item, but maps and arrays do
+		if attr.Type == MAP || attr.Type == ARRAY {
+			if attr.Item == nil {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q must have an \"item\" section",
+							tmpLD.UI()))
+			}
+		}
+
+		if attr.IsScalar() && attr.Item != nil {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q must not have \"item\" set "+
+						"because it's a scalar",
+						tmpLD.UI()))
+		}
+
+		// check enum values
+		if len(attr.Enum) > 0 {
+			if IsScalar(attr.Type) != true {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q is not a scalar so \"enum\" is "+
+							"not allowed", tmpLD.UI()))
+			}
+
+			for _, val := range attr.Enum {
+				if !IsOfType(val, attr.Type) {
+					return NewXRError("model_error", "/model",
+						"error_detail="+
+							fmt.Sprintf("%q enum value \"%v\" must be of "+
+								"type %q", tmpLD.UI(), val, attr.Type))
+				}
+			}
+
+			if attr.Strict == nil {
+				attr.Strict = PtrBool(true)
+			}
+		}
+
+		if !IsNil(attr.Default) {
+			if IsScalar(attr.Type) != true {
+				return NewXRError("model_scalar_default", "/model",
+					"name="+tmpLD.UI())
+			}
+
+			val := attr.Default
+			if !IsOfType(val, attr.Type) {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q \"default\" value must be of type %q",
+							tmpLD.UI(), attr.Type))
+			}
+
+			if attr.Required == false {
+				return NewXRError("model_required_true", "/model",
+					"name="+tmpLD.UI())
+			}
+
+			if attr.GetStrict() &&
+				!IsValidEnum(val, attr.Enum) {
+
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q default value \"%v\" must be "+
+							"one of the specified enum values (%s) since "+
+							"\"strict\" is \"true\"", tmpLD.UI(),
+							val, attr.EnumsAsString()))
+			}
+		}
+
+		if attr.GetMatchVersions() {
+			if tmpLD.InIfValues {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q is not allowed to have "+
+							"\"matchversions\" set to \"true\" due to it "+
+							"being in an \"ifvalues\" clause", tmpLD.UI()))
+			}
+
+			if tmpLD.InStarExtension {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q is not allowed to have "+
+							"\"matchversions\" set to \"true\" due to it "+
+							"being in a \"*\" extension", tmpLD.UI()))
+			}
+
+			// Look for scalar BEFORE InArray so we'll flag a non-scalar
+			// attr before we flag a parent being an array. I think it's a
+			// better error/user-experience this way
+			if IsScalar(attr.Type) == false {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q is not allowed to have "+
+							"\"matchversions\" set to \"true\" due to it "+
+							"not being a scalar attribute", tmpLD.UI()))
+			}
+
+			if tmpLD.InArray {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q is not allowed to have "+
+							"\"matchversions\" set to \"true\" due to it "+
+							"being in an array", tmpLD.UI()))
+			}
+
+			if tmpLD.InMap {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q is not allowed to have "+
+							"\"matchversions\" set to \"true\" due to it "+
+							"being in a map", tmpLD.UI()))
+			}
+		}
+
+		if attr.Type == OBJECT {
+			lowerNCS := strings.ToLower(attr.NameCharSet)
+			if lowerNCS != "" && lowerNCS != "strict" &&
+				lowerNCS != "extended" {
+
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q has an invalid \"namecharset\" value: "+
+							attr.NameCharSet, tmpLD.UI()))
+			}
+
+			if attr.Item != nil {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q must not have an \"item\" section",
+							tmpLD.UI()))
+			}
+			xErr := attr.Attributes.Verify(attr.NameCharSet, tmpLD.ClearAttrs())
+			if xErr != nil {
+				return xErr
+			}
+		} else {
+			if attr.NameCharSet != "" {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("attribute %q must not have a "+
+							"\"namecharset\" value unless its type "+
+							"is \"object\"", attr.Name))
+			}
+		}
+
+		if attr.Item != nil {
+			if xErr := attr.Item.Verify(tmpLD); xErr != nil {
+				return xErr
+			}
+		}
+
+		ld.AttrNames[attr.Name] = true
+	}
+
+	// Now that we have all of the attribute names for this level, go ahead
+	// and check the IfValues, not just for validatity but to also make sure
+	// they don't define duplicate attribute names.
+	// Also, check for dup ifvalues values that differ by case
+	for _, attr := range attrs {
+		caseMap := map[string]bool{}
+
+		for valStr, ifValue := range attr.IfValues {
+			if valStr == "" {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q has an empty ifvalues key",
+							ld.P(attr.Name).UI()))
+			}
+
+			if valStr[0] == '^' {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q has an ifvalues key that starts "+
+							"with \"^\"", ld.P(attr.Name).UI()))
+			}
+
+			lowerVal := strings.ToLower(valStr)
+			if caseMap[lowerVal] != false {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q has ifvalues that only differ by "+
+							"case (%q)",
+							ld.P(attr.Name).UI(), valStr))
+			}
+			caseMap[lowerVal] = true
+
+			nextLD := ld.Clone().P(attr.Name).P("ifvalues")
+			nextLD.InIfValues = true
+			nextLD = nextLD.P(valStr)
+
+			// Recursive
+			xErr := ifValue.SiblingAttributes.Verify(namecharset, nextLD)
+			if xErr != nil {
+				return xErr
+			}
+		}
+	}
+
+	return nil
+}
+
+// Copy the internal data for spec defined properties so we can access
+// that info directly from these Attributes instead of having to go back
+// to the SpecProps stuff
+func (attrs Attributes) SetSpecPropsFields(singular string) {
+	for k, attr := range attrs {
+		if k == singular+"id" {
+			k = "id"
+		}
+		if specProp := SpecProps[k]; specProp != nil {
+			attr.Internals = specProp.Internals
+		}
+	}
+}
+
+// Note that maps/arrays should include the index/key part
+// mymap.key.attr becomes mymap.attr
+// myarray[index].attr becomes myarray.attr
+// Return array of Attributes - the heirarchy of them, first is top/root attr
+func (attrs Attributes) FindAbstractAttribute(pp *PropPath) ([]*Attribute, *XRError) {
+
+	res := []*Attribute{}
+	depth := NewPP()
+
+	for i, part := range pp.Parts {
+		attr, ok := attrs[part.Text]
+		if !ok {
+			if depth.Len() == 0 {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("Attribute %q can not be found", part.Text))
+			}
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Attribute %q can not be found in %q",
+						part.Text, depth.UI()))
+		}
+
+		res = append(res, attr)
+		depth = depth.P(part.Text)
+
+		// Reach end of pp
+		if i+1 == pp.Len() {
+			break
+		}
+
+		if attr.Type == OBJECT {
+			attrs = attr.Attributes
+		} else if attr.Type == MAP {
+			attrs = attr.Item.Attributes
+		} else if attr.Type == ARRAY {
+			attrs = attr.Item.Attributes
+		} else {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Attribute %q is scalar, so %q is invalid",
+						part.Text, pp.FromIndex(i+1).UI()))
+		}
+
+		/*
+			if attr.Type != OBJECT && len(attrs) == 0 {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("Attribute %q has scalar items, so %q is "+
+							"invalid", part.Text, pp.FromIndex(i+1).UI()))
+			}
+		*/
+	}
+
+	return res, nil
+}
+
+func (ifvalues IfValues) SetModel(m *Model) {
+	if ifvalues == nil {
+		return
+	}
+
+	for _, ifvalue := range ifvalues {
+		ifvalue.SiblingAttributes.SetModel(m)
+	}
+}
+
+func (item *Item) Verify(ld *LevelData) *XRError {
+	ld = ld.P("item")
+
+	if item.Type == "" {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("%q must have a \"type\" defined", ld.UI()))
+	}
+
+	if DefinedTypes[item.Type] != true {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("%q has an invalid \"type\": %s", ld.UI(),
+					item.Type))
+	}
+
+	// check enum values
+	if len(item.Enum) > 0 {
+		if IsScalar(item.Type) != true {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q is not a scalar so \"enum\" is not "+
+						"allowed", ld.UI()))
+		}
+
+		for _, val := range item.Enum {
+			if !IsOfType(val, item.Type) {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q enum value \"%v\" must be of "+
+							"type %q", ld.UI(), val, item.Type))
+			}
+		}
+
+		if item.Strict == nil {
+			item.Strict = PtrBool(true)
+		}
+	}
+	if item.Type != OBJECT && item.Attributes != nil {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("%q must not have \"attributes\"", ld.UI()))
+	}
+
+	if IsScalar(item.Type) && item.Item != nil {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("%q must not have \"item\" set "+
+					"because it's a scalar", ld.UI()))
+	}
+
+	if item.Type == MAP || item.Type == ARRAY {
+		if item.Item == nil {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q must have an \"item\" section", ld.UI()))
+		}
+	}
+
+	if item.Type == XID {
+		skip := false
+		if item.Model.Stuff != nil {
+			_, skip = item.Model.Stuff["skipTargetCheck"]
+		}
+		if !skip && item.Target != "" {
+			target := strings.TrimSpace(item.Target)
+			parts := targetRE.FindStringSubmatch(target)
+			// 0=all  1=GROUPS  2=RESOURCES  3=versions|""  4=[/versions]|""
+			if len(parts) == 0 || parts[0] == "" {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q \"target\" must be of the form: "+
+							"/GROUPS[/RESOURCES[/versions | "+
+							"\\[/versions\\] ]]",
+							ld.UI()))
+			}
+
+			gm := ld.Model.FindGroupModel(parts[1])
+			if gm == nil {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q has an unknown Group type: %q",
+							ld.UI(), parts[1]))
+			}
+			if parts[2] != "" {
+				if rm := gm.Resources[parts[2]]; rm == nil {
+					return NewXRError("model_error", "/model",
+						"error_detail="+
+							fmt.Sprintf("%q has an unknown Resource "+
+								"type: %q", ld.UI(), parts[2]))
+				}
+			}
+		}
+	}
+
+	if item.Target != "" && item.Type != XID && item.Type != URI &&
+		item.Type != URIABSOLUTE && item.Type != URIRELATIVE &&
+		item.Type != URL && item.Type != URLABSOLUTE &&
+		item.Type != URLRELATIVE {
+
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf("%q must not have a \"target\" value "+
+					"since \"type\" is not \"xid\", \"uri*\" or \"url*\"",
+					ld.UI()))
+	}
+
+	if item.Type == OBJECT {
+		lowerNCS := strings.ToLower(item.NameCharSet)
+		if lowerNCS != "" && lowerNCS != "strict" && lowerNCS != "extended" {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("invalid \"namecharset\" value: %s",
+						item.NameCharSet))
+		}
+	} else {
+		if item.NameCharSet != "" {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q must not have a \"namecharset\" value "+
+						"since it is not of type \"object\"", ld.UI()))
+		}
+	}
+
+	if item.Attributes != nil {
+		if xErr := item.Attributes.Verify(item.NameCharSet,
+			ld.Clone().ClearAttrs()); xErr != nil {
+
+			return xErr
+		}
+	}
+
+	if item.Item != nil {
+		return item.Item.Verify(ld)
+	}
+	return nil
+}
+
+var DefinedTypes = map[string]bool{
+	ANY:     true,
+	BOOLEAN: true,
+	DECIMAL: true, INTEGER: true, UINTEGER: true,
+	ARRAY:  true,
+	MAP:    true,
+	OBJECT: true,
+	XID:    true, XIDTYPE: true,
+	STRING:    true,
+	TIMESTAMP: true,
+	URI:       true, URIABSOLUTE: true, URIRELATIVE: true, URITEMPLATE: true,
+	URL: true, URLABSOLUTE: true, URLRELATIVE: true}
+
+// attr.Type must be a scalar
+// Used to check JSON type vs our types
+func IsOfType(val any, attrType string) bool {
+	switch v := val.(type) {
+	case bool:
+		return attrType == BOOLEAN
+
+	case string:
+		if attrType == TIMESTAMP {
+			_, err := time.Parse(time.RFC3339, v)
+			return err == nil
+		}
+
+		return IsString(attrType)
+
+	case float64: // JSON ints show up as floats
+		if attrType == DECIMAL {
+			return true
+		}
+		if attrType == INTEGER || attrType == UINTEGER {
+			valInt := int(v)
+			if float64(valInt) != v {
+				return false
+			}
+			return attrType == INTEGER || valInt >= 0
+		}
+		return false
+
+	case int:
+		if attrType == DECIMAL {
+			return true
+		}
+		if attrType == INTEGER || attrType == UINTEGER {
+			return attrType == INTEGER || v >= 0
+		}
+		return false
+	}
+
+	return false
+}
+
+/*
+func AbstractToSingular(reg *Registry, abs string) string {
+	absParts := strings.Split(abs, string(DB_IN))
+
+	if len(absParts) == 0 {
+		panic("help")
+	}
+	gm := reg.Model.Groups[absParts[0]]
+	PanicIf(gm == nil, "no gm")
+
+	if len(absParts) == 1 {
+		return gm.Singular
+	}
+
+    rm := gm.Resources[absParts[1]]
+	PanicIf(rm == nil, "no rm")
+	return rm.Singular
+}
+*/
+
+func AbstractToModels(reg *Registry, abs string) (*GroupModel, *ResourceModel) {
+	parts := strings.Split(abs, string(DB_IN))
+	if len(parts) == 0 || parts[0] == "" {
+		return nil, nil
+	}
+	gm := reg.Model.Groups[parts[0]]
+	PanicIf(gm == nil, "Can't find Group %q", parts[0])
+
+	rm := (*ResourceModel)(nil)
+	if len(parts) > 1 {
+		rm = gm.Resources[parts[1]]
+		PanicIf(rm == nil, "Cant' find Resource \"%s/%s\"", parts[0], parts[1])
+	}
+	// *GroupModel, *ResourceModel, isVersion
+	return gm, rm
+}
+
+func (attrs Attributes) Clone() Attributes {
+	if attrs == nil {
+		return nil
+	}
+
+	newAttrs := map[string]*Attribute{}
+
+	for key, attr := range attrs {
+		newAttrs[key] = attr.Clone("")
+	}
+
+	return newAttrs
+}
+
+func (attr *Attribute) Clone(newName string) *Attribute {
+	if attr == nil {
+		return nil
+	}
+
+	// Must be a deep copy: Attribute.Attributes/Item/IfValues are
+	// pointers/maps, so a shallow `newAttr := *attr` would leave the
+	// "clone" sharing the very same nested Item/Attributes/IfValues
+	// objects as attr - including, critically, the process-global
+	// template Attributes in OrderedSpecProps (shared_entity.go). Since
+	// GetPropsOrdered() (called on every LoadModel(), i.e. every HTTP
+	// request) clones from those globals and then calls SetModel() on
+	// the clone, a shallow clone here would mutate that shared global
+	// state (Item.Model, etc) from every concurrent request with no
+	// synchronization - a real, `-race`-confirmed data race. Cloning
+	// Attributes/Item/IfValues too ensures each clone owns its own,
+	// unshared copy of everything SetModel() will touch.
+	newAttr := *attr
+	newAttr.Attributes = attr.Attributes.Clone()
+	newAttr.Item = attr.Item.Clone()
+	newAttr.IfValues = attr.IfValues.Clone()
+	if newName != "" {
+		newAttr.Name = newName
+	}
+
+	return &newAttr
+}
+
+func (i *Item) Clone() *Item {
+	if i == nil {
+		return nil
+	}
+
+	newItem := *i
+	newItem.Attributes = i.Attributes.Clone()
+	newItem.Item = i.Item.Clone()
+
+	return &newItem
+}
+
+func (iv IfValues) Clone() IfValues {
+	if iv == nil {
+		return nil
+	}
+
+	newIfValues := IfValues{}
+	for key, val := range iv {
+		newIfValues[key] = val.Clone()
+	}
+
+	return newIfValues
+}
+
+func (iv *IfValue) Clone() *IfValue {
+	if iv == nil {
+		return nil
+	}
+
+	newIfValue := *iv
+	newIfValue.SiblingAttributes = iv.SiblingAttributes.Clone()
+
+	return &newIfValue
+}
+
+func (attr *Attribute) EnumsAsString() string {
+	return EnumAsString(attr.Enum)
+}
+
+func EnumAsString(enum []any) string {
+	str := ""
+
+	for i, v := range enum {
+		if i > 0 {
+			str += ", "
+		}
+		str += fmt.Sprintf("%v", v)
+	}
+	return str
+}
+
+// Note that an empty enum will always return 'true'
+func IsValidEnum(val any, enum []any) bool {
+	if len(enum) == 0 {
+		return true
+	}
+
+	if valStr, ok := val.(string); ok {
+		val = strings.ToLower(valStr)
+	}
+
+	// Don't touch original enum
+	tmpEnum := make([]any, len(enum))
+	for i, v := range enum {
+		if vStr, ok := v.(string); ok {
+			tmpEnum[i] = strings.ToLower(vStr)
+		} else {
+			tmpEnum[i] = enum[i]
+		}
+	}
+	enum = tmpEnum
+
+	// deal with cases where json parses int as floats - annoying
+	altInt := 0
+	checkFloat := false
+	switch v := val.(type) {
+	case int:
+		altInt = v
+		checkFloat = true
+	case float64:
+		altInt = int(v)
+		checkFloat = (v == float64(altInt))
+		// Save float32 support for possible future checks
+		/*
+			case float32:
+				altInt = int(v)
+				checkFloat = (v == float32(altInt))
+		*/
+	}
+
+	for _, v := range enum {
+		if v == val {
+			return true
+		}
+
+		if vInt, ok := v.(int); ok && checkFloat {
+			if vInt == altInt {
+				return true
+			}
+		} else if vFloat, ok := v.(float64); ok && checkFloat {
+			if int(vFloat) == altInt {
+				return true
+			}
+			// Save float32 for possible future use
+			/*
+				} else if vFloat, ok := v.(float32); ok && checkFloat {
+				  if int(vFloat) == altInt {
+				  return true
+				}
+			*/
+		}
+	}
+
+	return false
+}
+
+// We use "g" (*Group) to know we're processing a Group instance's constraints
+// instead of a Group model's. This is important for what kind of error
+// message to generate and to know what other constraints we need to compare
+// with for error checking.
+
+func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XRError {
+	prefix := "Group Type \"" + gm.Plural + "\" constraint %q"
+	errType := "model_error"
+	subject := "/model"
+
+	if g != nil {
+		prefix = "Group \"" + g.XID + "\" constraint %q"
+		errType = "bad_request"
+		subject = g.XID
+	}
+
+	for key, constraint := range constraints {
+		gmConstraint := (*Constraint)(nil)
+
+		// If in a Group (not GroupModel) save any GM.Constraints for this key
+		if g != nil && g.GroupModel.Constraints != nil {
+			gmConstraint, _ = g.GroupModel.Constraints[key]
+		}
+
+		// Must be of the form <RESOURCE>.<PATH>
+		resPlural, path, ok := strings.Cut(key, ".")
+		if !ok {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an invalid key. It must "+
+					"be of the form \"<RESOURCES>.<PATH>\"", key))
+		}
+
+		// Must be a known Resource type
+		rm := gm.Resources[resPlural]
+		if rm == nil {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an unknown Resource type %q", key,
+					resPlural))
+		}
+		constraint.rm = rm
+
+		// Must be a valid attribute name/path - at leat format-wise
+		pp, err := PropPathFromUI(path)
+		if err != nil {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an invalid path (%s): %s", key, path,
+					err.Error()))
+		}
+		// Missing path after the '."
+		if pp.Len() == 0 {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an empty reference to an attribute",
+					key))
+		}
+
+		// Now make sure it points to a valid attribute
+		attrStack, xErr := rm.VersionAttributes.FindAbstractAttribute(pp)
+		if xErr != nil {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an invalid path (%s): %s", key,
+					path, xErr.Args["error_detail"]))
+		}
+
+		// for now FindAbstractAttribute allows maps/arrays, but we don't
+		for i := 0; i < len(attrStack)-1; i++ {
+			a := attrStack[i]
+			if a.Type == ARRAY {
+				return NewXRError(errType, subject, "error_detail="+
+					fmt.Sprintf(prefix+" has a path (%s) that includes "+
+						"an array (%s), which is not allowed",
+						key, path, a.Name))
+			} else if a.Type == MAP {
+				return NewXRError(errType, subject, "error_detail="+
+					fmt.Sprintf(prefix+" has a path (%s) that includes "+
+						"a map (%s), which is not allowed", key, path, a.Name))
+			}
+		}
+
+		// Last one in the stack is the one of interest, make sure it's scalar
+		attr := attrStack[len(attrStack)-1]
+		if !IsScalar(attr.Type) {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an invalid path (%s): "+
+					"%q must be a scalar", key, path, attr.Name))
+		}
+		constraint.attr = attr
+
+		// Syntax-wise it should be ok. Now, let's check semantics (the data)
+
+		if attr.Type == ARRAY || attr.Type == MAP {
+			// Should never happen since we don't allow arrays/maps,
+			// but just in case
+			panic(fmt.Sprintf("not allowed: %v", attr.Type))
+		}
+
+		// effectiveEnum is the enum we're going to valid "Default" against.
+		// It could come from different spots based on what we're given
+		effectiveEnum := []any{}
+		if len(attr.Enum) > 0 && attr.GetStrict() {
+			// Start with the attr's Enum set if strict=true
+			effectiveEnum = attr.Enum
+		}
+
+		// If we're in a Group instance and the GroupModel has a constraints for
+		// the same RESOURCE.ATTR AND it has an enum, use that enum instead
+		if gmConstraint != nil && len(gmConstraint.Enum) > 0 {
+			effectiveEnum = gmConstraint.Enum
+		}
+
+		// Treat empty Enum the same as no-Enum... skip it
+		if len(constraint.Enum) > 0 {
+			// If constraints has an Enum then must be subset of effectiveEnum
+			for _, cVal := range constraint.Enum {
+				// Constraint Enum value MUST be of the same type as the attr
+				if !IsOfType(cVal, attr.Type) {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an enum value (%v) that must "+
+							"be of type %q", key, cVal, attr.Type))
+				}
+
+				// Check for proper subset (note if effective=[] then it's ok)
+				if !IsValidEnum(cVal, effectiveEnum) {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an enum value (%v) that "+
+							"isn't part of the inherited attribute's enum "+
+							"list (%s)",
+							key, cVal, EnumAsString(effectiveEnum)))
+				}
+			}
+
+			// New enum is ok - so set effectiveEnum to be this subset
+			effectiveEnum = constraint.Enum
+		}
+
+		// Validate it's Default value if present
+		if !IsNil(constraint.Default) {
+			// Correct type?
+			if !IsOfType(constraint.Default, attr.Type) {
+				return NewXRError(errType, subject, "error_detail="+
+					fmt.Sprintf(prefix+" has a default value (%v) that must "+
+						"be of type %q", key, constraint.Default, attr.Type))
+			}
+
+			// Check it's in enum (note if effective=[] then it's ok)
+			if !IsValidEnum(constraint.Default, effectiveEnum) {
+
+				return NewXRError(errType, subject, "error_detail="+
+					fmt.Sprintf(prefix+" has a default value (%v) "+
+						"that isn't part of the base attribute's enum "+
+						"list (%s)", key, constraint.Default,
+						EnumAsString(effectiveEnum)))
+			}
+		} else {
+			// If we have an enum (not effective), then we need to make sure any
+			// inherited Default value is part of that enum
+
+			if len(constraint.Enum) > 0 {
+				// If GroupModel has same constraint(by key) & default value,
+				// check it
+				if gmConstraint != nil && !IsNil(gmConstraint.Default) {
+					if !IsValidEnum(gmConstraint.Default, constraint.Enum) {
+
+						return NewXRError(errType, subject, "error_detail="+
+							fmt.Sprintf(prefix+" has an enum set (%v) that "+
+								"doesn't include the Group Model's default "+
+								"value (%v) for the same constraint",
+								key, EnumAsString(constraint.Enum),
+								gmConstraint.Default))
+					}
+				} else if !IsNil(attr.Default) {
+					// Otherwise check against attr's default value (if there)
+					if !IsValidEnum(attr.Default, constraint.Enum) {
+
+						return NewXRError(errType, subject, "error_detail="+
+							fmt.Sprintf(prefix+" has an enum set (%v) that "+
+								"doesn't include the attribute's default "+
+								"value (%v)",
+								key, EnumAsString(constraint.Enum),
+								attr.Default))
+					}
+				}
+			}
+		}
+
+		if constraint.Equals != "" {
+			// g.constraint.equals (if set) MUST be same as gm's (if set)
+			if gmConstraint != nil && gmConstraint.Equals != "" {
+				if constraint.Equals != gmConstraint.Equals {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an \"equals\" value (%s) "+
+							"that differs from the one defined in the Group "+
+							"Type (%s)", key, constraint.Equals,
+							gmConstraint.Equals))
+				}
+			} else {
+				// Make sure the attribute exists
+				pp, err := PropPathFromUI(constraint.Equals)
+				if err != nil {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an \"equals\" value (%v) "+
+							"that is not valid: %s",
+							key, constraint.Equals, err.Error()))
+				}
+
+				attrStack, xErr := gm.Attributes.FindAbstractAttribute(pp)
+				if xErr != nil {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an \"equals\" reference "+
+							"(%s) that isn't valid: %s",
+							key, constraint.Equals, xErr.Args["error_detail"]))
+				}
+
+				// for now FindAbstractAttribute allows maps/arrays,but we don't
+				for i := 0; i < len(attrStack)-1; i++ {
+					a := attrStack[i]
+					if a.Type == ARRAY {
+						return NewXRError(errType, subject, "error_detail="+
+							fmt.Sprintf(prefix+" has a path (%s) that "+
+								"includes an array (%s), which is not "+
+								"allowed", key, constraint.Equals, a.Name))
+					} else if a.Type == MAP {
+						return NewXRError(errType, subject, "error_detail="+
+							fmt.Sprintf(prefix+" has a path (%s) that "+
+								"includes a map (%s), which is not "+
+								"allowed", key, constraint.Equals, a.Name))
+					}
+				}
+
+				eAttr := attrStack[len(attrStack)-1]
+				if !IsScalar(eAttr.Type) {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an \"equals\" reference "+
+							"(%s) that must be a scalar",
+							key, constraint.Equals))
+				}
+
+				if eAttr.Type != attr.Type {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" references an attribute of "+
+							"type %q but its \"equals\" "+
+							"(%s) references an attribute of type %q. They "+
+							"need to match",
+							key, attr.Type, constraint.Equals, eAttr.Type))
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+//  ---- MODEL JSON STUFF  -----
+
+func (m *Model) SerializeForUser() ([]byte, *XRError) {
+	buf, err := json.MarshalIndent((*UserModel)(m), "", "  ")
+	if err != nil {
+		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
+	}
+	return buf, nil
+}
+
+type UserModel Model
+type UserAttribute Attribute
+type UserGroupModel GroupModel
+type UserResourceModel ResourceModel
+
+func (m *Model) UserMarshal(prefix string, indent string) ([]byte, error) {
+	return json.MarshalIndent((*UserModel)(m), prefix, indent)
+}
+
+func (m *Model) MustUserMarshal(prefix string, indent string) string {
+	buf, err := json.MarshalIndent((*UserModel)(m), prefix, indent)
+	PanicIf(err != nil, "Err: %s ", err)
+	return string(buf)
+}
+
+func (um *UserModel) MarshalJSON() ([]byte, error) {
+	extra := ""
+	buf := bytes.Buffer{}
+
+	buf.WriteRune('{')
+
+	if um.Description != "" {
+		buf.WriteString(extra + `"description":"`)
+		buf.WriteString(um.Description)
+		buf.WriteRune('"')
+		extra = ","
+	}
+	if um.Documentation != "" {
+		buf.WriteString(extra + `"documentation":"`)
+		buf.WriteString(um.Documentation)
+		buf.WriteRune('"')
+		extra = ","
+	}
+	if um.Labels != nil {
+		b, _ := json.Marshal(um.Labels)
+		buf.WriteString(extra + `"labels":`)
+		buf.Write(b)
+		extra = ","
+	}
+
+	propsOrdered, propsMap := ((*Model)(um)).GetPropsOrdered()
+	data, extra := marshalAttrs(um.Attributes, "attributes", extra,
+		propsOrdered, propsMap)
+	buf.Write(data)
+
+	if len(um.Groups) > 0 {
+		buf.WriteString(extra)
+		buf.WriteString(`"groups":{`)
+		extra = ""
+		for _, k := range SortedKeys(um.Groups) {
+			group := um.Groups[k]
+			buf.WriteString(extra)
+			buf.WriteRune('"')
+			buf.WriteString(k)
+			buf.WriteString(`":`)
+			b, _ := json.Marshal((*UserGroupModel)(group))
+			buf.Write(b)
+			extra = ","
+		}
+		buf.WriteString(`}`)
+		extra = ","
+	}
+
+	buf.WriteRune('}')
+	return buf.Bytes(), nil
+}
+
+func (ug *UserGroupModel) MarshalJSON() ([]byte, error) {
+	extra := ""
+	buf := bytes.Buffer{}
+
+	buf.WriteRune('{')
+	buf.WriteString(`"plural":"`)
+	buf.WriteString(ug.Plural)
+	buf.WriteString(`","singular":"`)
+	buf.WriteString(ug.Singular)
+	buf.WriteRune('"')
+
+	if ug.Description != "" {
+		buf.WriteString(`,"description":"`)
+		buf.WriteString(ug.Description)
+		buf.WriteRune('"')
+	}
+	if ug.Documentation != "" {
+		buf.WriteString(`,"documentation":"`)
+		buf.WriteString(ug.Documentation)
+		buf.WriteRune('"')
+	}
+	if ug.Icon != "" {
+		buf.WriteString(`,"icon":"`)
+		buf.WriteString(ug.Icon)
+		buf.WriteRune('"')
+	}
+	if ug.Labels != nil {
+		b, _ := json.Marshal(ug.Labels)
+		buf.WriteString(`,"labels":`)
+		buf.Write(b)
+	}
+
+	if ug.ModelVersion != "" {
+		buf.WriteString(`,"modelversion":"`)
+		buf.WriteString(ug.ModelVersion)
+		buf.WriteRune('"')
+	}
+	if ug.ModelCompatibleWith != "" {
+		buf.WriteString(`,"modelcompatiblewith":"`)
+		buf.WriteString(ug.ModelCompatibleWith)
+		buf.WriteRune('"')
+	}
+	extra = ","
+
+	propsOrdered, propsMap := ((*GroupModel)(ug)).GetPropsOrdered()
+	data, extra := marshalAttrs(ug.Attributes, "attributes", extra,
+		propsOrdered, propsMap)
+	buf.Write(data)
+
+	if len(ug.XImportResources) > 0 {
+		b, _ := json.Marshal(ug.XImportResources)
+		buf.WriteString(`,"ximportresources":`)
+		buf.Write(b)
+	}
+
+	if len(ug.Constraints) > 0 {
+		b, _ := json.Marshal(ug.Constraints)
+		buf.WriteString(`,"constraints":`)
+		buf.Write(b)
+	}
+
+	if len(ug.Resources) > 0 {
+		buf.WriteString(extra)
+		buf.WriteString(`"resources":{`)
+		extra = ""
+		for _, k := range SortedKeys(ug.Resources) {
+			resource, _ := ug.Resources[k]
+			buf.WriteString(extra)
+			buf.WriteRune('"')
+			buf.WriteString(k)
+			buf.WriteString(`":`)
+			b, _ := json.Marshal((*UserResourceModel)(resource))
+			buf.Write(b)
+			extra = ","
+		}
+		buf.WriteString(`}`)
+		extra = ","
+	}
+
+	buf.WriteRune('}')
+	return buf.Bytes(), nil
+}
+
+func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
+	extra := ""
+	buf := bytes.Buffer{}
+
+	buf.WriteRune('{')
+	buf.WriteString(`"plural":"`)
+	buf.WriteString(ur.Plural)
+	buf.WriteString(`","singular":"`)
+	buf.WriteString(ur.Singular)
+	buf.WriteRune('"')
+
+	if ur.Description != "" {
+		buf.WriteString(`,"description":"`)
+		buf.WriteString(ur.Description)
+		buf.WriteRune('"')
+	}
+	if ur.Documentation != "" {
+		buf.WriteString(`,"documentation":"`)
+		buf.WriteString(ur.Documentation)
+		buf.WriteRune('"')
+	}
+	if ur.Icon != "" {
+		buf.WriteString(`,"icon":"`)
+		buf.WriteString(ur.Icon)
+		buf.WriteRune('"')
+	}
+	if ur.Labels != nil {
+		b, _ := json.Marshal(ur.Labels)
+		buf.WriteString(`,"labels":`)
+		buf.Write(b)
+	}
+
+	if ur.ModelVersion != "" {
+		buf.WriteString(`,"modelversion":"`)
+		buf.WriteString(ur.ModelVersion)
+		buf.WriteRune('"')
+	}
+	if ur.ModelCompatibleWith != "" {
+		buf.WriteString(`,"modelcompatiblewith":"`)
+		buf.WriteString(ur.ModelCompatibleWith)
+		buf.WriteRune('"')
+	}
+
+	// if ur.MaxVersions != nil {
+	buf.WriteString(fmt.Sprintf(`,"maxversions":%d`,
+		((*ResourceModel)(ur)).GetMaxVersions()))
+	// }
+	// if ur.SetVersionId != nil {
+	buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
+		((*ResourceModel)(ur).GetSetVersionId())))
+	// }
+	// if ur.HasDocument != nil {
+	buf.WriteString(fmt.Sprintf(`,"hasdocument":%v`,
+		((*ResourceModel)(ur).GetHasDocument())))
+	// }
+	// if ur.VersionMode != "" {
+	buf.WriteString(`,"versionmode":"`)
+	buf.WriteString(((*ResourceModel)(ur)).GetVersionMode())
+	buf.WriteRune('"')
+	// }
+	// if ur.GetSingleVersionRoot != nil {
+	buf.WriteString(fmt.Sprintf(`,"singleversionroot":%v`,
+		((*ResourceModel)(ur)).GetSingleVersionRoot()))
+	// }
+	// if ur.ValidateFormat != nil {
+	buf.WriteString(fmt.Sprintf(`,"validateformat":%v`,
+		((*ResourceModel)(ur).GetValidateFormat())))
+	// }
+	// if ur.ValidateCompatibility != nil {
+	buf.WriteString(fmt.Sprintf(`,"validatecompatibility":%v`,
+		((*ResourceModel)(ur).GetValidateCompatibility())))
+	// }
+	// if ur.StrictValidation != nil {
+	buf.WriteString(fmt.Sprintf(`,"strictvalidation":%v`,
+		((*ResourceModel)(ur).GetStrictValidation())))
+	// }
+	if len(ur.TypeMap) > 0 {
+		buf.WriteString(`,"typemap":`)
+		b, _ := json.Marshal(ur.TypeMap)
+		buf.Write(b)
+	}
+
+	extra = ","
+
+	propsOrdered, propsMap := ((*ResourceModel)(ur)).GetVersionPropsOrdered()
+	data, extra := marshalAttrs(ur.VersionAttributes, "attributes", extra,
+		propsOrdered, propsMap)
+	buf.Write(data)
+
+	propsOrdered, propsMap = ((*ResourceModel)(ur)).GetResourcePropsOrdered()
+	data, extra = marshalAttrs(ur.ResourceAttributes, "resourceattributes",
+		extra, propsOrdered, propsMap)
+	buf.Write(data)
+
+	propsOrdered, propsMap = ((*ResourceModel)(ur)).GetMetaPropsOrdered()
+	data, extra = marshalAttrs(ur.MetaAttributes, "metaattributes", extra,
+		propsOrdered, propsMap)
+	buf.Write(data)
+
+	buf.WriteRune('}')
+	return buf.Bytes(), nil
+}
+
+func (ua *UserAttribute) MarshalJSON() ([]byte, error) {
+	type tmpAttr Attribute
+	return json.Marshal((*tmpAttr)(ua))
+}
+
+func marshalAttrs(attrs Attributes, name string, extra string,
+	propsOrdered []*Attribute,
+	propsMap map[string]*Attribute) ([]byte, string) {
+
+	data := []byte(nil)
+
+	if len(attrs) > 0 {
+		buf := bytes.Buffer{}
+		buf.WriteString(extra)
+		buf.WriteRune('"')
+		buf.WriteString(name)
+		buf.WriteString(`":{`)
+		extra = ""
+
+		for _, prop := range propsOrdered {
+			name := prop.Name
+
+			if name[0] == '$' {
+				if name == "$extensions" {
+					list := SortedKeys(attrs)
+					if len(list) > 0 && list[0] == "*" {
+						list = append(list[1:], list[0])
+					}
+					for _, k := range list {
+						if k[0] == '$' || propsMap[k] != nil {
+							continue
+						}
+
+						attr, _ := attrs[k]
+						buf.WriteString(extra)
+						buf.WriteRune('"')
+						buf.WriteString(k)
+						buf.WriteString(`":`)
+						b, _ := json.Marshal((*UserAttribute)(attr))
+						buf.Write(b)
+						extra = ","
+					}
+				}
+				continue
+			}
+
+			if attr, ok := attrs[name]; ok {
+				buf.WriteString(extra)
+				buf.WriteRune('"')
+				buf.WriteString(name)
+				buf.WriteString(`":`)
+				b, _ := json.Marshal((*UserAttribute)(attr))
+				buf.Write(b)
+				extra = ","
+			}
+		}
+		buf.WriteRune('}')
+		data = buf.Bytes()
+		extra = ","
+	}
+
+	// log.Printf("Attrs:\n%s\nex: %q\n", data, extra)
+
+	return data, extra
+}
 
 // VerifyAndSave() should be called automatically but there may be
 // cases where someone would need to call it manually (e.g. setting an

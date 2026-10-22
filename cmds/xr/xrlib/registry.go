@@ -8,7 +8,7 @@ import (
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
-	// . "github.com/xregistry/server/registry"
+	"github.com/xregistry/server/registry"
 )
 
 /*
@@ -38,15 +38,29 @@ type CollectionDefined struct {
 }
 */
 
-var Registries = map[string]*Registry{}
+var Registries = map[string]*registry.Registry{}
 
-func GetRegistry(url string) (*Registry, *XRError) {
+func GetRegistry(url string, xrConfig *Config) (*registry.Registry, *XRError) {
+	if url == "" {
+		url = xrConfig.GetAsString("server.url")
+	}
+
+	if url == "" {
+		return nil, NewXRError("client_error", "/",
+			"error_detail="+
+				"No server address provided. "+
+				"Try either -s or XR_SERVER env var")
+	}
+
 	reg := Registries[url]
 	if reg != nil {
 		return reg, nil
 	}
 
-	reg = DefineRegistry(url)
+	reg, xErr := registry.DefineRegistry(url, xrConfig)
+	if xErr != nil {
+		return nil, xErr
+	}
 
 	/*
 		if xErr := reg.LoadRemoteModel(true); xErr != nil {
@@ -63,24 +77,33 @@ func GetRegistry(url string) (*Registry, *XRError) {
 	return reg, nil
 }
 
-func (reg *Registry) GetServerURL() string {
+type CLIReg registry.Registry
+
+func (r *CLIReg) GetServerURL() string {
+	reg := (*registry.Registry)(r)
 	return reg.GetStuffAsString("server")
 }
 
-func (reg *Registry) Refresh() *XRError {
-	if xErr := reg.RefreshModel(); xErr != nil {
+func (cliReg *CLIReg) Refresh() *XRError {
+	if xErr := cliReg.RefreshModel(); xErr != nil {
 		return xErr
 	}
 
-	if xErr := reg.RefreshCapabilities(); xErr != nil {
+	if xErr := cliReg.RefreshCapabilities(); xErr != nil {
 		return xErr
 	}
 
 	return nil
 }
 
-func (reg *Registry) RefreshModel() *XRError {
-	res, xErr := reg.HttpDo(log.GetLevel() > 2, "GET", "/model", nil)
+func (cliReg *CLIReg) RefreshModel() *XRError {
+	reg := (*registry.Registry)(cliReg)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     cliReg.WithPath("/model"),
+		Headers: HTTPHeaders,
+		Debug:   log.GetLevel() > 2,
+	})
 	if xErr != nil {
 		return xErr
 	}
@@ -95,8 +118,14 @@ func (reg *Registry) RefreshModel() *XRError {
 	return nil
 }
 
-func (reg *Registry) RefreshCapabilities() *XRError {
-	res, xErr := reg.HttpDo(log.GetLevel() > 2, "GET", "/capabilities", nil)
+func (cliReg *CLIReg) RefreshCapabilities() *XRError {
+	reg := (*registry.Registry)(cliReg)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     cliReg.WithPath("/capabilities"),
+		Headers: HTTPHeaders,
+		Debug:   log.GetLevel() > 2,
+	})
 	if xErr != nil {
 		return xErr
 	}
@@ -109,7 +138,8 @@ func (reg *Registry) RefreshCapabilities() *XRError {
 	return nil
 }
 
-func (reg *Registry) ToString() string {
+func (r *CLIReg) ToString() string {
+	reg := (*registry.Registry)(r)
 	/*
 		tmp := map[string]any{}
 		for k, v := range reg.attributes {
@@ -123,31 +153,22 @@ func (reg *Registry) ToString() string {
 	return string(buf)
 }
 
-func (reg *Registry) GetModel() (*Model, *XRError) {
+func (cliReg *CLIReg) GetModelSource() (*registry.Model, *XRError) {
+	reg := (*registry.Registry)(cliReg)
 	if reg.Model == nil {
-		xErr := reg.RefreshModel()
-		if xErr != nil {
-			return nil, xErr
-		}
-	}
-	return reg.Model, nil
-}
-
-func (reg *Registry) GetModelSource() (*Model, *XRError) {
-	if reg.Model == nil {
-		xErr := reg.RefreshModel()
+		xErr := cliReg.RefreshModel()
 		if xErr != nil {
 			return nil, xErr
 		}
 	}
 
 	if reg.Model.Source == "" {
-		if xErr := reg.RefreshModelSource(); xErr != nil {
+		if xErr := cliReg.RefreshModelSource(); xErr != nil {
 			return nil, xErr
 		}
 	}
 
-	modelSource := Model{}
+	modelSource := registry.Model{}
 	if reg.Model.Source != "" {
 		tmpAny := map[string]any{}
 		err := Unmarshal([]byte(reg.Model.Source), &tmpAny)
@@ -185,14 +206,20 @@ func (reg *Registry) GetModelSource() (*Model, *XRError) {
 	return &modelSource, nil
 }
 
-func (reg *Registry) RefreshModelSource() *XRError {
+func (cliReg *CLIReg) RefreshModelSource() *XRError {
+	reg := (*registry.Registry)(cliReg)
 	if reg.Model == nil {
-		if xErr := reg.RefreshModel(); xErr != nil {
+		if xErr := cliReg.RefreshModel(); xErr != nil {
 			return xErr
 		}
 	}
 
-	res, xErr := reg.HttpDo(log.GetLevel() > 2, "GET", "/modelsource", nil)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     cliReg.WithPath("/modelsource"),
+		Headers: HTTPHeaders,
+		Debug:   log.GetLevel() > 2,
+	})
 
 	reg.Model.Source = ""
 
@@ -202,7 +229,7 @@ func (reg *Registry) RefreshModelSource() *XRError {
 			return xErr
 		}
 
-		srcModel := Model{}
+		srcModel := registry.Model{}
 
 		if err := json.Unmarshal(res.Body, &srcModel); err != nil {
 			return NewXRError("parsing_data", "/modelsource",
@@ -215,9 +242,10 @@ func (reg *Registry) RefreshModelSource() *XRError {
 	return nil
 }
 
-func (reg *Registry) GetCapabilities() (*Capabilities, *XRError) {
+func (cliReg *CLIReg) GetCapabilities() (*Capabilities, *XRError) {
+	reg := (*registry.Registry)(cliReg)
 	if reg.Capabilities == nil {
-		xErr := reg.RefreshCapabilities()
+		xErr := cliReg.RefreshCapabilities()
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -225,23 +253,8 @@ func (reg *Registry) GetCapabilities() (*Capabilities, *XRError) {
 	return reg.Capabilities, nil
 }
 
-func (reg *Registry) FindGroupModel(gPlural string) (*GroupModel, *XRError) {
-	model, xErr := reg.GetModel()
-	if xErr != nil {
-		return nil, xErr
-	}
-	return model.FindGroupModel(gPlural), nil
-}
-
-func (reg *Registry) FindGroupModelBySingular(gSingular string) (*GroupModel, *XRError) {
-	model, xErr := reg.GetModel()
-	if xErr != nil {
-		return nil, xErr
-	}
-	return model.FindGroupBySingular(gSingular), nil
-}
-
-func (reg *Registry) ListGroupModels() ([]string, *XRError) {
+func (r *CLIReg) ListGroupModels() ([]string, *XRError) {
+	reg := (*registry.Registry)(r)
 	model, xErr := reg.GetModel()
 	if xErr != nil {
 		return nil, xErr
@@ -255,7 +268,8 @@ func (reg *Registry) ListGroupModels() ([]string, *XRError) {
 	return res, nil
 }
 
-func (reg *Registry) FindResourceModel(gPlural, rPlural string) (*ResourceModel, *XRError) {
+func (r *CLIReg) FindResourceModel(gPlural, rPlural string) (*registry.ResourceModel, *XRError) {
+	reg := (*registry.Registry)(r)
 	model, xErr := reg.GetModel()
 	if xErr != nil {
 		return nil, xErr
@@ -263,16 +277,10 @@ func (reg *Registry) FindResourceModel(gPlural, rPlural string) (*ResourceModel,
 	return model.FindResourceModel(gPlural, rPlural), nil
 }
 
-func (reg *Registry) HttpDo(debug bool, verb, path string, body []byte) (*HttpResponse, *XRError) {
-	u, xErr := reg.URLWithPath(path)
-	if xErr != nil {
-		return nil, xErr
-	}
+type cliModel registry.Model
 
-	return HttpDo(debug, verb, u.String(), HTTPHeaders, body)
-}
-
-func (m *Model) FindGroupBySingular(singular string) *GroupModel {
+func (cliModel *cliModel) FindGroupBySingular(singular string) *registry.GroupModel {
+	m := (*registry.Model)(cliModel)
 	for _, group := range m.Groups {
 		if group.Singular == singular {
 			return group
@@ -281,8 +289,17 @@ func (m *Model) FindGroupBySingular(singular string) *GroupModel {
 	return nil
 }
 
-func (reg *Registry) URLWithPath(path string) (*url.URL, *XRError) {
-	server := reg.GetServerURL()
+func (cliReg *CLIReg) WithPath(path string) string {
+	server := cliReg.GetServerURL()
+	if !strings.HasPrefix(server, "http") {
+		server = "http://" + strings.TrimLeft(server, "/")
+	}
+	return strings.TrimRight(server, "/") + "/" + strings.TrimLeft(path, "/")
+}
+
+func (cliReg *CLIReg) URLWithPath(path string) (*url.URL, *XRError) {
+	reg := (*registry.Registry)(cliReg)
+	server := cliReg.GetServerURL()
 	PanicIf(server == "", "stuff.server isn't set")
 
 	if !strings.HasPrefix(server, "http") {
@@ -310,7 +327,8 @@ func (reg *Registry) URLWithPath(path string) (*url.URL, *XRError) {
 	return u, nil
 }
 
-func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, *XRError) {
+func (r *CLIReg) GetResourceModelFromXID(xidStr string) (*registry.ResourceModel, *XRError) {
+	reg := (*registry.Registry)(r)
 	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, NewXRError("malformed_xid", "",
@@ -338,56 +356,12 @@ func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, *XR
 	return rm, nil
 }
 
-func (reg *Registry) DownloadObject(path string) (map[string]any, *XRError) {
-	urlPath, xErr := reg.URLWithPath(path)
+func (cliReg *CLIReg) DownloadObject(path string) (map[string]any, *XRError) {
+	// reg := (*registry.Registry)(cliReg)
+	urlPath, xErr := cliReg.URLWithPath(path)
 	if xErr != nil {
 		return nil, xErr
 	}
 
 	return DownloadObject(log.GetLevel() > 2, urlPath.String())
-}
-
-func (rm *ResourceModel) HasDoc() bool {
-	return rm != nil && rm.HasDocument != nil && *(rm.HasDocument) == true
-}
-
-var PropsFuncs = []*Attribute{}
-
-func (rm *ResourceModel) VerifyData() *XRError {
-	return nil
-}
-
-func (e *Entity) GetRequestInfo() *RequestInfo {
-	return e.Tx.RequestInfo
-}
-
-func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
-	panic("Find Version not implemented yet")
-	return nil, nil
-}
-
-// PLACEHOLDERS
-
-func LockEntityFamily(tx *Tx, ent *Entity) *XRError {
-	panic("not yet")
-}
-
-func (e *Entity) SaveSystemProps() *XRError {
-	panic("not yet")
-	return nil
-}
-
-func (m *Model) VerifyAndSave(verifyData bool) *XRError {
-	panic("not yet")
-	return nil
-}
-
-func (e *Entity) eSetSave(path string, val any) *XRError {
-	panic("not yet")
-	return nil
-}
-
-func (e *Entity) Save() *XRError {
-	panic("not yet")
-	return nil
 }
