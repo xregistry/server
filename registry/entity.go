@@ -763,11 +763,11 @@ func InitOrderedSpecProps() {
 							return NewXRError("not_available", "modelsource")
 						}
 						model := info.Registry.Model
-						if model == nil || model.Source == "" {
+						if model == nil || len(model.Source) == 0 {
 							return struct{}{}
 						}
 
-						obj, err := ParseJSONToObject([]byte(model.Source))
+						obj, err := ParseJSONToObject(model.Source)
 						PanicIf(err != nil, "Failed: %s", err)
 						return obj
 					}

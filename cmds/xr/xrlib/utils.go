@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"reflect"
-	"sort"
 	"strings"
 	// "text/tabwriter"
 
@@ -109,15 +108,13 @@ func ValidateTypes(xid *Xid, reg *registry.Registry, allowSingular bool) *XRErro
 		return nil
 	}
 
-	cliReg := (*CLIReg)(reg)
-
-	gm := (*registry.GroupModel)(nil)
-	gList, xErr := cliReg.ListGroupModels()
+	model, xErr := reg.GetModel()
 	if xErr != nil {
 		return xErr
 	}
-	sort.Strings(gList)
-	for _, plural := range gList {
+
+	gm := (*registry.GroupModel)(nil)
+	for _, plural := range SortedKeys(model.Groups) {
 		m, xErr := reg.FindGroupModel(plural)
 		if xErr != nil {
 			return xErr
@@ -127,6 +124,7 @@ func ValidateTypes(xid *Xid, reg *registry.Registry, allowSingular bool) *XRErro
 			break
 		}
 	}
+
 	if gm == nil {
 		return NewXRError("not_found", xid.Group).
 			SetDetailf("Unknown Group type: %s.", xid.Group)

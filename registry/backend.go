@@ -75,11 +75,13 @@ type Backend interface {
 	RegisterEntity(e *Entity) *XRError
 
 	// Populate r.Capabilities with latest
+	// If nil, the backend can decide what to return: nil vs defaultCaps
 	LoadCapabilities(r *Registry) (*Capabilities, *XRError)
 	// Store r.Capabilities to DB
 	SaveCapabilities(r *Registry) *XRError
 
-	// Load model from DB but do not store it in r.Model yet
+	// Load model from DB but do not store it in r.Model yet.
+	// MUST include setting model.Source too
 	LoadModel(r *Registry) (*Model, *XRError)
 	// Save r.Model to DB
 	SaveModel(r *Registry) *XRError

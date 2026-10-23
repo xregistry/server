@@ -1025,7 +1025,7 @@ func getJSONModel(r *registry.Registry) (string, string, *XRError) {
 func (sqlBE *SQLBackend) LoadCapabilities(r *registry.Registry) (*Capabilities, *XRError) {
 	capVal, ok := r.Object["#capabilities"]
 	if !ok {
-		return nil, nil
+		return DefaultCapabilities.Clone(), nil
 	}
 
 	// Custom capabilities
@@ -1051,6 +1051,7 @@ func (sqlBE *SQLBackend) LoadModel(r *registry.Registry) (*registry.Model, *XREr
 
 	if modelJSON == "" {
 		// No model yet.  Maybe we should panic? TODO investigate
+		// Maybe set it to "{}" ?
 		return nil, nil
 	}
 

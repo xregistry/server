@@ -129,8 +129,13 @@ TODOs:
 - move #attrs into system props if we can
 - make backend define what capabilities are available
 - fix default backend logic so people can choose one via config - default:mysql
-- consider a CLIContext (to hold XRConfig/be/tx) so we don't get a new tx per
+- consider a CLIContext (to hold XRConfig/BE/tx) so we don't get a new tx per
   Registry. And we can then Clear/Close() to clean-up the tx cache.
+  - consider allowing more than one Registry per tx
+  - have DefineRegistry take tx as a param rather than config. From there
+    we can get the config and BE
+- Move modelsource out from Model so it can be retrieve separately
+  - Should reg.SetModel take []byte instead of string?
 
 
 test:

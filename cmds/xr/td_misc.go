@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 // These are used in the tests (xr_test.go)
@@ -111,7 +112,7 @@ func TestTDUtils(td *TD) {
 	td.ObjReqMustEq(res.JSON, "createdat", "ts")
 	td.ObjReqMustEq(res.JSON, "modifiedat", "ts")
 
-	_, xErr = reg.GetCapabilities()
+	_, xErr = (*registry.Registry)(reg).GetCapabilities()
 	td.NoErrorStop(xErr, "Retrieving capabilities MUST work")
 
 	if reg.Capabilities == nil {
