@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	. "github.com/xregistry/server/common"
 )
 
 func TestHttpDoNullErrorBody(t *testing.T) {
@@ -15,8 +17,12 @@ func TestHttpDoNullErrorBody(t *testing.T) {
 		}))
 	defer server.Close()
 
-	res, xErr := HttpDo(false, http.MethodGet,
-		server.URL+"/", nil, nil)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:  "GET",
+		URL:   server.URL + "/",
+		Debug: false,
+	})
+
 	if res == nil || res.Code != http.StatusInternalServerError {
 		t.Fatalf("unexpected response: %#v", res)
 	}

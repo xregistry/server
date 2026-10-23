@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func addGetCmd(parent *cobra.Command) {
@@ -32,12 +33,10 @@ func addGetCmd(parent *cobra.Command) {
 }
 
 func getFunc(cmd *cobra.Command, args []string) {
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
+
+	cliReg := (*xrlib.CLIReg)(reg)
 
 	filters, _ := cmd.Flags().GetStringArray("filter")
 	inlines, _ := cmd.Flags().GetStringArray("inline")
@@ -74,7 +73,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 	hasDetails, _ := cmd.Flags().GetBool("details")
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
-	if xid.ResourceID != "" && xid.Type != ENTITY_META && rm.HasDoc() &&
+	if xid.ResourceID != "" && xid.Type != ENTITY_META && rm.GetHasDocument() &&
 		xid.IsEntity {
 
 		if hasDetails == false {
@@ -101,7 +100,12 @@ func getFunc(cmd *cobra.Command, args []string) {
 		path = AddQuery(path, "inline="+strings.Join(inlines, ","))
 	}
 
-	res, xErr := reg.HttpDo(VerboseCount > 1, "GET", path, nil)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     cliReg.WithPath(path),
+		Headers: xrlib.HTTPHeaders,
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 
 	path = strings.TrimRight(GetServer(), "/") + "/" +
@@ -281,7 +285,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		tree, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(res.Body,
+		tree, xErr := registry.CanonicalPrettyReorderTreeOrRaw(res.Body,
 			GetRawJSON())
 		Error(xErr, NewXRError("parsing_response", path,
 			"error_detail="+Err2String(xErr)).

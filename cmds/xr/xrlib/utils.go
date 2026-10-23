@@ -12,9 +12,9 @@ import (
 	"strings"
 	// "text/tabwriter"
 
-	log "github.com/duglin/dlog"
+	// log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
-	// . "github.com/xregistry/server/registry"
+	"github.com/xregistry/server/registry"
 )
 
 // var VerboseFlag = EnvBool("XR_VERBOSE", false)
@@ -24,36 +24,6 @@ import (
 // to the same spot and remove that global var too
 var Server = EnvString("XR_SERVER", "")
 var HTTPHeaders = map[string]string(nil) // headers for all server requests
-
-func Debug(args ...any) {
-	// if !DebugFlag || len(args) == 0 || IsNil(args[0]) {
-	if log.GetLevel() < 2 || len(args) == 0 || IsNil(args[0]) {
-		return
-	}
-
-	fmtStr := ""
-	ok := false
-
-	if fmtStr, ok = args[0].(string); ok {
-		// fmtStr already set
-	} else {
-		fmtStr = fmt.Sprintf("%v", args[0])
-	}
-
-	if len(fmtStr) == 0 {
-		return
-	}
-
-	str := fmt.Sprintf(fmtStr, args[1:]...)
-
-	log.VPrintf(2, "%s", str)
-	/*
-		fmt.Fprint(os.Stderr, str)
-		if str[len(str)-1] != '\n' && str[len(str)-1] != '\r' {
-			fmt.Fprint(os.Stderr, "\n")
-		}
-	*/
-}
 
 /*
 func Verbose(args ...any) {
@@ -73,135 +43,6 @@ func Verbose(args ...any) {
 	fmt.Fprintf(os.Stderr, fmtStr+"\n", args[1:]...)
 }
 */
-
-type HttpResponse struct {
-	Code   int
-	Status string
-	Body   []byte
-	Header http.Header
-
-	JSON  map[string]any
-	Error *XRError
-}
-
-// statusCode, body
-// Add headers (in and out) later
-func HttpDo(debug bool, verb string, url string, headers map[string]string, body []byte) (*HttpResponse, *XRError) {
-	client := &http.Client{}
-	/*
-		client := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
-			}}
-	*/
-
-	httpRes := &HttpResponse{}
-
-	bodyReader := bytes.NewReader(body)
-
-	req, err := http.NewRequest(verb, url, bodyReader)
-	if err != nil {
-		return httpRes, NewXRError("talking_to_server", url,
-			"error_detail="+err.Error())
-	}
-
-	for key, value := range headers {
-		key = strings.TrimSpace(key)
-		if key == "" {
-			continue
-		}
-		req.Header.Add(key, value) // ok even if value is ""
-	}
-
-	if debug {
-		Debug("Request: %s %s", verb, url)
-		if len(headers) != 0 {
-			for _, key := range SortedKeys(headers) {
-				val := headers[key]
-				Debug("Header: %s: %s", key, MaxString(val, 20))
-			}
-		}
-		if len(body) != 0 {
-			Debug("Body:\n%s", string(body))
-			Debug("--------------------")
-		} else {
-			Debug("Body: <empty>")
-		}
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		httpRes.Error = NewXRError("talking_to_server", url,
-			"error_detail="+err.Error())
-		return httpRes, httpRes.Error
-	}
-
-	httpRes.Body, err = io.ReadAll(res.Body)
-	res.Body.Close()
-
-	if err != nil {
-		httpRes.Error = NewXRError("parsing_response", url,
-			"error_detail="+err.Error())
-
-		return httpRes, httpRes.Error
-	}
-
-	httpRes.Code = res.StatusCode
-	httpRes.Status = res.Status
-	httpRes.Header = res.Header
-
-	if len(httpRes.Body) > 0 {
-		// Ignore any parsing error, just assume it's not JSON and keep going
-		json.Unmarshal(httpRes.Body, &httpRes.JSON)
-	}
-
-	var xErr *XRError
-	if res.StatusCode/100 != 2 {
-		// If response has no body then we need to say something back to
-		// the user. A non-zero exit code w/o any text isn't helpful.
-		if len(httpRes.Body) == 0 {
-			xErr = NewXRError("talking_to_server", url,
-				"error_detail="+res.Status)
-		} else {
-			// If we 'think' it's an XRError then return it, else just
-			// return the raw data
-			err := json.Unmarshal(httpRes.Body, &xErr)
-			if err != nil || xErr == nil || xErr.Type == "" {
-				xErr = NewXRError("talking_to_server", url,
-					"error_detail="+strings.TrimSpace(string(httpRes.Body)))
-			}
-		}
-	}
-
-	if debug {
-		Debug("Response: %s", res.Status)
-
-		showHeaders := map[string]bool{
-			"location":                     true,
-			"content-type":                 true,
-			"content-disposition":          true,
-			"access-control-allow-origin":  true,
-			"access-control-allow-methods": true,
-		}
-		for _, key := range SortedKeys(res.Header) {
-			val := res.Header[key][0]
-			key = strings.ToLower(key)
-			if strings.HasPrefix(key, "xregistry-") {
-				Debug("xRegistry-%s: %s", key[10:], val)
-			} else if showHeaders[key] {
-				Debug("%s: %s", key, val)
-			}
-		}
-
-		if len(httpRes.Body) != 0 {
-			Debug("Response Body:\n%s", string(httpRes.Body))
-			Debug("--------------------")
-		}
-	}
-
-	httpRes.Error = xErr
-	return httpRes, xErr
-}
 
 // Support "http" and "-" (stdin)
 func ReadFile(fileName string) ([]byte, *XRError) {
@@ -263,13 +104,15 @@ func AnyToString(val any) (string, error) {
 	return valStr, nil
 }
 
-func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
+func ValidateTypes(xid *Xid, reg *registry.Registry, allowSingular bool) *XRError {
 	if xid.Group == "" {
 		return nil
 	}
 
-	gm := (*GroupModel)(nil)
-	gList, xErr := reg.ListGroupModels()
+	cliReg := (*CLIReg)(reg)
+
+	gm := (*registry.GroupModel)(nil)
+	gList, xErr := cliReg.ListGroupModels()
 	if xErr != nil {
 		return xErr
 	}
@@ -293,7 +136,7 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 		return nil
 	}
 
-	rm := (*ResourceModel)(nil)
+	rm := (*registry.ResourceModel)(nil)
 	for _, m := range gm.Resources {
 		if m.Plural == xid.Resource || (allowSingular && m.Singular == xid.Resource) {
 			rm = m
@@ -316,7 +159,7 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 	return nil
 }
 
-func GetResourceModelFrom(xid *Xid, reg *Registry) (*ResourceModel, *XRError) {
+func GetResourceModelFrom(xid *Xid, reg *registry.Registry) (*registry.ResourceModel, *XRError) {
 	if xid.Resource == "" {
 		return nil, nil
 	}
@@ -493,22 +336,18 @@ func BoolStr(v bool, yes string, no string) string {
 }
 
 func DownloadObject(debug bool, urlPath string) (map[string]any, *XRError) {
-	res, xErr := HttpDo(debug, "GET", urlPath, nil, nil)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     urlPath,
+		Headers: HTTPHeaders,
+		Debug:   debug,
+	})
 	if xErr != nil {
 		return nil, xErr
 	}
-	if res.Code != 200 {
-		return nil, NewXRError("talking_to_server", urlPath,
-			"error_detail="+
-				fmt.Sprintf("%s: %s", res.Status, res.Body))
+	if res.JSONError != nil {
+		return nil, res.JSONError
 	}
-
-	object := map[string]any(nil)
-	err := json.Unmarshal(res.Body, &object)
-	if err != nil {
-		return object, NewXRError("parsing_response", urlPath,
-			"error_detail="+err.Error()).
-			SetDetail("Response: " + string(res.Body) + ".")
-	}
-	return object, nil
+	PanicIf(IsNil(res.JSON), "json is empty")
+	return res.JSON, nil
 }

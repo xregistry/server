@@ -23,12 +23,10 @@ func addImportCmd(parent *cobra.Command) {
 }
 
 func importFunc(cmd *cobra.Command, args []string) {
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
+
+	cliReg := (*xrlib.CLIReg)(reg)
 
 	if len(args) == 0 {
 		args = []string{"/"}
@@ -61,7 +59,7 @@ func importFunc(cmd *cobra.Command, args []string) {
 	Error(xErr)
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
-	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
+	if xid.ResourceID != "" && rm.GetHasDocument() && xid.IsEntity {
 		suffix = "$details"
 	}
 
@@ -82,7 +80,13 @@ func importFunc(cmd *cobra.Command, args []string) {
 	}
 
 	path := xid.String() + queryParams + suffix
-	res, xErr := reg.HttpDo(VerboseCount > 1, "POST", path, []byte(data))
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "POST",
+		URL:     cliReg.WithPath(path),
+		Headers: xrlib.HTTPHeaders,
+		Body:    []byte(data),
+		Debug:   VerboseCount > 1,
+	})
 	Error(xErr)
 
 	obj = map[string]json.RawMessage{}

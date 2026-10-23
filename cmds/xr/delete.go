@@ -26,12 +26,10 @@ func addDeleteCmd(parent *cobra.Command) {
 }
 
 func deleteFunc(cmd *cobra.Command, args []string) {
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
+
+	cliReg := (*xrlib.CLIReg)(reg)
 
 	force, _ := cmd.Flags().GetBool("force")
 	data, _ := cmd.Flags().GetString("data")
@@ -81,13 +79,23 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 
 	if !force {
 		for id, _ := range objects {
-			_, xErr := reg.HttpDo(VerboseCount > 2, "GET", id, nil)
+			_, xErr := HttpDo(&HttpRequest{
+				Verb:    "GET",
+				URL:     cliReg.WithPath(id),
+				Headers: xrlib.HTTPHeaders,
+				Debug:   VerboseCount > 2,
+			})
 			Error(xErr)
 		}
 	}
 
 	for id, _ := range objects {
-		res, xErr := reg.HttpDo(VerboseCount > 1, "DELETE", id, nil)
+		res, xErr := HttpDo(&HttpRequest{
+			Verb:    "DELETE",
+			URL:     cliReg.WithPath(id),
+			Headers: xrlib.HTTPHeaders,
+			Debug:   VerboseCount > 1,
+		})
 		if res == nil || res.Code != 404 {
 			Error(xErr)
 		}

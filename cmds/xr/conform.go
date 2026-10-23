@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/xregistry/server/cmds/xr/xrlib"
+	"github.com/xregistry/server/registry"
 )
 
 var conformRunAliases = []string{"all", "smoke", "entities"}
@@ -125,7 +125,11 @@ func runConform(servers []string, config *TDConfig) int {
 
 func testServer(td *TD) {
 	config := td.Config
-	td.SetRegistry(xrlib.DefineRegistry(config.Server))
+
+	reg, xErr := registry.DefineRegistry(config.Server, XRConfig)
+	td.NoErrorStop(xErr)
+
+	td.SetRegistry(reg)
 
 	runFuncs := config.RunFuncs
 	if len(runFuncs) == 0 {

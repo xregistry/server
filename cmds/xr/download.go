@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 	// "go.abhg.dev/goldmark/anchor"
 )
 
@@ -94,16 +95,14 @@ Notes:
 }
 
 func downloadFunc(cmd *cobra.Command, args []string) {
-	if GetServer() == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
 	if len(args) == 0 {
 		Error("Missing the DIR argument")
 	}
 
-	reg, xErr := xrlib.GetRegistry(GetServer())
+	reg, xErr := xrlib.GetRegistry("", XRConfig)
 	Error(xErr)
+
+	cliReg := (*xrlib.CLIReg)(reg)
 
 	_, xErr = reg.GetModel()
 	Error(xErr)
@@ -385,7 +384,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	traverseFromXid = func(reg *xrlib.Registry, xid *Xid, root string) {
+	traverseFromXid = func(reg *registry.Registry, xid *Xid, root string) {
 		fname := xid.String()
 		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
 			fname += "$details"
@@ -398,7 +397,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		// matters (mirrors cmds/xr/get.go's minimize() pipeline). Skips
 		// the reordering step (but not noDiffObj/makeImportObj below) if
 		// the "rawjson" .xr config option is set — see GetRawJSON().
-		treeAny, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(rawData, GetRawJSON())
+		treeAny, xErr := registry.CanonicalPrettyReorderTreeOrRaw(rawData, GetRawJSON())
 		if xErr != nil {
 			Error(NewXRError("client_error", "",
 				"error_detail="+
@@ -436,7 +435,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				}
 			}
 
-			gList, xErr := reg.ListGroupModels()
+			gList, xErr := cliReg.ListGroupModels()
 			Error(xErr)
 			sort.Strings(gList)
 			for _, gName := range gList {
@@ -495,7 +494,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			}
 
 		case ENTITY_RESOURCE:
-			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
+			rm, xErr := cliReg.FindResourceModel(xid.Group, xid.Resource)
 			Error(xErr)
 
 			// old: If !hasDoc then at least show {} for the resource
@@ -643,7 +642,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			}
 
 		case ENTITY_VERSION:
-			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
+			rm, xErr := cliReg.FindResourceModel(xid.Group, xid.Resource)
 			Error(xErr)
 
 			// old: If !hasDoc then at least show {} for the version
@@ -846,9 +845,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				// If the user wants the "capabilities" to be modified for a
 				// static web site then we need to update them in the /export
 				// output too
-				treeAny, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(exportData, GetRawJSON())
+				treeAny, xErr := registry.CanonicalPrettyReorderTreeOrRaw(exportData, GetRawJSON())
 				Error(xErr, NewXRError("parsing_response",
-					reg.GetServerURL()+"/export",
+					cliReg.GetServerURL()+"/export",
 					"error_detail="+Err2String(xErr)))
 				obj, _ := treeAny.(*OrderedMap)
 				if obj == nil {
@@ -921,9 +920,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			data, _ = Download(reg, "/export")
 		}
 
-		treeAny, xErr := xrlib.CanonicalPrettyReorderTreeOrRaw(data, GetRawJSON())
+		treeAny, xErr := registry.CanonicalPrettyReorderTreeOrRaw(data, GetRawJSON())
 		Error(xErr, NewXRError("parsing_response",
-			reg.GetServerURL()+"/export",
+			cliReg.GetServerURL()+"/export",
 			"error_detail="+Err2String(xErr)))
 		obj, _ := treeAny.(*OrderedMap)
 		if obj == nil {
@@ -943,8 +942,14 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 }
 
 // Body, Headers
-func Download(reg *xrlib.Registry, path string) ([]byte, map[string]string) {
-	res, xErr := reg.HttpDo(VerboseCount > 1, "GET", path, nil)
+func Download(reg *registry.Registry, path string) ([]byte, map[string]string) {
+	cliReg := (*xrlib.CLIReg)(reg)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     cliReg.WithPath(path),
+		Headers: xrlib.HTTPHeaders,
+		Debug:   VerboseCount > 1,
+	})
 	// if xErr != nil {
 	// return nil, nil
 	// }
@@ -982,7 +987,7 @@ var traverseQueue = make(chan bool, 10)
 var traverseWG = sync.WaitGroup{}
 
 type QueueItem struct {
-	reg  *xrlib.Registry
+	reg  *registry.Registry
 	xid  *Xid
 	root string
 }
@@ -990,7 +995,7 @@ type QueueItem struct {
 var WorkQueue = []*QueueItem{}
 var WorkLock = sync.RWMutex{}
 
-func Enqueue(reg *xrlib.Registry, xid *Xid, root string) {
+func Enqueue(reg *registry.Registry, xid *Xid, root string) {
 	// fmt.Printf("Enqueuing: %q\n", xid)
 	WorkLock.Lock()
 	defer WorkLock.Unlock()
@@ -1023,7 +1028,7 @@ func QueueSize() int {
 
 type traverseFunc func(xid *Xid) ([]byte, *XRError)
 
-var traverseFromXid = (func(reg *xrlib.Registry, xid *Xid, root string))(nil)
+var traverseFromXid = (func(reg *registry.Registry, xid *Xid, root string))(nil)
 
 func ProcessWorkQueue() {
 	stop := false

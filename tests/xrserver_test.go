@@ -455,7 +455,10 @@ path.regcollection: more
 	defer runRes.Kill()
 
 	for i := 0; ; i++ {
-		res, xErr := CommonHttpDo("GET", "http://localhost:8686", nil, nil)
+		res, xErr := HttpDo(&HttpRequest{
+			Verb: "GET",
+			URL:  "http://localhost:8686",
+		})
 		if res.Code == 200 {
 			break
 		}
@@ -473,8 +476,14 @@ path.regcollection: more
 		}
 	}
 
-	res, xErr := CommonHttpDo("GET", "http://localhost:8686/iuiu", nil, nil)
-	res2, xErr := CommonHttpDo("GET", "http://localhost:8686/iuiu/xrui.json", nil, nil)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb: "GET",
+		URL:  "http://localhost:8686/iuiu",
+	})
+	res2, xErr := HttpDo(&HttpRequest{
+		Verb: "GET",
+		URL:  "http://localhost:8686/iuiu/xrui.json",
+	})
 
 	runRes.Kill()
 	runRes.Wait()

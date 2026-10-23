@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func TestPrettyPrint(t *testing.T) {
@@ -182,7 +182,11 @@ func TestTDHTTPGetJSON(t *testing.T) {
 			}
 
 			td := newTestTD("HTTP GET")
-			td.SetRegistry(xrlib.DefineRegistry(server.URL))
+
+			reg, xErr := registry.DefineRegistry(server.URL, XRConfig)
+			td.NoErrorStop(xErr)
+
+			td.SetRegistry(reg)
 			const path = "/widgets?filter=widgetid=NULL"
 			res := td.HTTPGetJSON(path)
 
@@ -217,7 +221,11 @@ func TestTDHTTPGetJSON(t *testing.T) {
 		defer server.Close()
 
 		td := newTestTD("HTTP GET")
-		td.SetRegistry(xrlib.DefineRegistry(server.URL))
+
+		reg, xErr := registry.DefineRegistry(server.URL, XRConfig)
+		td.NoErrorStop(xErr)
+
+		td.SetRegistry(reg)
 		first := td.HTTPGetJSON("/widgets?filter=widgetid=NULL")
 		second := td.HTTPGetJSON("/widgets?filter=widgetid=null")
 		XCheck(t, first == nil, "The first request must fail")
@@ -237,7 +245,11 @@ func TestTDHTTPGetJSON(t *testing.T) {
 		defer server.Close()
 
 		td := newTestTD("HTTP GET")
-		td.SetRegistry(xrlib.DefineRegistry(server.URL))
+
+		reg, xErr := registry.DefineRegistry(server.URL, XRConfig)
+		td.NoErrorStop(xErr)
+
+		td.SetRegistry(reg)
 		td.Config.FailFast = true
 		continued := false
 		td.Run(func(td *TD) {
@@ -275,7 +287,11 @@ func TestCapabilitiesMissingResponseStatus(t *testing.T) {
 			defer server.Close()
 
 			root := newTestTD("Capabilities")
-			root.SetRegistry(xrlib.DefineRegistry(server.URL))
+
+			reg, xErr := registry.DefineRegistry(server.URL, XRConfig)
+			root.NoErrorStop(xErr)
+
+			root.SetRegistry(reg)
 			td := root.Run(TestCapabilities)
 			XEqual(t, "Capabilities status", td.Status, test.status)
 			XEqual(t, "Requests", requests.Load(), int32(1))
@@ -289,7 +305,11 @@ func TestCapabilitiesMissingResponseStatus(t *testing.T) {
 func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 	staleRun := NewTD(nil, "stale")
 	staleRun.Fail("stale failure")
-	staleRegistry := xrlib.DefineRegistry("http://stale.example")
+
+	reg, xErr := registry.DefineRegistry("http://stale.example", XRConfig)
+	staleRun.NoErrorStop(xErr)
+
+	staleRegistry := reg
 	out := bytes.Buffer{}
 	config := &TDConfig{
 		Out:          &out,
@@ -381,7 +401,10 @@ func TestConformanceStateErrorPrintCompleteResult(t *testing.T) {
 
 	td := newTestTD(target)
 	cachePassedTest(td, TestGroups)
-	reg := xrlib.DefineRegistry(target)
+
+	reg, xErr := registry.DefineRegistry(target, XRConfig)
+	td.NoErrorStop(xErr)
+
 	reg.SetStuff("groupPaths", "not group paths")
 	td.SetRegistry(reg)
 	td.Run(TestResources)
