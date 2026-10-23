@@ -97,7 +97,7 @@ func IsValidID(id string, errIDName string) *XRError {
 
 type Model struct {
 	Registry      *Registry              `json:"-"`
-	Source        string                 `json:"source,omitempty"`
+	Source        []byte                 `json:"source,omitempty"`
 	Description   string                 `json:"description,omitempty"`
 	Documentation string                 `json:"documentation,omitempty"`
 	Labels        map[string]string      `json:"labels,omitempty"`
@@ -428,12 +428,12 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 */
 
 func (m *Model) GetSourceAsModel() *Model {
-	if m.Source == "" {
+	if m.Source == nil {
 		return nil
 	}
 
-	srcModel, xErr := ParseModel([]byte(m.Source), m.Registry)
-	PanicIf(xErr != nil, "Error with src: %s", m.Source)
+	srcModel, xErr := ParseModel(m.Source, m.Registry)
+	PanicIf(xErr != nil, "Error with src: %s", string(m.Source))
 	return srcModel
 }
 
@@ -496,7 +496,7 @@ func (m *Model) Clone() *Model {
 
 	newM := &Model{
 		Registry:      m.Registry,
-		Source:        m.Source,
+		Source:        bytes.Clone(m.Source),
 		Description:   m.Description,
 		Documentation: m.Documentation,
 		Labels:        maps.Clone(m.Labels),

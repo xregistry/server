@@ -359,9 +359,10 @@ func (reg *Registry) LoadCapabilities() (*Capabilities, *XRError) {
 		return nil, xErr
 	}
 
-	if cap == nil {
-		cap = DefaultCapabilities.Clone()
-	}
+	// Let the backend decide what the default is
+	// if cap == nil {
+	// cap = DefaultCapabilities.Clone()
+	// }
 
 	reg.Capabilities = cap
 	return reg.Capabilities, nil
@@ -476,7 +477,11 @@ func (reg *Registry) SetModel(newM *Model, src string, verifyData bool) *XRError
 		}
 		src = string(buf)
 	}
-	reg.Model.Source = src
+	if src == "" {
+		reg.Model.Source = nil
+	} else {
+		reg.Model.Source = []byte(src)
+	}
 
 	if xErr := reg.Model.VerifyAndSave(verifyData); xErr != nil {
 		// Too much to undo. The Verify() at the top should have caught
@@ -650,6 +655,17 @@ func (reg *Registry) GetModel() (*Model, *XRError) {
 	return reg.Model, nil
 }
 
+func (reg *Registry) GetModelSource() ([]byte, *XRError) {
+	m, xErr := reg.GetModel()
+	if xErr != nil {
+		return nil, xErr
+	}
+	if m == nil {
+		return nil, nil
+	}
+	return m.Source, nil
+}
+
 func (reg *Registry) LoadRemoteModel(tryInline bool) *XRError {
 	url := reg.GetStuffAsString("server")
 	if url == "" {
@@ -792,6 +808,15 @@ func (reg *Registry) FindGroupModel(gPlural string) (*GroupModel, *XRError) {
 		return nil, xErr
 	}
 	return model.FindGroupModel(gPlural), nil
+}
+
+func (reg *Registry) FindResourceModel(gPlural, rPlural string) (*ResourceModel, *XRError) {
+	model, xErr := reg.GetModel()
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	return model.FindResourceModel(gPlural, rPlural), nil
 }
 
 func NewXRServerConfig(fileName string) *Config {

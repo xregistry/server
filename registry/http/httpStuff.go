@@ -418,11 +418,11 @@ func HTTPGETModelSource(info *registry.RequestInfo) *XRError {
 	}
 
 	modelSrc := model.Source
-	if modelSrc == "" {
-		modelSrc = `{}`
+	if modelSrc == nil {
+		modelSrc = []byte(`{}`)
 	}
 
-	buf, err := PrettyPrintJSON([]byte(modelSrc), "", "  ")
+	buf, err := PrettyPrintJSON(modelSrc, "", "  ")
 	if err != nil {
 		return NewXRError("server_error", "/modelsource").
 			SetDetailf("Error parsing modelsource: %s.", err.Error())
