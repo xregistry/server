@@ -3788,8 +3788,14 @@ func (e *Entity) RemoveReadOnlyImmutable(obj Object) {
 		key := attr.Name
 
 		if key == "versionid" || key == singular || key == "epoch" {
-			// epoch and ID are special, we do need to check their values later
-			continue
+			// IDs and update epochs are validated later. A create epoch is
+			// always server-generated, so discard it before type validation.
+			// Existing entities can reach here before their origin is captured,
+			// so only a non-nil, empty origin proves this entity is new.
+			if key != "epoch" || e.OriginObject == nil ||
+				len(e.OriginObject) != 0 {
+				continue
+			}
 		}
 
 		if _, keyPresent := obj[key]; !keyPresent {

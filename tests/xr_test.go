@@ -3,10 +3,14 @@ package tests
 // ├ │ └
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -3022,9 +3026,525 @@ Pass: 229   Fail: 0   Warn: 0   Skip: 3
 `, "", 0)
 }
 
+func TestXRConformMutations(t *testing.T) {
+	const target = "http://localhost:8181"
+
+	t.Run("authorization before network", func(t *testing.T) {
+		XCLI(t, "conform --run mutations http://127.0.0.1:1", "",
+			"", "--run mutations requires --allow-mutations.\n", 1)
+		XCLI(t, "conform --run mutations --allow-mutations "+
+			"http://127.0.0.1:1 http://127.0.0.1:2", "",
+			"", "--run mutations requires exactly one target.\n", 1)
+	})
+
+	t.Run("authorization alone is read only", func(t *testing.T) {
+		cliResult := XCLI(t, "conform --allow-mutations --run smoke -d1 -vvv "+
+			"http://localhost:8282/conform", "",
+			`PASS: http://localhost:8282/conform (skip:1)
+Pass: 51   Fail: 0   Warn: 0   Skip: 1
+`, "*", 0)
+		XEqual(t, "PUT requests",
+			strings.Count(cliResult.Stderr, "Request: PUT "), 0)
+		XEqual(t, "DELETE requests",
+			strings.Count(cliResult.Stderr, "Request: DELETE "), 0)
+	})
+
+	t.Run("lifecycle", func(t *testing.T) {
+		reg := NewRegistry("TestXRConformMutations")
+		defer PassDeleteReg(t, reg)
+
+		XHTTP(t, reg, "PUT", "/", `{
+  "capabilities": {
+    "available": {
+      "capabilities": {"mutable": true},
+      "entities": {"mutable": true},
+      "model": {"mutable": false}
+    },
+    "flags": ["epoch"]
+  },
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file"
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "existing": {
+      "name": "original",
+      "labels": {
+        "fixture": "true"
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConformMutations",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+		XHTTP(t, reg, "PUT", "/dirs/existing", `{
+  "dirid": "existing",
+  "epoch": "xr-conform-create-only",
+  "name": "changed",
+  "labels": {
+    "xr-conform-run": "not-owned"
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/dirs/existing\" is not valid: must be a uinteger.",
+  "subject": "/dirs/existing",
+  "args": {
+    "error_detail": "must be a uinteger",
+    "name": "epoch"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+
+		XHTTP(t, reg, "GET", "/dirs/existing", "", 200, `{
+  "dirid": "existing",
+  "self": "http://localhost:8181/dirs/existing",
+  "xid": "/dirs/existing",
+  "epoch": 1,
+  "name": "original",
+  "labels": {
+    "fixture": "true"
+  },
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/existing/files",
+  "filescount": 0
+}
+`)
+
+		XCLI(t, "conform --run mutations --allow-mutations -d3 "+target, "",
+			`PASS: http://localhost:8181 (skip:1)
+└─ PASS: TestTDGroupCreateReadDelete (skip:1)
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   ├─ PASS: Confirm target Group is absent
+   ├─ PASS: Create run-owned Group
+   ├─ PASS: Read run-owned Group
+   └─ PASS: Clean up run-owned Group
+Pass: 45   Fail: 0   Warn: 0   Skip: 1
+`, "", 0)
+
+		expectedCollection := `{
+  "existing": {
+    "dirid": "existing",
+    "self": "http://localhost:8181/dirs/existing",
+    "xid": "/dirs/existing",
+    "epoch": 1,
+    "name": "original",
+    "labels": {
+      "fixture": "true"
+    },
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/existing/files",
+    "filescount": 0
+  }
+}
+`
+		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
+
+		XCLI(t, "conform --run mutations --allow-mutations --output json "+
+			target, "",
+			expectedOutput(t, "files/conform-output/mutations-success.json"),
+			"", 0)
+
+		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
+	})
+
+	t.Run("lifecycle without epoch flag", func(t *testing.T) {
+		reg := NewRegistry("TestXRConformMutationsNoEpochFlag")
+		defer PassDeleteReg(t, reg)
+
+		XHTTP(t, reg, "PUT", "/", `{
+  "capabilities": {
+    "available": {
+      "capabilities": {"mutable": true},
+      "entities": {"mutable": true},
+      "model": {"mutable": false}
+    }
+  },
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {"singular": "file"}
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConformMutationsNoEpochFlag",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+		XCLI(t, "conform --run mutations --allow-mutations -d3 "+target, "",
+			`PASS: http://localhost:8181 (skip:1)
+└─ PASS: TestTDGroupCreateReadDelete (skip:1)
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   ├─ PASS: Confirm target Group is absent
+   ├─ PASS: Create run-owned Group
+   ├─ PASS: Read run-owned Group
+   └─ PASS: Clean up run-owned Group
+Pass: 45   Fail: 0   Warn: 0   Skip: 1
+`, "", 0)
+
+		XHTTP(t, reg, "GET", "/dirs", "", 200, "{}\n")
+	})
+
+	tests := []struct {
+		name       string
+		mutable    bool
+		attributes string
+		reason     string
+	}{
+		{
+			name:    "entities are read only",
+			mutable: false,
+			reason:  "Registry entities are not advertised as mutable - leaving",
+		},
+		{
+			name:    "model requires client value",
+			mutable: true,
+			attributes: `,
+          "attributes": {
+            "required": {
+              "type": "string",
+              "required": true
+            }
+          }`,
+			reason: "No Group Type supports run-owned creation - leaving",
+		},
+		{
+			name:    "readonly ownership labels",
+			mutable: true,
+			attributes: `,
+          "attributes": {
+            "labels": {
+              "type": "map",
+              "readonly": true,
+              "item": {"type": "string"}
+            }
+          }`,
+			reason: "No Group Type supports run-owned creation - leaving",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reg := NewRegistry("TestXRConformMutationSkip")
+			defer PassDeleteReg(t, reg)
+
+			if !test.mutable {
+				XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {"singular": "file"}
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConformMutationSkip",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+				XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true},
+    "entities": {"mutable": false},
+    "model": {"mutable": false}
+  },
+  "flags": ["epoch"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "epoch"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+			} else {
+				XHTTP(t, reg, "PUT", "/", fmt.Sprintf(`{
+  "capabilities": {
+    "available": {
+      "capabilities": {"mutable": true},
+      "entities": {"mutable": %t},
+      "model": {"mutable": false}
+    },
+    "flags": ["epoch"]
+  },
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {"singular": "file"}
+        }%s
+      }
+    }
+  }
+}`, test.mutable, test.attributes), 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConformMutationSkip",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+			}
+
+			XCLI(t, "conform --run mutations --allow-mutations --skips -d3 "+
+				target, "",
+				`PASS: http://localhost:8181 (skip:3)
+└─ SKIP: TestTDGroupCreateReadDelete (skip:3)
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: Retrieving capabilities
+   │  ├─ PASS: capabilities.available MUST include "capabilities"
+   │  ├─ PASS: capabilities.available MUST include "entities"
+   │  ├─ PASS: capabilities.available MUST include "model"
+   │  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+   │  ├─ PASS: 'GET /capabilities' MUST return 200
+   │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+   │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  ├─ PASS: Parsing capabilities MUST work
+   │  ├─ PASS: 'GET /' MUST return 200
+   │  ├─ PASS: 'GET /' MUST return a non-empty body
+   │  ├─ PASS: 'GET /' MUST return a JSON body
+   │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+   │  ├─ PASS: Testing ?inline=capabilities (skip:1)
+   │  │  └─ SKIP: ?inline not supported
+   │  └─ PASS: Parsing Capabilities MUST work
+   └─ SKIP: `+test.reason+`
+Pass: 27   Fail: 0   Warn: 0   Skip: 3
+`, "", 0)
+		})
+	}
+}
+
+func TestXRConformMutationCleanupOutput(t *testing.T) {
+	for _, failfast := range []bool{false, true} {
+		for _, output := range []string{"text", "json"} {
+			t.Run(fmt.Sprintf("%s failfast=%t", output, failfast),
+				func(t *testing.T) {
+					reg := NewRegistry("TestXRConformMutationCleanupOutput")
+					defer PassDeleteReg(t, reg)
+
+					XHTTP(t, reg, "PUT", "/", `{
+  "capabilities": {
+    "available": {
+      "capabilities": {"mutable": true},
+      "entities": {"mutable": true},
+      "model": {"mutable": false}
+    },
+    "flags": ["epoch"]
+  },
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {"singular": "file"}
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConformMutationCleanupOutput",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+					var mu sync.Mutex
+					groupPath := ""
+					owner := ""
+					groupGets := 0
+					deletes := 0
+					server := httptest.NewServer(http.HandlerFunc(
+						func(w http.ResponseWriter, r *http.Request) {
+							mu.Lock()
+							defer mu.Unlock()
+
+							if r.Method == http.MethodPut {
+								groupPath = r.URL.Path
+							}
+							if r.URL.Path == groupPath {
+								switch r.Method {
+								case http.MethodGet:
+									groupGets++
+									// The first GET is the normal read. The second
+									// is the deferred cleanup ownership probe.
+									if groupGets == 2 {
+										// Fail only cleanup so we can assert that
+										// no DELETE follows and the Group remains.
+										http.Error(w, "cleanup unavailable",
+											http.StatusServiceUnavailable)
+										return
+									}
+								case http.MethodDelete:
+									deletes++
+								}
+							}
+							// Keep normal traffic on the real server; this wrapper
+							// only injects the cleanup GET failure above.
+							response := httptest.NewRecorder()
+							MainServer.ServeHTTP(response, r)
+							if r.Method == http.MethodPut {
+								var created struct {
+									Labels map[string]string `json:"labels"`
+								}
+								if err := json.Unmarshal(response.Body.Bytes(),
+									&created); err != nil {
+									t.Errorf("Parsing created Group: %v", err)
+								}
+								owner = created.Labels["xr-conform-run"]
+							}
+							for name, values := range response.Header() {
+								w.Header()[name] = values
+							}
+							w.WriteHeader(response.Code)
+							_, _ = w.Write(response.Body.Bytes())
+						}))
+					defer server.Close()
+
+					result := XCLI(t, fmt.Sprintf(
+						"conform --run mutations --allow-mutations "+
+							"--failfast=%t --output %s --nowrap -d3 %s",
+						failfast, output, server.URL), "", "*", "", 1)
+
+					mu.Lock()
+					path := groupPath
+					gotOwner := owner
+					gotDeletes := deletes
+					mu.Unlock()
+					XCheck(t, strings.HasPrefix(path, "/dirs/xr-conform-"),
+						"Expected the run-owned Group path, got %q", path)
+					XEqual(t, "Cleanup DELETE requests", gotDeletes, 0)
+
+					expected := `FAIL: http://mutation-test (skip:1)
+└─ FAIL: TestTDGroupCreateReadDelete (skip:1)
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   ├─ PASS: Confirm target Group is absent
+   ├─ PASS: Create run-owned Group
+   ├─ PASS: Read run-owned Group
+   └─ FAIL: Clean up run-owned Group
+      ├─ Cleanup GET response: 503 Service Unavailable; body: "cleanup unavailable"
+      ├─ FAIL: Cleanup GET MUST return 200 or 404
+      └─ Run-owned Group may remain: /dirs/xr-conform-RUN
+Pass: 39   Fail: 4   Warn: 0   Skip: 1
+`
+					if output == "json" {
+						expected = expectedOutput(t,
+							"files/conform-output/mutations-cleanup-failure.json")
+					}
+					got := strings.NewReplacer(
+						server.URL, "http://mutation-test",
+						path, "/dirs/xr-conform-RUN").Replace(result.Stdout)
+					XEqual(t, "Cleanup failure output", got, expected)
+
+					id := strings.TrimPrefix(path, "/dirs/")
+					XHTTP(t, reg, "GET", path, "", 200, fmt.Sprintf(`{
+  "dirid": "%s",
+  "self": "http://localhost:8181%s",
+  "xid": "%s",
+  "epoch": 1,
+  "labels": {
+    "xr-conform-run": "%s"
+  },
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181%s/files",
+  "filescount": 0
+}
+`, id, path, path, gotOwner, path))
+				})
+		}
+	}
+}
+
 func TestXRConformUnknownRun(t *testing.T) {
 	XCLI(t, "conform --run bogus http://127.0.0.1:1", "", "",
-		"Unknown --run value: \"bogus\". Valid values: all, smoke, entities.\n",
+		"Unknown --run value: \"bogus\". Valid values: all, smoke, entities, mutations.\n",
 		1)
 }
 
@@ -3047,12 +3567,13 @@ Usage:
   xr conform [URL...] [flags]
 
 Flags:
+      --allow-mutations   Authorize explicitly selected mutation tests
   -d, --depth int         Console depth (0=all) (default 2)
       --failfast          Stop on first failure
   -l, --logs              Show logs even on success
       --nowrap            Don't wrap output
   -o, --output string     Output format (text*, json)
-  -r, --run stringArray   Run test (all, smoke, entities)
+  -r, --run stringArray   Run test (all, smoke, entities, mutations)
       --skips             Show SKIPs in console
       --stats             Show full stats on all groups
       --warns             Show WARNs in console
@@ -3177,7 +3698,7 @@ Pass: 57   Fail: 0   Warn: 0   Skip: 5
 		request string
 		count   int
 	}{
-		{request: "Request: GET " + target + "/model", count: 4},
+		{request: "Request: GET " + target + "/model", count: 2},
 		{request: "Request: GET " + target + "/capabilities", count: 4},
 	} {
 		got := strings.Count(cliResult.Stderr, check.request)

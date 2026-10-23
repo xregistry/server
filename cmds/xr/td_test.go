@@ -302,6 +302,46 @@ func TestCapabilitiesMissingResponseStatus(t *testing.T) {
 	}
 }
 
+func TestModelCachesVerifiedRegistryModel(t *testing.T) {
+	var modelRequests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path == "/model" {
+				modelRequests.Add(1)
+				_, _ = w.Write([]byte(`{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {"singular": "file"}
+      }
+    }
+  }
+}`))
+			} else {
+				_, _ = w.Write([]byte(`{}`))
+			}
+		}))
+	defer server.Close()
+
+	root := newTestTD("Model")
+	reg, xErr := registry.DefineRegistry(server.URL, XRConfig)
+	root.NoErrorStop(xErr)
+	root.SetRegistry(reg)
+	result := root.Run(TestModel)
+	XEqual(t, "Status", result.Status, PASS)
+	XCheck(t, reg.Model != nil, "Registry MUST own the verified model")
+	verifiedModel := reg.Model
+	model, xErr := reg.GetModel()
+	XNoErr(t, xErr)
+	XCheck(t, model == verifiedModel, "GetModel MUST reuse the verified model")
+	XEqual(t, "Model requests", modelRequests.Load(), int32(1))
+	XCheck(t, root.Config.Model == nil, "TDConfig MUST NOT cache another model")
+	XCheck(t, model.Groups["dirs"].Attributes["labels"] != nil,
+		"Cached model MUST include verified core attributes")
+}
+
 func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 	staleRun := NewTD(nil, "stale")
 	staleRun.Fail("stale failure")
