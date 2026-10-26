@@ -32,7 +32,7 @@ type Tx struct {
 	// Consider having Commit() just automatically call ValidateAndSave
 	// for all entities in the Tx - then people don't need to call save
 	// explicitly
-	Cache map[string]*Entity // e.XID
+	Cache map[string]*Entity // e.Registry.SID + e.XID
 
 	// Server Fields
 	Tx          any    // *sql.Tx - actual DB Tx pointer
@@ -402,7 +402,7 @@ func (tx *Tx) SaveCommitRefresh() *XRError {
 	   // Reload all cached entities so the tests don't need to do it themselves
 	   log.Printf("tx: %s cache size: %d", tx.UUID, len(tx.Cache))
 	   for _, e := range tx.Cache {
-	       log.Printf("tx: %s Refresh: %s/%s", tx.UUID, e.Singular, e.UID)
+	       log.Printf("tx: %s Refresh: %s", tx.UUID, e.XID)
 	       e.Refresh()
 	   }
 	*/
@@ -457,9 +457,10 @@ func (tx *Tx) EraseCache() {
 }
 
 func (tx *Tx) AddToCache(e *Entity) {
-	PanicIf(IsNil(e.Self), "tx: %s Self is nil, %s/%s",
-		tx.UUID, e.Singular, e.UID)
-	tx.Cache[e.Registry.UID+e.XID] = e
+	PanicIf(IsNil(e.Self), "tx: %s Self is nil, %s", tx.UUID, e.XID)
+	PanicIf(e.Registry.SID == "", "tx: %s SID is nil, %s", tx.UUID, e.XID)
+
+	tx.Cache[e.Registry.SID+e.XID] = e
 }
 
 func (tx *Tx) RemoveFromCache(e *Entity) {
@@ -474,64 +475,68 @@ func (tx *Tx) RemoveFromCache(e *Entity) {
 		e.ShowStack()
 		panic(e.XID + " is dirty")
 	}
-	delete(tx.Cache, e.Registry.UID+e.XID)
+	delete(tx.Cache, e.Registry.SID+e.XID)
+}
+
+func (tx *Tx) GetEntity(regSID string, eXID string) *Entity {
+	return tx.Cache[regSID+eXID]
 }
 
 func (tx *Tx) AddRegistry(r *Registry) { tx.AddToCache(&r.Entity) }
-func (tx *Tx) GetRegistry(rID string) *Registry {
-	entry, ok := tx.Cache[rID]
-	if !ok {
+func (tx *Tx) GetRegistry(regSID string) *Registry {
+	entity := tx.GetEntity(regSID, "/")
+	if entity == nil {
 		return nil
 	}
-	return (entry.Self).(*Registry)
+	return (entity.Self).(*Registry)
 }
 
 func (tx *Tx) AddGroup(g *Group) { tx.AddToCache(&g.Entity) }
 func (tx *Tx) GetGroup(r *Registry, plural string, gID string) *Group {
-	entry, ok := tx.Cache[r.Registry.UID+"/"+plural+"/"+gID]
-	if !ok {
+	entity := tx.GetEntity(r.Registry.SID, "/"+plural+"/"+gID)
+	if entity == nil {
 		return nil
 	}
-	return (entry.Self).(*Group)
+	return (entity.Self).(*Group)
 }
 
 func (tx *Tx) AddResource(r *Resource) { tx.AddToCache(&r.Entity) }
 func (tx *Tx) GetResource(g *Group, plural string, rID string) *Resource {
-	entry, ok := tx.Cache[g.Registry.UID+g.XID+"/"+plural+"/"+rID]
-	if !ok {
+	entity := tx.GetEntity(g.Registry.SID, g.XID+"/"+plural+"/"+rID)
+	if entity == nil {
 		return nil
 	}
-	return (entry.Self).(*Resource)
+	return (entity.Self).(*Resource)
 }
 
 func (tx *Tx) AddMeta(m *Meta) { tx.AddToCache(&m.Entity) }
 func (tx *Tx) GetMeta(r *Resource) *Meta {
-	entry, ok := tx.Cache[r.Registry.UID+r.XID+"/meta"]
-	if !ok {
+	entity := tx.GetEntity(r.Registry.SID, r.XID+"/meta")
+	if entity == nil {
 		return nil
 	}
-	return (entry.Self).(*Meta)
+	return (entity.Self).(*Meta)
 }
 
 func (tx *Tx) AddVersion(v *Version) { tx.AddToCache(&v.Entity) }
 func (tx *Tx) GetVersion(r *Resource, vID string) *Version {
-	entry, ok := tx.Cache[r.Registry.UID+r.XID+"/versions/"+vID]
-	if !ok {
+	entity := tx.GetEntity(r.Registry.SID, r.XID+"/versions/"+vID)
+	if entity == nil {
 		return nil
 	}
-	return (entry.Self).(*Version)
+	return (entity.Self).(*Version)
 }
 
 func (tx *Tx) WriteCache(force bool) *XRError {
 	for _, e := range tx.Cache {
 		if true { // !force {
 			if e.NewObject != nil {
-				log.Printf("tx: %s %s: %s", tx.UUID, e.Singular, e.UID)
+				log.Printf("tx: %s", tx.UUID, e.XID)
 				log.Printf("tx: %s %s", tx.UUID, ToJSON(e.NewObject))
 				ShowStack()
 			}
-			PanicIf(e.NewObject != nil, "tx: %s Entity %s/%q not saved",
-				tx.UUID, e.Singular, e.UID)
+			PanicIf(e.NewObject != nil, "tx: %s Entity %s not saved",
+				tx.UUID, e.XID)
 		}
 		if xErr := e.ValidateAndSave(false); xErr != nil {
 			return xErr

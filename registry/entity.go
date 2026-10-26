@@ -472,7 +472,7 @@ func InitOrderedSpecProps() {
 					tmp := e.Object["epoch"]
 					oldEpoch := NotNilInt(&tmp)
 					if oldEpoch < 0 {
-						panic("WHY????")
+						panic(fmt.Sprintf("tx: %s WHY????", e.Tx.UUID))
 						oldEpoch = 0
 					}
 
@@ -772,7 +772,7 @@ func InitOrderedSpecProps() {
 						}
 
 						obj, err := ParseJSONToObject(src)
-						PanicIf(err != nil, "Failed: %s", err)
+						PanicIf(err != nil, "tx: %s %s", e.Tx.UUID, err)
 						return obj
 					}
 					return nil
@@ -924,10 +924,10 @@ func InitOrderedSpecProps() {
 
 				UpdateFn: func(e *Entity) *XRError {
 					_, ok := e.NewObject["ancestorid"]
-					PanicIf(!ok, "Missing versionid")
+					PanicIf(!ok, "tx: %s Missing versionid", e.Tx.UUID)
 					if !ok {
 						_, ok := e.NewObject["versionid"]
-						PanicIf(!ok, "Missing versionid")
+						PanicIf(!ok, "tx: %s Missing versionid", e.Tx.UUID)
 						// Just assign a placeholder to get past validation.
 						// CheckAncestors() should fix this before we commit
 						// the tx
@@ -1191,7 +1191,7 @@ func InitOrderedSpecProps() {
 				UpdateFn: func(e *Entity) *XRError {
 					// Make sure it has a value, if not copy from existing
 					xRef := e.NewObject["xref"]
-					PanicIf(xRef == "", "xref is ''")
+					PanicIf(xRef == "", "tx: %s xref is ''", e.Tx.UUID)
 
 					/* Really should check this
 					   newVal := e.NewObject["defaultversionid"]
@@ -1208,7 +1208,7 @@ func InitOrderedSpecProps() {
 					// non-xRef resources MUST have a valid defaultversionid
 					if IsNil(xRef) {
 						meta, ok := e.Self.(*Meta)
-						PanicIf(!ok, "e isn't a meta: %#v", e)
+						PanicIf(!ok, "tx: %s e isn't a meta: %#v", e.Tx.UUID, e)
 
 						val := meta.GetAsString("defaultversionid")
 						ver, xErr := meta.Resource.FindVersion(val, false)
@@ -2037,7 +2037,8 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*X
 	}
 
 	ShowStack()
-	panic(fmt.Sprintf("Unknown type(%s): %s", path.UI(), attr.Type))
+	panic(fmt.Sprintf("tx: %s Unknown type(%s): %s", path.UI(),
+		e.Tx.UUID, attr.Type))
 }
 
 func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRError {
@@ -2378,7 +2379,7 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 		}
 		replace = (newValue != str)
 	default:
-		panic(fmt.Sprintf("Unknown type: %v", attr.Type))
+		panic(fmt.Sprintf("tx; %s Unknown type: %v", e.Tx.UUID, attr.Type))
 	}
 
 	// check against enum values - group-level "enum" constraints are
@@ -2444,7 +2445,7 @@ func (e *Entity) GetBaseAttributes() Attributes {
 		return rm.GetBaseVersionAttributes()
 	}
 
-	panic(fmt.Sprintf("Bad type: %v", e.Type))
+	panic(fmt.Sprintf("tx: %s Bad type: %v", e.Tx.UUID, e.Type))
 }
 
 func (e *Entity) CalcAttrDefault(attr *Attribute, path *PropPath) any {
@@ -2465,28 +2466,22 @@ func (e *Entity) CalcAttrDefault(attr *Attribute, path *PropPath) any {
 }
 
 func (e *Entity) GetOrigin(path string) any {
-	// Note this will NOT do any special processing for things like
-	// Resources that Get() does - we may need to do that one day
-	pp, err := PropPathFromUI(path)
-	PanicIf(err != nil, "%s", err)
-
-	var val any
-	if e.OriginObject != nil {
-		var ok bool
-		val, ok, _ = ObjectGetProp(e.OriginObject, pp)
-		if !ok {
-			// TODO: DUG - we should not need this
-			// val, _, _ = ObjectGetProp(e.Object, pp)
-		}
-	} else {
-		val, _, _ = ObjectGetProp(e.Object, pp)
+	if e.OriginObject == nil {
+		return nil
 	}
+
+	// Note this will NOT do any special processing for things like
+	// Resources (r.Singular) that Get() does - we may need to do that one day
+	pp, err := PropPathFromUI(path)
+	PanicIf(err != nil, "tx: %s %s", e.Tx.UUID, err)
+
+	val, _, _ := ObjectGetProp(e.OriginObject, pp)
 	return val
 }
 
 func (e *Entity) Get(path string) any {
 	pp, err := PropPathFromUI(path)
-	PanicIf(err != nil, "%s", err)
+	PanicIf(err != nil, "tx: %s %s", e.Tx.UUID, err)
 	return e.GetPP(pp)
 }
 
@@ -2497,7 +2492,7 @@ func (e *Entity) GetAsString(path string) string {
 	}
 
 	if _, ok := val.(string); !ok {
-		panic(fmt.Sprintf("Not a string - got %T(%v)", val, val))
+		panic(fmt.Sprintf("tx: %s Not string, got %T(%v)", e.Tx.UUID, val, val))
 	}
 
 	str, _ := val.(string)
@@ -2511,7 +2506,7 @@ func (e *Entity) GetOriginAsString(path string) string {
 	}
 
 	if _, ok := val.(string); !ok {
-		panic(fmt.Sprintf("Not a string - got %T(%v)", val, val))
+		panic(fmt.Sprintf("tx: %s Not string, got %T(%v)", e.Tx.UUID, val, val))
 	}
 
 	str, _ := val.(string)
@@ -2524,7 +2519,7 @@ func (e *Entity) GetAsInt(path string) int {
 		return -1
 	}
 	i, ok := val.(int)
-	PanicIf(!ok, "Val: %v  T: %T", val, val)
+	PanicIf(!ok, "tx: %s Val: %v  T: %T", e.Tx.UUID, val, val)
 	return i
 }
 
@@ -2533,7 +2528,7 @@ func (e *Entity) GetPP(pp *PropPath) any {
 		rm := e.GetResourceModel()
 		if rm.GetHasDocument() && pp.Top() == rm.Singular {
 			buf, xErr := e.Tx.Backend.GetResourceContents(e)
-			PanicIf(xErr != nil, "bubble up?")
+			PanicIf(xErr != nil, "tx: %s bubble up?", e.Tx.UUID)
 			return buf
 		}
 	}
@@ -2769,7 +2764,8 @@ func (e *Entity) eJustSetPath(path string, val any) *XRError {
 func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	defer log.Trace("tx: %s %s.%s=%v", e.Tx.UUID, e.XID, pp.UI(), val)()
 
-	PanicIf(e.AccessMode != FOR_WRITE, "ejustset: %q isn't FOR_WRITE", e.XID)
+	PanicIf(e.AccessMode != FOR_WRITE, "tx: %s %q isn't FOR_WRITE",
+		e.Tx.UUID, e.XID)
 
 	// Assume no other edits are pending
 	// e.Refresh() // trying not to have this here
@@ -2837,23 +2833,8 @@ func (e *Entity) EnsureNewObject() bool {
 	// buffering an edit against a row we never actually took a DB lock
 	// on, which is exactly the kind of bug this whole locking-strategy
 	// rework is trying to prevent. Catch it here, as early as possible.
-	PanicIf(e.AccessMode != FOR_WRITE, "EnsureNewObject: %q isn't FOR_WRITE",
-		e.XID)
-
-	// Save pre-Tx values in case we need to diff. NewObject will be erased
-	// and Object will be updated during a Save() so we can't diff NewObject
-	// vs Object. Use an empty (non-nil) map, not nil, when e.Object is
-	// nil (brand-new entity) - maps.Clone(nil) returns nil, which would
-	// otherwise be indistinguishable from "not captured this Tx yet"
-	// (see the OriginObject != nil check in GetOrigin()).
-	if e.OriginObject == nil {
-		// e.OriginObject = maps.Clone(e.Object)
-		if e.Object == nil {
-			e.OriginObject = map[string]any{}
-		} else {
-			e.OriginObject = maps.Clone(e.Object)
-		}
-	}
+	PanicIf(e.AccessMode != FOR_WRITE, "tx: %s %q isn't FOR_WRITE",
+		e.Tx.UUID, e.XID)
 
 	if e.NewObject == nil {
 		if e.Object == nil {
@@ -2869,7 +2850,8 @@ func (e *Entity) EnsureNewObject() bool {
 // We use this just to make sure we can set NewObjectStack when we need to
 // debug stuff
 func (e *Entity) SetNewObject(newObj map[string]any) {
-	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
+	PanicIf(e.AccessMode != FOR_WRITE, "tx: %s %q isn't FOR_WRITE",
+		e.Tx.UUID, e.XID)
 	e.NewObject = newObj
 
 	// Copy all system attributes from old Object so we don't lose them
@@ -2893,12 +2875,12 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 }
 
 func (e *Entity) WasTouched() bool {
-	log.FuncPrintf("tx: %s WasTouch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
+	log.FuncPrintf("tx: %s WasTouch: %s", e.Tx.UUID, e.XID)
 	return e.EpochSet
 }
 
 func (e *Entity) Touch() (bool, *XRError) {
-	log.FuncPrintf("tx: %s Touch: %s/%s", e.Tx.UUID, e.Singular, e.UID)
+	log.FuncPrintf("tx: %s Touch: %s", e.Tx.UUID, e.XID)
 
 	// See if it's already been modified (and saved) this Tx, if so exit
 	if e.ModSet && e.EpochSet {
@@ -3006,7 +2988,8 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 func (e *Entity) Save() *XRError {
 	defer log.Trace("tx: %s %s", e.Tx.UUID, e.XID)()
 
-	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
+	PanicIf(e.AccessMode != FOR_WRITE, "tx: %s %q isn't FOR_WRITE",
+		e.Tx.UUID, e.XID)
 
 	if log.IsFuncVerbose() {
 		log.Printf("tx: %s NewObject:\n%s", e.Tx.UUID, ToJSON(e.NewObject))
@@ -3274,7 +3257,7 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 		// Not sure why setting it to nil isn't sufficient (todo)
 		// e.NewObject = nil
 		if tmpxErr := e.Refresh(FOR_READ); tmpxErr != nil {
-			panic(tmpxErr)
+			panic(fmt.Sprintf("tx: %s %s", e.Tx.UUID, tmpxErr))
 		}
 	}
 
@@ -3323,8 +3306,8 @@ func GoToOurType(val any) string {
 }
 
 func (e *Entity) ToString() string {
-	str := fmt.Sprintf("%s/%s\n  Object: %s\n  NewObject: %s",
-		e.Singular, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
+	str := fmt.Sprintf("%s\n  Object: %s\n  NewObject: %s",
+		e.XID, ToJSON(e.Object), ToJSON(e.NewObject))
 	return str
 }
 
@@ -3347,7 +3330,7 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) *XRError {
 	}
 
 	r, ok := e.Self.(*Resource)
-	PanicIf(!ok, "%s isn't a Resource", e.XID)
+	PanicIf(!ok, "tx: %s %s isn't a Resource", e.Tx.UUID, e.XID)
 
 	vers, xErr := r.GetVersions(FOR_WRITE)
 	if xErr != nil {
@@ -3377,36 +3360,39 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) *XRError {
 func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 	defer log.Trace("tx: %s %s=%v", e.Tx.UUID, pp, val)()
 
-	PanicIf(pp.UI() == "", "pp is empty")
+	PanicIf(pp.UI() == "", "tx: %s pp is empty", e.Tx.UUID)
 
 	/* DUG FT
-	name := pp.DB()
+			name := pp.DB()
 
-	_, propsMap := e.GetPropsOrdered()
-	specProp, ok := propsMap[pp.Top()]
-	if ok && specProp.Internals != nil {
-		// Any prop with "dontStore"=true we skip
-		if specProp.Internals.dontStore {
-			return
-		}
-	}
+			_, propsMap := e.GetPropsOrdered()
+			specProp, ok := propsMap[pp.Top()]
+			if ok && specProp.Internals != nil {
+				// Any prop with "dontStore"=true we skip
+				if specProp.Internals.dontStore {
+					return
+				}
+			}
 
-	PanicIf(len(name) > MAX_PROPNAME, "SysProp name is too long: %s", name)
-	PanicIf(e.SID == "", "SID should not be empty")
-	PanicIf(e.Registry == nil, "Registry should not be nil")
+			PanicIf(len(name) > MAX_PROPNAME,
+		                "tx: %s SysProp name is too long: %s", e.Tx.UUID, name)
+			PanicIf(e.SID == "", "tx: %s SID should not be empty", e.Tx.UUID)
+			PanicIf(e.Registry == nil, "tx: %s Registry should not be nil",
+			            e.Tx.UUID)
 
-	if !IsNil(val) {
-		switch reflect.ValueOf(val).Kind() {
-		case reflect.String:
-			PanicIf(reflect.ValueOf(val).Len() > MAX_VARCHAR, "%s:too long", name)
-		case reflect.Slice:
-			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
-		case reflect.Map:
-			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
-		case reflect.Struct:
-			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
-		}
-	}
+			if !IsNil(val) {
+				switch reflect.ValueOf(val).Kind() {
+				case reflect.String:
+					PanicIf(reflect.ValueOf(val).Len() > MAX_VARCHAR,
+	                "tx %s %s:too long", e.Tx.UUID, name)
+				case reflect.Slice:
+					PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
+				case reflect.Map:
+					PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
+				case reflect.Struct:
+					PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
+				}
+			}
 	*/
 
 	// Key by pp.Top() (the plain attribute name), NOT pp.DB() (which
@@ -3439,18 +3425,8 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 func (e *Entity) EnsureNewSystem() {
 	// Same guard as EnsureNewObject() - system-prop buffering must only
 	// ever happen on an already FOR_WRITE-locked entity.
-	PanicIf(e.AccessMode != FOR_WRITE, "EnsureNewSystem: %q isn't FOR_WRITE", e.XID)
-
-	// Save pre-Tx values the first time we're about to genuinely
-	// buffer a change - mirrors EnsureNewObject()'s OriginObject
-	// capture. See OriginSystem's doc comment.
-	if e.OriginSystem == nil {
-		if e.System == nil {
-			e.OriginSystem = map[string]any{}
-		} else {
-			e.OriginSystem = maps.Clone(e.System)
-		}
-	}
+	PanicIf(e.AccessMode != FOR_WRITE, "tx: %s %q isn't FOR_WRITE",
+		e.Tx.UUID, e.XID)
 
 	if e.NewSystem != nil {
 		return
@@ -3458,6 +3434,37 @@ func (e *Entity) EnsureNewSystem() {
 	e.NewSystem = map[string]any{}
 	for k, v := range e.System {
 		e.NewSystem[k] = v
+	}
+}
+
+// Should be called by Backend impls to fill-in e.OriginObject either
+// from e.Object or a previously cached e's OriginObject
+func (e *Entity) PopulateOriginObject() {
+	if e == nil {
+		return
+	}
+
+	regSID := e.SID // assume 'e' is a registry until we know otherwise
+	if e.Registry != nil {
+		// ok, not a registry, so grab reg's SID
+		regSID = e.Registry.SID
+	}
+
+	if tmpE := e.Tx.GetEntity(regSID, e.XID); tmpE != nil {
+		e.OriginObject = tmpE.OriginObject
+		e.OriginSystem = tmpE.OriginSystem
+	} else {
+		e.OriginObject = maps.Clone(e.Object)
+		e.OriginSystem = maps.Clone(e.System)
+
+		// Just make sure they're not nil as a sign that we tried to
+		// load them but this a new entity so there's no data yet
+		if e.OriginObject == nil {
+			e.OriginObject = map[string]any{}
+		}
+		if e.OriginSystem == nil {
+			e.OriginSystem = map[string]any{}
+		}
 	}
 }
 
@@ -3501,32 +3508,37 @@ func (e *Entity) setFromDBNameInto(dest *map[string]any, name string, val *strin
 	} else if propType == INTEGER || propType == UINTEGER {
 		tmpInt, err := strconv.Atoi(*val)
 		if err != nil {
-			panic(fmt.Sprintf("error parsing int: %s: %s", *val, err))
+			panic(fmt.Sprintf("tx: %s error parsing int: %s: %s",
+				e.Tx.UUID, *val, err))
 		}
 		err = ObjectSetProp(obj, pp, tmpInt)
 	} else if propType == DECIMAL {
 		tmpFloat, err := strconv.ParseFloat(*val, 64)
 		if err != nil {
-			panic(fmt.Sprintf("error parsing float: %s: %s", *val, err))
+			panic(fmt.Sprintf("tx: %s error parsing float: %s: %s",
+				e.Tx.UUID, *val, err))
 		}
 		err = ObjectSetProp(obj, pp, tmpFloat)
 	} else if propType == MAP {
 		if *val != "" {
-			panic(fmt.Sprintf("MAP value should be empty string"))
+			panic(fmt.Sprintf("tx: %s MAP value should be empty string",
+				e.Tx.UUID))
 		}
 		err = ObjectSetProp(obj, pp, map[string]any{})
 	} else if propType == ARRAY {
 		if *val != "" {
-			panic(fmt.Sprintf("MAP value should be empty string"))
+			panic(fmt.Sprintf("tx: %s MAP value should be empty string",
+				e.Tx.UUID))
 		}
 		err = ObjectSetProp(obj, pp, []any{})
 	} else if propType == OBJECT {
 		if *val != "" {
-			panic(fmt.Sprintf("MAP value should be empty string"))
+			panic(fmt.Sprintf("tx: %s MAP value should be empty string",
+				e.Tx.UUID))
 		}
 		err = ObjectSetProp(obj, pp, map[string]any{})
 	} else {
-		panic(fmt.Sprintf("bad type(%s): %v", propType, name))
+		panic(fmt.Sprintf("tx: %s bad type(%s): %v", propType, e.Tx.UUID, name))
 	}
 
 	if err != nil {
@@ -3553,14 +3565,14 @@ func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 		_, rm := e.GetModels()
 		return rm.GetVersionPropsOrdered()
 	default:
-		panic("What?")
+		panic(fmt.Sprintf("tx: %s type: %v", e.Tx.UUID, e.Type))
 	}
 }
 
 // This is used to serialize an Entity regardless of the format.
 // This will:
 //   - Use AddCalcProps() to fill in any missing props (eg Entity's GetFn())
-//   - Call that passed-in 'fn' to serialize each prop but in the right order
+//   - Call the passed-in 'fn' to serialize each prop but in the right order
 //     as defined by the entity's GetPropsOrdered()
 func (e *Entity) SerializeProps(
 	fn func(*Entity, string, any, *Attribute) *XRError) *XRError {
@@ -3624,7 +3636,8 @@ func (e *Entity) SerializeProps(
 					if attr == nil {
 						attr = attrs["*"]
 						PanicIf(objKey[0] != '#' && attr == nil,
-							"Can't find attr for (%s) %q", e.XID, objKey)
+							"tx: %s Can't find attr for (%s) %q",
+							e.Tx.UUID, e.XID, objKey)
 					}
 					// log.Printf("tx: %s Ser*ext(%s): %q", e.Tx.UUID, e.XID,
 					//  objKey)
@@ -3672,7 +3685,7 @@ func (e *Entity) SerializeProps(
 			if attr == nil {
 				attr = attrs["*"]
 				PanicIf(attrKey[0] != '#' && attr == nil,
-					"Can't find attr for %q", attrKey)
+					"tx: %s Can't find attr for %q", e.Tx.UUID, attrKey)
 			}
 
 			if xErr := fn(e, objKey, val, attr); xErr != nil {
@@ -3769,7 +3782,7 @@ func (e *Entity) GetCollections() [][2]string {
 	case ENTITY_VERSION:
 		return nil
 	}
-	panic(fmt.Sprintf("bad type: %d", e.Type))
+	panic(fmt.Sprintf("tx: %s bad type: %d", e.Tx.UUID, e.Type))
 	return nil
 }
 
@@ -3791,12 +3804,15 @@ func (e *Entity) RemoveReadOnlyImmutable(obj Object) {
 		}
 		key := attr.Name
 
+		// epoch and IDs are special, we do need to check their values later
+		// so don't delete them
 		if key == "versionid" || key == singular || key == "epoch" {
-			// epoch and ID are special, we do need to check their values later
-			continue
-		}
-
-		if _, keyPresent := obj[key]; !keyPresent {
+			// However, if this is a new entity(no OriginObject), then go
+			// ahead and skip/delete "epoch" so we don't do any do any error
+			// checking on it - even it's data type
+			if key == "epoch" && len(e.OriginObject) == 0 {
+				delete(obj, key)
+			}
 			continue
 		}
 
@@ -3824,7 +3840,9 @@ func PrepUpdateEntity(e *Entity) *XRError {
 		*/
 
 		if e.NewObject != nil {
-			if attr.InType(e.Type) && attr.Internals != nil && attr.Internals.UpdateFn != nil {
+			if attr.InType(e.Type) && attr.Internals != nil &&
+				attr.Internals.UpdateFn != nil {
+
 				if xErr := attr.Internals.UpdateFn(e); xErr != nil {
 					return xErr
 				}

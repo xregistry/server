@@ -103,11 +103,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if rec := recover(); rec != nil {
 			log.Printf("tx: %s panic: %s", uuid, rec)
-			// ShowStack() // Down via NewXRError below now
+			// If we panic then it's because something really bad happened
+			// so show the stack in the logs we can can debug it
+			ShowStack()
 
 			xErr := NewXRError("server_error", "/"+info.OriginalPath).
 				SetDetail("An internal error occurred, contact the admin.")
 			xErr.Instance = uuid
+
 			HTTPWriteError(info, xErr)
 		}
 	}()
@@ -221,6 +224,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if xErr != nil {
+		// server_errors are almost as bad as a panic, so show the stack.
+		// Also, if the code specifically tagged the error with ShowStack.
 		if xErr.ShowStack || xErr.Type == "server_error" {
 			stack := xErr.Stack
 			if stack == "" {
@@ -228,6 +233,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			log.Printf(">>> %s  <<<\n%s", xErr.Type, stack)
 		}
+
 		HTTPWriteError(info, xErr)
 	}
 

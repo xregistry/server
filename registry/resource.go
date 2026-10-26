@@ -1572,7 +1572,7 @@ func (r *Resource) runCascade() *XRError {
 	// (EpochSet - bumped by Save() whenever a real content change
 	// happens), or a system prop on it actually changed value
 	// (OriginSystem != System - OriginSystem is the pre-Tx snapshot,
-	// captured once by EnsureNewSystem(); comparing it against the
+	// comparing it against the
 	// current System catches a real diff even across multiple
 	// SetSystemDBProperty()/SaveSystemProps() flush cycles this Tx,
 	// and - unlike a "changed" flag - survives a mid-Tx Refresh() since
@@ -1584,6 +1584,7 @@ func (r *Resource) runCascade() *XRError {
 		if xErr != nil {
 			return xErr
 		}
+
 		// finalDefVer can be nil for an xref source with no real
 		// Versions of its own (its "default version" is really the
 		// xref target's synthetic copy) - nothing of r's OWN to have
@@ -1592,8 +1593,8 @@ func (r *Resource) runCascade() *XRError {
 		// target's own unconditional fan-out).
 		defaultVerCascadeNeeded = finalDefVer != nil &&
 			(finalDefVer.EpochSet ||
-				(finalDefVer.OriginSystem != nil &&
-					!reflect.DeepEqual(finalDefVer.OriginSystem, finalDefVer.System)))
+				( // finalDefVer.OriginSystem != nil &&
+				!reflect.DeepEqual(finalDefVer.OriginSystem, finalDefVer.System)))
 	}
 
 	if defaultVerCascadeNeeded {
