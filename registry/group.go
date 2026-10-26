@@ -243,7 +243,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	}
 
 	// See if it already exists under a diff cased XID
-	realXID, xErr := g.Registry.EntityRealXID(rXID, FOR_WRITE)
+	realXID, xErr := g.Registry.EntityRealXID(rXID, FOR_READ)
 	if xErr != nil {
 		return nil, false, xErr
 	}

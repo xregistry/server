@@ -226,7 +226,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if xErr != nil {
 		// server_errors are almost as bad as a panic, so show the stack.
 		// Also, if the code specifically tagged the error with ShowStack.
-		if xErr.ShowStack { // || strings.HasSuffix(xErr.Type, "#server_error") {
+		if xErr.ShowStack || strings.HasSuffix(xErr.Type, "#server_error") {
 			stack := xErr.Stack
 			if stack == "" {
 				stack = "    <no stacktrace>"
@@ -540,16 +540,6 @@ func HTTPGETContent(info *registry.RequestInfo) *XRError {
 
 	isV := log.IsFuncVerbose()
 	XID := "/" + strings.Join(info.Parts, "/")
-
-	/*
-		realXID, xErr := info.Registry.EntityRealXID(XID, FOR_READ)
-		if xErr != nil {
-			return xErr
-		}
-		if realXID != "" {
-			XID = realXID
-		}
-	*/
 
 	iter, xErr := info.Registry.GetEntitiesFromXID(XID, true, true, FOR_READ)
 	if xErr != nil {

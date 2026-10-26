@@ -1066,7 +1066,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			vu.Id = strconv.Itoa(nextID)
 			vXID := r.XID + "/versions/" + vu.Id
 
-			realXID, xErr := r.Group.Registry.EntityRealXID(vXID, FOR_WRITE)
+			realXID, xErr := r.Group.Registry.EntityRealXID(vXID, FOR_READ)
 			if xErr != nil {
 				return nil, false, xErr
 			}

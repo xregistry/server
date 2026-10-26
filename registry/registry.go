@@ -1404,7 +1404,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 	gXID := "/" + gType + "/" + id
 
-	realXID, xErr := reg.EntityRealXID(gXID, FOR_WRITE)
+	realXID, xErr := reg.EntityRealXID(gXID, FOR_READ)
 	if xErr != nil {
 		return nil, false, xErr
 	}
@@ -1428,7 +1428,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			return nil, false, xErr
 		}
 
-		realXID, xErr := reg.EntityRealXID(gXID, FOR_WRITE)
+		realXID, xErr = reg.EntityRealXID(gXID, FOR_WRITE)
 		if xErr != nil {
 			return nil, false, xErr
 		}
