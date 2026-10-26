@@ -121,8 +121,26 @@ func (CLIBE *CLIBackend) RegisterEntity(e *registry.Entity) *XRError {
 }
 
 func (CLIBE *CLIBackend) LoadCapabilities(r *registry.Registry) (*Capabilities, *XRError) {
-	panic("not yet")
-	return nil, nil
+	cliReg := (*CLIReg)(r)
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     cliReg.WithPath("/capabilities"),
+		Headers: HTTPHeaders,
+		Debug:   log.GetLevel() > 2,
+	})
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	tmpCap := (*Capabilities)(nil)
+	if err := json.Unmarshal(res.Body, &tmpCap); err != nil {
+		return nil, NewXRError("parsing_data", "/capabilities",
+			"error_detail="+err.Error()).
+			SetDetailf("Response: %s.", string(res.Body))
+	}
+	r.Capabilities = tmpCap
+
+	return r.Capabilities, nil
 }
 
 func (CLIBE *CLIBackend) SaveCapabilities(r *registry.Registry) *XRError {
@@ -142,17 +160,64 @@ func (CLIBE *CLIBackend) LoadModel(r *registry.Registry) (*registry.Model, *XREr
 		return nil, xErr
 	}
 
-	if err := json.Unmarshal(res.Body, &r.Model); err != nil {
+	newModel := (*registry.Model)(nil)
+	if err := json.Unmarshal(res.Body, &newModel); err != nil {
 		return nil, NewXRError("parsing_data", "/model",
 			"error_detail="+err.Error()).
 			SetDetailf("Response: %s.", string(res.Body))
 	}
-	r.Model.ApplyDefaults(r)
-	r.Model.SetPointers()
-	return r.Model, nil
+
+	newModel.Registry = r
+	newModel.ApplyDefaults(r)
+	newModel.SetSpecPropsFields()
+	newModel.SetPointers()
+
+	return newModel, nil
+}
+
+func (CLIBE *CLIBackend) LoadModelSource(r *registry.Registry) ([]byte, *XRError) {
+	cliReg := (*CLIReg)(r)
+
+	res, xErr := HttpDo(&HttpRequest{
+		Verb:    "GET",
+		URL:     cliReg.WithPath("/modelsource"),
+		Headers: HTTPHeaders,
+		Debug:   log.GetLevel() > 2,
+	})
+
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	newModelSource := []byte{}
+
+	if res.Code != 404 {
+		// We silently ignore 404 for modelsource
+		// TODO look for it at {"modelsource"} instead
+		if xErr != nil {
+			return nil, xErr
+		}
+
+		srcModel := registry.Model{}
+
+		if err := json.Unmarshal(res.Body, &srcModel); err != nil {
+			return nil, NewXRError("parsing_data", "/modelsource",
+				"error_detail="+err.Error()).
+				SetDetailf("Response: %s.", string(res.Body))
+		}
+
+		newModelSource = res.Body
+	}
+
+	return newModelSource, nil
 }
 
 func (CLIBE *CLIBackend) SaveModel(r *registry.Registry) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) SaveModelSource(r *registry.Registry) *XRError {
 	panic("not yet")
 	return nil
 }

@@ -435,10 +435,10 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				}
 			}
 
-			gList, xErr := cliReg.ListGroupModels()
+			_, xErr := reg.GetModel()
 			Error(xErr)
-			sort.Strings(gList)
-			for _, gName := range gList {
+
+			for _, gName := range SortedKeys(reg.Model.Groups) {
 				nextXid, err := xid.AddPath(gName)
 				Error(err)
 
@@ -494,7 +494,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			}
 
 		case ENTITY_RESOURCE:
-			rm, xErr := cliReg.FindResourceModel(xid.Group, xid.Resource)
+			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
 			Error(xErr)
 
 			// old: If !hasDoc then at least show {} for the resource
@@ -642,7 +642,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			}
 
 		case ENTITY_VERSION:
-			rm, xErr := cliReg.FindResourceModel(xid.Group, xid.Resource)
+			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
 			Error(xErr)
 
 			// old: If !hasDoc then at least show {} for the version
@@ -950,9 +950,6 @@ func Download(reg *registry.Registry, path string) ([]byte, map[string]string) {
 		Headers: xrlib.HTTPHeaders,
 		Debug:   VerboseCount > 1,
 	})
-	// if xErr != nil {
-	// return nil, nil
-	// }
 	Error(xErr)
 
 	headers := (map[string]string)(nil)

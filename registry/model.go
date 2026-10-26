@@ -97,7 +97,6 @@ func IsValidID(id string, errIDName string) *XRError {
 
 type Model struct {
 	Registry      *Registry              `json:"-"`
-	Source        string                 `json:"source,omitempty"`
 	Description   string                 `json:"description,omitempty"`
 	Documentation string                 `json:"documentation,omitempty"`
 	Labels        map[string]string      `json:"labels,omitempty"`
@@ -360,6 +359,7 @@ func ParseModel(buf []byte, reg *Registry) (*Model, *XRError) {
 		return nil, NewXRError("parsing_data", "model",
 			"error_detail="+err.Error())
 	}
+
 	model.ApplyDefaults(reg)
 	model.SetSpecPropsFields()
 	model.SetPointers()
@@ -427,16 +427,6 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 }
 */
 
-func (m *Model) GetSourceAsModel() *Model {
-	if m.Source == "" {
-		return nil
-	}
-
-	srcModel, xErr := ParseModel([]byte(m.Source), m.Registry)
-	PanicIf(xErr != nil, "Error with src: %s", m.Source)
-	return srcModel
-}
-
 func (m *Model) ApplyDefaults(reg *Registry) {
 	for _, gm := range m.Groups {
 		for _, rm := range gm.Resources {
@@ -496,7 +486,6 @@ func (m *Model) Clone() *Model {
 
 	newM := &Model{
 		Registry:      m.Registry,
-		Source:        m.Source,
 		Description:   m.Description,
 		Documentation: m.Documentation,
 		Labels:        maps.Clone(m.Labels),
@@ -2104,8 +2093,6 @@ func (m *Model) RemoveConditionalProps() {
 	}
 }
 
-// Technically, this operates on "modelsource" not "model".
-// At some point we may want to be more explicit about this split.
 func (m *Model) Verify() *XRError {
 	m.ClearPropsOrdered()
 	m.SetPointers()
@@ -4982,6 +4969,15 @@ func (m *Model) Save() *XRError {
 	xErr = m.Registry.Tx.Backend.SaveModel(m.Registry)
 	if xErr != nil {
 		return xErr
+	}
+
+	// If ModelSource is set then always save it just in case.
+	// TODO see why saving it just from SetModel isn't sufficient
+	if m.Registry.ModelSource != nil {
+		xErr = m.Registry.Tx.Backend.SaveModelSource(m.Registry)
+		if xErr != nil {
+			return xErr
+		}
 	}
 
 	// Load old model's ModelEntities so we can diff them

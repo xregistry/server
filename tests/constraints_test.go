@@ -13,27 +13,27 @@ func TestConstraintsMatchVersions(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// First a basic good test
-	modelSrc := `{
+	modelSrc := []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
                 "mystr": {
                   "type": "string",
                   "matchversions": true
-                } } } } } } }`
+                } } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Now do some error checking on model definitions
 
 	// attr must be a scalar
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
                 "myobj": {
                   "type": "object",
                   "matchversions": true
-                } } } } } } }`
+                } } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -47,7 +47,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
 }`)
 
 	// map->obj bad
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
@@ -55,7 +55,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "type": "map",
                   "item": { "type": "object" },
                   "matchversions": true
-                } } } } } } }`
+                } } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -69,7 +69,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
 }`)
 
 	// map->int is bad too
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
@@ -77,7 +77,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "type": "map",
                   "item": { "type": "integer" },
                   "matchversions": true
-                } } } } } } }`
+                } } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -90,7 +90,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "source": "3ba414aa22c1:registry:shared_model:3632"
 }`)
 
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
@@ -98,7 +98,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "type": "array",
                   "item": { "type": "integer" },
                   "matchversions": true
-                } } } } } } }`
+                } } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -111,14 +111,14 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "source": "3ba414aa22c1:registry:shared_model:3632"
 }`)
 
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
                 "myany": {
                   "type": "any",
                   "matchversions": true
-                } } } } } } }`
+                } } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -132,7 +132,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
 }`)
 
 	// Must not be under arrays
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
@@ -141,7 +141,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "item": { "type": "object",
                             "attributes": { "myint": {
                               "type": "integer", "matchversions": true }}}
-                } } } } } } }`
+                } } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -155,7 +155,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
 }`)
 
 	// Must not be under maps
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
@@ -164,7 +164,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                   "item": { "type": "object",
                             "attributes": { "myint": {
                               "type": "integer", "matchversions": true }}}
-                } } } } } } }`
+                } } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -178,7 +178,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
 }`)
 
 	// Must not be under ifvalues
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
@@ -188,7 +188,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                       "siblingattributes": {
                         "mystr": { "type": "string", "matchversions": true }
                       } } } }
-                } } } } } }`
+                } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -202,12 +202,12 @@ func TestConstraintsMatchVersions(t *testing.T) {
 }`)
 
 	// Must not be under "*"
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "attributes": {
                 "*": { "type": "integer", "matchversions": true }
-                } } } } } }`
+                } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -221,13 +221,13 @@ func TestConstraintsMatchVersions(t *testing.T) {
 }`)
 
 	// Now let's do some positive testing
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file", "hasdocument": false,
               "attributes": {
                 "myint": { "type": "integer", "matchversions": true },
                 "mystr": { "type": "string", "matchversions": true }
-              } } } } } }`
+              } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{
@@ -363,7 +363,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
 `)
 
 	// Now let's test some complex types
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": { "singular": "dir", "resources": { "files": {
               "singular": "file",
               "hasdocument": false,
@@ -384,7 +384,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
                     }
                   }
                 }
-              } } } } } }`
+              } } } } } }`)
 	// Should fail due to the model not matching the data
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -557,7 +557,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// First a basic good test
-	modelSrc := `{
+	modelSrc := []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -574,7 +574,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                     "enum": [ "abc", "def", "ghi" ],
                     "strict": false
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
@@ -1202,7 +1202,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 	// Let's test some error cases first
 
 	// Missing period in key
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1215,7 +1215,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                     "enum": [ "abc", "def", "ghi" ],
                     "strict": true
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1230,7 +1230,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Unknown RESOURCES
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1243,7 +1243,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                     "enum": [ "abc", "def", "ghi" ],
                     "strict": true
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1258,7 +1258,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Bad path - no attr
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1271,7 +1271,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                     "enum": [ "abc", "def", "ghi" ],
                     "strict": true
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1286,7 +1286,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Bad path - syntax error
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1299,7 +1299,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                     "enum": [ "abc", "def", "ghi" ],
                     "strict": true
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1314,7 +1314,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Unknown attribute - root
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1327,7 +1327,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                     "enum": [ "abc", "def", "ghi" ],
                     "strict": true
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1342,7 +1342,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Unknown attribute - in obj
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1355,7 +1355,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                     "enum": [ "abc", "def", "ghi" ],
                     "strict": true
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1371,7 +1371,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 
 	// Unknown attr, step into map - even though it's not valid for constraints
 	// just test our infra
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1385,7 +1385,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                       "type": "string"
                     }
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1400,7 +1400,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Valid attr, but Step into map - which is not allowed
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1419,7 +1419,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                       }
                     }
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1435,7 +1435,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 
 	// Unknown attr, step into array-even though it's not valid for constraints
 	// just test our infra
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1449,7 +1449,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                       "type": "object"
                     }
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1464,7 +1464,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Step into array - not allowed
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1481,7 +1481,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                       }
                     }
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1496,7 +1496,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Unknown step into empty object
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1507,7 +1507,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "myobj": {
                     "type": "object"
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1522,7 +1522,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Stop on object
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1533,7 +1533,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                   "myobj": {
                     "type": "object"
                   }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1548,7 +1548,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Validate Enum list - strict, can't extend
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1557,7 +1557,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": {
                   "mystr": { "type": "string", "enum": [ "abc", "def" ] }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`{
@@ -1572,7 +1572,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Validate Enum list - not strict, can extend
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1581,12 +1581,12 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": {
                   "mystr": { "type":"string", "enum":["abc"],"strict":false }
-                } } } } } }`
+                } } } } } }`)
 
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Enum list - empty enum is same as missing
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1595,12 +1595,12 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": {
                   "mystr": { "type":"string", "enum":["abc"]}
-                } } } } } }`
+                } } } } } }`)
 
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Enum list - can add even when no enum on base attr
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1609,13 +1609,13 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": {
                   "mystr": { "type":"string" }
-                } } } } } }`
+                } } } } } }`)
 
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Enum list - constraint.enum must include attr.default if no
 	// new default is defined
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1624,7 +1624,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": {
                   "mystr": {"type":"string", "default":"def","required": true }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -1639,7 +1639,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 
 	// Validate Enum list - constraint.enum must include attr.default if no
 	// new default is defined
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1649,7 +1649,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
                 "attributes": {
                   "mystr": {"type":"string", "default":"def",
                     "enum": [ "abc", "def" ], "required": true }
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -1664,7 +1664,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 
 	// Validate Enum list - extend attr w/enum + default
 	// new default is defined
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1673,12 +1673,12 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": {
                   "mystr": {"type":"string"}
-                } } } } } }`
+                } } } } } }`)
 
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Enum list - all enum values of the right/same type
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
@@ -1687,7 +1687,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "resources": {"files": {"singular": "file",
                 "attributes": {
                   "mystr": {"type":"string"}
-                } } } } } }`
+                } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -1701,26 +1701,26 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Validate Equals - "" == ignore
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
                 "files.mystr": { "equals": "" }
               },
               "resources": {"files": {"singular": "file",
-                "attributes": { "mystr": {"type":"string"} } } } } } }`
+                "attributes": { "mystr": {"type":"string"} } } } } } }`)
 
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Validate Equals - missing attr
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
                 "files.mystr": { "equals": "foo" }
               },
               "resources": {"files": {"singular": "file",
-                "attributes": { "mystr": {"type":"string"} } } } } } }`
+                "attributes": { "mystr": {"type":"string"} } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -1734,14 +1734,14 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Validate Equals - non-scalar attr
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
                 "files.mystr": { "equals": "labels" }
               },
               "resources": {"files": {"singular": "file",
-                "attributes": { "mystr": {"type":"string"} } } } } } }`
+                "attributes": { "mystr": {"type":"string"} } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -1755,14 +1755,14 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
 }`)
 
 	// Validate Equals - must be same type
-	modelSrc = `{
+	modelSrc = []byte(`{
       "groups": { "dirs": {
               "singular": "dir",
               "constraints": {
                 "files.mystr": { "equals": "epoch" }
               },
               "resources": {"files": {"singular": "file",
-                "attributes": { "mystr": {"type":"string"} } } } } } }`
+                "attributes": { "mystr": {"type":"string"} } } } } } }`)
 
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true), `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -2905,7 +2905,7 @@ func TestConstraintsEqualsNestedGroupPath(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// Model validation: nested group attribute path for equals is accepted
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "attributes": {
@@ -2918,25 +2918,25 @@ func TestConstraintsEqualsNestedGroupPath(t *testing.T) {
 	      "files.mystr": { "equals": "gobj.gfoo" }
 	    },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": { "mystr": { "type": "string" } } } } } } }`
+	      "attributes": { "mystr": { "type": "string" } } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Runtime: gobj.gfoo="abc", mystr="abc" => equals satisfied
-	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d1":{
 	    "gobj": {"gfoo": "abc"},
 	    "files":{"f1":{"mystr":"abc"}}}}}`, 200,
 		`^(?s)^.*"mystr": "abc"`)
 
 	// Runtime: gobj.gfoo="abc", mystr="xyz" => equals fails
-	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d1":{
 	    "gobj": {"gfoo": "abc"},
 	    "files":{"f1":{"mystr":"xyz"}}}}}`, 400,
 		`^(?s)^.*constraint_failure`)
 
 	// Runtime: gobj absent => equals check skipped
-	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d1":{
 	    "files":{"f1":{"mystr":"anything"}}}}}`, 200,
 		`^(?s)^.*"mystr": "anything"`)
@@ -2961,7 +2961,7 @@ func TestConstraintsEqualsNestedGroupPath(t *testing.T) {
 	    },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": { "mystr": { "type": "string" } } } } } } }`
-	XCheckErr(t, reg.SetModel(nil, modelSrcBad, true),
+	XCheckErr(t, reg.SetModel(nil, []byte(modelSrcBad), true),
 		`^(?s)^.*model_error.*equals.*gfoo.*can not be found`)
 
 	reg.Model.SetChanged(false)
@@ -2974,7 +2974,7 @@ func TestConstraintsEqualsWildcardModelError(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// Model error: equals references "*" which is a wildcard, not a named attr
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "attributes": {
@@ -2984,7 +2984,7 @@ func TestConstraintsEqualsWildcardModelError(t *testing.T) {
 	      "files.mystr": { "equals": "someattr" }
 	    },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": { "mystr": { "type": "string" } } } } } } }`
+	      "attributes": { "mystr": { "type": "string" } } } } } } }`)
 	XCheckErr(t, reg.SetModel(nil, modelSrc, true),
 		`^(?s)^.*model_error.*equals.*someattr.*can not be found`)
 
@@ -2998,7 +2998,7 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
 	reg := NewRegistry("TestConstraintsMultipleResourceTypes")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "constraints": {
@@ -3014,13 +3014,13 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
 	        "attributes": { "mystr": { "type": "string" } }},
 	      "docs":  {"singular": "doc",  "hasdocument": false,
 	        "attributes": { "mystr": { "type": "string" } }}
-	    } } } }`
+	    } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Each resource type gets its own default from constraints
 	// (JSON output orders docs before files alphabetically)
 	XHTTP(t, reg, "PUT", "/?inline=dirs.files,dirs.docs",
-		`{"modelsource": `+modelSrc+`,
+		`{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d1":{
 	    "files":{"f1":{}},
 	    "docs":{"d1":{}}}}}`, 200,
@@ -3071,7 +3071,7 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
 	// Group instance constraints also stay per-type
 	// Use subsets of gm enums that include the gm defaults
 	XHTTP(t, reg, "PUT", "/?inline=dirs.files,dirs.docs",
-		`{"modelsource": `+modelSrc+`,
+		`{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d2":{
 	    "constraints":{
 	      "files.mystr":{"enum":["file-default","file-other"]},
@@ -3083,7 +3083,7 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
 
 	// Cross-type enum contamination would reject valid values
 	// Restrict files in d3 to just "file-default"; "file-other" is rejected
-	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d3":{
 	    "constraints":{
 	      "files.mystr":{"enum":["file-default"]}
@@ -3160,7 +3160,7 @@ func TestConstraintsDeepNestedPath(t *testing.T) {
 	reg := NewRegistry("TestConstraintsDeepNestedPath")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "constraints": {
@@ -3179,20 +3179,20 @@ func TestConstraintsDeepNestedPath(t *testing.T) {
 	            }
 	          }
 	        }
-	      } } } } } }`
+	      } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Valid: a.b.c value is in enum
-	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d1":{"files":{"f1":{"a":{"b":{"c":"x"}}}}}}}`, 200,
 		`^(?s)^.*"c": "x"`)
 
-	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d1":{"files":{"f1":{"a":{"b":{"c":"y"}}}}}}}`, 200,
 		`^(?s)^.*"c": "y"`)
 
 	// Error: a.b.c value not in enum
-	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d1":{"files":{"f1":{"a":{"b":{"c":"z"}}}}}}}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
   "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"enum\" constraint for attribute \"a.b.c\".",
@@ -3228,7 +3228,7 @@ func TestConstraintsDeepNestedPath(t *testing.T) {
 	          }
 	        }
 	      } } } } } }`
-	XCheckErr(t, reg.SetModel(nil, modelSrcBadPath, true),
+	XCheckErr(t, reg.SetModel(nil, []byte(modelSrcBadPath), true),
 		`^(?s)^.*model_error.*a.b.c.d.*c.*scalar`)
 
 	reg.Model.SetChanged(false)
@@ -3285,7 +3285,7 @@ func TestConstraintsMatchVersionsWithEquals(t *testing.T) {
 	reg := NewRegistry("TestConstraintsMatchVersionsWithEquals")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "attributes": { "gattr": { "type": "string" } },
@@ -3295,11 +3295,11 @@ func TestConstraintsMatchVersionsWithEquals(t *testing.T) {
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
 	      "attributes": {
 	        "myattr": { "type": "string", "matchversions": true }
-	      } } } } } }`
+	      } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Setup: group gattr="x", resource f1 with myattr="x" - both checks pass
-	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+string(modelSrc)+`,
 	  "dirs":{"d1":{
 	    "gattr": "x",
 	    "files":{"f1":{"versions":{"v1":{"myattr":"x"}}}}}}}`, 200,
@@ -3344,11 +3344,11 @@ func TestConstraintsXref(t *testing.T) {
 
 	// No group-TYPE constraint; constraint lives only on group instance d2.
 	// This ensures d1/s1 has no "name" when created with {}.
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": {} } } } } }`
+	      "attributes": {} } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Create source resource s1 in d1 (no constraint on d1) - name stays absent
@@ -3390,12 +3390,12 @@ func TestConstraintsModelLevelXrefRealValue(t *testing.T) {
 
 	// Model-level (group-model-wide) constraint default - applies to
 	// every group instance of type "dirs", not just one.
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "constraints": { "files.name": { "default": "model-default" } },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": {} } } } } }`
+	      "attributes": {} } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// Target t1, in d1, with an EXPLICIT (non-default) value.
@@ -3499,13 +3499,13 @@ func TestConstraintsEqualsEnforcedOnXref(t *testing.T) {
 	reg := NewRegistry("TestConstraintsEqualsEnforcedOnXref")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "attributes": { "gattr": { "type": "string" } },
 	    "constraints": { "files.myattr": { "equals": "gattr" } },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": { "myattr": { "type": "string" } } } } } } }`
+	      "attributes": { "myattr": { "type": "string" } } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1: gattr="" (unset) - group-level "equals" constraint is skipped
@@ -3647,10 +3647,10 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
 	reg := NewRegistry("TestConstraintsEnumEnforcedOnXref")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": { "singular": "dir",
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": { "myattr": { "type": "string" } } } } } } }`
+	      "attributes": { "myattr": { "type": "string" } } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1: no constraint at all - t1 can have any myattr value.
@@ -3806,10 +3806,10 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
 	reg := NewRegistry("TestConstraintsViolationOnTargetUpdateAfterXref")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": { "singular": "dir",
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": { "myattr": { "type": "string" } } } } } } }`
+	      "attributes": { "myattr": { "type": "string" } } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1 (unconstrained): target t1 with myattr="a" - compliant with
@@ -3965,10 +3965,10 @@ func TestConstraintsDefaultTransitionCascade(t *testing.T) {
 	reg := NewRegistry("TestConstraintsDefaultTransitionCascade")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": { "singular": "dir",
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": {} } } } } }`
+	      "attributes": {} } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1 has a group-instance constraint default for files.name.
@@ -4108,13 +4108,13 @@ func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
 	reg := NewRegistry("TestConstraintsGroupDrivenResaveXrefCascade")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "attributes": { "gattr": { "type": "string" } },
 	    "constraints": { "files.myattr": { "equals": "gattr" } },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": { "myattr": { "type": "string" } } } } } } }`
+	      "attributes": { "myattr": { "type": "string" } } } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1: gattr="x", target t1 with myattr="x" (satisfies "equals").
@@ -4268,12 +4268,12 @@ func TestConstraintsMultipleConstraintSourcesXrefCascade(t *testing.T) {
 	// Model-level default for "name" (applies everywhere unless a group
 	// instance overrides it), plus "description" left free for each group
 	// instance to default independently via its own constraints.
-	modelSrc := `{
+	modelSrc := []byte(`{
 	  "groups": { "dirs": {
 	    "singular": "dir",
 	    "constraints": { "files.name": { "default": "model-name-default" } },
 	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": {} } } } } }`
+	      "attributes": {} } } } } }`)
 	XNoErr(t, reg.SetModel(nil, modelSrc, true))
 
 	// d1 (target's group) ALSO sets its own instance-level default for

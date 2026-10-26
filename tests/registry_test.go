@@ -928,7 +928,7 @@ func TestRegistryVerifyDataMissesGroupConstraintOnModelChange(t *testing.T) {
 	// v2 model (pure Go API): retarget the constraint to gstr2.
 	// f1.mystr ("foo") no longer equals d1.gstr2 ("bar") - a genuine
 	// violation that SetModel() should catch/reject.
-	xErr := reg.SetModel(nil, newModelSrc, true)
+	xErr := reg.SetModel(nil, []byte(newModelSrc), true)
 	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
   "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"mystr\".",

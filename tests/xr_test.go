@@ -3180,7 +3180,9 @@ Pass: 57   Fail: 0   Warn: 0   Skip: 5
 		{request: "Request: GET " + target + "/model", count: 4},
 		{request: "Request: GET " + target + "/capabilities", count: 4},
 	} {
-		got := strings.Count(cliResult.Stderr, check.request)
+		// Need to distinguish between /model and /modelsource
+		modStderr := strings.ReplaceAll(cliResult.Stderr, "\n", "$")
+		got := strings.Count(modStderr, check.request+"$")
 		if got != check.count {
 			t.Fatalf("%s logged %d times, expected %d:\n%s",
 				check.request, got, check.count, cliResult.Stderr)
@@ -3209,7 +3211,8 @@ func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
    ├─ PASS: "createdat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
    ├─ PASS: "modifiedat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
    ├─ Unexpected error: There was an error parsing "/capabilities": unexpected
-   │  end of JSON input.
+   │  end of JSON input. Response: {
+   │  .
    └─ FAIL: Retrieving capabilities MUST work
 Pass: 10   Fail: 3   Warn: 0   Skip: 0
 `, ``, 1)

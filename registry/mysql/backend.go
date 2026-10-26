@@ -1025,7 +1025,7 @@ func getJSONModel(r *registry.Registry) (string, string, *XRError) {
 func (sqlBE *SQLBackend) LoadCapabilities(r *registry.Registry) (*Capabilities, *XRError) {
 	capVal, ok := r.Object["#capabilities"]
 	if !ok {
-		return nil, nil
+		return DefaultCapabilities.Clone(), nil
 	}
 
 	// Custom capabilities
@@ -1051,6 +1051,7 @@ func (sqlBE *SQLBackend) LoadModel(r *registry.Registry) (*registry.Model, *XREr
 
 	if modelJSON == "" {
 		// No model yet.  Maybe we should panic? TODO investigate
+		// Maybe set it to "{}" ?
 		return nil, nil
 	}
 
@@ -1071,6 +1072,32 @@ func (sqlBE *SQLBackend) LoadModel(r *registry.Registry) (*registry.Model, *XREr
 	return model, nil
 }
 
+func (sqlBE *SQLBackend) LoadModelSource(r *registry.Registry) ([]byte, *XRError) {
+	// Load Registry model
+	results, xErr := Query(r.Tx,
+		`SELECT Source FROM Models WHERE RegistrySID=?`,
+		r.SID)
+	if xErr != nil {
+		return nil, xErr
+	}
+	defer results.Close()
+
+	row := results.NextRow()
+	if row == nil {
+		return nil, nil
+	}
+
+	if IsNil(row[0]) {
+		return nil, nil
+	}
+
+	if IsNil(*row[0]) {
+		return []byte{}, nil
+	}
+
+	return (*row[0]).([]byte), nil
+}
+
 func (sqlBE *SQLBackend) SaveModel(r *registry.Registry) *XRError {
 	buf, _ := json.Marshal(r.Model)
 	modelStr := string(buf)
@@ -1088,6 +1115,18 @@ func (sqlBE *SQLBackend) SaveModel(r *registry.Registry) *XRError {
 		modelStr, uuid)
 
 	r.Model.SetStuff("changedUUID", uuid)
+
+	return xErr
+}
+
+func (sqlBE *SQLBackend) SaveModelSource(r *registry.Registry) *XRError {
+	// log.FuncPrintf("tx: %s Saving model itself", x.Registry.Tx.UUID)
+	xErr := DoZeroTwo(r.Tx, `
+        INSERT INTO Models(RegistrySID, Source)
+            VALUES(?,?)
+            ON DUPLICATE KEY UPDATE Source=?`,
+
+		r.SID, r.ModelSource, r.ModelSource)
 
 	return xErr
 }

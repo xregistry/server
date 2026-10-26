@@ -77,13 +77,7 @@ func ShowError(obj any, args ...any) bool {
 	if ErrJson {
 		msg = xErr.ToJSON()
 	} else {
-		msg = xErr.GetTitle()
-		if xErr.Detail != "" {
-			if !strings.HasSuffix(msg, ".") {
-				msg += "."
-			}
-			msg += " " + xErr.Detail
-		}
+		msg = xErr.String()
 	}
 
 	fmt.Fprintf(os.Stderr, "%s\n", msg)

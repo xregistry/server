@@ -1737,6 +1737,7 @@ func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 
 	if req.Debug {
 		Debug("Request: %s %s", req.Verb, req.URL)
+		// Debug("Stack:\n        %s", strings.Join(GetStack(), "\n        "))
 		if len(req.Headers) != 0 {
 			for _, key := range SortedKeys(req.Headers) {
 				val := req.Headers[key]

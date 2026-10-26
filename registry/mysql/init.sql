@@ -69,6 +69,7 @@ END ;
 CREATE TABLE Models (
     RegistrySID VARCHAR(64) NOT NULL,
     Model       MEDIUMTEXT,                     # Full model, not just Registry
+    Source      MEDIUMTEXT,                     # modelsource
 
     # UUID: Used to know if the in-memory model cache is old - see Model.Save()
     UUID        VARCHAR(64) NOT NULL DEFAULT '',

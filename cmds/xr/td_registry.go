@@ -52,6 +52,11 @@ func TestModel(td *TD) {
 	nTD := NewTD(td, "Parsing model MUST work")
 	model, xErr := registry.ParseModel(res.Body, (*registry.Registry)(reg))
 	nTD.NoErrorStop(xErr)
+
+	// if td.Config.Model == nil {
+	// td.Config.Model = model
+	// }
+
 	// if xErr == nil {
 	// td.Config.Model = model
 	// }
@@ -65,7 +70,7 @@ func TestCapabilities(td *TD) {
 	reg := td.GetRegistry()
 
 	nTD := NewTD(td, "Retrieving capabilities")
-	_, xErr := reg.GetCapabilities()
+	_, xErr := (*registry.Registry)(reg).GetCapabilities()
 	nTD.NoError(xErr)
 
 	if reg.Capabilities == nil {
@@ -145,6 +150,11 @@ func TestCapabilities(td *TD) {
 	nTD = NewTD(td, "Parsing Capabilities MUST work")
 	_, xErr = ParseCapabilities(res1.Body) // caps, xErr := ...
 	nTD.NoError(xErr)
+
+	// if td.Config.Capabilities == nil {
+	// td.Config.Capabilities = caps
+	// }
+
 	// if xErr == nil {
 	// td.Config.Capabilities = caps
 	// }
@@ -177,7 +187,7 @@ func TestRegistryRoot(td *TD) {
 	td.ObjReqMustNe(res.JSON, "self", "")
 	reg.SetStuff("self", MustString(res.JSON["self"]))
 
-	_, xErr := reg.GetCapabilities()
+	_, xErr := (*registry.Registry)(reg).GetCapabilities()
 	td.NoErrorStop(xErr, "Retrieving capabilities MUST work")
 
 	if reg.Capabilities == nil {

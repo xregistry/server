@@ -115,7 +115,11 @@ TODOs:
 - only check-in the generated files for xregistry.io, not hub.xreg.io
 - get rid of default writer if we can
 - new http header name/value processing (escaping both, list(,) support)
-- checkin the generated js files so people can easily download it
+- test xr cmds to make sure we only send minimal # of commands
+- xr update dirs/d1/files/f1 --set name=foo when "fileurl" is set fails
+  - why does it GET dirs/d1/files/abc instead of just "abc" ?
+  - change create/update to always use $details
+- add xrlint test to make sure ALL errors are tested
 
 - Backend
   - move mysql triggers to be go initiated, if appropriate but I'm not
@@ -129,11 +133,16 @@ TODOs:
 - move #attrs into system props if we can
 - make backend define what capabilities are available
 - fix default backend logic so people can choose one via config - default:mysql
-- consider a CLIContext (to hold XRConfig/be/tx) so we don't get a new tx per
+- consider a CLIContext (to hold XRConfig/BE/tx) so we don't get a new tx per
   Registry. And we can then Clear/Close() to clean-up the tx cache.
-
-
-test:
-- xr update dirs/d1/files/f1 --set name=foo when "fileurl" is set fails
-  - why does it GET dirs/d1/files/abc instead of just "abc" ?
-- add xrlint test to make sure ALL errors are tested
+  - consider allowing more than one Registry per tx
+  - have DefineRegistry take tx as a param rather than config. From there
+    we can get the config and BE
+- try to get rid of CLIReg
+- look at the LoadModel logic to determine which layer should set
+    - model.Resource = r, model.ApplyDefaults,  model.SetPointers (clr*srv)
+    - look at CLIReg model and modelsource processing, try to just
+      call the backend or registry.Registry.* funcs directly
+- get rid of applyNewModel and just have a Set/Save() variant. And make
+  it use the incoming model not the current model as the new one. THen
+  LoadModel can refresh registry's model instead of just returning *MOdel
