@@ -183,8 +183,11 @@ type Backend interface {
 	CopyXrefVersions(r *Resource, tgtSID string) *XRError // copy xref vers
 
 	// Misc Entity stuff
+
+	// needs to call PropulateOriginObject
 	GetEntityFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool,
 		anyCase bool, accessMode int) (*Entity, *XRError)
+	// needs to call PropulateOriginObject
 	GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool,
 		children bool, anyCase bool, accessMode int) (EntityIterator, *XRError)
 

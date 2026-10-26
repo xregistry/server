@@ -2372,8 +2372,9 @@ func (sqlBE *SQLBackend) CopyXrefVersions(r *registry.Resource, targetSID string
 	return xErr
 }
 
-func (sqlBE *SQLBackend) GetEntityFromXID(tx *registry.Tx, regSID string, xidStr string,
-	allAttrs bool, anyCase bool, accessMode int) (*registry.Entity, *XRError) {
+func (sqlBE *SQLBackend) GetEntityFromXID(tx *registry.Tx, regSID string,
+	xidStr string, allAttrs bool, anyCase bool,
+	accessMode int) (*registry.Entity, *XRError) {
 
 	defer log.Trace("tx: %s xid:%q all:%v", tx.UUID, xidStr, allAttrs)()
 
@@ -3287,6 +3288,13 @@ func readNextEntity(tx *registry.Tx, results *Result, accessMode int) (*registry
 			return nil, xErr
 		}
 	}
+
+	// Make sure to set the pre-tx OriginObject/System attributes either from
+	// the new entity's Object/System from from the tx's cached version if
+	// there.
+	// This assumes that if we've seen it before then we shouldn't be calling
+	// this func and should be using refresh instead... but just in case...
+	entity.PopulateOriginObject()
 
 	return entity, nil
 }
