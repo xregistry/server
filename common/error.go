@@ -28,6 +28,7 @@ type XRError struct {
 	Headers   map[string]string `json:"-"` // HTTP response headers
 	Retryable bool              // Should we try the op after rollback?
 	Stack     string            // save it just for some errors
+	ShowStack bool
 }
 
 func NewXRError(daType string, subject string, args ...string) *XRError {
@@ -71,7 +72,7 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 	tmpXErr.SetArgs(args...)
 
 	if daType == "server_error" {
-		tmpXErr.Stack = strings.Join(GetStack(), "\n")
+		tmpXErr.Stack = "    " + strings.Join(GetStack(), "\n    ")
 		/*
 			// This is special.
 			// Only show internal info (args) to the logs.
@@ -407,6 +408,14 @@ func init() {
 	}
 }
 
+func (xErr *XRError) SetShowStack() *XRError {
+	xErr.ShowStack = true
+	if xErr.Stack == "" {
+		xErr.Stack = "    " + strings.Join(GetStack(), "\n    ")
+	}
+	return xErr
+}
+
 func (xErr *XRError) SetRetryable(v bool) *XRError {
 	xErr.Retryable = v
 	return xErr
@@ -507,10 +516,21 @@ func (xErr *XRError) SetHeader(name, value string) *XRError {
 
 func (xErr *XRError) String() string {
 	// return xErr.ToJSON("")
-	return xErr.GetTitle()
+	str := xErr.GetTitle()
+	if xErr.Detail != "" {
+		if !strings.HasSuffix(str, ".") {
+			str += "."
+		}
+		str += " " + xErr.Detail
+	}
+	return str
 }
 
 func (xErr *XRError) ToJSON() string {
+	if xErr == nil {
+		return "<no-err>"
+	}
+
 	type userErr struct {
 		Type     string            `json:"type,omitempty"`
 		Title    string            `json:"title,omitempty"`

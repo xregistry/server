@@ -135,7 +135,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	_, xErr = r.AddAttr("format", STRING)
 	ErrFatalf(xErr)
 
-	ErrFatalf(reg.SetModel(newModel, "", true))
+	ErrFatalf(reg.SetModel(newModel, nil, true))
 
 	iter := 0
 
@@ -429,7 +429,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	gm, _ := newModel.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true)
 
-	ErrFatalf(reg.SetModel(newModel, "", true))
+	ErrFatalf(reg.SetModel(newModel, nil, true))
 
 	maxD, maxF, maxV := 10, 150, 5
 	dirs, files, vers := 0, 0, 0
@@ -489,7 +489,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	Verbose("Loading:  " + regCollectionSegment + "/" + reg.UID)
 
 	// Use JSON for this model so that "modelsource" has something in it
-	ErrFatalf(reg.SetModel(nil, `{
+	ErrFatalf(reg.SetModel(nil, []byte(`{
       "groups": {
         "documents": {
           "singular": "document",
@@ -501,7 +501,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
         }
       }
     }
-    `, true))
+    `), true))
 
 	g, _ := reg.AddGroup("documents", "mydoc1")
 	g.SetSave("labels.group", "g1")

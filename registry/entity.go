@@ -114,8 +114,9 @@ func (e *Entity) SetStuff(key string, val any) {
 
 type Registry struct {
 	Entity
-	Model        *Model        `json:"-"`
-	Capabilities *Capabilities `json:"-"`
+	Model        *Model        `json:"-"` // nil=not loaded
+	ModelSource  []byte        `json:"-"` // nil=not loaded, {}=empty
+	Capabilities *Capabilities `json:"-"` // nil=not loaded
 
 	oldCapabilities *Capabilities // as seen at the start of the tx
 
@@ -762,12 +763,15 @@ func InitOrderedSpecProps() {
 						if !info.IsAvailable("modelsource") {
 							return NewXRError("not_available", "modelsource")
 						}
-						model := info.Registry.Model
-						if model == nil || len(model.Source) == 0 {
+						src, xErr := info.Registry.GetModelSource()
+						if xErr != nil {
+							return xErr
+						}
+						if len(src) == 0 {
 							return struct{}{}
 						}
 
-						obj, err := ParseJSONToObject(model.Source)
+						obj, err := ParseJSONToObject(src)
 						PanicIf(err != nil, "Failed: %s", err)
 						return obj
 					}

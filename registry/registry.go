@@ -238,10 +238,14 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 		return nil, xErr
 	}
 
-	if _, xErr := reg.LoadModel(); xErr != nil {
+	m, xErr := reg.LoadModel()
+	if xErr != nil {
 		return nil, xErr
 	}
 
+	// Lazy load modelsource
+
+	reg.Model = m
 	reg.oldCapabilities = reg.Capabilities.Clone()
 
 	return reg, nil
@@ -331,10 +335,14 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 		return nil, xErr
 	}
 
-	if _, xErr := reg.LoadModel(); xErr != nil {
+	m, xErr := reg.LoadModel()
+	if xErr != nil {
 		return nil, xErr
 	}
 
+	// Lazy load modelsource
+
+	reg.Model = m
 	reg.oldCapabilities = reg.Capabilities.Clone()
 
 	return reg, nil
@@ -377,22 +385,41 @@ func (reg *Registry) LoadModel() (*Model, *XRError) {
 	}
 
 	reg.Model = model // nil or not
+
+	// Lazy load it
+	// if reg.ModelSource == nil {
+	// _, xErr = reg.LoadModelSource()
+	// }
+
 	return reg.Model, nil
+}
+
+func (reg *Registry) LoadModelSource() ([]byte, *XRError) {
+	defer log.Trace("tx: %s %s", reg.Tx, reg.UID)()
+
+	src, xErr := reg.Tx.Backend.LoadModelSource(reg)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	reg.ModelSource = src // nil or not
+	return reg.ModelSource, nil
 }
 
 func (reg *Registry) SaveModel(verifyData bool) *XRError {
 	return reg.Model.VerifyAndSave(verifyData)
 }
 
-func (reg *Registry) SetModel(newM *Model, src string, verifyData bool) *XRError {
+func (reg *Registry) SetModel(newM *Model, src []byte, verifyData bool) *XRError {
 	// If all we have is modelSrc (src) then parse that into newM
 	if newM == nil && len(src) != 0 {
-		if src = strings.TrimSpace(src); src == "" {
+		src = []byte(strings.TrimSpace(string(src)))
+		if len(src) == 0 {
 			return NewXRError("missing_body", "/")
 		}
 
 		// Don't allow local files to be included (e.g. ../foo)
-		buf, xErr := ProcessIncludes("", []byte(src), false)
+		buf, xErr := ProcessIncludes("", src, false)
 		if xErr != nil {
 			return xErr
 		}
@@ -467,21 +494,21 @@ func (reg *Registry) SetModel(newM *Model, src string, verifyData bool) *XRError
 		return xErr
 	}
 
-	if src == "" {
+	if len(src) == 0 {
 		// This should serialize just the bare minimum, only what the
 		// user provided, no default values
 		// buf, err := json.MarshalIndent(m, "", "  ")
-		buf, xErr := reg.Model.SerializeForUser()
+		src, xErr = reg.Model.SerializeForUser()
 		if xErr != nil {
 			return xErr
 		}
-		src = string(buf)
 	}
-	if src == "" {
-		reg.Model.Source = nil
-	} else {
-		reg.Model.Source = []byte(src)
+
+	if len(src) == 0 {
+		src = []byte{}
 	}
+
+	reg.ModelSource = src
 
 	if xErr := reg.Model.VerifyAndSave(verifyData); xErr != nil {
 		// Too much to undo. The Verify() at the top should have caught
@@ -492,6 +519,7 @@ func (reg *Registry) SetModel(newM *Model, src string, verifyData bool) *XRError
 			xErr.Instance = reg.Tx.UUID
 		}
 
+		// TODO - do we need to reset model/source on failure?
 		return xErr
 	}
 
@@ -656,14 +684,31 @@ func (reg *Registry) GetModel() (*Model, *XRError) {
 }
 
 func (reg *Registry) GetModelSource() ([]byte, *XRError) {
-	m, xErr := reg.GetModel()
+	if reg.ModelSource == nil {
+		src, xErr := reg.LoadModelSource()
+		if xErr != nil {
+			return nil, xErr
+		}
+		if src == nil {
+			src = []byte{}
+		}
+		reg.ModelSource = src
+	}
+
+	return reg.ModelSource, nil
+}
+
+func (reg *Registry) GetModelSourceAsModel() (*Model, *XRError) {
+	src, xErr := reg.GetModelSource()
 	if xErr != nil {
 		return nil, xErr
 	}
-	if m == nil {
+
+	if len(src) == 0 {
 		return nil, nil
 	}
-	return m.Source, nil
+
+	return ParseModel(src, reg)
 }
 
 func (reg *Registry) LoadRemoteModel(tryInline bool) *XRError {
@@ -1116,7 +1161,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 		return xErr
 	}
 
-	if xErr = reg.SetModel(model, string(buf), true); xErr != nil {
+	if xErr = reg.SetModel(model, buf, true); xErr != nil {
 		return xErr
 	}
 
@@ -1177,7 +1222,7 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 			}
 		}
 
-		xErr := reg.SetModel(nil, string(rawJson), false)
+		xErr := reg.SetModel(nil, rawJson, false)
 		if xErr != nil {
 			return xErr
 		}

@@ -950,9 +950,6 @@ func Download(reg *registry.Registry, path string) ([]byte, map[string]string) {
 		Headers: xrlib.HTTPHeaders,
 		Debug:   VerboseCount > 1,
 	})
-	// if xErr != nil {
-	// return nil, nil
-	// }
 	Error(xErr)
 
 	headers := (map[string]string)(nil)

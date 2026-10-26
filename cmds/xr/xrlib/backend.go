@@ -160,24 +160,36 @@ func (CLIBE *CLIBackend) LoadModel(r *registry.Registry) (*registry.Model, *XREr
 		return nil, xErr
 	}
 
-	if err := json.Unmarshal(res.Body, &r.Model); err != nil {
+	newModel := (*registry.Model)(nil)
+	if err := json.Unmarshal(res.Body, &newModel); err != nil {
 		return nil, NewXRError("parsing_data", "/model",
 			"error_detail="+err.Error()).
 			SetDetailf("Response: %s.", string(res.Body))
 	}
-	r.Model.ApplyDefaults(r)
-	r.Model.SetPointers()
 
-	// Now download modelsource
-	res, xErr = HttpDo(&HttpRequest{
+	newModel.Registry = r
+	newModel.ApplyDefaults(r)
+	newModel.SetSpecPropsFields()
+	newModel.SetPointers()
+
+	return newModel, nil
+}
+
+func (CLIBE *CLIBackend) LoadModelSource(r *registry.Registry) ([]byte, *XRError) {
+	cliReg := (*CLIReg)(r)
+
+	res, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     cliReg.WithPath("/modelsource"),
 		Headers: HTTPHeaders,
 		Debug:   log.GetLevel() > 2,
 	})
 
-	r.Model.Source = []byte{}
-	return r.Model, nil
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	newModelSource := []byte{}
 
 	if res.Code != 404 {
 		// We silently ignore 404 for modelsource
@@ -194,13 +206,18 @@ func (CLIBE *CLIBackend) LoadModel(r *registry.Registry) (*registry.Model, *XREr
 				SetDetailf("Response: %s.", string(res.Body))
 		}
 
-		r.Model.Source = res.Body
+		newModelSource = res.Body
 	}
 
-	return r.Model, nil
+	return newModelSource, nil
 }
 
 func (CLIBE *CLIBackend) SaveModel(r *registry.Registry) *XRError {
+	panic("not yet")
+	return nil
+}
+
+func (CLIBE *CLIBackend) SaveModelSource(r *registry.Registry) *XRError {
 	panic("not yet")
 	return nil
 }

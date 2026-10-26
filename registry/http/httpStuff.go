@@ -221,8 +221,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if xErr != nil {
-		if xErr.Type == "server_error" {
-			log.Printf(">>> Server Error <<<\n%s", xErr.Stack)
+		if xErr.ShowStack || xErr.Type == "server_error" {
+			stack := xErr.Stack
+			if stack == "" {
+				stack = "    <no stacktrace>"
+			}
+			log.Printf(">>> %s  <<<\n%s", xErr.Type, stack)
 		}
 		HTTPWriteError(info, xErr)
 	}
@@ -412,13 +416,12 @@ func HTTPGETModelSource(info *registry.RequestInfo) *XRError {
 
 	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
-	model := info.Registry.Model
-	if model == nil {
-		model = &registry.Model{}
+	modelSrc, xErr := info.Registry.GetModelSource()
+	if xErr != nil {
+		return xErr
 	}
 
-	modelSrc := model.Source
-	if modelSrc == nil {
+	if len(modelSrc) == 0 {
 		modelSrc = []byte(`{}`)
 	}
 
@@ -1925,7 +1928,7 @@ func HTTPPUTModelSource(info *registry.RequestInfo) *XRError {
 		return xErr
 	}
 
-	xErr := info.Registry.SetModel(nil, string(body), true)
+	xErr := info.Registry.SetModel(nil, body, true)
 	if xErr != nil {
 		return xErr
 	}

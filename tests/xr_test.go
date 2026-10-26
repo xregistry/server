@@ -3211,7 +3211,8 @@ func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
    ├─ PASS: "createdat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
    ├─ PASS: "modifiedat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
    ├─ Unexpected error: There was an error parsing "/capabilities": unexpected
-   │  end of JSON input.
+   │  end of JSON input. Response: {
+   │  .
    └─ FAIL: Retrieving capabilities MUST work
 Pass: 10   Fail: 3   Warn: 0   Skip: 0
 `, ``, 1)

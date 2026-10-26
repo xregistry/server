@@ -334,7 +334,6 @@ func VerifyModel(fileName string, buf []byte, skipTarget, fullModel bool) *XRErr
 	buf, xErr := ProcessIncludes(fileName, buf, true)
 	if xErr != nil {
 		return xErr
-		// Error("%s%s", fileName, err)
 	}
 
 	// All this just to remove $schema
@@ -922,7 +921,7 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 
 	cliReg := (*xrlib.CLIReg)(reg)
 
-	modelSrc, xErr := cliReg.GetModelSource()
+	modelSrc, xErr := reg.GetModelSourceAsModel()
 	Error(xErr)
 
 	verMsg := ""
@@ -954,9 +953,8 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	}
 
 	buf, xErr := modelSrc.SerializeForUser()
-	if xErr != nil {
-		Error(xErr)
-	}
+	Error(xErr)
+
 	_, xErr = HttpDo(&HttpRequest{
 		Verb:    "PUT",
 		URL:     cliReg.WithPath("/modelsource"),
@@ -971,7 +969,8 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	Error(cliReg.RefreshModel())
+	_, xErr = reg.LoadModel()
+	Error(xErr)
 
 	PrintGroupModelsByName(reg.Model, gmNames, output, "", resources, all)
 }
@@ -1014,7 +1013,7 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 
 	cliReg := (*xrlib.CLIReg)(reg)
 
-	model, xErr := cliReg.GetModelSource()
+	model, xErr := reg.GetModelSourceAsModel()
 	Error(xErr)
 	verMsg := ""
 	for _, arg := range args {
@@ -1168,7 +1167,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 	groupPlural, groupSingular, _ := strings.Cut(group, ":")
 
-	modelSrc, xErr := cliReg.GetModelSource()
+	modelSrc, xErr := reg.GetModelSourceAsModel()
 	Error(xErr)
 	gm := modelSrc.FindGroupModel(groupPlural)
 	verMsg := ""
@@ -1373,7 +1372,8 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	Error(cliReg.RefreshModel())
+	_, xErr = reg.LoadModel()
+	Error(xErr)
 	gm = reg.Model.FindGroupModel(gm.Plural)
 	if gm == nil {
 		Error("Unknown Group type: %s", gm.Plural)
@@ -1420,7 +1420,7 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 
 	cliReg := (*xrlib.CLIReg)(reg)
 
-	model, xErr := cliReg.GetModelSource()
+	model, xErr := reg.GetModelSourceAsModel()
 	Error(xErr)
 	gm := model.FindGroupModel(group)
 	if gm == nil {

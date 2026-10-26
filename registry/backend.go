@@ -81,10 +81,13 @@ type Backend interface {
 	SaveCapabilities(r *Registry) *XRError
 
 	// Load model from DB but do not store it in r.Model yet.
-	// MUST include setting model.Source too
 	LoadModel(r *Registry) (*Model, *XRError)
+	// Load source from DB but do not store it in r.Source yet.
+	LoadModelSource(r *Registry) ([]byte, *XRError)
+
 	// Save r.Model to DB
 	SaveModel(r *Registry) *XRError
+	SaveModelSource(r *Registry) *XRError
 
 	// Add GM/RM to their Registry model in the DB
 	RegisterGroupModel(gm *GroupModel) *XRError
