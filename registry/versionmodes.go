@@ -30,7 +30,7 @@ var VersionModes = map[string]VersionMode{
 // modifiedat, semver precedence) was used to originally order the chain,
 // since it only ever follows the already-stored 'ancestorid' pointers.
 func chainWillDelete(r *Resource, vID string) *XRError {
-	v, xErr := r.FindVersion(vID, false)
+	v, xErr := r.FindVersion(vID)
 	if xErr != nil {
 		return xErr
 	}
@@ -42,7 +42,7 @@ func chainWillDelete(r *Resource, vID string) *XRError {
 	}
 
 	for _, vid := range vers {
-		ver, xErr := r.FindVersion(vid, false)
+		ver, xErr := r.FindVersion(vid)
 		if xErr != nil {
 			return xErr
 		}
@@ -100,7 +100,7 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 			}
 		}
 
-		v, xErr := r.FindVersion(va.VID, false)
+		v, xErr := r.FindVersion(va.VID)
 		if xErr != nil {
 			return xErr
 		}
@@ -125,7 +125,7 @@ func (vm *ManualVersionMode) WillDelete(r *Resource, vID string) *XRError {
 	}
 
 	for _, vid := range vers {
-		ver, xErr := r.FindVersion(vid, false)
+		ver, xErr := r.FindVersion(vid)
 		if xErr != nil {
 			return xErr
 		}
@@ -162,7 +162,7 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	}
 
 	for _, av := range AVs {
-		v, xErr := r.FindVersion(av.VersionUID, false)
+		v, xErr := r.FindVersion(av.VersionUID)
 		if xErr != nil {
 			return xErr
 		}
@@ -205,7 +205,7 @@ func (vm *ModifiedatVersionMode) CheckAncestors(r *Resource) *XRError {
 	}
 
 	for _, av := range AVs {
-		v, xErr := r.FindVersion(av.VersionUID, false)
+		v, xErr := r.FindVersion(av.VersionUID)
 		if xErr != nil {
 			return xErr
 		}
@@ -253,7 +253,7 @@ func (vm *SemverVersionMode) CheckAncestors(r *Resource) *XRError {
 	}
 
 	for _, av := range AVs {
-		v, xErr := r.FindVersion(av.VersionUID, false)
+		v, xErr := r.FindVersion(av.VersionUID)
 		if xErr != nil {
 			return xErr
 		}

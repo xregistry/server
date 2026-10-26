@@ -6177,7 +6177,7 @@ func TestHTTPCases(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\".",
-  "subject": "/d1",
+  "subject": "/dirs/D1",
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
@@ -6235,7 +6235,7 @@ func TestHTTPCases(t *testing.T) {
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
-  "subject": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/F1",
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
@@ -6247,7 +6247,7 @@ func TestHTTPCases(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\".",
-  "subject": "/d1",
+  "subject": "/dirs/D1",
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
@@ -6273,7 +6273,7 @@ func TestHTTPCases(t *testing.T) {
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
-  "subject": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/F1",
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
@@ -6285,7 +6285,7 @@ func TestHTTPCases(t *testing.T) {
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\".",
-  "subject": "/d1",
+  "subject": "/dirs/D1",
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
@@ -6327,7 +6327,7 @@ func TestHTTPCases(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\".",
-  "subject": "/dirs/d1/files/f1/versions/v1",
+  "subject": "/dirs/d1/files/f1/versions/V1",
   "args": {
     "error_detail": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\""
   },
@@ -6339,7 +6339,7 @@ func TestHTTPCases(t *testing.T) {
 		`{ "versionid": "V1" }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
-  "subject": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/F1",
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
@@ -6351,7 +6351,7 @@ func TestHTTPCases(t *testing.T) {
 		`{ "versionid": "V1" }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\".",
-  "subject": "/d1",
+  "subject": "/dirs/D1",
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
@@ -6395,7 +6395,7 @@ func TestHTTPCases(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\".",
-  "subject": "/d1",
+  "subject": "/dirs/D1",
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
@@ -6419,7 +6419,7 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "POST", "/dirs", `{"D1":{"dirid":"d1"}}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\".",
-  "subject": "/d1",
+  "subject": "/dirs/D1",
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
@@ -6432,7 +6432,7 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "POST", "/dirs/d1/files", `{"F1":{"fileid":"F1"}}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
-  "subject": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/F1",
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
@@ -6457,7 +6457,7 @@ func TestHTTPCases(t *testing.T) {
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
-  "subject": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/F1",
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
@@ -6495,7 +6495,7 @@ func TestHTTPCases(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\".",
-  "subject": "/dirs/d1/files/f1/versions/v1",
+  "subject": "/dirs/d1/files/f1/versions/V1",
   "args": {
     "error_detail": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\""
   },
@@ -6522,7 +6522,7 @@ func TestHTTPCases(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "title": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\".",
-  "subject": "/dirs/d1/files/f1/versions/v1",
+  "subject": "/dirs/d1/files/f1/versions/V1",
   "args": {
     "error_detail": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\""
   },

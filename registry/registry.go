@@ -213,8 +213,7 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 		return tx.Registry, nil
 	}
 
-	ent, xErr := tx.Backend.GetEntityFromXID(tx, sid, "/", false, false,
-		accessMode)
+	ent, xErr := tx.Backend.GetEntityFromXID(tx, sid, "/", false, accessMode)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -310,7 +309,7 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 	}
 
 	entity, xErr := tx.Backend.GetEntityFromXID(tx, regSID, "/", false,
-		false, accessMode)
+		accessMode)
 
 	if xErr != nil {
 		if newTx {
@@ -1330,8 +1329,8 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 // with the bug class Resource/Meta/Version's family-locking exists to
 // prevent, where a decision (e.g. "does this Resource already exist?")
 // computed from an unlocked read could go stale before the write.
-func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
-	defer log.Trace("tx: %s %s,%s,%v", reg.Tx.UUID, gType, id, anyCase)()
+func (reg *Registry) FindGroup(gType string, id string, accessMode int) (*Group, *XRError) {
+	defer log.Trace("tx: %s %s,%s", reg.Tx.UUID, gType, id)()
 
 	if g := reg.Tx.GetGroup(reg, gType, id); g != nil {
 		log.FuncPrintf("tx: %s FindGroup %s,%s from cache",
@@ -1345,7 +1344,7 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 	}
 
 	entity, xErr := reg.Tx.Backend.GetEntityFromXID(reg.Tx, reg.SID,
-		"/"+gType+"/"+id, false, anyCase, accessMode)
+		"/"+gType+"/"+id, false, accessMode)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -1403,12 +1402,24 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 	isNew := false
 
-	g, xErr := reg.FindGroup(gType, id, true, FOR_WRITE)
+	gXID := "/" + gType + "/" + id
+
+	realXID, xErr := reg.EntityRealXID(gXID, FOR_WRITE)
 	if xErr != nil {
 		return nil, false, xErr
 	}
 
-	if g == nil {
+	if realXID != "" && realXID != gXID {
+		return nil, false,
+			NewXRError("bad_request", gXID,
+				"error_detail="+
+					fmt.Sprintf("Attempting to create a Group "+
+						"with a \"%sid\" of %q, when one already exists as %q",
+						gm.Singular, id, realXID[len(realXID)-len(id):]))
+	}
+
+	// We don't think it exists by any case, so lock registry and recheck
+	if realXID == "" {
 		// If the group doesn't exist yet then, if the Registry isn't already
 		// locked, lock it before we try to create the group.
 		// We don't lock it before this because if the group already
@@ -1417,13 +1428,29 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			return nil, false, xErr
 		}
 
-		g, xErr = reg.FindGroup(gType, id, true, FOR_WRITE)
+		realXID, xErr := reg.EntityRealXID(gXID, FOR_WRITE)
 		if xErr != nil {
 			return nil, false, xErr
 		}
+
+		if realXID != "" && realXID != gXID {
+			return nil, false,
+				NewXRError("bad_request", gXID,
+					"error_detail="+
+						fmt.Sprintf("Attempting to create a Group "+
+							"with a \"%sid\" of %q, when one already "+
+							"exists as %q",
+							gm.Singular, id,
+							realXID[len(realXID)-len(id):]))
+		}
 	}
 
-	log.FuncPrintf("tx: %s upsertGroup FindGroup(%s,%s,true) => %v",
+	g, xErr := reg.FindGroup(gType, id, FOR_WRITE)
+	if xErr != nil {
+		return nil, false, xErr
+	}
+
+	log.FuncPrintf("tx: %s upsertGroup FindGroup(%s,%s) => %v",
 		reg.Tx.UUID, gType, id, g != nil)
 
 	if g != nil && g.UID != id {
@@ -1629,7 +1656,7 @@ func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 			"error_detail="+err.Error())
 	}
 
-	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, FOR_READ)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -1648,7 +1675,7 @@ func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 			"error_detail="+fmt.Sprintf("%q isn't an xid", xidStr))
 	}
 
-	res, xErr := g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
+	res, xErr := g.FindResource(xid.Resource, xid.ResourceID, FOR_READ)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -1662,7 +1689,7 @@ func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 		return &res.Entity, nil
 	}
 
-	v, xErr := res.FindVersion(xid.VersionID, false)
+	v, xErr := res.FindVersion(xid.VersionID)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -1693,7 +1720,7 @@ func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 			"error_detail=missing a \"groupid\"")
 	}
 
-	return r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	return r.FindGroup(xid.Group, xid.GroupID, FOR_READ)
 }
 
 func (r *Registry) FindResourceByXID(xidStr string, path string, accessMode int) (*Resource, *XRError) {
@@ -1713,11 +1740,11 @@ func (r *Registry) FindResourceByXID(xidStr string, path string, accessMode int)
 			"xid="+xidStr,
 			"error_detail=missing a \"resourceid\"")
 	}
-	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, accessMode)
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, accessMode)
 	if xErr != nil || g == nil {
 		return nil, xErr
 	}
-	return g.FindResource(xid.Resource, xid.ResourceID, false, accessMode)
+	return g.FindResource(xid.Resource, xid.ResourceID, accessMode)
 }
 
 func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRError) {
@@ -1747,16 +1774,15 @@ func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRErro
 			"xid="+xidStr,
 			"error_detail=not a \"versions\" XID")
 	}
-	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, FOR_READ)
 	if xErr != nil || g == nil {
 		return nil, xErr
 	}
-	resource, xErr := g.FindResource(xid.Resource, xid.ResourceID, false,
-		FOR_READ)
+	resource, xErr := g.FindResource(xid.Resource, xid.ResourceID, FOR_READ)
 	if xErr != nil || resource == nil {
 		return nil, xErr
 	}
-	return resource.FindVersion(xid.VersionID, false)
+	return resource.FindVersion(xid.VersionID)
 }
 
 func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
@@ -1781,16 +1807,15 @@ func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
 			"xid="+xidStr,
 			"error_detail=not a \"meta\" XID")
 	}
-	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, FOR_READ)
 	if !IsNil(err) || g == nil {
 		return nil, xErr
 	}
-	resource, xErr := g.FindResource(xid.Resource, xid.ResourceID, false,
-		FOR_READ)
+	resource, xErr := g.FindResource(xid.Resource, xid.ResourceID, FOR_READ)
 	if xErr != nil || resource == nil {
 		return nil, xErr
 	}
-	return resource.FindMeta(false)
+	return resource.FindMeta()
 }
 
 /*
@@ -1883,17 +1908,17 @@ func (r *Registry) GenerateResultEntities(what string,
 }
 
 func (r *Registry) GetEntitiesFromXID(xidStr string, allAttrs bool,
-	children bool, anyCase bool, accessMode int) (EntityIterator, *XRError) {
+	children bool, accessMode int) (EntityIterator, *XRError) {
 
 	return r.Tx.Backend.GetEntitiesFromXID(r.Tx, r.SID, xidStr, allAttrs,
-		children, anyCase, accessMode)
+		children, accessMode)
 }
 
-func (r *Registry) GetEntityFromXID(xidStr string, allAttrs bool, anyCase bool,
+func (r *Registry) GetEntityFromXID(xidStr string, allAttrs bool,
 	accessMode int) (*Entity, *XRError) {
 
 	return r.Tx.Backend.GetEntityFromXID(r.Tx, r.SID, xidStr, allAttrs,
-		anyCase, accessMode)
+		accessMode)
 }
 
 func (r *Registry) GetGroupIDsByType(gType string,
@@ -1904,4 +1929,9 @@ func (r *Registry) GetGroupIDsByType(gType string,
 
 func MapShortSelf(tx *Tx, ss string) (string, string, *XRError) {
 	return tx.Backend.MapShortSelf(tx, ss)
+}
+
+// Find entity's real XID in any case (""=not found)
+func (r *Registry) EntityRealXID(xidStr string, accessMode int) (string, *XRError) {
+	return r.Tx.Backend.EntityRealXID(r.Tx, xidStr, accessMode)
 }

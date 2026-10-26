@@ -299,7 +299,6 @@ CREATE TABLE Props (
   SID          VARCHAR(64) NOT NULL,       # Reg,Group,Res,Ver System ID
   UID          VARCHAR(255) NOT NULL,      # User Defined
   XID          VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
-  LowerXID     VARCHAR(329) GENERATED ALWAYS AS (LOWER(XID)) STORED,
   PropName     VARCHAR($MAX_PROPNAME) NOT NULL,
   PropValue    MEDIUMTEXT NULL, # VARCHAR($MAX_VARCHAR),
   PropType     CHAR(64) NOT NULL,          # string, boolean, int, ...
@@ -351,7 +350,6 @@ CREATE TABLE Props (
   IsCalcDynamic    BOOL NOT NULL DEFAULT false, # Version.isdefault
 
   PRIMARY KEY(RegistrySID, XID, PropName),
-  UNIQUE INDEX(RegistrySID, LowerXID, PropName),
   UNIQUE INDEX(SID, PropName),
   INDEX(ParentSID) # for cascade-copy cleanup (e.g.
                    # fullSaveXrefCascadeDelete's ParentSID scan)

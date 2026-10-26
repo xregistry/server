@@ -29,7 +29,7 @@ func (v *Version) Delete() *XRError {
 // "defaultversionid" manipulation.
 // Used when xref on the Resource is set and we need to clear existing vers
 func (v *Version) JustDelete() *XRError {
-	meta := v.Resource.MustFindMeta(false)
+	meta := v.Resource.MustFindMeta()
 
 	b, xErr := v.Resource.Touch()
 	if xErr != nil {
@@ -108,7 +108,7 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
 			return xErr
 		}
 	} else if nextVersionID != "" {
-		nextVersion, xErr = v.Resource.FindVersion(nextVersionID, false)
+		nextVersion, xErr = v.Resource.FindVersion(nextVersionID)
 		if xErr != nil {
 			return xErr
 		}
@@ -139,7 +139,7 @@ func (v *Version) GetChildren() ([]*Version, *XRError) {
 
 	children := ([]*Version)(nil)
 	for _, vid := range vIDs {
-		childVer, xErr := v.Resource.FindVersion(vid, false)
+		childVer, xErr := v.Resource.FindVersion(vid)
 		if xErr != nil {
 			return nil, xErr
 		}

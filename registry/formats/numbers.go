@@ -103,7 +103,7 @@ func (ft FormatNumbers) IsCompatible(direction string, oldVer, newVer *registry.
 	}
 
 	if newSum < oldSum {
-		compat := newVer.Resource.MustFindMeta(false).
+		compat := newVer.Resource.MustFindMeta().
 			GetAsString("compatibility")
 		return true, "", NewXRError("compatibility_violation",
 			newVer.Resource.XID, "compat="+compat).

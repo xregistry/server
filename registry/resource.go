@@ -15,8 +15,8 @@ import (
 )
 
 // Maybe replace error with a panic? same for other finds??
-func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
-	defer log.Trace("tx: %s %s,%v", r.Tx.UUID, id, anyCase)()
+func (r *Resource) FindVersion(id string) (*Version, *XRError) {
+	defer log.Trace("tx: %s %s", r.Tx.UUID, id)()
 
 	if id == "" { // just incase
 		return nil, nil
@@ -48,7 +48,7 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 	// to show up here in cases where it's xref'd in.
 	// Keep an eye on this.
 	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.SID,
-		r.XID+"/versions/"+id, true, anyCase, r.AccessMode)
+		r.XID+"/versions/"+id, true, r.AccessMode)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -66,7 +66,7 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, *XRError) {
 }
 
 func (r *Resource) IsXref() bool {
-	tmp := r.MustFindMeta(false).Get("xref")
+	tmp := r.MustFindMeta().Get("xref")
 	return !IsNil(tmp) && tmp != ""
 }
 
@@ -74,8 +74,8 @@ func (r *Resource) GetVersions(accessMode int) ([]*Version, *XRError) {
 	return r.Tx.Backend.GetVersions(r, accessMode)
 }
 
-func (r *Resource) MustFindMeta(anyCase bool) *Meta {
-	meta, xErr := r.FindMeta(anyCase)
+func (r *Resource) MustFindMeta() *Meta {
+	meta, xErr := r.FindMeta()
 	if xErr != nil {
 		panic(xErr)
 	}
@@ -86,8 +86,8 @@ func (r *Resource) MustFindMeta(anyCase bool) *Meta {
 	return meta
 }
 
-func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
-	defer log.Trace("tx: %s %v", r.Tx.UUID, anyCase)()
+func (r *Resource) FindMeta() (*Meta, *XRError) {
+	defer log.Trace("tx: %s", r.Tx.UUID)()
 
 	// Resource/Meta/Version are locked together as one family (see
 	// lockEntityFamily()) - Meta's effective access mode is always
@@ -111,7 +111,7 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, *XRError) {
 	}
 
 	entity, xErr := r.Tx.Backend.GetEntityFromXID(r.Tx, r.Group.Registry.SID,
-		r.XID+"/meta", false, anyCase, r.AccessMode)
+		r.XID+"/meta", false, r.AccessMode)
 
 	if xErr != nil {
 		return nil, xErr
@@ -258,7 +258,7 @@ var _ EntitySetter = &Meta{}
 func (r *Resource) Get(name string) any {
 	log.FuncPrintf("tx: %s Get: r(%s).Get(%s)", r.Tx.UUID, r.UID, name)
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	xrefStr, xref, xErr := r.GetXref()
 	Must(xErr)
@@ -287,7 +287,7 @@ func (r *Resource) Get(name string) any {
 }
 
 func (r *Resource) GetXref() (string, *Resource, *XRError) {
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	tmp := meta.Get("xref")
 	if IsNil(tmp) {
@@ -315,14 +315,14 @@ func (r *Resource) GetXref() (string, *Resource, *XRError) {
 				"/GROUPS/GID/RESOURCES/RID", tmp.(string))
 	}
 
-	group, xErr := r.Registry.FindGroup(parts[1], parts[2], false, FOR_READ)
+	group, xErr := r.Registry.FindGroup(parts[1], parts[2], FOR_READ)
 	if xErr != nil || IsNil(group) {
 		return "", nil, xErr
 	}
 	if IsNil(group) {
 		return "", nil, nil
 	}
-	res, xErr := group.FindResource(parts[3], parts[4], false, FOR_READ)
+	res, xErr := group.FindResource(parts[3], parts[4], FOR_READ)
 	if xErr != nil || IsNil(res) {
 		return "", nil, xErr
 	}
@@ -344,7 +344,7 @@ func (m *Meta) JustSet(name string, val any) *XRError {
 func (r *Resource) JustSetMeta(name string, val any) *XRError {
 	log.FuncPrintf("tx: %s JustSetMeta: r(%s).Set(%s,%v)",
 		r.Tx.UUID, r.UID, name, val)
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 	return meta.Entity.eJustSetPath(name, val)
 }
 
@@ -377,7 +377,7 @@ func (r *Resource) SetSaveMeta(name string, val any) *XRError {
 	log.FuncPrintf("tx: %s SetSaveMeta: r(%s).Set(%s,%v)", r.Tx.UUID,
 		r.UID, name, val)
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 	return meta.Entity.eSetSave(name, val)
 }
 
@@ -406,12 +406,12 @@ func (r *Resource) SetSaveDefault(name string, val any) *XRError {
 }
 
 func (r *Resource) Touch() (bool, *XRError) {
-	return r.MustFindMeta(false).Touch()
+	return r.MustFindMeta().Touch()
 }
 
 // Maybe replace error with a panic?
 func (r *Resource) GetDefault() (*Version, *XRError) {
-	meta, xErr := r.FindMeta(false)
+	meta, xErr := r.FindMeta()
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 	if meta == nil {
 		// Resource (and its Meta) no longer exists - e.g. it was
@@ -421,7 +421,7 @@ func (r *Resource) GetDefault() (*Version, *XRError) {
 	}
 
 	val := meta.GetAsString("defaultversionid")
-	return r.FindVersion(val, false)
+	return r.FindVersion(val)
 }
 
 func (r *Resource) GetVersionMode() VersionMode {
@@ -471,12 +471,12 @@ func (r *Resource) GetNewest() (*Version, *XRError) {
 	if xErr != nil {
 		return nil, xErr
 	}
-	return r.FindVersion(vid, false)
+	return r.FindVersion(vid)
 }
 
 func (r *Resource) EnsureLatest() *XRError {
 	log.Trace("tx: %s %s", r.Tx.UUID, r.XID)()
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	currentDefault := meta.GetAsString("defaultversionid")
 
@@ -521,7 +521,7 @@ func (r *Resource) SetDefaultID(vID string) *XRError {
 	var xErr *XRError
 
 	if vID != "" {
-		v, xErr = r.FindVersion(vID, false)
+		v, xErr = r.FindVersion(vID)
 		if xErr != nil {
 			return xErr
 		}
@@ -543,7 +543,7 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 			"name=defaultversionid")
 	}
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	newDefaultID := ""
 	if newDefault != nil {
@@ -606,7 +606,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 	info := r.GetRequestInfo()
 
 	if meta.Get("readonly") == true {
@@ -1014,7 +1014,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		return nil, false, xErr
 	}
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	if meta.Get("readonly") == true {
 		if r.GetRequestInfo().HasIgnore("readonly") {
@@ -1064,7 +1064,9 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		nextID := NotNilInt(&tmp)
 		for {
 			vu.Id = strconv.Itoa(nextID)
-			v, xErr := r.FindVersion(vu.Id, false)
+			vXID := r.XID + "/versions/" + vu.Id
+
+			realXID, xErr := r.Group.Registry.EntityRealXID(vXID, FOR_WRITE)
 			if xErr != nil {
 				return nil, false, xErr
 			}
@@ -1072,37 +1074,48 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			// Increment no matter what since it's "next" not "default"
 			nextID++
 
-			if v == nil {
+			if realXID == "" {
 				meta.JustSet("#nextversionid", nextID)
 				break
 			}
 		}
 	} else {
-		v, xErr = r.FindVersion(vu.Id, true)
+		vXID := r.XID + "/versions/" + vu.Id
+		realXID, xErr := r.Group.Registry.EntityRealXID(vXID, FOR_WRITE)
+		if xErr != nil {
+			return nil, false, xErr
+		}
 
-		if vu.AddType == ADD_ADD && v != nil {
+		// Already exists by any case
+		if realXID != "" && vu.AddType == ADD_ADD {
 			return nil, false,
-				NewXRError("bad_request", v.XID,
+				NewXRError("bad_request", vXID,
 					"error_detail="+
 						fmt.Sprintf("Version %q already exists", vu.Id))
 		}
 
-		if v == nil && rm.GetSetVersionId() == false {
+		// Already exists by a different case
+		if realXID != "" && realXID != vXID {
+			return nil, false,
+				NewXRError("bad_request", vXID,
+					"error_detail="+
+						fmt.Sprintf("Attempting to create a Version with "+
+							"a \"versionid\" of %q, when one already "+
+							"exists as %q", vu.Id,
+							realXID[len(realXID)-len(vu.Id):]))
+		}
+
+		// Doesn't exist, but they're not allowed to pick a versionid
+		if realXID == "" && rm.GetSetVersionId() == false {
 			return nil, false, NewXRError("versionid_not_allowed", r.XID,
 				"plural="+r.Plural)
 		}
 
-		if v != nil && v.UID != vu.Id {
-			return nil, false,
-				NewXRError("bad_request", v.XID,
-					"error_detail="+
-						fmt.Sprintf("Attempting to create a Version with "+
-							"a \"versionid\" of %q, when one already "+
-							"exists as %q", vu.Id, v.UID))
-		}
-
-		if xErr != nil {
-			return nil, false, xErr
+		if realXID != "" {
+			v, xErr = r.FindVersion(vu.Id)
+			if xErr != nil {
+				return nil, false, xErr
+			}
 		}
 	}
 
@@ -1401,7 +1414,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// the constraints are still valid
 	r.Tx.AddGroupToValidate(r.Group)
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	// If xref is set then we don't need to check anything, but this
 	// Resource (as an xref source) may still need its default-version-
@@ -1503,7 +1516,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 // here: ValidateResource() (runCascade()'s only caller) already calls
 // r.MustFindMeta() before ever reaching this point.
 func (r *Resource) runCascade() *XRError {
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	// (Re)build r's own IsXrefPropCopy/IsXrefVerCopy rows first, in
 	// case r's own Meta.xref was just set/changed/cleared -
@@ -1805,7 +1818,7 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 		}
 
 		if oldestVD.UID != defaultID {
-			v, xErr := r.FindVersion(oldestVD.UID, false)
+			v, xErr := r.FindVersion(oldestVD.UID)
 			if xErr != nil {
 				return xErr
 			}
@@ -1838,7 +1851,7 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 		}
 	}
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 	if rm.GetMaxVersions() == 1 && meta.Get("defaultversionsticky") == true {
 		return NewXRError("setdefaultversionsticky_false", meta.XID)
 	}
@@ -1849,7 +1862,7 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 func (r *Resource) Delete() *XRError {
 	defer log.Trace("tx: %s %s", r.Tx.UUID, r.UID)()
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	if meta.Get("readonly") == true {
 		return NewXRError("readonly", r.XID)
@@ -2046,7 +2059,7 @@ func (r *Resource) GetVersionAncestorData() (*VersionAncestorData, *XRError) {
 func (r *Resource) EnsureCompat(force bool) *XRError {
 	defer log.Trace("tx: %s %s", r.Tx.UUID, r.UID)()
 
-	meta := r.MustFindMeta(false)
+	meta := r.MustFindMeta()
 
 	validateFormat := r.ResourceModel.GetValidateFormat()
 	validateCompat := r.ResourceModel.GetValidateCompatibility()
@@ -2096,9 +2109,9 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			// Already checked
 			return nil
 		}
-		oldV, xErr := r.FindVersion(oldVID, false)
+		oldV, xErr := r.FindVersion(oldVID)
 		PanicIf(!IsNil(xErr) || IsNil(oldV), "%s: %s", oldVID, ToJSON(xErr))
-		newV, xErr := r.FindVersion(newVID, false)
+		newV, xErr := r.FindVersion(newVID)
 		PanicIf(!IsNil(xErr) || IsNil(newV), "%s: %s", newVID, ToJSON(xErr))
 
 		// I'm always compatible with myself. Just in case caller doesn't check
@@ -2144,7 +2157,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 	// Loop over all of the Resource's Versions
 	for _, va := range vad.Versions {
-		ver, xErr := r.FindVersion(va.UID, false)
+		ver, xErr := r.FindVersion(va.UID)
 		if xErr != nil {
 			return xErr
 		}
@@ -2273,7 +2286,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	compatFound := false
 	for _, verID := range changedVersions {
 		// Already checked newFormat & checker in previous loop
-		ver, xErr := r.FindVersion(verID, false)
+		ver, xErr := r.FindVersion(verID)
 		PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
 
 		newFormat := ver.GetAsString("format")
@@ -2444,7 +2457,7 @@ func (r *Resource) SaveDefaultVersionCascade() *XRError {
 	// same Tx after being marked for a cascade run (e.g. all of its
 	// Versions were deleted, which per business rules deletes the
 	// Resource itself). If so there's nothing left to cascade.
-	meta, xErr := r.FindMeta(false)
+	meta, xErr := r.FindMeta()
 	if xErr != nil {
 		return xErr
 	}
@@ -2607,7 +2620,7 @@ func (r *Resource) SaveXrefFanOutForTarget() *XRError {
 		if sourceResource == nil {
 			continue
 		}
-		sourceMeta, xErr := sourceResource.FindMeta(false)
+		sourceMeta, xErr := sourceResource.FindMeta()
 		if xErr != nil {
 			return xErr
 		}

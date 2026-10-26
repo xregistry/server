@@ -60,7 +60,7 @@ func TestXrefBasic(t *testing.T) {
 	XNoErr(t, err)
 
 	// Grab #createdat so we can make sure it's used when we remove 'xref'
-	meta, _ := fx.FindMeta(false)
+	meta, _ := fx.FindMeta()
 	oldCreatedAt := meta.Get("#createdat")
 
 	// Make sure the Resource doesn't have any versions in the DB.
@@ -1093,7 +1093,7 @@ func TestXrefRevert(t *testing.T) {
 `)
 	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", FOR_READ)
 	XNoErr(t, err)
-	fxMeta, err := fx.FindMeta(false)
+	fxMeta, err := fx.FindMeta()
 	XNoErr(t, err)
 	fxMetaTS := fxMeta.Get("createdat").(string)
 	XCheck(t, f0TS == fxMetaTS, "Bad ts: %s/%s", f0TS, fxMetaTS)
@@ -2226,7 +2226,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
 	XNoErr(t, xErr)
 	XCheck(t, numVers == 1, "Expected 1 Version for fx, got %d", numVers)
 
-	fxMeta, xErr := fx.FindMeta(false)
+	fxMeta, xErr := fx.FindMeta()
 	XNoErr(t, xErr)
 	XCheck(t, IsNil(fxMeta.Get("xref")), "fx.xref should be cleared: %v",
 		fxMeta.Get("xref"))
@@ -2401,7 +2401,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
 	XNoErr(t, xErr)
 	XCheck(t, numVers == 1, "Expected 1 Version for fy, got %d", numVers)
 
-	fyMeta, xErr := fy.FindMeta(false)
+	fyMeta, xErr := fy.FindMeta()
 	XNoErr(t, xErr)
 	XCheck(t, IsNil(fyMeta.Get("xref")), "fy.xref should be cleared: %v",
 		fyMeta.Get("xref"))

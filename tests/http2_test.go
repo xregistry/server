@@ -4090,9 +4090,9 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	reg.Refresh(FOR_READ)
-	g, err := reg.FindGroup("dirs", "dir1", false, FOR_WRITE)
+	g, err := reg.FindGroup("dirs", "dir1", FOR_WRITE)
 	XNoErr(t, err)
-	f, err := g.FindResource("files", "f1", false, FOR_WRITE)
+	f, err := g.FindResource("files", "f1", FOR_WRITE)
 	XNoErr(t, err)
 
 	regCre := reg.GetAsString("createdat")

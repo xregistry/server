@@ -171,8 +171,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		// org/service/version/file
 		// org/version/file
 
-		group, xErr := reg.FindGroup("apiproviders", parts[0], false,
-			FOR_WRITE)
+		group, xErr := reg.FindGroup("apiproviders", parts[0], FOR_WRITE)
 		ErrFatalf(xErr)
 
 		if group == nil {
@@ -197,7 +196,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		res, xErr := group.AddResource("apis", resName, "v1")
 		ErrFatalf(xErr)
 
-		version, xErr := res.FindVersion(parts[verIndex], false)
+		version, xErr := res.FindVersion(parts[verIndex])
 		ErrFatalf(xErr)
 		if version != nil {
 			log.Fatalf("Have more than one file per version: %s\n", header.Name)
@@ -299,7 +298,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 
 	r, xErr := g.AddResource("messages", "created", "v1")
 	ErrFatalf(xErr)
-	v, xErr := r.FindVersion("v1", false)
+	v, xErr := r.FindVersion("v1")
 	ErrFatalf(xErr)
 	ErrFatalf(v.SetSave("name", "blobCreated"))
 	ErrFatalf(v.SetSave("epoch", 2))
@@ -312,7 +311,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 
 	r, xErr = g.AddResource("messages", "deleted", "v1.0")
 	ErrFatalf(xErr)
-	v, xErr = r.FindVersion("v1.0", false)
+	v, xErr = r.FindVersion("v1.0")
 	ErrFatalf(xErr)
 	ErrFatalf(v.SetSave("name", "blobDeleted"))
 	ErrFatalf(v.SetSave("epoch", 3))
@@ -510,9 +509,9 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(xErr)
 	reg.SaveAllAndCommit()
 
-	g, xErr = reg.FindGroup("documents", "mydoc1", false, FOR_READ)
+	g, xErr = reg.FindGroup("documents", "mydoc1", FOR_READ)
 	ErrFatalf(xErr)
-	r, xErr = g.FindResource("docformats", "json", false, FOR_WRITE)
+	r, xErr = g.FindResource("docformats", "json", FOR_WRITE)
 	ErrFatalf(xErr)
 	reg.SaveAllAndCommit()
 
@@ -522,7 +521,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	r, xErr = g.AddResource("docformats", "xml", "v1")
 	ErrFatalf(xErr)
 	reg.SaveAllAndCommit()
-	r, xErr = g.FindResource("docformats", "xml", false, FOR_WRITE)
+	r, xErr = g.FindResource("docformats", "xml", FOR_WRITE)
 	ErrFatalf(xErr)
 
 	r.SetSaveDefault("contenttype", "application/xml")
@@ -532,9 +531,9 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	r, _ = g.AddResource("docformats", "json", "v1")
 	reg.SaveAllAndCommit()
 
-	g, xErr = reg.FindGroup("documents", "mydoc2", false, FOR_READ)
+	g, xErr = reg.FindGroup("documents", "mydoc2", FOR_READ)
 	ErrFatalf(xErr)
-	r, xErr = g.FindResource("docformats", "json", false, FOR_WRITE)
+	r, xErr = g.FindResource("docformats", "json", FOR_WRITE)
 	ErrFatalf(xErr)
 
 	r.SetSaveDefault("contenttype", "application/json")
@@ -542,9 +541,9 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 
 	r, _ = g.AddResource("docformats", "xml", "v1")
 	reg.SaveAllAndCommit()
-	g, xErr = reg.FindGroup("documents", "mydoc2", false, FOR_READ)
+	g, xErr = reg.FindGroup("documents", "mydoc2", FOR_READ)
 	ErrFatalf(xErr)
-	r, xErr = g.FindResource("docformats", "xml", false, FOR_WRITE)
+	r, xErr = g.FindResource("docformats", "xml", FOR_WRITE)
 	ErrFatalf(xErr)
 	r.SetSaveDefault("contenttype", "application/xml")
 	r.SetSaveDefault("docformat", `<elem title="A document 2"/>`)
