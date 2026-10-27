@@ -242,49 +242,37 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			"group="+g.Plural, "name="+ru.RType)
 	}
 
-	// See if it already exists under a diff cased XID
-	realXID, xErr := g.Registry.EntityRealXID(rXID, FOR_READ)
+	// Find the Resource (any case). Returns nil if it doesn't exist.
+	lookup := func(mode int) (*Resource, *XRError) {
+		realXID, xErr := g.Registry.EntityRealXID(rXID, mode)
+		if xErr != nil || realXID == "" {
+			return nil, xErr
+		}
+		if realXID != rXID {
+			return nil, NewXRError("bad_request", rXID,
+				"error_detail="+fmt.Sprintf("Attempting to create a Resource "+
+					"with a \"%sid\" of %q, when one already exists as %q",
+					rModel.Singular, ru.Id,
+					realXID[len(realXID)-len(ru.Id):]))
+		}
+		return g.FindResource(ru.RType, ru.Id, FOR_WRITE)
+	}
+
+	r, xErr := lookup(FOR_READ)
 	if xErr != nil {
 		return nil, false, xErr
 	}
 
-	// Already there but with a different case
-	if realXID != "" && realXID != rXID {
-		return nil, false, NewXRError("bad_request", rXID,
-			"error_detail="+fmt.Sprintf("Attempting to create a Resource "+
-				"with a \"%sid\" of %q, when one already exists as %q",
-				rModel.Singular, ru.Id, realXID[len(realXID)-len(ru.Id):]))
-	}
-
-	r := (*Resource)(nil)
-
-	// We think it's not there (by any case), so lock group and recheck
-	if realXID == "" {
-		// Not found, so before we create it, lock Group.
-		// We didn't lock it before this because if the resource is already
-		// there, then we're just updating it and there's no need to lock
-		// the entire group (yet)
+	// Not found (or deleted before we could lock it), so lock the Group and
+	// recheck. We don't lock it up front because if the resource already
+	// exists then we're just updating it and there's no need to lock the
+	// entire group.
+	if r == nil {
 		if _, xErr := g.Lock(); xErr != nil {
 			return nil, false, xErr
 		}
 
-		realXID, xErr = g.Registry.EntityRealXID(rXID, FOR_WRITE)
-		if xErr != nil {
-			return nil, false, xErr
-		}
-
-		// Already there but with a different case
-		if realXID != "" && realXID != rXID {
-			return nil, false, NewXRError("bad_request", rXID,
-				"error_detail="+fmt.Sprintf("Attempting to create a Resource "+
-					"with a \"%sid\" of %q, when one already exists as %q",
-					rModel.Singular, ru.Id, realXID[len(realXID)-len(ru.Id):]))
-		}
-	}
-
-	// It's there, so go load it
-	if realXID != "" {
-		r, xErr = g.FindResource(ru.RType, ru.Id, FOR_WRITE)
+		r, xErr = lookup(FOR_WRITE)
 		if xErr != nil {
 			return nil, false, xErr
 		}

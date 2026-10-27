@@ -1404,63 +1404,43 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 	gXID := "/" + gType + "/" + id
 
-	realXID, xErr := reg.EntityRealXID(gXID, FOR_READ)
-	if xErr != nil {
-		return nil, false, xErr
-	}
-
-	if realXID != "" && realXID != gXID {
-		return nil, false,
-			NewXRError("bad_request", gXID,
+	// Find the Group (any case). Returns nil if it doesn't exist.
+	lookup := func(mode int) (*Group, *XRError) {
+		realXID, xErr := reg.EntityRealXID(gXID, mode)
+		if xErr != nil || realXID == "" {
+			return nil, xErr
+		}
+		if realXID != gXID {
+			return nil, NewXRError("bad_request", gXID,
 				"error_detail="+
 					fmt.Sprintf("Attempting to create a Group "+
 						"with a \"%sid\" of %q, when one already exists as %q",
 						gm.Singular, id, realXID[len(realXID)-len(id):]))
+		}
+		return reg.FindGroup(gType, id, FOR_WRITE)
 	}
 
-	// We don't think it exists by any case, so lock registry and recheck
-	if realXID == "" {
-		// If the group doesn't exist yet then, if the Registry isn't already
-		// locked, lock it before we try to create the group.
-		// We don't lock it before this because if the group already
-		// exists then there should be no reason to touch the Registry
-		if _, xErr := reg.Lock(); xErr != nil {
-			return nil, false, xErr
-		}
-
-		realXID, xErr = reg.EntityRealXID(gXID, FOR_WRITE)
-		if xErr != nil {
-			return nil, false, xErr
-		}
-
-		if realXID != "" && realXID != gXID {
-			return nil, false,
-				NewXRError("bad_request", gXID,
-					"error_detail="+
-						fmt.Sprintf("Attempting to create a Group "+
-							"with a \"%sid\" of %q, when one already "+
-							"exists as %q",
-							gm.Singular, id,
-							realXID[len(realXID)-len(id):]))
-		}
-	}
-
-	g, xErr := reg.FindGroup(gType, id, FOR_WRITE)
+	g, xErr := lookup(FOR_READ)
 	if xErr != nil {
 		return nil, false, xErr
 	}
 
+	// Not found (or deleted before we could lock it), so lock the Registry
+	// and recheck. We don't lock it up front because if the group already
+	// exists then there's no reason to touch the Registry.
+	if g == nil {
+		if _, xErr := reg.Lock(); xErr != nil {
+			return nil, false, xErr
+		}
+
+		g, xErr = lookup(FOR_WRITE)
+		if xErr != nil {
+			return nil, false, xErr
+		}
+	}
+
 	log.FuncPrintf("tx: %s upsertGroup FindGroup(%s,%s) => %v",
 		reg.Tx.UUID, gType, id, g != nil)
-
-	if g != nil && g.UID != id {
-		return nil, false,
-			NewXRError("bad_request", "/"+g.UID,
-				"error_detail="+
-					fmt.Sprintf("Attempting to create a Group "+
-						"with a \"%sid\" of %q, when one already exists as %q",
-						gm.Singular, id, g.UID))
-	}
 
 	if addType == ADD_ADD && g != nil {
 		return nil, false,

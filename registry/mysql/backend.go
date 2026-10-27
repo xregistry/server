@@ -1298,8 +1298,14 @@ func (sqlBE *SQLBackend) RefreshEntity(e *registry.Entity, accessMode int) *XREr
 		if xErr != nil {
 			return xErr
 		}
-		PanicIf(len(results.AllRows) != 1, "Rows: %d", len(results.AllRows))
+		rows := len(results.AllRows)
 		results.Close()
+		if rows == 0 {
+			// Deleted by someone else after we loaded it
+			return NewXRError("not_found", e.XID).
+				SetDetailf("%q was deleted concurrently.", e.XID)
+		}
+		PanicIf(rows != 1, "tx: %s Rows: %d", e.Tx.UUID, rows)
 	}
 
 	log.FuncPrintf("tx: %s Refreshing %q, mode: %v", e.Tx.UUID, e.XID, mode)
