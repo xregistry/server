@@ -162,8 +162,8 @@ func (g *Group) Delete() *XRError {
 // Group-child is not part of a lockEntityFamily() "family", so there's
 // no analogous need to force every subsequent read through this Group
 // to inherit a prior FOR_WRITE.
-func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode int) (*Resource, *XRError) {
-	defer log.Trace("tx: %s %s,%s,%v", g.Tx.UUID, rType, id, anyCase)()
+func (g *Group) FindResource(rType string, id string, accessMode int) (*Resource, *XRError) {
+	defer log.Trace("tx: %s %s,%s", g.Tx.UUID, rType, id)()
 
 	if r := g.Tx.GetResource(g, rType, id); r != nil {
 		if accessMode == FOR_WRITE && r.AccessMode != FOR_WRITE {
@@ -175,7 +175,7 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 	}
 
 	entity, xErr := g.Tx.Backend.GetEntityFromXID(g.Tx, g.Registry.SID,
-		g.XID+"/"+rType+"/"+id, false, anyCase, accessMode)
+		g.XID+"/"+rType+"/"+id, false, accessMode)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -224,14 +224,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	// ru.VID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
 
-	// Moved to after the findResource below.
-	// _, xErr := g.Lock()
-
 	if xErr := g.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
 	}
 
-	if xErr := CheckAttrs(ru.Obj, g.XID+"/"+ru.RType+"/"+ru.Id); xErr != nil {
+	// calc rXID so we can use it even if r == nil
+	rXID := g.XID + "/" + ru.RType + "/" + ru.Id
+
+	if xErr := CheckAttrs(ru.Obj, rXID); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -242,32 +242,46 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			"group="+g.Plural, "name="+ru.RType)
 	}
 
-	r, xErr := g.FindResource(ru.RType, ru.Id, true, FOR_WRITE)
+	// Find the Resource (any case). Returns nil if it doesn't exist.
+	lookup := func(mode int) (*Resource, *XRError) {
+		realXID, xErr := g.Registry.EntityRealXID(rXID, mode)
+		if xErr != nil || realXID == "" {
+			return nil, xErr
+		}
+		if realXID != rXID {
+			return nil, NewXRError("bad_request", rXID,
+				"error_detail="+fmt.Sprintf("Attempting to create a Resource "+
+					"with a \"%sid\" of %q, when one already exists as %q",
+					rModel.Singular, ru.Id,
+					realXID[len(realXID)-len(ru.Id):]))
+		}
+		return g.FindResource(ru.RType, ru.Id, FOR_WRITE)
+	}
+
+	r, xErr := lookup(FOR_READ)
 	if xErr != nil {
 		return nil, false, xErr
 	}
 
+	// Not found (or deleted before we could lock it), so lock the Group and
+	// recheck. We don't lock it up front because if the resource already
+	// exists then we're just updating it and there's no need to lock the
+	// entire group.
 	if r == nil {
-		// Not found, so before we create it, lock Group.
-		// We didn't lock it before this because if the resource is already
-		// there, then we're just updating it and there's no need to lock
-		// the entire group (yet)
 		if _, xErr := g.Lock(); xErr != nil {
 			return nil, false, xErr
 		}
 
-		r, xErr = g.FindResource(ru.RType, ru.Id, true, FOR_WRITE)
+		r, xErr = lookup(FOR_WRITE)
 		if xErr != nil {
 			return nil, false, xErr
 		}
 	}
 
-	// calc rXID so we can use it even if r == nil
-	rXID := g.XID + "/" + ru.RType + "/" + ru.Id
 	info := g.GetRequestInfo()
 
 	if r != nil {
-		meta := r.MustFindMeta(false)
+		meta := r.MustFindMeta()
 		if meta.Get("readonly") == true {
 			if info.HasIgnore("readonly") {
 				// Ignoring that it's read-only but also stopping
@@ -276,14 +290,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				return nil, false, NewXRError("readonly", r.XID)
 			}
 		}
-	}
-
-	// Can this ever happen??
-	if r != nil && r.UID != ru.Id {
-		return nil, false, NewXRError("bad_request", r.XID,
-			"error_detail="+fmt.Sprintf("Attempting to create a Resource "+
-				"with a \"%sid\" of %q, when one already exists as %q",
-				rModel.Singular, ru.Id, r.UID))
 	}
 
 	if info.HasIgnore("id") && len(info.Parts) == 4 {
@@ -320,8 +326,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	// are for. We'll try to figure it out from things like Resource.versionid
 	// or meta.defaultversionid - see the spec for how to determine this
 	resourceDefaultVersionID := ""
-	if r != nil {
-	}
 
 	// Is the Resource new
 	isNew := false
@@ -477,7 +481,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// If still not found/set then leave it blank since "" will use
 		// #nextversionid automatically when we create the new version
 	} else {
-		meta = r.MustFindMeta(false)
+		meta = r.MustFindMeta()
 		resourceDefaultVersionID = meta.GetAsString("defaultversionid")
 	}
 

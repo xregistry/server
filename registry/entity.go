@@ -1211,7 +1211,7 @@ func InitOrderedSpecProps() {
 						PanicIf(!ok, "tx: %s e isn't a meta: %#v", e.Tx.UUID, e)
 
 						val := meta.GetAsString("defaultversionid")
-						ver, xErr := meta.Resource.FindVersion(val, false)
+						ver, xErr := meta.Resource.FindVersion(val)
 						if xErr != nil {
 							return xErr
 						}
@@ -2945,7 +2945,7 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 	// this entity (see SetSystemDBProperty()'s doc comment), flush it
 	// to the DB now, BEFORE reloading fresh state from the DB below -
 	// otherwise this Refresh() would silently discard it. Concretely:
-	// ClearResourceSystemDBProperty() calls FindVersion(uid, false,
+	// ClearResourceSystemDBProperty() calls FindVersion(uid,
 	// FOR_WRITE) on every Version of a Resource, which upgrades and
 	// Lock()s/Refresh()es any Version that's already cached at a lower
 	// access mode - including one that EnsureCompat()'s earlier

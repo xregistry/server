@@ -56,6 +56,10 @@ func prepare(tx *registry.Tx, query string) (*sql.Stmt, *XRError) {
 
 	ps, err := tx.Tx.(*sql.Tx).Prepare(query)
 	if err != nil {
+		if strings.Contains(err.Error(), "Duplicate") {
+			log.Printf(">> %s\n%s\n   %s", err, query,
+				strings.Join(GetStack(), "\n   "))
+		}
 		return nil,
 			NewXRError("server_error", "/").SetDetail(err.Error() + ".").
 				SetRetryable(isRetryableDBErr(err))

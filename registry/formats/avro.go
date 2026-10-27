@@ -188,7 +188,7 @@ func (fa FormatAvro) IsCompatible(
 	if err := checkAvroCompat(direction, oldSchema, newSchema); err != nil {
 		compat := newVersion.
 			Resource.
-			MustFindMeta(false).
+			MustFindMeta().
 			GetAsString("compatibility")
 
 		return true, "", NewXRError("compatibility_violation", newVersion.XID,

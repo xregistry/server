@@ -482,6 +482,7 @@ func (sqlBE *SQLBackend) MapShortSelf(tx *registry.Tx, ss string) (string, strin
 
 	return "", "", nil
 }
+
 func (sqlBE *SQLBackend) GenerateResultEntities(reg *registry.Registry, what string,
 	XIDs []string) (registry.EntityIterator, *XRError) {
 
@@ -1297,8 +1298,14 @@ func (sqlBE *SQLBackend) RefreshEntity(e *registry.Entity, accessMode int) *XREr
 		if xErr != nil {
 			return xErr
 		}
-		PanicIf(len(results.AllRows) != 1, "Rows: %d", len(results.AllRows))
+		rows := len(results.AllRows)
 		results.Close()
+		if rows == 0 {
+			// Deleted by someone else after we loaded it
+			return NewXRError("not_found", e.XID).
+				SetDetailf("%q was deleted concurrently.", e.XID)
+		}
+		PanicIf(rows != 1, "tx: %s Rows: %d", e.Tx.UUID, rows)
 	}
 
 	log.FuncPrintf("tx: %s Refreshing %q, mode: %v", e.Tx.UUID, e.XID, mode)
@@ -2372,14 +2379,38 @@ func (sqlBE *SQLBackend) CopyXrefVersions(r *registry.Resource, targetSID string
 	return xErr
 }
 
+// Find realXID by any case ("" mean not found)
+func (sqlBE *SQLBackend) EntityRealXID(tx *registry.Tx, xidStr string,
+	accessMode int) (string, *XRError) {
+
+	lockExpr := ""
+	if accessMode == FOR_WRITE {
+		lockExpr = ` FOR UPDATE`
+	}
+
+	results, xErr := Query(tx, `
+            SELECT XID FROM Entities
+            WHERE RegistrySID=? AND LowerXID=?`+lockExpr,
+		tx.Registry.SID, strings.ToLower(xidStr))
+	if xErr != nil {
+		return "", xErr
+	}
+	defer results.Close()
+
+	if row := results.NextRow(); row != nil {
+		return NotNilString(row[0]), nil
+	}
+
+	return "", nil
+}
+
 func (sqlBE *SQLBackend) GetEntityFromXID(tx *registry.Tx, regSID string,
-	xidStr string, allAttrs bool, anyCase bool,
-	accessMode int) (*registry.Entity, *XRError) {
+	xidStr string, allAttrs bool, accessMode int) (*registry.Entity, *XRError) {
 
 	defer log.Trace("tx: %s xid:%q all:%v", tx.UUID, xidStr, allAttrs)()
 
 	iter, xErr := sqlBE.GetEntitiesFromXID(tx, regSID, xidStr, allAttrs,
-		false, anyCase, accessMode)
+		false, accessMode)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -2400,7 +2431,7 @@ func (sqlBE *SQLBackend) GetEntityFromXID(tx *registry.Tx, regSID string,
 }
 
 func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *registry.Tx, regSID string,
-	xidStr string, allAttrs bool, children bool, anyCase bool,
+	xidStr string, allAttrs bool, children bool,
 	accessMode int) (registry.EntityIterator, *XRError) {
 
 	defer log.Trace("tx: %s xid:%q all:%v child:%v",
@@ -2413,16 +2444,11 @@ func (sqlBE *SQLBackend) GetEntitiesFromXID(tx *registry.Tx, regSID string,
 
 	args := []any{regSID}
 
-	XID := "XID"
-	if anyCase {
-		XID = "LowerXID"
-		xidStr = strings.ToLower(xidStr)
-	}
-	XIDExpr := `(` + XID + `=?`
+	XIDExpr := `(XID=?`
 	args = append(args, xidStr)
 
 	if children {
-		XIDExpr += ` OR ` + XID + ` LIKE ?`
+		XIDExpr += ` OR XID LIKE ?`
 		args = append(args, xidStr+"/%")
 	}
 	XIDExpr += `)`
@@ -3072,7 +3098,7 @@ func GenerateQuery(reg *registry.Registry, what string, XIDs []string) (string, 
 		slashCount := topLevelSlashCount(XIDs[0])
 		rankOrder := sortOrder +
 			`    SUBSTRING_INDEX(ft.XID, '/', ` + slashCount + `) ASC`
-		rankCol = `,ft.LowerXID AS LowerXID,
+		rankCol = `,
   DENSE_RANK() OVER (ORDER BY ` + rankOrder + `) AS TopIdx`
 	} else {
 		// Not paginating - "TotalCount" is computed for real (via the
@@ -3136,7 +3162,7 @@ SELECT
 
 	if !paginate {
 		query += `  ORDER BY ` + sortOrder +
-			`    ft.LowerXID ASC;`
+			`    LOWER(ft.XID) ASC;`
 	} else {
 		// Wrap the query above (which already computed TopIdx for
 		// every row) twice more:
@@ -3150,7 +3176,7 @@ SELECT
 		//   - outermost: restricts to the requested page
 		//     (TopIdx BETWEEN offset+1 AND offset+limit) and re-applies
 		//     the original per-row tiebreak order (now via the plain
-		//     TopIdx/LowerXID columns, since the "ft"/"sj" aliases are
+		//     TopIdx/XID columns, since the "ft"/"sj" aliases are
 		//     no longer in scope this far out).
 		innerQuery := query
 		query = `SELECT RegistrySID,Type,Plural,Singular,ParentSID,SID,UID,Abstract,XID,PropName,PropValue,PropType,IsSystemProp,FilterMask,TotalCount
@@ -3161,7 +3187,7 @@ SELECT
     ) AS win1
   ) AS win2
   WHERE win2.TopIdx BETWEEN ? AND ?
-  ORDER BY win2.TopIdx ASC, win2.LowerXID ASC;`
+  ORDER BY win2.TopIdx ASC, LOWER(win2.XID) ASC;`
 		args = append(args, offset+1, offset+limit)
 	}
 

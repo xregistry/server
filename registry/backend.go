@@ -184,12 +184,16 @@ type Backend interface {
 
 	// Misc Entity stuff
 
+	// Does entity exist by any cased-XID?
+	// real (case sensitive XID), error. ""=does not exist
+	EntityRealXID(tx *Tx, xidStr string, accessMode int) (string, *XRError)
+
 	// needs to call PropulateOriginObject
 	GetEntityFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool,
-		anyCase bool, accessMode int) (*Entity, *XRError)
+		accessMode int) (*Entity, *XRError)
 	// needs to call PropulateOriginObject
 	GetEntitiesFromXID(tx *Tx, regSID string, xidStr string, allAttrs bool,
-		children bool, anyCase bool, accessMode int) (EntityIterator, *XRError)
+		children bool, accessMode int) (EntityIterator, *XRError)
 
 	// SaveEntity needs to also update reg.UsesXref if resource.xref changes
 	SaveEntity(e *Entity) *XRError

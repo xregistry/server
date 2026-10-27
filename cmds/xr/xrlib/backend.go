@@ -463,15 +463,22 @@ func (CLIBE *CLIBackend) CopyXrefVersions(r *registry.Resource, tgtSID string) *
 	return nil
 }
 
+func (CLIBE *CLIBackend) EntityRealXID(tx *registry.Tx, xidStr string,
+	accessModel int) (string, *XRError) {
+
+	panic("not yet")
+	return "", nil
+}
+
 func (CLIBE *CLIBackend) GetEntityFromXID(tx *registry.Tx, regSID string, xidStr string,
-	allAttrs bool, anyCase bool, accessMode int) (*registry.Entity, *XRError) {
+	allAttrs bool, accessMode int) (*registry.Entity, *XRError) {
 
 	panic("not yet")
 	return nil, nil
 }
 
 func (CLIBE *CLIBackend) GetEntitiesFromXID(tx *registry.Tx, regSID string,
-	xidStr string, allAttrs bool, children bool, anyCase bool,
+	xidStr string, allAttrs bool, children bool,
 	accessMode int) (registry.EntityIterator, *XRError) {
 
 	panic("not yet")

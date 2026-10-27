@@ -226,7 +226,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if xErr != nil {
 		// server_errors are almost as bad as a panic, so show the stack.
 		// Also, if the code specifically tagged the error with ShowStack.
-		if xErr.ShowStack || xErr.Type == "server_error" {
+		if xErr.ShowStack || strings.HasSuffix(xErr.Type, "#server_error") {
 			stack := xErr.Stack
 			if stack == "" {
 				stack = "    <no stacktrace>"
@@ -541,8 +541,7 @@ func HTTPGETContent(info *registry.RequestInfo) *XRError {
 	isV := log.IsFuncVerbose()
 	XID := "/" + strings.Join(info.Parts, "/")
 
-	iter, xErr := info.Registry.GetEntitiesFromXID(XID, true, true, false,
-		FOR_READ)
+	iter, xErr := info.Registry.GetEntitiesFromXID(XID, true, true, FOR_READ)
 	if xErr != nil {
 		return xErr
 	}
@@ -562,7 +561,7 @@ func HTTPGETContent(info *registry.RequestInfo) *XRError {
 		// We're on a Resource, so go find the default Version and count
 		// how many versions there are for the VersionsCount attribute
 		group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
-			false, FOR_READ)
+			FOR_READ)
 		if xErr != nil {
 			return xErr
 		}
@@ -571,14 +570,14 @@ func HTTPGETContent(info *registry.RequestInfo) *XRError {
 		}
 
 		resource, xErr := group.FindResource(info.ResourceType,
-			info.ResourceUID, false, FOR_READ)
+			info.ResourceUID, FOR_READ)
 		if xErr != nil {
 			return xErr
 		}
 		if resource == nil {
 			return NewXRError("not_found", info.GetParts(4))
 		}
-		meta := resource.MustFindMeta(false)
+		meta := resource.MustFindMeta()
 
 		// Count the versions and find the default one
 		vID := meta.GetAsString("defaultversionid")
@@ -934,7 +933,7 @@ func SerializeQuery(info *registry.RequestInfo, resXIDs map[string][]string,
 						strings.Join(info.Parts[:len(info.Parts)-2], "/")
 					xid += "/meta"
 					entity, xErr := info.Registry.GetEntityFromXID(xid, false,
-						false, FOR_READ)
+						FOR_READ)
 					if xErr != nil {
 						return xErr
 					}
@@ -959,8 +958,7 @@ func SerializeQuery(info *registry.RequestInfo, resXIDs map[string][]string,
 		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
 			xid := "/" + strings.Join(info.Parts[:len(info.Parts)-1], "/")
 
-			entity, xErr := info.Registry.GetEntityFromXID(xid, false, false,
-				FOR_READ)
+			entity, xErr := info.Registry.GetEntityFromXID(xid, false, FOR_READ)
 			if xErr != nil {
 				return xErr
 			}
@@ -1340,7 +1338,7 @@ func HTTPPutPost(info *registry.RequestInfo) *XRError {
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
 
 		// We'll lock it later if needed
-		group, xErr = info.Registry.FindGroup(info.GroupType, groupUID, false,
+		group, xErr = info.Registry.FindGroup(info.GroupType, groupUID,
 			FOR_READ)
 		if xErr != nil {
 			return xErr
@@ -1381,7 +1379,7 @@ func HTTPPutPost(info *registry.RequestInfo) *XRError {
 
 	// Must be PUT/POST /GROUPs/gID/...
 
-	group, xErr = info.Registry.FindGroup(info.GroupType, groupUID, false,
+	group, xErr = info.Registry.FindGroup(info.GroupType, groupUID,
 		FOR_READ)
 	if xErr != nil {
 		return xErr
@@ -1469,7 +1467,7 @@ func HTTPPutPost(info *registry.RequestInfo) *XRError {
 		// tree due to the interdependencies of everything, esp. with the
 		// compatibility and constraints stuff. So lock this "Find" result.
 		resource, xErr = group.FindResource(info.ResourceType, resourceUID,
-			false, FOR_WRITE)
+			FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
@@ -1704,7 +1702,7 @@ func HTTPPutPost(info *registry.RequestInfo) *XRError {
 					"/"))
 			}
 		} else {
-			meta := resource.MustFindMeta(false)
+			meta := resource.MustFindMeta()
 
 			if meta.Get("readonly") == true {
 				if resource.GetRequestInfo().HasIgnore("readonly") {
@@ -1769,7 +1767,7 @@ func HTTPPutPost(info *registry.RequestInfo) *XRError {
 			isNew = true
 		}
 
-		version, xErr = resource.FindVersion(versionUID, false)
+		version, xErr = resource.FindVersion(versionUID)
 		if xErr != nil {
 			return xErr
 		}
@@ -1813,7 +1811,7 @@ func HTTPPutPost(info *registry.RequestInfo) *XRError {
 		// Now that validation has run (deferred via
 		// Tx.AddResourceToValidate()), meta's "defaultversionid" is
 		// guaranteed to be resolved - safe to read it now.
-		meta := resource.MustFindMeta(false)
+		meta := resource.MustFindMeta()
 		locationVersionUID = meta.GetAsString("defaultversionid")
 	}
 
@@ -1989,7 +1987,7 @@ func HTTPDelete(info *registry.RequestInfo) *XRError {
 	}
 
 	// DELETE /GROUPs/gID...
-	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, FOR_WRITE)
 	if xErr != nil {
 		return xErr
 	}
@@ -2034,7 +2032,7 @@ func HTTPDelete(info *registry.RequestInfo) *XRError {
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID...
 	resource, xErr := group.FindResource(info.ResourceType, info.ResourceUID,
-		false, FOR_WRITE)
+		FOR_WRITE)
 	if xErr != nil {
 		return xErr
 	}
@@ -2042,7 +2040,7 @@ func HTTPDelete(info *registry.RequestInfo) *XRError {
 		return NewXRError("not_found", info.GetParts(4))
 	}
 
-	meta := resource.MustFindMeta(false)
+	meta := resource.MustFindMeta()
 
 	if len(info.Parts) == 4 {
 		// DELETE /GROUPs/gID/RESOURCEs/rID
@@ -2084,7 +2082,7 @@ func HTTPDelete(info *registry.RequestInfo) *XRError {
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
-	version, xErr := resource.FindVersion(info.VersionUID, false)
+	version, xErr := resource.FindVersion(info.VersionUID)
 	if xErr != nil {
 		return xErr
 	}
@@ -2165,8 +2163,7 @@ func HTTPDeleteGroups(info *registry.RequestInfo) *XRError {
 
 	// Delete each Group, checking epoch first if provided
 	for id, entry := range list {
-		group, xErr := info.Registry.FindGroup(info.GroupType, id, false,
-			FOR_WRITE)
+		group, xErr := info.Registry.FindGroup(info.GroupType, id, FOR_WRITE)
 		if xErr != nil {
 			return xErr
 		}
@@ -2216,7 +2213,7 @@ func HTTPDeleteResources(info *registry.RequestInfo) *XRError {
 	}
 
 	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
-		false, FOR_WRITE)
+		FOR_WRITE)
 	if xErr != nil {
 		return xErr
 	}
@@ -2237,7 +2234,7 @@ func HTTPDeleteResources(info *registry.RequestInfo) *XRError {
 
 	// Delete each Resource, checking epoch first if provided
 	for id, entry := range list {
-		resource, xErr := group.FindResource(info.ResourceType, id, false,
+		resource, xErr := group.FindResource(info.ResourceType, id,
 			FOR_WRITE)
 		if xErr != nil {
 			return xErr
@@ -2247,7 +2244,7 @@ func HTTPDeleteResources(info *registry.RequestInfo) *XRError {
 			continue
 		}
 
-		meta := resource.MustFindMeta(false)
+		meta := resource.MustFindMeta()
 
 		singular := resource.Singular + "id"
 
@@ -2315,13 +2312,13 @@ func HTTPDeleteVersions(info *registry.RequestInfo) *XRError {
 	}
 
 	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID,
-		false, FOR_READ)
+		FOR_READ)
 	if xErr != nil {
 		return xErr
 	}
 
 	resource, xErr := group.FindResource(info.ResourceType, info.ResourceUID,
-		false, FOR_WRITE)
+		FOR_WRITE)
 	if xErr != nil {
 		return xErr
 	}
@@ -2347,7 +2344,7 @@ func HTTPDeleteVersions(info *registry.RequestInfo) *XRError {
 	// However, we can save the Versions for the next loop.
 	vers := []*registry.Version{}
 	for id, entry := range list {
-		version, xErr := resource.FindVersion(id, false)
+		version, xErr := resource.FindVersion(id)
 		if xErr != nil {
 			return xErr
 		}
@@ -2392,7 +2389,7 @@ func HTTPDeleteVersions(info *registry.RequestInfo) *XRError {
 	}
 
 	if nextDefault != "" {
-		version, xErr := resource.FindVersion(nextDefault, false)
+		version, xErr := resource.FindVersion(nextDefault)
 		if xErr != nil {
 			return xErr
 		}

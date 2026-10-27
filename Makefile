@@ -4,10 +4,15 @@ all: dev run
 dev: mysql cmds docs test images
 
 # Run for each PR
-pr: dev benchmark
+pr: clean dev benchmark
+	@echo
+	@echo "# Checking for uncommitted files"
 	@git diff
-	@msg=`git diff --name-only --exit-code HEAD` || \
-		(echo -e "\n**** Uncommitted changes:\n$$msg\n" ; exit 1)
+	@git diff --quiet HEAD || \
+		(echo -e "\n**** Uncommitted:\n`git diff --name-only HEAD`\n" ; exit 1)
+	@git status --porcelain
+	@test -z "`git status --porcelain`" || \
+		(echo -e "\n**** Uncommitted/untracked files\n" ; exit 1)
 
 # Run on 'master' change
 master: pr push cmds-all ui.tar

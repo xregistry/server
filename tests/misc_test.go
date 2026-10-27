@@ -489,7 +489,7 @@ func TestMiscConcurrency(t *testing.T) {
 			// if res != nil && (res.StatusCode == 500 || res.StatusCode == 503) &&
 			if res != nil && res.StatusCode == 503 &&
 				strings.Contains(res.body, "server_busy") {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
 				// t.Logf("Got 500+try again, retrying...")
 				continue
 			}
@@ -775,4 +775,143 @@ func TestMiscTestLogging(t *testing.T) {
 			`^`+ts+` .* HTTPGet time: [0-9]+\.[0-9]+.?s$`)
 
 	log.Reset(nil)
+}
+
+// Runs fn(i) for i in [0,n) concurrently, retrying on "server_busy" (503).
+// Returns the final status code of each call.
+func concurrentHTTP(t *testing.T, reg *registry.Registry, n int,
+	fn func(i int) (verb, path, body string)) []int {
+
+	codes := make([]int, n)
+	start := make(chan bool)
+	wg := sync.WaitGroup{}
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			verb, path, body := fn(i)
+			<-start
+			for {
+				res := XDoHTTP(t, reg, verb, path, body)
+				if res.StatusCode == 503 &&
+					strings.Contains(res.body, "server_busy") {
+					time.Sleep(10 * time.Millisecond)
+					continue
+				}
+				codes[i] = res.StatusCode
+				return
+			}
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	return codes
+}
+
+// Many requests race to create the same entity using different casings.
+// Exactly one casing may win; every other casing must get a 400.
+func TestMiscConcurrencyCaseCreate(t *testing.T) {
+	reg := NewRegistry("TestMiscConcurrencyCaseCreate")
+	defer PassDeleteReg(t, reg)
+
+	XDoHTTP(t, reg, "PUT", "/modelsource", `{"groups":{"dirs":{"singular":"dir","resources":{"files":{"singular":"file"}}}}}`)
+
+	casings := []string{"abc", "ABC", "aBc", "AbC", "abC", "Abc"}
+
+	for round := 0; round < 5; round++ {
+		suffix := fmt.Sprintf("%d", round)
+		for _, kind := range []string{"group", "resource", "version"} {
+			path := func(c string) string {
+				switch kind {
+				case "group":
+					return "/dirs/" + c + suffix
+				case "resource":
+					return "/dirs/d" + suffix + "/files/" + c
+				}
+				return "/dirs/d" + suffix + "/files/f/versions/" + c
+			}
+			if kind != "group" {
+				XDoHTTP(t, reg, "PUT", "/dirs/d"+suffix, "{}")
+			}
+			if kind == "version" {
+				XDoHTTP(t, reg, "PUT", "/dirs/d"+suffix+"/files/f", "{}")
+			}
+
+			codes := concurrentHTTP(t, reg, len(casings)*3,
+				func(i int) (string, string, string) {
+					return "PUT", path(casings[i%len(casings)]), "{}"
+				})
+
+			ok := 0
+			for _, c := range codes {
+				switch c / 100 {
+				case 2:
+					ok++
+				default:
+					XEqual(t, kind+" code", c, 400)
+				}
+			}
+			if ok == 0 {
+				t.Fatalf("%s round %d: nobody succeeded", kind, round)
+			}
+
+			// Only one casing may exist
+			winners := 0
+			for _, c := range casings {
+				u := path(c)
+				if kind != "group" {
+					u += "$details"
+				}
+				r := XDoHTTP(t, reg, "GET", u, "")
+				if r.StatusCode == 200 && strings.Contains(r.body,
+					fmt.Sprintf("%q", c+func() string {
+						if kind == "group" {
+							return suffix
+						}
+						return ""
+					}())) {
+					winners++
+				}
+			}
+			XEqual(t, kind+" winners", winners, 1)
+		}
+	}
+}
+
+// Races creates against deletes of the same entity (and its parent) to
+// exercise the "found by probe, gone by the time we lock it" path.
+// Everything must end in a clean 2xx/204/404 and never a 5xx.
+func TestMiscConcurrencyCreateDelete(t *testing.T) {
+	reg := NewRegistry("TestMiscConcurrencyCreateDelete")
+	defer PassDeleteReg(t, reg)
+
+	XDoHTTP(t, reg, "PUT", "/modelsource", `{"groups":{"dirs":{"singular":"dir","resources":{"files":{"singular":"file"}}}}}`)
+
+	for round := 0; round < 5; round++ {
+		XDoHTTP(t, reg, "PUT", "/dirs/d1", "{}")
+
+		codes := concurrentHTTP(t, reg, 30,
+			func(i int) (string, string, string) {
+				switch i % 5 {
+				case 0:
+					return "PUT", "/dirs/d1", "{}"
+				case 1:
+					return "DELETE", "/dirs/d1", ""
+				case 2:
+					return "PUT", "/dirs/d1/files/f1", "{}"
+				case 3:
+					return "DELETE", "/dirs/d1/files/f1", ""
+				}
+				return "PUT", "/dirs/d1/files/f1/versions/v1", "{}"
+			})
+		for i, c := range codes {
+			if c >= 500 {
+				t.Fatalf("round %d req %d: got %d", round, i, c)
+			}
+		}
+
+		// Registry must still be consistent afterward
+		XHTTP(t, reg, "GET", "/?inline", "", 200, "*")
+		XDoHTTP(t, reg, "DELETE", "/dirs", "")
+	}
 }

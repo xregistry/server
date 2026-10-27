@@ -433,7 +433,7 @@ func TestSetLabels(t *testing.T) {
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
-	ver, _ := file.FindVersion("v1", false)
+	ver, _ := file.FindVersion("v1")
 	ver2, _ := file.AddVersion("v2")
 
 	reg.SaveAllAndCommit()
