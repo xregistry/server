@@ -7300,24 +7300,28 @@ function paginationBarHtml(itemCount) {
   }
   var countText = parts.join(' \u00b7 ');
 
-  function btn(rel, pairShown, icon, title) {
+  function btn(rel, pairShown, icon, title, atEnd) {
     if (!pairShown) return '';
-    var has = !!_lastPageLinks[rel];
+    var has = !!_lastPageLinks[rel] && !atEnd;
     return '<button class="cfg-btn eg-page-nav-btn" title="' + esc(title) + '"'
       + (has ? ' onclick="navigateToPage(\'' + rel + '\')"' : ' disabled')
       + '>' + icon + '</button>';
   }
 
+  // First/Last are disabled on the first/last page (no prev/next), even if
+  // the server returned those links, since they'd be no-ops there.
   var showFirstLast = !!(_lastPageLinks.first || _lastPageLinks.last);
+  var onFirstPage = !_lastPageLinks.prev;
+  var onLastPage  = !_lastPageLinks.next;
   var showPrevNext  = !!(_lastPageLinks.prev  || _lastPageLinks.next);
 
   return '<span class="eg-pagination-bar">'
     + '<span class="eg-pagination-count">' + esc(countText) + '</span>'
     + '<span class="eg-pagination-buttons">'
-    +   btn('first', showFirstLast, _pageFirstIconSVG, 'First')
+    +   btn('first', showFirstLast, _pageFirstIconSVG, 'First', onFirstPage)
     +   btn('prev',  showPrevNext,  _pagePrevIconSVG,  'Prev')
     +   btn('next',  showPrevNext,  _pageNextIconSVG,  'Next')
-    +   btn('last',  showFirstLast, _pageLastIconSVG,  'Last')
+    +   btn('last',  showFirstLast, _pageLastIconSVG,  'Last', onLastPage)
     + '</span>'
     + '</span>';
 }
