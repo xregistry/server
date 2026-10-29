@@ -3,12 +3,12 @@ package tests
 // ├ │ └
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +17,7 @@ import (
 )
 
 var RepoBase = "https://raw.githubusercontent.com/xregistry/spec/main"
+var conformRunIDRE = regexp.MustCompile(`xr-conform-[0-9a-f-]+`)
 
 func TestXRBasic(t *testing.T) {
 	reg := NewRegistry("TestXRBasic")
@@ -3051,13 +3052,13 @@ func TestXRConformRunGroups(t *testing.T) {
 		"conform -d3 --run smoke --run entities --run smoke "+
 			"http://localhost:8282/conform",
 		"",
-		`PASS: http://localhost:8282/conform (skip:7)
-├─ PASS: TestTDSmoke (skip:2)
+		`PASS: http://localhost:8282/conform (skip:3)
+├─ PASS: TestSmoke (skip:1)
 │  ├─ PASS: TestSniff
 │  ├─ PASS: TestModel
 │  ├─ PASS: TestCapabilities (skip:2)
 │  └─ PASS: TestRegistryRoot
-└─ PASS: TestTDEntities (skip:5)
+└─ PASS: TestEntities (skip:2)
    ├─ PASS: TestRegistryRoot (cached)
    ├─ SKIP: TestGroups (skip:2)
    └─ SKIP: TestResources (skip:3)
@@ -3070,21 +3071,18 @@ func TestXRConformRunAllBeforeSmoke(t *testing.T) {
 		"conform -d3 --run all --run smoke "+
 			"http://localhost:8282/conform",
 		"",
-		`PASS: http://localhost:8282/conform (skip:9)
-├─ PASS: TestTDAll (skip:9)
-│  ├─ PASS: TestSniff
-│  ├─ PASS: TestModel
-│  ├─ PASS: TestCapabilities (skip:2)
-│  ├─ PASS: TestRegistryRoot
-│  ├─ SKIP: TestGroups (skip:2)
+		`PASS: http://localhost:8282/conform (skip:6)
+├─ PASS: TestAll (skip:6)
+│  ├─ PASS: TestSmoke (skip:1)
 │  ├─ SKIP: TestFilter (skip:2)
-│  └─ SKIP: TestResources (skip:3)
-└─ PASS: TestTDSmoke
+│  ├─ PASS: TestEntities (skip:2)
+│  └─ SKIP: TestMutations (skip:1)
+└─ PASS: TestSmoke
    ├─ PASS: TestSniff (cached)
    ├─ PASS: TestModel (cached)
    ├─ PASS: TestCapabilities (cached)
    └─ PASS: TestRegistryRoot (cached)
-Pass: 58   Fail: 0   Warn: 0   Skip: 9
+Pass: 65   Fail: 0   Warn: 0   Skip: 6
 `, "", 0)
 }
 
@@ -3093,21 +3091,18 @@ func TestXRConformRunAllAfterSmoke(t *testing.T) {
 		"conform -d3 --run smoke --run all "+
 			"http://localhost:8282/conform",
 		"",
-		`PASS: http://localhost:8282/conform (skip:9)
-├─ PASS: TestTDSmoke (skip:2)
+		`PASS: http://localhost:8282/conform (skip:6)
+├─ PASS: TestSmoke (skip:1)
 │  ├─ PASS: TestSniff
 │  ├─ PASS: TestModel
 │  ├─ PASS: TestCapabilities (skip:2)
 │  └─ PASS: TestRegistryRoot
-└─ PASS: TestTDAll (skip:7)
-   ├─ PASS: TestSniff (cached)
-   ├─ PASS: TestModel (cached)
-   ├─ PASS: TestCapabilities (cached)
-   ├─ PASS: TestRegistryRoot (cached)
-   ├─ SKIP: TestGroups (skip:2)
+└─ PASS: TestAll (skip:5)
+   ├─ PASS: TestSmoke (cached)
    ├─ SKIP: TestFilter (skip:2)
-   └─ SKIP: TestResources (skip:3)
-Pass: 58   Fail: 0   Warn: 0   Skip: 9
+   ├─ PASS: TestEntities (skip:2)
+   └─ SKIP: TestMutations (skip:1)
+Pass: 61   Fail: 0   Warn: 0   Skip: 6
 `, "", 0)
 }
 
@@ -3148,19 +3143,16 @@ Pass: 91   Fail: 0   Warn: 0   Skip: 3
 			query:   "z%40",
 			options: "--run all --run entities --run all",
 			output: `PASS: http://localhost:8181 (skip:3)
-├─ PASS: TestTDAll (skip:3)
-│  ├─ PASS: TestSniff
-│  ├─ PASS: TestModel
-│  ├─ PASS: TestCapabilities (skip:2)
-│  ├─ PASS: TestRegistryRoot
-│  ├─ PASS: TestGroups
+├─ PASS: TestAll (skip:3)
+│  ├─ PASS: TestSmoke (skip:1)
 │  ├─ PASS: TestFilter
-│  └─ PASS: TestResources (skip:1)
-└─ PASS: TestTDEntities
+│  ├─ PASS: TestEntities (skip:1)
+│  └─ SKIP: TestMutations (skip:1)
+└─ PASS: TestEntities
    ├─ PASS: TestRegistryRoot (cached)
    ├─ PASS: TestGroups (cached)
    └─ PASS: TestResources (cached)
-Pass: 95   Fail: 0   Warn: 0   Skip: 3
+Pass: 99   Fail: 0   Warn: 0   Skip: 3
 `,
 		},
 		{
@@ -3208,43 +3200,48 @@ Pass: 78   Fail: 0   Warn: 0   Skip: 5
 			flags:   `["filter"]`,
 			groups:  `{}`,
 			options: "--run all --skips",
-			output: `PASS: http://localhost:8181 (skip:10)
-└─ PASS: TestTDAll (skip:10)
-   ├─ PASS: TestSniff
-   ├─ PASS: TestModel
-   ├─ PASS: TestCapabilities (skip:2)
-   │  ├─ PASS: Retrieving capabilities
-   │  ├─ PASS: capabilities.available MUST include "capabilities"
-   │  ├─ PASS: capabilities.available MUST include "entities"
-   │  ├─ PASS: capabilities.available MUST include "model"
-   │  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
-   │  ├─ PASS: 'GET /capabilities' MUST return 200
-   │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
-   │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
-   │  ├─ PASS: Parsing capabilities MUST work
-   │  ├─ PASS: 'GET /' MUST return 200
-   │  ├─ PASS: 'GET /' MUST return a non-empty body
-   │  ├─ PASS: 'GET /' MUST return a JSON body
-   │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
-   │  ├─ SKIP: Testing ?inline=capabilities (skip:2)
-   │  │  └─ SKIP: ?inline not supported
-   │  └─ PASS: Parsing Capabilities MUST work
-   ├─ PASS: TestRegistryRoot
-   ├─ SKIP: TestGroups (skip:2)
-   │  ├─ PASS: TestModel (cached)
-   │  ├─ PASS: TestCapabilities (cached)
-   │  ├─ PASS: 'GET /widgets' MUST return 200
-   │  ├─ PASS: 'GET /widgets' MUST return a non-empty body
-   │  ├─ PASS: 'GET /widgets' MUST return a JSON body
-   │  └─ SKIP: No groups defined for group type "widgets"
+			output: `PASS: http://localhost:8181 (skip:6)
+└─ PASS: TestAll (skip:6)
+   ├─ PASS: TestSmoke (skip:1)
+   │  ├─ PASS: TestSniff
+   │  ├─ PASS: TestModel
+   │  ├─ PASS: TestCapabilities (skip:1)
+   │  │  ├─ PASS: Retrieving capabilities
+   │  │  ├─ PASS: capabilities.available MUST include "capabilities"
+   │  │  ├─ PASS: capabilities.available MUST include "entities"
+   │  │  ├─ PASS: capabilities.available MUST include "model"
+   │  │  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+   │  │  ├─ PASS: 'GET /capabilities' MUST return 200
+   │  │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+   │  │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  │  ├─ PASS: Parsing capabilities MUST work
+   │  │  ├─ PASS: 'GET /' MUST return 200
+   │  │  ├─ PASS: 'GET /' MUST return a non-empty body
+   │  │  ├─ PASS: 'GET /' MUST return a JSON body
+   │  │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+   │  │  ├─ PASS: Testing ?inline=capabilities (skip:1)
+   │  │  │  └─ SKIP: ?inline not supported
+   │  │  └─ PASS: Parsing Capabilities MUST work
+   │  └─ PASS: TestRegistryRoot
    ├─ SKIP: TestFilter (skip:3)
    │  ├─ PASS: TestCapabilities (cached)
-   │  ├─ SKIP: TestGroups (cached)
+   │  ├─ PASS: TestGroups (skip:1)
+   │  │  ├─ PASS: TestModel (cached)
+   │  │  ├─ PASS: TestCapabilities (cached)
+   │  │  ├─ PASS: 'GET /widgets' MUST return 200
+   │  │  ├─ PASS: 'GET /widgets' MUST return a non-empty body
+   │  │  ├─ PASS: 'GET /widgets' MUST return a JSON body
+   │  │  └─ SKIP: No groups defined for group type "widgets"
    │  └─ SKIP: No observable Group Types defined - leaving
-   └─ SKIP: TestResources (skip:3)
-      ├─ SKIP: TestGroups (cached)
-      └─ SKIP: No Group Types defined - leaving
-Pass: 58   Fail: 0   Warn: 0   Skip: 10
+   ├─ PASS: TestEntities (skip:1)
+   │  ├─ PASS: TestRegistryRoot (cached)
+   │  ├─ PASS: TestGroups (cached)
+   │  └─ PASS: TestResources (skip:1)
+   │     ├─ PASS: TestGroups (cached)
+   │     └─ SKIP: No Group Types defined  - leaving
+   └─ SKIP: TestMutations (skip:1)
+      └─ Mutation tests require --allow-mutations - leaving
+Pass: 66   Fail: 0   Warn: 0   Skip: 6
 `,
 		},
 	}
@@ -3440,18 +3437,16 @@ Pass: 86   Fail: 5   Warn: 0   Skip: 3
    │  ├─ PASS: TestCapabilities (cached)
    │  ├─ PASS: TestGroups (cached)
    │  ├─ FAIL: GET /widgets?filter=widgetid=NULL
+   │  │  ├─ HTTP status: 200 OK
+   │  │  ├─ HTTP body: "not-json"
    │  │  ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return 200
-   │  │  ├─ 'GET /widgets?filter=widgetid=NULL' Body:
-   │  │  │  not-json
-   │  │  │$SPACE$SPACE
    │  │  ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return a non-empty
    │  │  │        body
    │  │  └─ FAIL: 'GET /widgets?filter=widgetid=NULL' MUST return a JSON body
    │  └─ FAIL: GET /widgets?filter=widgetid=null
+   │     ├─ HTTP status: 200 OK
+   │     ├─ HTTP body: "not-json"
    │     ├─ PASS: 'GET /widgets?filter=widgetid=null' MUST return 200
-   │     ├─ 'GET /widgets?filter=widgetid=null' Body:
-   │     │  not-json
-   │     │$SPACE$SPACE
    │     ├─ PASS: 'GET /widgets?filter=widgetid=null' MUST return a non-empty
    │     │        body
    │     └─ FAIL: 'GET /widgets?filter=widgetid=null' MUST return a JSON body
@@ -3475,6 +3470,11 @@ Pass: 81   Fail: 7   Warn: 0   Skip: 3
    │  ├─ PASS: TestCapabilities (cached)
    │  ├─ PASS: TestGroups (cached)
    │  ├─ FAIL: GET /widgets?filter=widgetid=NULL
+   │  │  ├─ HTTP error: There was an error talking to the server
+   │  │  │  (http://localhost:8282/TestXRConformFilterResponses/widgets?filter=
+   │  │  │  widgetid=NULL): null.
+   │  │  ├─ HTTP status: 500 Internal Server Error
+   │  │  ├─ HTTP body: "null"
    │  │  ├─ Unexpected error: There was an error talking to the server
    │  │  │  (http://localhost:8282/TestXRConformFilterResponses/widgets?filter=
    │  │  │  widgetid=NULL): null.
@@ -3503,10 +3503,9 @@ Pass: 82   Fail: 5   Warn: 0   Skip: 3
    │  ├─ PASS: TestCapabilities (cached)
    │  ├─ PASS: TestGroups (cached)
    │  └─ FAIL: GET /widgets?filter=widgetid=NULL
+   │     ├─ HTTP status: 200 OK
+   │     ├─ HTTP body: "not-json"
    │     ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return 200
-   │     ├─ 'GET /widgets?filter=widgetid=NULL' Body:
-   │     │  not-json
-   │     │$SPACE$SPACE
    │     ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return a non-empty
    │     │        body
    │     └─ FAIL: 'GET /widgets?filter=widgetid=NULL' MUST return a JSON body
@@ -3547,50 +3546,55 @@ Pass: 79   Fail: 5   Warn: 0   Skip: 3
   "createdat": "2026-01-01T00:00:00Z",
   "modifiedat": "2026-01-01T00:00:00Z"
 }`)
-	FileServer.SetOutput(t, path+"/model", 200, "{}")
-	FileServer.SetOutput(t, path+"/capabilities", 200, "null")
-	cliResult := XCLI(t, "conform --run all --skips -d3 -vvv "+target,
-		"", substituteOutput(`PASS: http://localhost:8282/TestXRConformFilterResponses (skip:13)
-└─ PASS: TestTDAll (skip:13)
-   ├─ PASS: TestSniff
-   ├─ PASS: TestModel
-   ├─ SKIP: TestCapabilities (skip:2)
-   │  ├─ PASS: Retrieving capabilities
-   │  └─ SKIP: No capabilities found - leaving
-   ├─ PASS: TestRegistryRoot (skip:2)
-   │  ├─ PASS: TestModel (cached)
-   │  ├─ SKIP: TestCapabilities (cached)
-   │  ├─ PASS: 'GET /' MUST return 200
-   │  ├─ PASS: 'GET /' MUST return a non-empty body
-   │  ├─ PASS: 'GET /' MUST return a JSON body
-   │  ├─ PASS: "specversion" ($SPECVERSION) MUST > "1.0"
-   │  ├─ PASS: "registryid" (TestXRConformFilterResponses) MUST != ""
-   │  ├─ PASS: "self" (http://localhost:8282/TestXRConformFilterResponses/)
-   │  │        MUST != ""
-   │  ├─ SKIP: "shortself" - Capabilities not available
-   │  ├─ PASS: "xid" (/) MUST = "/"
-   │  ├─ PASS: "epoch" (1) MUST >= 0
-   │  ├─ PASS: "name" MAY be present, but is missing
-   │  ├─ PASS: "description" MAY be present, but is missing
-   │  ├─ PASS: "documentation" MAY be present, but is missing
-   │  ├─ PASS: "icon" MUST != "" (if present), but is missing
-   │  ├─ PASS: "labels" MAY be present, but is missing
-   │  ├─ PASS: "createdat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
-   │  ├─ PASS: "modifiedat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
-   │  ├─ PASS: "capabilities" MUST NOT be present, and isn't
-   │  ├─ PASS: "model" MUST NOT be present, and isn't
-   │  └─ PASS: "modelsource" MUST NOT be present, and isn't
-   ├─ SKIP: TestGroups (skip:3)
-   │  ├─ PASS: TestModel (cached)
-   │  ├─ SKIP: TestCapabilities (cached)
-   │  └─ SKIP: No Group Types defined - leaving
+		FileServer.SetOutput(t, path+"/model", 200, "{}")
+		FileServer.SetOutput(t, path+"/capabilities", 200, "null")
+		cliResult := XCLI(t, "conform --run all --skips -d3 -vvv "+target,
+			"", substituteOutput(`PASS: http://localhost:8282/TestXRConformFilterResponses (skip:11)
+└─ PASS: TestAll (skip:11)
+   ├─ PASS: TestSmoke (skip:4)
+   │  ├─ PASS: TestSniff
+   │  ├─ PASS: TestModel
+   │  ├─ SKIP: TestCapabilities (skip:2)
+   │  │  ├─ PASS: Retrieving capabilities
+   │  │  └─ SKIP: No capabilities found - leaving
+   │  └─ PASS: TestRegistryRoot (skip:2)
+   │     ├─ PASS: TestModel (cached)
+   │     ├─ SKIP: TestCapabilities (cached)
+   │     ├─ PASS: 'GET /' MUST return 200
+   │     ├─ PASS: 'GET /' MUST return a non-empty body
+   │     ├─ PASS: 'GET /' MUST return a JSON body
+   │     ├─ PASS: "specversion" ($SPECVERSION) MUST > "1.0"
+   │     ├─ PASS: "registryid" (TestXRConformFilterResponses) MUST != ""
+   │     ├─ PASS: "self" (http://localhost:8282/TestXRConformFilterResponses/)
+   │     │        MUST != ""
+   │     ├─ SKIP: "shortself" - Capabilities not available
+   │     ├─ PASS: "xid" (/) MUST = "/"
+   │     ├─ PASS: "epoch" (1) MUST >= 0
+   │     ├─ PASS: "name" MAY be present, but is missing
+   │     ├─ PASS: "description" MAY be present, but is missing
+   │     ├─ PASS: "documentation" MAY be present, but is missing
+   │     ├─ PASS: "icon" MUST != "" (if present), but is missing
+   │     ├─ PASS: "labels" MAY be present, but is missing
+   │     ├─ PASS: "createdat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
+   │     ├─ PASS: "modifiedat" (2026-01-01T00:00:00Z) MUST = "<timestamp>"
+   │     ├─ PASS: "capabilities" MUST NOT be present, and isn't
+   │     ├─ PASS: "model" MUST NOT be present, and isn't
+   │     └─ PASS: "modelsource" MUST NOT be present, and isn't
    ├─ SKIP: TestFilter (skip:3)
    │  ├─ SKIP: TestCapabilities (cached)
    │  └─ SKIP: No capabilities found - leaving
-   └─ SKIP: TestResources (skip:3)
-      ├─ SKIP: TestGroups (cached)
-      └─ SKIP: No Group Types defined - leaving
-Pass: 35   Fail: 0   Warn: 0   Skip: 13
+   ├─ PASS: TestEntities (skip:3)
+   │  ├─ PASS: TestRegistryRoot (cached)
+   │  ├─ PASS: TestGroups (skip:2)
+   │  │  ├─ PASS: TestModel (cached)
+   │  │  ├─ SKIP: TestCapabilities (cached)
+   │  │  └─ SKIP: No Group Types defined - leaving
+   │  └─ PASS: TestResources (skip:1)
+   │     ├─ PASS: TestGroups (cached)
+   │     └─ SKIP: No Group Types defined  - leaving
+   └─ SKIP: TestMutations (skip:1)
+      └─ Mutation tests require --allow-mutations - leaving
+Pass: 41   Fail: 0   Warn: 0   Skip: 11
 `), "*", 0)
 	XEqual(t, "Filter requests",
 		strings.Count(cliResult.Stderr, "?filter="), 0)
@@ -3643,8 +3647,8 @@ func TestXRConformAllGroupResources(t *testing.T) {
 
 	const target = "http://localhost:8181"
 	XCLI(t, "conform --run entities --skips -d3 "+target, "",
-		`PASS: http://localhost:8181 (skip:5)
-└─ PASS: TestTDEntities (skip:5)
+		`PASS: http://localhost:8181 (skip:3)
+└─ PASS: TestEntities (skip:3)
    ├─ PASS: TestRegistryRoot
    ├─ SKIP: TestGroups (skip:2)
    │  ├─ PASS: TestModel (cached)
@@ -3719,16 +3723,13 @@ Pass: 226   Fail: 0   Warn: 0   Skip: 6
 `, "", 0)
 
 	XCLI(t, "conform --run all -d3 "+target, "",
-		`PASS: http://localhost:8181 (skip:6)
-└─ PASS: TestTDAll (skip:6)
-   ├─ PASS: TestSniff
-   ├─ PASS: TestModel
-   ├─ PASS: TestCapabilities
-   ├─ PASS: TestRegistryRoot
-   ├─ SKIP: TestGroups (skip:2)
+		`PASS: http://localhost:8181 (skip:4)
+└─ PASS: TestAll (skip:4)
+   ├─ PASS: TestSmoke
    ├─ PASS: TestFilter (skip:1)
-   └─ PASS: TestResources (skip:3)
-Pass: 226   Fail: 0   Warn: 0   Skip: 6
+   ├─ PASS: TestEntities (skip:2)
+   └─ SKIP: TestMutations (skip:1)
+Pass: 232   Fail: 0   Warn: 0   Skip: 4
 `, "", 0)
 }
 
@@ -3737,10 +3738,10 @@ func TestXRConformMutations(t *testing.T) {
 
 	t.Run("authorization before network", func(t *testing.T) {
 		XCLI(t, "conform --run mutations http://127.0.0.1:1", "",
-			"", "--run mutations requires --allow-mutations.\n", 1)
-		XCLI(t, "conform --run mutations --allow-mutations "+
-			"http://127.0.0.1:1 http://127.0.0.1:2", "",
-			"", "--run mutations requires exactly one target.\n", 1)
+			`PASS: http://127.0.0.1:1 (skip:1)
+└─ SKIP: TestMutations (skip:1)
+Pass: 1   Fail: 0   Warn: 0   Skip: 1
+`, "", 0)
 	})
 
 	t.Run("authorization alone is read only", func(t *testing.T) {
@@ -3752,6 +3753,16 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
 		XEqual(t, "PUT requests",
 			strings.Count(cliResult.Stderr, "Request: PUT "), 0)
 		XEqual(t, "DELETE requests",
+			strings.Count(cliResult.Stderr, "Request: DELETE "), 0)
+
+		cliResult = XCLI(t, "conform --allow-mutations -d1 -vvv "+
+			"http://localhost:8282/conform", "",
+			`PASS: http://localhost:8282/conform (skip:5)
+Pass: 57   Fail: 0   Warn: 0   Skip: 5
+`, "*", 0)
+		XEqual(t, "Default PUT requests",
+			strings.Count(cliResult.Stderr, "Request: PUT "), 0)
+		XEqual(t, "Default DELETE requests",
 			strings.Count(cliResult.Stderr, "Request: DELETE "), 0)
 	})
 
@@ -3807,7 +3818,7 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
   "epoch": "xr-conform-create-only",
   "name": "changed",
   "labels": {
-    "xr-conform-run": "not-owned"
+    "fixture": "changed"
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -3841,14 +3852,14 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
 
 		XCLI(t, "conform --run mutations --allow-mutations -d3 "+target, "",
 			`PASS: http://localhost:8181 (skip:1)
-└─ PASS: TestTDGroupCreateReadDelete (skip:1)
+└─ PASS: TestMutations (skip:1)
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
    ├─ PASS: Confirm target Group is absent
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ PASS: Clean up run-owned Group
-Pass: 45   Fail: 0   Warn: 0   Skip: 1
+Pass: 67   Fail: 0   Warn: 0   Skip: 1
 `, "", 0)
 
 		expectedCollection := `{
@@ -3871,11 +3882,24 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
 `
 		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
 
-		XCLI(t, "conform --run mutations --allow-mutations --output json "+
-			target, "",
-			expectedOutput(t, "files/conform-output/mutations-success.json"),
-			"", 0)
+		cliResult := XCLI(t,
+			"conform --run mutations --allow-mutations --output json "+
+				target, "", "*", "", 0)
+		XEqual(t, "Mutation JSON output",
+			conformRunIDRE.ReplaceAllString(cliResult.Stdout, "xr-conform-RUN"),
+			expectedOutput(t, "files/conform-output/mutations-success.json"))
 
+		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
+
+		allResult := XCLI(t,
+			"conform --run all --allow-mutations -d1 -vvv "+target,
+			"", `PASS: http://localhost:8181 (skip:4)
+Pass: 127   Fail: 0   Warn: 0   Skip: 4
+`, "*", 0)
+		XEqual(t, "All-run PUT requests",
+			strings.Count(allResult.Stderr, "Request: PUT "), 1)
+		XEqual(t, "All-run DELETE requests",
+			strings.Count(allResult.Stderr, "Request: DELETE "), 1)
 		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
 	})
 
@@ -3917,14 +3941,14 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
 
 		XCLI(t, "conform --run mutations --allow-mutations -d3 "+target, "",
 			`PASS: http://localhost:8181 (skip:1)
-└─ PASS: TestTDGroupCreateReadDelete (skip:1)
+└─ PASS: TestMutations (skip:1)
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
    ├─ PASS: Confirm target Group is absent
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ PASS: Clean up run-owned Group
-Pass: 45   Fail: 0   Warn: 0   Skip: 1
+Pass: 67   Fail: 0   Warn: 0   Skip: 1
 `, "", 0)
 
 		XHTTP(t, reg, "GET", "/dirs", "", 200, "{}\n")
@@ -3933,8 +3957,10 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
 	tests := []struct {
 		name       string
 		mutable    bool
+		noGroups   bool
 		attributes string
 		reason     string
+		detail     string
 	}{
 		{
 			name:    "entities are read only",
@@ -3942,29 +3968,25 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
 			reason:  "Registry entities are not advertised as mutable - leaving",
 		},
 		{
-			name:    "model requires client value",
+			name:     "model has no Group Types",
+			mutable:  true,
+			noGroups: true,
+			reason:   "No Group Type supports run-owned creation - leaving",
+			detail:   "The model defines no Group Types.",
+		},
+		{
+			name:    "model requires client name",
 			mutable: true,
 			attributes: `,
           "attributes": {
-            "required": {
+            "name": {
               "type": "string",
               "required": true
             }
           }`,
 			reason: "No Group Type supports run-owned creation - leaving",
-		},
-		{
-			name:    "readonly ownership labels",
-			mutable: true,
-			attributes: `,
-          "attributes": {
-            "labels": {
-              "type": "map",
-              "readonly": true,
-              "item": {"type": "string"}
-            }
-          }`,
-			reason: "No Group Type supports run-owned creation - leaving",
+			detail: `Group Type "dirs" requires client attribute(s) with no ` +
+				`default: name.`,
 		},
 	}
 
@@ -4034,6 +4056,29 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
   ]
 }
 `)
+			} else if test.noGroups {
+				XHTTP(t, reg, "PUT", "/", `{
+  "capabilities": {
+    "available": {
+      "capabilities": {"mutable": true},
+      "entities": {"mutable": true},
+      "model": {"mutable": false}
+    },
+    "flags": ["epoch"]
+  },
+  "modelsource": {
+    "groups": {}
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRConformMutationSkip",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+}
+`)
 			} else {
 				XHTTP(t, reg, "PUT", "/", fmt.Sprintf(`{
   "capabilities": {
@@ -4069,10 +4114,8 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
 `)
 			}
 
-			XCLI(t, "conform --run mutations --allow-mutations --skips -d3 "+
-				target, "",
-				`PASS: http://localhost:8181 (skip:3)
-└─ SKIP: TestTDGroupCreateReadDelete (skip:3)
+			expected := `PASS: http://localhost:8181 (skip:3)
+└─ SKIP: TestMutations (skip:3)
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
    │  ├─ PASS: Retrieving capabilities
@@ -4091,9 +4134,39 @@ Pass: 45   Fail: 0   Warn: 0   Skip: 1
    │  ├─ PASS: Testing ?inline=capabilities (skip:1)
    │  │  └─ SKIP: ?inline not supported
    │  └─ PASS: Parsing Capabilities MUST work
-   └─ SKIP: `+test.reason+`
+   └─ SKIP: ` + test.reason + `
 Pass: 27   Fail: 0   Warn: 0   Skip: 3
-`, "", 0)
+`
+			if test.detail != "" {
+				expected = `PASS: http://localhost:8181 (skip:2)
+└─ SKIP: TestMutations (skip:2)
+   ├─ PASS: TestModel
+   ├─ PASS: TestCapabilities (skip:1)
+   │  ├─ PASS: Retrieving capabilities
+   │  ├─ PASS: capabilities.available MUST include "capabilities"
+   │  ├─ PASS: capabilities.available MUST include "entities"
+   │  ├─ PASS: capabilities.available MUST include "model"
+   │  ├─ PASS: capabilities.available.entities MUST NOT be "mutable"
+   │  ├─ PASS: 'GET /capabilities' MUST return 200
+   │  ├─ PASS: 'GET /capabilities' MUST return a non-empty body
+   │  ├─ PASS: 'GET /capabilities' MUST return a JSON body
+   │  ├─ PASS: Parsing capabilities MUST work
+   │  ├─ PASS: 'GET /' MUST return 200
+   │  ├─ PASS: 'GET /' MUST return a non-empty body
+   │  ├─ PASS: 'GET /' MUST return a JSON body
+   │  ├─ PASS: 'GET /' MUST NOT include 'capabilities' attribute
+   │  ├─ PASS: Testing ?inline=capabilities (skip:1)
+   │  │  └─ SKIP: ?inline not supported
+   │  └─ PASS: Parsing Capabilities MUST work
+   ├─ Mutation tests require a Group Type whose client-required attributes all
+   │  have server defaults.
+   ├─ ` + test.detail + `
+   └─ ` + test.reason + `
+Pass: 27   Fail: 0   Warn: 0   Skip: 2
+`
+			}
+			XCLI(t, "conform --run mutations --allow-mutations --skips -d3 "+
+				target, "", expected, "", 0)
 		})
 	}
 }
@@ -4141,7 +4214,6 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 
 					var mu sync.Mutex
 					groupPath := ""
-					owner := ""
 					groupGets := 0
 					deletes := 0
 					server := httptest.NewServer(http.HandlerFunc(
@@ -4157,7 +4229,7 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 								case http.MethodGet:
 									groupGets++
 									// The first GET is the normal read. The second
-									// is the deferred cleanup ownership probe.
+									// is the deferred cleanup state probe.
 									if groupGets == 2 {
 										// Fail only cleanup so we can assert that
 										// no DELETE follows and the Group remains.
@@ -4173,16 +4245,6 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 							// only injects the cleanup GET failure above.
 							response := httptest.NewRecorder()
 							MainServer.ServeHTTP(response, r)
-							if r.Method == http.MethodPut {
-								var created struct {
-									Labels map[string]string `json:"labels"`
-								}
-								if err := json.Unmarshal(response.Body.Bytes(),
-									&created); err != nil {
-									t.Errorf("Parsing created Group: %v", err)
-								}
-								owner = created.Labels["xr-conform-run"]
-							}
 							for name, values := range response.Header() {
 								w.Header()[name] = values
 							}
@@ -4198,7 +4260,6 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 
 					mu.Lock()
 					path := groupPath
-					gotOwner := owner
 					gotDeletes := deletes
 					mu.Unlock()
 					XCheck(t, strings.HasPrefix(path, "/dirs/xr-conform-"),
@@ -4206,17 +4267,19 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 					XEqual(t, "Cleanup DELETE requests", gotDeletes, 0)
 
 					expected := `FAIL: http://mutation-test (skip:1)
-└─ FAIL: TestTDGroupCreateReadDelete (skip:1)
+└─ FAIL: TestMutations (skip:1)
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:1)
    ├─ PASS: Confirm target Group is absent
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ FAIL: Clean up run-owned Group
-      ├─ Cleanup GET response: 503 Service Unavailable; body: "cleanup unavailable"
+      ├─ HTTP error: There was an error talking to the server (http://mutation-test/dirs/xr-conform-RUN): cleanup unavailable.
+      ├─ HTTP status: 503 Service Unavailable
+      ├─ HTTP body: "cleanup unavailable"
       ├─ FAIL: Cleanup GET MUST return 200 or 404
       └─ Run-owned Group may remain: /dirs/xr-conform-RUN
-Pass: 39   Fail: 4   Warn: 0   Skip: 1
+Pass: 54   Fail: 4   Warn: 0   Skip: 1
 `
 					if output == "json" {
 						expected = expectedOutput(t,
@@ -4224,7 +4287,8 @@ Pass: 39   Fail: 4   Warn: 0   Skip: 1
 					}
 					got := strings.NewReplacer(
 						server.URL, "http://mutation-test",
-						path, "/dirs/xr-conform-RUN").Replace(result.Stdout)
+					).Replace(result.Stdout)
+					got = conformRunIDRE.ReplaceAllString(got, "xr-conform-RUN")
 					XEqual(t, "Cleanup failure output", got, expected)
 
 					id := strings.TrimPrefix(path, "/dirs/")
@@ -4233,16 +4297,13 @@ Pass: 39   Fail: 4   Warn: 0   Skip: 1
   "self": "http://localhost:8181%s",
   "xid": "%s",
   "epoch": 1,
-  "labels": {
-    "xr-conform-run": "%s"
-  },
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
   "filesurl": "http://localhost:8181%s/files",
   "filescount": 0
 }
-`, id, path, path, gotOwner, path))
+`, id, path, path, path))
 				})
 		}
 	}
@@ -4273,7 +4334,7 @@ Usage:
   xr conform [URL...] [flags]
 
 Flags:
-      --allow-mutations   Authorize explicitly selected mutation tests
+      --allow-mutations   Authorize mutation tests
   -d, --depth int         Console depth (0=all) (default 2)
       --failfast          Stop on first failure
   -l, --logs              Show logs even on success
@@ -4297,16 +4358,16 @@ Global Flags:
 
 func TestXRConformOutput(t *testing.T) {
 	XCLI(t, "conform --run smoke http://localhost:8282/conform", "",
-		`PASS: http://localhost:8282/conform (skip:2)
-└─ PASS: TestTDSmoke (skip:2)
-Pass: 50   Fail: 0   Warn: 0   Skip: 2
+		`PASS: http://localhost:8282/conform (skip:1)
+└─ PASS: TestSmoke (skip:1)
+Pass: 51   Fail: 0   Warn: 0   Skip: 1
 `, "", 0)
 
 	XCLI(t, "conform --output text --run smoke "+
 		"http://localhost:8282/conform", "",
-		`PASS: http://localhost:8282/conform (skip:2)
-└─ PASS: TestTDSmoke (skip:2)
-Pass: 50   Fail: 0   Warn: 0   Skip: 2
+		`PASS: http://localhost:8282/conform (skip:1)
+└─ PASS: TestSmoke (skip:1)
+Pass: 51   Fail: 0   Warn: 0   Skip: 1
 `, "", 0)
 
 	const target = "http://localhost:8282/conform-multigroup"
@@ -4404,7 +4465,7 @@ Pass: 53   Fail: 0   Warn: 0   Skip: 9
 		request string
 		count   int
 	}{
-		{request: "Request: GET " + target + "/model", count: 2},
+		{request: "Request: GET " + target + "/model", count: 4},
 		{request: "Request: GET " + target + "/capabilities", count: 4},
 	} {
 		// Need to distinguish between /model and /modelsource
