@@ -2,16 +2,16 @@
   {
     "name": "http://mutation-test",
     "status": "FAIL",
-    "pass": 39,
+    "pass": 54,
     "fail": 4,
     "warn": 0,
     "skip": 1,
     "entries": [
       {
         "subtest": {
-          "name": "TestTDGroupCreateReadDelete",
+          "name": "TestMutations",
           "status": "FAIL",
-          "pass": 39,
+          "pass": 54,
           "fail": 3,
           "warn": 0,
           "skip": 1,
@@ -195,11 +195,15 @@
               "subtest": {
                 "name": "Confirm target Group is absent",
                 "status": "PASS",
-                "pass": 2,
+                "pass": 3,
                 "fail": 0,
                 "warn": 0,
                 "skip": 0,
                 "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "Preflight GET MUST return an HTTP response"
+                  },
                   {
                     "status": "PASS",
                     "text": "'Preflight GET of mutation destination' MUST return 404"
@@ -211,11 +215,15 @@
               "subtest": {
                 "name": "Create run-owned Group",
                 "status": "PASS",
-                "pass": 6,
+                "pass": 13,
                 "fail": 0,
                 "warn": 0,
                 "skip": 0,
                 "entries": [
+                  {
+                    "status": "PASS",
+                    "text": "Creating the run-owned Group MUST return an HTTP response"
+                  },
                   {
                     "status": "PASS",
                     "text": "'Creating the run-owned Group' MUST return 201"
@@ -230,7 +238,31 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "Created Group is run-owned and empty"
+                    "text": "Group ID MUST match the requested ID"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "Group XID MUST match the requested path"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"filescount\" (0) MUST \u003e= 0"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "files count MUST be zero"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"files\" MUST not exist"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "Created Group matches the target and is empty"
                   },
                   {
                     "status": "PASS",
@@ -243,26 +275,62 @@
               "subtest": {
                 "name": "Read run-owned Group",
                 "status": "PASS",
-                "pass": 5,
+                "pass": 12,
                 "fail": 0,
                 "warn": 0,
                 "skip": 0,
                 "entries": [
                   {
-                    "status": "PASS",
-                    "text": "'Reading the run-owned Group' MUST return 200"
+                    "subtest": {
+                      "name": "GET /dirs/xr-conform-RUN",
+                      "status": "PASS",
+                      "pass": 4,
+                      "fail": 0,
+                      "warn": 0,
+                      "skip": 0,
+                      "entries": [
+                        {
+                          "status": "PASS",
+                          "text": "'GET /dirs/xr-conform-RUN' MUST return 200"
+                        },
+                        {
+                          "status": "PASS",
+                          "text": "'GET /dirs/xr-conform-RUN' MUST return a non-empty body"
+                        },
+                        {
+                          "status": "PASS",
+                          "text": "'GET /dirs/xr-conform-RUN' MUST return a JSON body"
+                        }
+                      ]
+                    }
                   },
                   {
                     "status": "PASS",
-                    "text": "'Reading the run-owned Group' MUST return a non-empty body"
+                    "text": "Group ID MUST match the requested ID"
                   },
                   {
                     "status": "PASS",
-                    "text": "'Reading the run-owned Group' MUST return a JSON body"
+                    "text": "Group XID MUST match the requested path"
                   },
                   {
                     "status": "PASS",
-                    "text": "Read Group epoch MUST remain unchanged"
+                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"filescount\" (0) MUST \u003e= 0"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "files count MUST be zero"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"files\" MUST not exist"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "Group epoch MUST remain unchanged"
                   }
                 ]
               }
@@ -278,7 +346,15 @@
                 "entries": [
                   {
                     "status": "LOG",
-                    "text": "Cleanup GET response: 503 Service Unavailable; body: \"cleanup unavailable\""
+                    "text": "HTTP error: There was an error talking to the server (http://mutation-test/dirs/xr-conform-RUN): cleanup unavailable."
+                  },
+                  {
+                    "status": "LOG",
+                    "text": "HTTP status: 503 Service Unavailable"
+                  },
+                  {
+                    "status": "LOG",
+                    "text": "HTTP body: \"cleanup unavailable\""
                   },
                   {
                     "status": "FAIL",

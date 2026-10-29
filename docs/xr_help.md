@@ -29,7 +29,7 @@ xr [command]
 
 xr conform [URL...]
   # xRegistry Conformance Tester
-      --allow-mutations    Authorize explicitly selected mutation tests
+      --allow-mutations    Authorize mutation tests
       --config string      Config file ($HOME/.xr)
       --cset stringArray   Override configFile property: --cset NAME[:VALUE]
   -d, --depth int          Console depth (0=all) (default 2)

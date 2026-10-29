@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func TestTDGroupCreateReadDeleteRequiresAuthorization(t *testing.T) {
+func TestMutationsRequiresAuthorization(t *testing.T) {
 	var requests int
 	server := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -23,9 +24,9 @@ func TestTDGroupCreateReadDeleteRequiresAuthorization(t *testing.T) {
 	defer server.Close()
 
 	root := newConformMutationTestTD(server.URL)
-	result := root.Run(TestTDGroupCreateReadDelete)
+	result := root.Run(TestMutations)
 
-	XEqual(t, "Status", result.Status, FAIL)
+	XEqual(t, "Status", result.Status, SKIP)
 	XEqual(t, "Requests", requests, 0)
 }
 
@@ -50,66 +51,72 @@ func TestConformMutationGroupModel(t *testing.T) {
 				ReadOnly: true,
 				Required: true,
 			},
-			safe: true,
 		},
 		{
-			name: "client required extension",
+			name: "client required extension without default",
+			key:  "required",
+			attr: &registry.Attribute{
+				Type:     STRING,
+				Required: true,
+			},
+		},
+		{
+			name: "client required extension with string default",
 			key:  "required",
 			attr: &registry.Attribute{
 				Type:     STRING,
 				Required: true,
 				Default:  "default",
 			},
+			safe: true,
 		},
 		{
-			name: "conditional readonly extension",
-			key:  "conditional",
+			name: "client required extension with empty string default",
+			key:  "required",
 			attr: &registry.Attribute{
 				Type:     STRING,
-				ReadOnly: true,
 				Required: true,
-				IfValues: registry.IfValues{
-					"value": {},
-				},
-			},
-		},
-		{
-			name: "core labels",
-			key:  "labels",
-			attr: &registry.Attribute{
-				Type: MAP,
-				Item: &registry.Item{Type: STRING},
+				Default:  "",
 			},
 			safe: true,
 		},
 		{
-			name: "readonly labels",
-			key:  "labels",
+			name: "client required extension with false default",
+			key:  "required",
 			attr: &registry.Attribute{
-				Type:     MAP,
-				ReadOnly: true,
-				Item:     &registry.Item{Type: STRING},
+				Type:     BOOLEAN,
+				Required: true,
+				Default:  false,
+			},
+			safe: true,
+		},
+		{
+			name: "client required extension with zero default",
+			key:  "required",
+			attr: &registry.Attribute{
+				Type:     UINTEGER,
+				Required: true,
+				Default:  0,
+			},
+			safe: true,
+		},
+		{
+			name: "required core name without default",
+			key:  "name",
+			attr: &registry.Attribute{
+				Type:     STRING,
+				Required: true,
 			},
 		},
 		{
-			name: "immutable labels",
-			key:  "labels",
+			name: "required server-populated id",
+			key:  "dirid",
 			attr: &registry.Attribute{
-				Type:      MAP,
+				Type:      STRING,
 				Immutable: true,
-				Item:      &registry.Item{Type: STRING},
+				Required:  true,
 			},
-		},
-		{
-			name: "constrained label values",
-			key:  "labels",
-			attr: &registry.Attribute{
-				Type: MAP,
-				Item: &registry.Item{
-					Type: STRING,
-					Enum: []any{"allowed"},
-				},
-			},
+			safe: true,
 		},
 	}
 
@@ -126,59 +133,66 @@ func TestConformMutationGroupModel(t *testing.T) {
 					},
 				},
 			}
-			_, groupModel := conformMutationGroupModel(model)
+			_, groupModel, reasons := conformMutationGroupModel(model)
 			XEqual(t, "Safe", groupModel != nil, test.safe)
+			if !test.safe {
+				XCheck(t, len(reasons) == 1,
+					"Expected one deterministic rejection reason: %#v", reasons)
+			}
 		})
 	}
+
+	_, groupModel, reasons := conformMutationGroupModel(&registry.Model{})
+	XCheck(t, groupModel == nil, "Empty model MUST be unsuitable")
+	XEqual(t, "Empty model reason", reasons,
+		[]string{"The model defines no Group Types."})
 }
 
-func TestTDGroupCreateReadDeleteSkipsReadonlyLabels(t *testing.T) {
-	var requests int
-	server := httptest.NewServer(http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			requests++
-			http.Error(w, "unexpected request", http.StatusInternalServerError)
-		}))
-	defer server.Close()
-
-	root := newConformMutationTestTD(server.URL)
-	root.Config.AllowMutations = true
-	root.GetRegistry().Model.Groups["dirs"].Attributes["labels"] =
-		&registry.Attribute{
-			Type:     MAP,
-			ReadOnly: true,
-			Item:     &registry.Item{Type: STRING},
-		}
-	result := root.Run(TestTDGroupCreateReadDelete)
-
-	XEqual(t, "Status", result.Status, SKIP)
-	XEqual(t, "Requests", requests, 0)
-}
-
-func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
+func TestMutationsCleanup(t *testing.T) {
 	tests := []struct {
 		name             string
 		failFast         bool
 		withoutEpochFlag bool
+		epochZero        bool
+		unsafeEpoch      uint64
 		preflightExists  bool
 		wrongLocation    bool
-		foreignObject    bool
+		unconfirmed      bool
 		foreignResource  bool
 		unexpectedStatus bool
-		createRedirect   bool
-		deleteRedirect   bool
+		redirectCode     int
 		epochChanged     bool
 		wantStatus       int
 		wantMethods      string
 		wantDeletes      int
 		wantRetained     bool
-		wantLog          string
 	}{
 		{
 			name:        "success",
 			wantStatus:  PASS,
 			wantMethods: "GET,PUT,GET,GET,DELETE,GET",
 			wantDeletes: 1,
+		},
+		{
+			name:        "success with epoch zero",
+			epochZero:   true,
+			wantStatus:  PASS,
+			wantMethods: "GET,PUT,GET,GET,DELETE,GET",
+			wantDeletes: 1,
+		},
+		{
+			name:         "success through 307 redirect",
+			redirectCode: http.StatusTemporaryRedirect,
+			wantStatus:   PASS,
+			wantMethods:  "GET,PUT,GET,GET,DELETE,GET",
+			wantDeletes:  1,
+		},
+		{
+			name:         "success through 308 redirect",
+			redirectCode: http.StatusPermanentRedirect,
+			wantStatus:   PASS,
+			wantMethods:  "GET,PUT,GET,GET,DELETE,GET",
+			wantDeletes:  1,
 		},
 		{
 			name:             "success without epoch flag",
@@ -210,12 +224,12 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 			wantDeletes:   1,
 		},
 		{
-			name:          "foreign object retained",
-			foreignObject: true,
-			wantStatus:    FAIL,
-			wantMethods:   "GET,PUT,GET",
-			wantDeletes:   0,
-			wantRetained:  true,
+			name:         "unconfirmed object retained",
+			unconfirmed:  true,
+			wantStatus:   FAIL,
+			wantMethods:  "GET,PUT,GET",
+			wantDeletes:  0,
+			wantRetained: true,
 		},
 		{
 			name:            "foreign nested resource retained",
@@ -243,27 +257,18 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 			wantRetained:     true,
 		},
 		{
-			name:           "create redirect rejected",
-			createRedirect: true,
-			wantStatus:     FAIL,
-			wantMethods:    "GET,PUT,GET",
-			wantDeletes:    0,
-			wantLog:        "Create PUT response: 307 Temporary Redirect",
-		},
-		{
-			name:           "delete redirect rejected",
-			deleteRedirect: true,
-			wantStatus:     FAIL,
-			wantMethods:    "GET,PUT,GET,GET,DELETE",
-			wantDeletes:    1,
-			wantRetained:   true,
-			wantLog:        "Cleanup DELETE response: 307 Temporary Redirect",
-		},
-		{
-			name:         "large epoch change retained",
+			name:         "epoch change retained",
 			epochChanged: true,
 			wantStatus:   FAIL,
 			wantMethods:  "GET,PUT,GET,GET",
+			wantDeletes:  0,
+			wantRetained: true,
+		},
+		{
+			name:         "unsafe epoch response retained",
+			unsafeEpoch:  9007199254740993,
+			wantStatus:   FAIL,
+			wantMethods:  "GET,PUT,GET",
 			wantDeletes:  0,
 			wantRetained: true,
 		},
@@ -277,17 +282,14 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 			current := map[string]any(nil)
 			ownedGets := 0
 			ownedID := ""
-			foreignTouched := false
-			var server *httptest.Server
+			redirects := 0
+			publicURL := ""
 
-			server = httptest.NewServer(http.HandlerFunc(
+			backend := httptest.NewServer(http.HandlerFunc(
 				func(w http.ResponseWriter, r *http.Request) {
 					mu.Lock()
 					defer mu.Unlock()
 					methods = append(methods, r.Method)
-					if strings.HasSuffix(r.URL.Path, "/foreign") {
-						foreignTouched = true
-					}
 
 					w.Header().Set("Content-Type", "application/json")
 					switch r.Method {
@@ -303,16 +305,9 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 						_ = json.NewEncoder(w).Encode(current)
 						ownedGets++
 						if test.epochChanged && ownedGets == 1 {
-							current["epoch"] = uint64(9007199254740996)
+							current["epoch"] = 2
 						}
 					case http.MethodPut:
-						if test.createRedirect {
-							w.Header().Set("Location",
-								server.URL+"/dirs/foreign")
-							w.WriteHeader(http.StatusTemporaryRedirect)
-							return
-						}
-
 						body := map[string]any{}
 						if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 							t.Errorf("decode request: %v", err)
@@ -326,17 +321,13 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 						if body["dirid"] != id {
 							t.Errorf("dirid: %#v, want %q", body["dirid"], id)
 						}
-						labels, _ := body["labels"].(map[string]any)
-						owner, _ := labels[conformMutationLabel].(string)
 
-						if test.foreignObject {
+						if test.unconfirmed {
 							current = map[string]any{
-								"dirid": id,
-								"xid":   r.URL.Path,
-								"epoch": 7,
-								"labels": map[string]any{
-									conformMutationLabel: "foreign",
-								},
+								"dirid":      id,
+								"xid":        r.URL.Path,
+								"epoch":      7,
+								"filescount": 0,
 							}
 							w.WriteHeader(http.StatusInternalServerError)
 							_, _ = w.Write([]byte(`{"type":"test","title":"failed"}`))
@@ -344,19 +335,19 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 						}
 
 						epoch := any(1)
-						if test.epochChanged {
-							epoch = uint64(9007199254740995)
+						if test.epochZero {
+							epoch = 0
+						}
+						if test.unsafeEpoch != 0 {
+							epoch = test.unsafeEpoch
 						}
 						current = map[string]any{
 							"dirid":      id,
 							"xid":        r.URL.Path,
 							"epoch":      epoch,
 							"filescount": 0,
-							"labels": map[string]any{
-								conformMutationLabel: owner,
-							},
 						}
-						location := server.URL + r.URL.Path
+						location := publicURL + r.URL.Path
 						if test.wrongLocation {
 							location += "-wrong"
 						}
@@ -375,9 +366,6 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 								"filescount": 1,
 								"files": map[string]any{
 									"foreign": map[string]any{},
-								},
-								"labels": map[string]any{
-									conformMutationLabel: owner,
 								},
 							}
 						}
@@ -418,12 +406,6 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 									r.URL.Query().Get("epoch"))
 							}
 						}
-						if test.deleteRedirect {
-							w.Header().Set("Location",
-								server.URL+"/dirs/foreign")
-							w.WriteHeader(http.StatusTemporaryRedirect)
-							return
-						}
 						current = nil
 						w.WriteHeader(http.StatusNoContent)
 					default:
@@ -431,28 +413,44 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 							http.StatusMethodNotAllowed)
 					}
 				}))
-			defer server.Close()
+			defer backend.Close()
 
-			root := newConformMutationTestTD(server.URL)
+			targetURL := backend.URL
+			publicURL = backend.URL
+			if test.redirectCode != 0 {
+				redirect := httptest.NewServer(http.HandlerFunc(
+					func(w http.ResponseWriter, r *http.Request) {
+						mu.Lock()
+						redirects++
+						mu.Unlock()
+						w.Header().Set("Location",
+							backend.URL+r.URL.RequestURI())
+						w.WriteHeader(test.redirectCode)
+					}))
+				defer redirect.Close()
+				targetURL = redirect.URL
+				publicURL = redirect.URL
+			}
+
+			root := newConformMutationTestTD(targetURL)
 			root.Config.AllowMutations = true
 			root.Config.FailFast = test.failFast
 			if test.withoutEpochFlag {
 				root.GetRegistry().Capabilities.Flags = nil
 			}
-			result := root.Run(TestTDGroupCreateReadDelete)
+			result := root.Run(TestMutations)
 
 			mu.Lock()
 			gotMethods := strings.Join(methods, ",")
 			gotDeletes := deletes
-			gotForeignTouched := foreignTouched
+			gotRedirects := redirects
 			mu.Unlock()
 			XEqual(t, "Status", result.Status, test.wantStatus)
 			XEqual(t, "Methods", gotMethods, test.wantMethods)
 			XEqual(t, "Deletes", gotDeletes, test.wantDeletes)
-			XEqual(t, "Foreign redirect target", gotForeignTouched, false)
-			if test.wantLog != "" {
-				XCheck(t, conformMutationHasLog(result, test.wantLog),
-					"Expected diagnostic containing %q", test.wantLog)
+			if test.redirectCode != 0 {
+				XEqual(t, "Redirected requests", gotRedirects,
+					len(methods))
 			}
 			if test.wantRetained {
 				XCheck(t, current != nil, "Object must remain")
@@ -463,16 +461,189 @@ func TestTDGroupCreateReadDeleteCleanup(t *testing.T) {
 	}
 }
 
-func conformMutationHasLog(td *TD, text string) bool {
-	for _, entry := range td.Logs {
-		if strings.Contains(entry.Text, text) {
-			return true
-		}
-		if entry.Subtest != nil && conformMutationHasLog(entry.Subtest, text) {
-			return true
-		}
+func TestConformMutationUInt(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   any
+		want    uint64
+		wantErr bool
+	}{
+		{name: "zero", value: float64(0), want: 0},
+		{
+			name:  "largest exact JSON integer",
+			value: float64(9007199254740991),
+			want:  9007199254740991,
+		},
+		{
+			name:    "two to the fifty-third",
+			value:   float64(9007199254740992),
+			wantErr: true,
+		},
+		{name: "fraction", value: 1.5, wantErr: true},
+		{name: "negative", value: float64(-1), wantErr: true},
+		{name: "wrong type", value: "1", wantErr: true},
 	}
-	return false
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := conformMutationUInt(test.value)
+			XEqual(t, "Error", err != nil, test.wantErr)
+			if !test.wantErr {
+				XEqual(t, "Value", got, test.want)
+			}
+		})
+	}
+}
+
+type mutationRunServer struct {
+	server     *httptest.Server
+	mu         sync.Mutex
+	requests   int
+	writes     int
+	createdIDs []string
+	current    map[string]any
+	failCreate bool
+}
+
+func newMutationRunServer(t *testing.T, failCreate bool) *mutationRunServer {
+	t.Helper()
+
+	recorder := &mutationRunServer{failCreate: failCreate}
+	recorder.server = httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			recorder.mu.Lock()
+			defer recorder.mu.Unlock()
+			recorder.requests++
+			w.Header().Set("Content-Type", "application/json")
+
+			switch r.URL.Path {
+			case "/model":
+				_, _ = w.Write([]byte(`{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {"singular": "file"}
+      }
+    }
+  }
+}`))
+				return
+			case "/capabilities":
+				_, _ = w.Write([]byte(`{
+  "available": {
+    "capabilities": {"mutable": true},
+    "entities": {"mutable": true},
+    "model": {"mutable": false}
+  },
+  "flags": ["epoch"]
+}`))
+				return
+			case "/":
+				_, _ = w.Write([]byte(`{}`))
+				return
+			}
+
+			switch r.Method {
+			case http.MethodGet:
+				if recorder.current == nil {
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = w.Write([]byte(`{"title":"not found"}`))
+					return
+				}
+				_ = json.NewEncoder(w).Encode(recorder.current)
+			case http.MethodPut:
+				recorder.writes++
+				id := strings.TrimPrefix(r.URL.Path, "/dirs/")
+				recorder.createdIDs = append(recorder.createdIDs, id)
+				if recorder.failCreate {
+					http.Error(w, "create failed",
+						http.StatusInternalServerError)
+					return
+				}
+				recorder.current = map[string]any{
+					"dirid":      id,
+					"xid":        r.URL.Path,
+					"epoch":      1,
+					"filescount": 0,
+				}
+				w.Header().Set("Location", recorder.server.URL+r.URL.Path)
+				w.WriteHeader(http.StatusCreated)
+				_ = json.NewEncoder(w).Encode(recorder.current)
+			case http.MethodDelete:
+				recorder.writes++
+				recorder.current = nil
+				w.WriteHeader(http.StatusNoContent)
+			default:
+				http.Error(w, "unexpected method",
+					http.StatusMethodNotAllowed)
+			}
+		}))
+	return recorder
+}
+
+func (recorder *mutationRunServer) close() {
+	recorder.server.Close()
+}
+
+func TestMutationsMultipleTargets(t *testing.T) {
+	first := newMutationRunServer(t, false)
+	defer first.close()
+	second := newMutationRunServer(t, false)
+	defer second.close()
+
+	config := &TDConfig{
+		AllowMutations: true,
+		ConsoleDepth:   1,
+		IgnoreWarn:     true,
+		Out:            io.Discard,
+		Output:         "text",
+		RunFuncs:       []TestFn{TestMutations},
+	}
+	rc := runConform([]string{first.server.URL, second.server.URL}, config)
+	XEqual(t, "Exit code", rc, 0)
+
+	first.mu.Lock()
+	firstWrites := first.writes
+	firstID := first.createdIDs[0]
+	firstCurrent := first.current
+	first.mu.Unlock()
+	second.mu.Lock()
+	secondWrites := second.writes
+	secondID := second.createdIDs[0]
+	secondCurrent := second.current
+	second.mu.Unlock()
+
+	XEqual(t, "First target writes", firstWrites, 2)
+	XEqual(t, "Second target writes", secondWrites, 2)
+	XCheck(t, firstID != secondID,
+		"Each target MUST receive an independent mutation ID")
+	XCheck(t, firstCurrent == nil, "First target MUST be cleaned up")
+	XCheck(t, secondCurrent == nil, "Second target MUST be cleaned up")
+}
+
+func TestMutationsMultipleTargetsFailFast(t *testing.T) {
+	first := newMutationRunServer(t, true)
+	defer first.close()
+	second := newMutationRunServer(t, false)
+	defer second.close()
+
+	config := &TDConfig{
+		AllowMutations: true,
+		ConsoleDepth:   1,
+		FailFast:       true,
+		IgnoreWarn:     true,
+		Out:            io.Discard,
+		Output:         "text",
+		RunFuncs:       []TestFn{TestMutations},
+	}
+	rc := runConform([]string{first.server.URL, second.server.URL}, config)
+	XEqual(t, "Exit code", rc, 1)
+
+	second.mu.Lock()
+	secondRequests := second.requests
+	second.mu.Unlock()
+	XEqual(t, "Second target requests", secondRequests, 0)
 }
 
 func newConformMutationTestTD(serverURL string) *TD {
