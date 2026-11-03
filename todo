@@ -120,6 +120,9 @@ TODOs:
   - why does it GET dirs/d1/files/abc instead of just "abc" ?
   - change create/update to always use $details
 - add xrlint test to make sure ALL errors are tested
+- complete Tablize logic
+** support 'binary' data type
+- use ValiadateXID and other xid funcs in info processing instead
 
 - Backend
   - move mysql triggers to be go initiated, if appropriate but I'm not
@@ -146,3 +149,4 @@ TODOs:
 - get rid of applyNewModel and just have a Set/Save() variant. And make
   it use the incoming model not the current model as the new one. THen
   LoadModel can refresh registry's model instead of just returning *MOdel
+

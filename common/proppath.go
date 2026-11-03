@@ -706,7 +706,7 @@ func NestedGetProp(obj any, pp *PropPath, prev *PropPath) (any, bool, error) {
 // fields to 'val'
 // FLAGS: SHRINK_ARRAYS - nils in arrays should remove index
 func ObjectSetProp(obj map[string]any, pp *PropPath, val any, flags ...string) error {
-	log.VPrintf(4, "ObjectSetProp(%s=%v)", pp, val)
+	log.VPrintf(5, "ObjectSetProp(%s=%v)", pp, val)
 	if pp.Len() == 0 && IsNil(val) {
 		// A bit of a special case, not 100% sure if this is ok.
 		// Treat nil val as a request to delete all properties.

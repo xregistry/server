@@ -110,13 +110,13 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	dir := args[0]
 
 	if dir == "/" {
-		Error(NewXRError("client_error", dir,
+		Error(NewXRError("generic_error", dir,
 			"error_detail=Can't use '/' as the dir for safety. Use '/./' to force it"))
 	}
 
 	stat, err := os.Stat(dir)
 	if os.IsNotExist(err) || !stat.IsDir() {
-		Error(NewXRError("client_error", dir,
+		Error(NewXRError("generic_error", dir,
 			"error_detail="+dir+" must be an existing directory"))
 	}
 	args = args[1:]
@@ -399,7 +399,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		// the "rawjson" .xr config option is set — see GetRawJSON().
 		treeAny, xErr := registry.CanonicalPrettyReorderTreeOrRaw(rawData, GetRawJSON())
 		if xErr != nil {
-			Error(NewXRError("client_error", "",
+			Error(NewXRError("generic_error", "",
 				"error_detail="+
 					fmt.Sprintf("%q doesn't appear to be an xRegistry entity",
 						xid)))

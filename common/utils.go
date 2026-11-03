@@ -1722,6 +1722,8 @@ func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 	httpRes := &HttpResponse{}
 	bodyReader := bytes.NewReader(req.Body)
 
+	// ShowStack()
+
 	httpReq, err := http.NewRequest(req.Verb, req.URL, bodyReader)
 	if err != nil {
 		httpRes.Error = NewXRError("talking_to_server", req.URL,
@@ -1735,7 +1737,9 @@ func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 		}
 	}
 
-	if req.Debug {
+	debug := req.Debug || os.Getenv("XR_HTTP_LOG") != ""
+
+	if debug {
 		Debug("Request: %s %s", req.Verb, req.URL)
 		// Debug("Stack:\n        %s", strings.Join(GetStack(), "\n        "))
 		if len(req.Headers) != 0 {
@@ -1745,10 +1749,10 @@ func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 			}
 		}
 		if len(req.Body) != 0 {
-			Debug("Body:\n%s", string(req.Body))
+			Debug("Request Body:\n%s", string(req.Body))
 			Debug("--------------------")
 		} else {
-			Debug("Body: <empty>")
+			Debug("Request Body: <empty>")
 		}
 	}
 
@@ -1800,7 +1804,7 @@ func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 		}
 	}
 
-	if req.Debug {
+	if debug {
 		Debug("Response: %s", res.Status)
 
 		showHeaders := map[string]bool{
@@ -1823,6 +1827,8 @@ func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 		if len(httpRes.Body) != 0 {
 			Debug("Response Body:\n%s", string(httpRes.Body))
 			Debug("--------------------")
+		} else {
+			Debug("Response Body: <empty>")
 		}
 	}
 
@@ -1830,9 +1836,16 @@ func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 	return httpRes, xErr
 }
 
+// Used to make sure we only log an error w.r.t. the log file once
+var LastErrorSeenLogFileName = ""
+
 func Debug(args ...any) {
-	// if !DebugFlag || len(args) == 0 || IsNil(args[0]) {
-	if log.GetLevel() < 2 || len(args) == 0 || IsNil(args[0]) {
+	if len(args) == 0 || IsNil(args[0]) {
+		return
+	}
+
+	filename := os.Getenv("XR_HTTP_LOG")
+	if log.GetLevel() < 2 && filename == "" {
 		return
 	}
 
@@ -1852,6 +1865,30 @@ func Debug(args ...any) {
 	str := fmt.Sprintf(fmtStr, args[1:]...)
 
 	log.VPrintf(2, "%s", str)
+
+	if filename != "" {
+		file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+			0644)
+		if err != nil {
+			if filename != LastErrorSeenLogFileName {
+				log.Printf("Error opening logfile(%s): %s", filename, err)
+				LastErrorSeenLogFileName = filename
+			}
+		} else {
+			_, err := file.WriteString(str + "\n")
+			if err != nil {
+				if filename != LastErrorSeenLogFileName {
+					log.Printf("Error writing to logfile(%s): %s",
+						filename, err)
+					LastErrorSeenLogFileName = filename
+				}
+			} else {
+				LastErrorSeenLogFileName = "" // reset
+			}
+			file.Close()
+		}
+	}
+
 	/*
 	   fmt.Fprint(os.Stderr, str)
 	   if str[len(str)-1] != '\n' && str[len(str)-1] != '\r' {

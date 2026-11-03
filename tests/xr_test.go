@@ -538,17 +538,15 @@ func TestXRUpdateRegistry(t *testing.T) {
     }
   }
 }`
-	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCLIServer("localhost:8181")
 
-	XCLI(t, "create", "",
-		"", "Must specify the XID of an entity.\n",
-		1)
+	XCLI(t, "model update -vd @-", model, "", "Model updated\n", 0)
 
-	XCLI(t, "create /", "",
-		"", "To create a registry use the 'xrserver registry create' command.\n",
-		1)
+	XCLI(t, "create", "", "", "Must specify the XID of an entity.\n", 1)
+
+	XCLI(t, "create /", "", "",
+		"To create a registry use the 'xrserver registry create' command.\n", 1)
 
 	XCLI(t, "update", "", "", "Must specify the XID of an entity.\n", 1)
 	XCLI(t, "update /", "", "", "", 0)
@@ -2146,25 +2144,30 @@ func TestXRResourceFlags(t *testing.T) {
 }
 `, "", 0)
 
-	// Test --set with -d and --min on resource with document
+	// Test --set with -d and GET + --min on resource with document
 	XCLI(t, `update /dirs/d1/files/f1 -m --set name=file5 -d '{"name":"file6","description":"file5"}'`, "", "", "", 0)
 	XCLI(t, "get /dirs/d1/files/f1", "", "hello world", "", 0)
-	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
-  "fileid": "f1",
+	XCLI(t, "get /dirs/d1/files/f1 -m --min", "", `{
   "versionid": "1",
-  "self": "http://localhost:8181/dirs/d1/files/f1$details",
   "xid": "/dirs/d1/files/f1",
-  "epoch": 4,
   "name": "file5",
-  "isdefault": true,
   "description": "file5",
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "ancestorid": "1",
 
-  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionscount": 1
+}
+`, "", 0)
 
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+	// Again with $details
+	XCLI(t, "get /dirs/d1/files/f1$details --min", "", `{
+  "versionid": "1",
+  "xid": "/dirs/d1/files/f1",
+  "name": "file5",
+  "description": "file5",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
   "versionscount": 1
 }
 `, "", 0)
@@ -2285,7 +2288,7 @@ header.bar2: foo2`
 `, `2026/05/19 18:01:50 Request: GET http://localhost:8181/
 2026/05/19 18:01:50 Header: bar2: foo2
 2026/05/19 18:01:50 Header: foo: bar
-2026/05/19 18:01:50 Body: <empty>
+2026/05/19 18:01:50 Request Body: <empty>
 2026/05/19 18:01:50 Response: 200 OK
 2026/05/19 18:01:50 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
 2026/05/19 18:01:50 access-control-allow-origin: *
@@ -2317,7 +2320,7 @@ header.bar2: foo2`
 2026/05/19 18:01:50 Header: bar2: 22
 2026/05/19 18:01:50 Header: bar3: 33
 2026/05/19 18:01:50 Header: foo: bar
-2026/05/19 18:01:50 Body: <empty>
+2026/05/19 18:01:50 Request Body: <empty>
 2026/05/19 18:01:50 Response: 200 OK
 2026/05/19 18:01:50 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
 2026/05/19 18:01:50 access-control-allow-origin: *
@@ -2334,6 +2337,709 @@ header.bar2: foo2`
 }
 2026/05/19 18:01:50 --------------------
 `, 0, MASK_LOGS)
+}
+
+func TestXRGet(t *testing.T) {
+	reg := NewRegistry("TestXRGet")
+	defer PassDeleteReg(t, reg)
+
+	os.Setenv("XR_SERVER", "localhost:8181")
+
+	clog := t.TempDir() + "/clog"
+	os.Setenv("XR_HTTP_LOG", clog)
+	defer func() {
+		os.Unsetenv("XR_HTTP_LOG")
+	}()
+
+	// Empty registry
+	XCLI(t, "get", "", `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRGet",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/\n", 1)
+
+	XCLI(t, "get -o json", "", `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRGet",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/\n", 1)
+
+	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", 0)
+
+	// non-empty registry
+	XCLI(t, "get", "", `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRGet",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`, "", 0)
+
+	// Meaningless flags when on root
+	XCLI(t, "get -o table", "", `Registry: TestXRGet
+  Created At          : 2026-11-02T16:03:05.777697083Z
+  Modified At         : 2026-11-02T16:03:05.831834569Z
+`, "", 0)
+
+	// test docview
+	XCLI(t, "get --doc", "", `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestXRGet",
+  "self": "#",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`, "", 0)
+
+	XCLI(t, "create /dirs/d1/files/f1/versions/v1 -d @-", "hi", "", "", 0)
+	XCLI(t, "get /dirs/d1/files/f1/versions/v1", "", "hi", "", 0)
+
+	XCLI(t, "update /dirs/d1/files/f1/versions/v1 -d hello_world", "", "", "", 0)
+	// Now we should see some dirs
+	XCLI(t, "get", "", `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestXRGet",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2026-11-01T18:58:26.326452418Z",
+  "modifiedat": "2026-11-01T18:58:26.465220422Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`, "", 0)
+	XCLI(t, "get -o table", "", `Registry: TestXRGet
+  Created At          : 2026-11-02T16:03:05.777697083Z
+  Modified At         : 2026-11-02T16:03:05.831834569Z
+`, "", 0)
+
+	// min and docview
+	XCLI(t, "get --min --doc", "", `{
+  "registryid": "TestXRGet",
+  "xid": "/",
+  "createdat": "2026-11-01T18:58:26.326452418Z",
+  "modifiedat": "2026-11-01T18:58:26.465220422Z",
+
+  "dirscount": 1
+}
+`, "", 0)
+	XCLI(t, "get -o table", "", `Registry: TestXRGet
+  Created At          : 2026-11-02T16:45:38.856181699Z
+  Modified At         : 2026-11-02T16:45:38.991373927Z
+`, "", 0)
+
+	XCLI(t, "get /dirs", "", `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "createdat": "2026-11-02T17:08:55.925094415Z",
+    "modifiedat": "2026-11-02T17:08:55.925094415Z",
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 1
+  }
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs\n", 1)
+
+	XCLI(t, "get /dirs/d1", "", `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2026-11-02T17:12:22.095910656Z",
+  "modifiedat": "2026-11-02T17:12:22.095910656Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 1
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1\n", 1)
+
+	XCLI(t, "get /dirs/d1/files", "", `{
+  "f1": {
+    "fileid": "f1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/files/f1$details",
+    "xid": "/dirs/d1/files/f1",
+    "epoch": 2,
+    "isdefault": true,
+    "createdat": "2026-11-02T17:12:47.042424521Z",
+    "modifiedat": "2026-11-02T17:12:47.042424522Z",
+    "ancestorid": "v1",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+    "versionscount": 1
+  }
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1", "", `hello_world`, "", 0).
+		ExpectCount(clog, "Request: ", 2).
+		ExpectCount(clog, "^GET .*/model\n", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1$details", "", `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-11-02T19:50:02.202806382Z",
+  "modifiedat": "2026-11-02T19:50:02.287531849Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1\\$details\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1$details -m", "", `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-11-02T19:50:02.202806382Z",
+  "modifiedat": "2026-11-02T19:50:02.287531849Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1\\$details\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1 -m", "", `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-11-02T19:50:02.202806382Z",
+  "modifiedat": "2026-11-02T19:50:02.287531849Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1\\$details\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1/versions", "", `{
+  "v1": {
+    "fileid": "f1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+    "xid": "/dirs/d1/files/f1/versions/v1",
+    "epoch": 2,
+    "isdefault": true,
+    "createdat": "2026-11-02T20:17:25.419776609Z",
+    "modifiedat": "2026-11-02T20:17:25.513830942Z",
+    "ancestorid": "v1"
+  }
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1/versions\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1/versions/v1", "", `hello_world`, "", 0).
+		ExpectCount(clog, "Request: ", 2).
+		ExpectCount(clog, "^GET .*/model\n", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1/versions/v1\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1/versions/v1$details", "", `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-11-02T20:19:03.770664183Z",
+  "modifiedat": "2026-11-02T20:19:03.859613143Z",
+  "ancestorid": "v1"
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1/versions/v1\\$details\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1/versions/v1$details -m", "", `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-11-02T20:19:03.770664183Z",
+  "modifiedat": "2026-11-02T20:19:03.859613143Z",
+  "ancestorid": "v1"
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1/versions/v1\\$details\n", 1)
+
+	XCLI(t, "get /dirs/d1/files/f1/versions/v1 -m", "", `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-11-02T20:19:03.770664183Z",
+  "modifiedat": "2026-11-02T20:19:03.859613143Z",
+  "ancestorid": "v1"
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/dirs/d1/files/f1/versions/v1\\$details\n", 1)
+
+		// Make sure unsetting it works
+	os.Unsetenv("XR_HTTP_LOG")
+	os.Remove(clog)
+	XCLI(t, "get /", "", `*`, "", 0).
+		ExpectCount(clog, "^.", 0)
+}
+
+func TestXRModify(t *testing.T) {
+	reg := NewRegistry("TestXRModify")
+	defer PassDeleteReg(t, reg)
+
+	os.Setenv("XR_SERVER", "localhost:8181")
+
+	clog := t.TempDir() + "/clog"
+	os.Setenv("XR_HTTP_LOG", clog)
+	defer func() {
+		os.Unsetenv("XR_HTTP_LOG")
+	}()
+
+	// Test while there is no model
+	XCLI(t, "create /", "", "",
+		"To create a registry use the 'xrserver registry create' command.\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+		// XID testing more than anything else
+
+	XCLI(t, "create dirs", "", "",
+		"The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.\n", 1)
+	XCLI(t, "create -vvv dirs", "", "", `^.*Unknown Group type: dirs.*`, 1).
+		ExpectCount("err", "^ Request: ", 1).
+		ExpectCount("err", "^GET .*/model\n", 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/model\n", 1)
+
+	XCLI(t, "create /dirs", "", "", "^Unknown Group type: dirs.\n", 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/model\n", 1)
+
+	XCLI(t, "create /dirs/d1", "", "",
+		"The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.\n",
+		1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/model\n", 1)
+
+	XCLI(t, "create /dirs/d1/files/f1", "", "",
+		"The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.\n", 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/model\n", 1)
+
+	XCLI(t, "update /dirs/d1/files/f1", "", "",
+		"The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.\n", 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/model\n", 1)
+
+	XCLI(t, "upsert /dirs/d1/files/f1", "", "",
+		"The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.\n", 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^GET .*/model\n", 1)
+
+	XCLI(t, "create /dirs/d1/files/f1/foo", "", "",
+		`"/dirs/d1/files/f1/foo" has "foo" at position 5, needs to be either "versions" or "meta".
+`, 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create /ds/d/f/f/meta/foo", "", "",
+		"XID(/ds/d/f/f/meta/foo) is too long.\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create /ds/d/f/f/versions/v1/foo", "", "",
+		"XID(/ds/d/f/f/versions/v1/foo) is too long.\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	// Now define the model and create stuff
+	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", 0)
+
+	// Make sure -d is processed before --set
+	XCLI(t, `create dirs/d1 --set name=foo -d '{"name":"old"}' -o json`, "",
+		`{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "name": "foo",
+  "createdat": "2026-10-29T23:11:14.70823477Z",
+  "modifiedat": "2026-10-29T23:11:14.70823477Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 3).
+		ExpectCount(clog, "^ GET.*model\n", 1).
+		ExpectCount(clog, "^ GET.*d1\n", 1).
+		ExpectCount(clog, "^ PATCH.*d1\n", 1)
+
+	XCLI(t, `create dirs/d1 --set name=foo -d '{"name":"old"}' -o json`, "",
+		``, `"/dirs/d1" already exists.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 2).
+		ExpectCount(clog, "^ GET.*model\n", 1).
+		ExpectCount(clog, "^ GET.*d1\n", 1)
+
+		// -d still processed before --set
+	XCLI(t, `create dirs/d2 -d '{"name":"old"}' --set name=foo -o json`, "",
+		`{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 1,
+  "name": "foo",
+  "createdat": "2026-10-29T23:11:14.70823477Z",
+  "modifiedat": "2026-10-29T23:11:14.70823477Z",
+
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 3).
+		ExpectCount(clog, "^ GET.*model\n", 1).
+		ExpectCount(clog, "^ GET.*d2\n", 1).
+		ExpectCount(clog, "^ PATCH.*d2\n", 1)
+
+	XCLI(t, `update dirs/d2 -o json`, "", `{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 2,
+  "name": "foo",
+  "createdat": "2026-10-30T22:21:27.888372687Z",
+  "modifiedat": "2026-10-30T22:21:27.921815074Z",
+
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 3).
+		ExpectCount(clog, "^ GET.*model\n", 1).
+		ExpectCount(clog, "^ GET.*d2\n", 1).
+		ExpectCount(clog, "^ PATCH.*d2\n", 1)
+
+		// Make sure we don't get unnecessary GETs (like /model), due to -f
+	XCLI(t, `update -f dirs/d2 -o json --set name=bar`, "", `{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 3,
+  "name": "bar",
+  "createdat": "2026-10-30T22:21:27.888372687Z",
+  "modifiedat": "2026-10-30T22:21:27.921815074Z",
+
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 2).
+		ExpectCount(clog, "^ GET.*d2\n", 1).
+		ExpectCount(clog, "^ PATCH.*d2\n", 1)
+
+		// upsert + Verify correct # of HTTP calls
+	XCLI(t, `upsert dirs/d2 -o json --set name=aaa`, "", `{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 4,
+  "name": "aaa",
+  "createdat": "2026-10-30T22:21:27.888372687Z",
+  "modifiedat": "2026-10-30T22:21:27.921815074Z",
+
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 3).
+		ExpectCount(clog, "^ GET.*model\n", 1).
+		ExpectCount(clog, "^ GET.*d2\n", 1).
+		ExpectCount(clog, "^ PATCH.*d2\n", 1)
+
+	// Full replace + force, no extra http calls at all
+	XCLI(t, `create -r -f  dirs/d2 -o json`, "", `{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 5,
+  "createdat": "2026-10-30T22:21:27.888372687Z",
+  "modifiedat": "2026-10-30T22:21:27.921815074Z",
+
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PUT.*d2\n", 1)
+
+		// No need for GET since we have -r
+	XCLI(t, `update -r -f  dirs/d2 -o json --set name=ccc`, "", `{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 6,
+  "name": "ccc",
+  "createdat": "2026-10-30T22:21:27.888372687Z",
+  "modifiedat": "2026-10-30T22:21:27.921815074Z",
+
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PUT.*d2\n", 1)
+
+		//  same for upsert
+	XCLI(t, `upsert -r -f  dirs/d2 -o json`, "", `{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 7,
+  "createdat": "2026-10-30T22:21:27.888372687Z",
+  "modifiedat": "2026-10-30T22:21:27.921815074Z",
+
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`, "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PUT.*d2\n", 1)
+
+}
+
+func TestXRModifyDetails(t *testing.T) {
+	reg := NewRegistry("TestXRModifyDetails")
+	defer PassDeleteReg(t, reg)
+
+	os.Setenv("XR_SERVER", "localhost:8181")
+
+	clog := t.TempDir() + "/clog"
+	os.Setenv("XR_HTTP_LOG", clog)
+	defer func() {
+		os.Unsetenv("XR_HTTP_LOG")
+	}()
+
+	for _, arg := range []string{
+		"$details", "/$details", "dirs$details", "dirs/$details",
+		"dirs/d1/$details", "dirs/d1/files$details", "dirs/d1/files/$details",
+		"dirs/d1/files/f1/versions/$details",
+	} {
+		extra := ""
+		if arg[0] != '/' {
+			extra = "/"
+		}
+		XCLI(t, "create "+arg, "", "",
+			`"`+extra+arg+`" has an incorrectly specified $details.`+"\n", 1).
+			ExpectCount(clog, "Request: ", 0)
+	}
+
+	XCLI(t, "create /dirs/d1/files/f1/meta$details", "", "",
+		`"/dirs/d1/files/f1/meta$details" has "meta$details" at position 5, needs to be either "versions" or "meta".`+"\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create /dirs/d1/files/f1/versions/v1/$details", "", "",
+		`XID(/dirs/d1/files/f1/versions/v1/$details) is too long.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", 0)
+
+	XCLI(t, "create /dirs/d1$detailsfoo", "", "",
+		`The attribute "dirid" for "/dirs/d1$detailsfoo" is not valid: value "d1$detailsfoo" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`+"\n", 1)
+
+	XCLI(t, "create dirs/d1/files/f1$details", "", "", "", 0).
+		ExpectCount(clog, "Request: ", 3).
+		ExpectCount(clog, "^ GET .*/model\n", 1).
+		ExpectCount(clog, "^ GET.*f1\\$details\n", 1).
+		ExpectCount(clog, "^ PATCH.*f1\\$details\n", 1)
+
+	XCLI(t, "create dirs/d1/files/f1/versions/v2$details", "", "", "", 0).
+		ExpectCount(clog, "Request: ", 3).
+		ExpectCount(clog, "^ GET .*/model\n", 1).
+		ExpectCount(clog, "^ GET.*v2\\$details\n", 1).
+		ExpectCount(clog, "^ PATCH.*v2\\$details\n", 1)
+
+	XCLI(t, "create dirs/d1$details/files/f1/versions/v2$details", "", "",
+		`"/dirs/d1$details/files/f1/versions/v2$details" has an incorrectly specified $details.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create dirs/d1/files/f1$details/versions/v2$details", "", "",
+		`"/dirs/d1/files/f1$details/versions/v2$details" has an incorrectly specified $details.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+}
+
+func TestXRModifyForce(t *testing.T) {
+	reg := NewRegistry("TestXRModifyForce")
+	defer PassDeleteReg(t, reg)
+
+	os.Setenv("XR_SERVER", "localhost:8181")
+
+	clog := t.TempDir() + "/clog"
+	os.Setenv("XR_HTTP_LOG", clog)
+	defer func() {
+		os.Unsetenv("XR_HTTP_LOG")
+	}()
+
+	XCLI(t, "create -f /", "", "",
+		"To create a registry use the 'xrserver registry create' command.\n",
+		1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create -f /$details", "", "",
+		`"/$details" has an incorrectly specified $details.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create -f / -m", "", "",
+		"To create a registry use the 'xrserver registry create' command.\n",
+		1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create -f /dirs", "", "",
+		`Missing 'data'.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create -f /dirs/d1", "", "",
+		`The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PATCH ", 1)
+
+		// Since we have a domain doc, we'll get the model to know the
+		// RESOURCEbase64 attr name
+	XCLI(t, "create -f /dirs/d1/file/f1 -d hello", "", "",
+		`The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ GET .*/model\n", 1)
+
+	XCLI(t, "create -f /dirs/d1/file/f1$details -d hello", "", "",
+		`There was an error parsing "/": path '': unexpected character 'h'.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create -f /dirs/d1/file/f1 -m -d hello", "", "",
+		`There was an error parsing "/": path '': unexpected character 'h'.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 0)
+
+	XCLI(t, "create -r -f /dirs/d1/file/f1$details --set name=foo", "", "",
+		`The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.
+`, 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PUT ", 1)
+
+	XCLI(t, "create -r -f /dirs/d1/file/f1 -m --set name=foo", "", "",
+		`The targeted entity (/dirs) cannot be found. Unknown Group type: dirs.
+`, 1).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PUT ", 1)
+
+	// Now define the model and create stuff
+	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", 0)
+
+	XCLI(t, `create dirs/d1`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 3).
+		ExpectCount(clog, "^ GET.*model\n", 1).
+		ExpectCount(clog, "^ GET.*d1\n", 1).
+		ExpectCount(clog, "^ PATCH.*d1\n", 1)
+
+	XCLI(t, `create dirs/d1`, "", "", `"/dirs/d1" already exists.`+"\n", 1).
+		ExpectCount(clog, "Request: ", 2).
+		ExpectCount(clog, "^ GET.*model\n", 1).
+		ExpectCount(clog, "^ GET.*d1\n", 1)
+
+	XCLI(t, `create -f dirs/d1`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PATCH.*d1\n", 1)
+
+	XCLI(t, `create -f dirs/d1 --set name=foo`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 2).
+		ExpectCount(clog, "^ GET.*d1\n", 1).
+		ExpectCount(clog, "^ PATCH.*d1\n", 1)
+
+	XCLI(t, `create -r -f dirs/d1 --set name=foo`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PUT.*d1\n", 1)
+
+	XCLI(t, `update -f dirs/d1`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PATCH.*d1\n", 1)
+
+	XCLI(t, `update -f dirs/d1 -d '{"name":"bar"}'`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PATCH.*d1\n", 1)
+
+	XCLI(t, `update -r -f dirs/d1 --set name=foo`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PUT.*d1\n", 1)
+
+	XCLI(t, `upsert -f dirs/d1`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PATCH.*d1\n", 1)
+
+	XCLI(t, `upsert -f dirs/d1 --set description=cool`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 2).
+		ExpectCount(clog, "^ GET.*d1\n", 1).
+		ExpectCount(clog, "^ PATCH.*d1\n", 1)
+
+	XCLI(t, `upsert -r -f dirs/d1 --set description=cool`, "", "", "", 0).
+		ExpectCount(clog, "Request: ", 1).
+		ExpectCount(clog, "^ PUT.*d1\n", 1)
 }
 
 func TestXRConformRunGroups(t *testing.T) {
@@ -3103,7 +3809,7 @@ Pass: 51   Fail: 0   Warn: 0   Skip: 1
 
 func TestXRConformRepeatedTargetsUseFreshRegistries(t *testing.T) {
 	const target = "http://localhost:8282/conform"
-	cliResult := XCLI(t, "conform --skips -vvv "+target+" "+target, "",
+	cliResult := XCLI(t, "conform --skips -vvvv "+target+" "+target, "",
 		`PASS: http://localhost:8282/conform (skip:5)
 └─ PASS: TestRegistry (skip:5)
    ├─ PASS: TestSniff
@@ -5206,7 +5912,7 @@ func TestXRConfigAlias(t *testing.T) {
 }
 `,
 		`2026/09/11 18:10:25 Request: GET http://localhost:8181/
-2026/09/11 18:10:25 Body: <empty>
+2026/09/11 18:10:25 Request Body: <empty>
 2026/09/11 18:10:25 Response: 200 OK
 2026/09/11 18:10:25 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
 2026/09/11 18:10:25 access-control-allow-origin: *
@@ -5240,7 +5946,7 @@ func TestXRConfigAlias(t *testing.T) {
 }
 `, `2026/09/11 19:23:27 Request: GET http://localhost:8181/
 2026/09/11 19:23:27 Header: foo: bar
-2026/09/11 19:23:27 Body: <empty>
+2026/09/11 19:23:27 Request Body: <empty>
 2026/09/11 19:23:27 Response: 200 OK
 2026/09/11 19:23:27 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
 2026/09/11 19:23:27 access-control-allow-origin: *

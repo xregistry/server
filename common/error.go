@@ -36,7 +36,7 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 	PanicIf(err == nil, "Unknown error type: %s", daType)
 
 	if subject != "" && !strings.HasPrefix(subject, "http") &&
-		daType != "client_error" && daType != "parsing_data" &&
+		daType != "generic_error" && daType != "parsing_data" &&
 		subject[0] != '/' {
 
 		// Show us who isn't setting 'subject' correctly so we can fix it.
@@ -379,7 +379,7 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `"<subject>" already exists.`,
 	},
-	"client_error": &XRError{
+	"generic_error": &XRError{
 		// Generic error
 		Code:  400,
 		Title: `<error_detail>.`,

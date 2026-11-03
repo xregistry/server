@@ -17,7 +17,7 @@ func GetRegistry(url string, xrConfig *Config) (*registry.Registry, *XRError) {
 	}
 
 	if url == "" {
-		return nil, NewXRError("client_error", "/",
+		return nil, NewXRError("generic_error", "/",
 			"error_detail="+
 				"No server address provided. "+
 				"Try either -s or XR_SERVER env var")

@@ -96,7 +96,8 @@ func ParseXidType(xidTypeStr string) (*XidType, error) {
 						xidTypeStr, parts[2])
 				}
 				if len(parts) > 3 {
-					return nil, fmt.Errorf("XIDType is too long")
+					return nil, fmt.Errorf("XIDType(%s) is too long",
+						xidTypeStr)
 				}
 			}
 		}
@@ -113,11 +114,6 @@ func ParseXid(xidStr string) (*Xid, error) {
 
 	if xidStr[0] != '/' {
 		return nil, fmt.Errorf("%q must start with /", xidStr)
-	}
-
-	if strings.HasSuffix(xidStr, "$details") {
-		hasDetails = true
-		xidStr = xidStr[:len(xidStr)-8]
 	}
 
 	parts := strings.Split(xidStr[1:], "/")
@@ -142,24 +138,56 @@ func ParseXid(xidStr string) (*Xid, error) {
 	if len(parts) > 0 {
 		xid.Group = parts[0]
 		if xid.Group != "" {
+			if strings.HasSuffix(xid.Group, "$details") {
+				return nil,
+					fmt.Errorf("%q has an incorrectly specified $details",
+						xidStr)
+			}
+
 			xid.Type = ENTITY_GROUP_TYPE
 			xid.IsEntity = false
 		}
 		if len(parts) > 1 {
 			xid.GroupID = parts[1]
 			if xid.GroupID != "" {
+				if strings.HasSuffix(xid.GroupID, "$details") {
+					return nil,
+						fmt.Errorf("%q has an incorrectly specified $details",
+							xidStr)
+				}
+
 				xid.Type = ENTITY_GROUP
 				xid.IsEntity = true
 			}
 			if len(parts) > 2 {
 				xid.Resource = parts[2]
 				if xid.Resource != "" {
+					if strings.HasSuffix(xid.Resource, "$details") {
+						return nil,
+							fmt.Errorf("%q has an incorrectly specified "+
+								"$details", xidStr)
+					}
+
 					xid.Type = ENTITY_RESOURCE_TYPE
 					xid.IsEntity = false
 				}
 				if len(parts) > 3 {
 					xid.ResourceID = parts[3]
 					if xid.ResourceID != "" {
+						if strings.HasSuffix(xid.ResourceID, "$details") {
+							xid.HasDetails = true
+							xid.ResourceID =
+								xid.ResourceID[:len(xid.ResourceID)-8]
+						}
+
+						if xid.HasDetails &&
+							(len(parts) > 4 || xid.ResourceID == "") {
+
+							return nil,
+								fmt.Errorf("%q has an incorrectly specified "+
+									"$details", xidStr)
+						}
+
 						xid.Type = ENTITY_RESOURCE
 						xid.IsEntity = true
 					}
@@ -172,18 +200,33 @@ func ParseXid(xidStr string) (*Xid, error) {
 							if len(parts) > 5 {
 								xid.VersionID = parts[5]
 								if xid.VersionID != "" {
+									if strings.HasSuffix(xid.VersionID,
+										"$details") {
+										xid.HasDetails = true
+										xid.VersionID =
+											xid.VersionID[:len(xid.VersionID)-8]
+									}
+									if xid.VersionID == "" {
+										return nil,
+											fmt.Errorf("%q has an "+
+												"incorrectly specified "+
+												"$details", xidStr)
+									}
+
 									xid.Type = ENTITY_VERSION
 									xid.IsEntity = true
 								}
 							}
 							if len(parts) > 6 {
-								return nil, fmt.Errorf("XID is too long")
+								return nil, fmt.Errorf("XID(%s) is too long",
+									xidStr)
 							}
 						} else if xid.Version == "meta" {
 							xid.Type = ENTITY_META
 							xid.IsEntity = true
 							if len(parts) > 5 {
-								return nil, fmt.Errorf("XID is too long")
+								return nil, fmt.Errorf("XID(%s) is too long",
+									xidStr)
 							}
 						} else {
 							return nil, fmt.Errorf("%q has %q at position 5, "+
@@ -196,6 +239,12 @@ func ParseXid(xidStr string) (*Xid, error) {
 			}
 		}
 	}
+
+	if xid.HasDetails && xid.Type != ENTITY_RESOURCE && xid.Type != ENTITY_VERSION {
+		return nil, fmt.Errorf("%q has an incorrectly specified $details",
+			xidStr)
+	}
+
 	return xid, nil
 }
 

@@ -51,7 +51,7 @@ func ReadFile(fileName string) ([]byte, *XRError) {
 	if fileName == "" || fileName == "-" {
 		buf, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			return nil, NewXRError("client_error", fileName,
+			return nil, NewXRError("generic_error", fileName,
 				"error_detail="+
 					"Error reading from stdin: "+err.Error()+".")
 
@@ -78,7 +78,7 @@ func ReadFile(fileName string) ([]byte, *XRError) {
 	} else {
 		buf, err = os.ReadFile(fileName)
 		if err != nil {
-			return nil, NewXRError("client_error", fileName,
+			return nil, NewXRError("generic_error", fileName,
 				"error_detail="+
 					fmt.Sprintf("Error reading file %q: %s", fileName, err))
 		}
@@ -101,60 +101,6 @@ func AnyToString(val any) (string, error) {
 		return "", fmt.Errorf("%q isn't a string value", val)
 	}
 	return valStr, nil
-}
-
-func ValidateTypes(xid *Xid, reg *registry.Registry, allowSingular bool) *XRError {
-	if xid.Group == "" {
-		return nil
-	}
-
-	model, xErr := reg.GetModel()
-	if xErr != nil {
-		return xErr
-	}
-
-	gm := (*registry.GroupModel)(nil)
-	for _, plural := range SortedKeys(model.Groups) {
-		m, xErr := reg.FindGroupModel(plural)
-		if xErr != nil {
-			return xErr
-		}
-		if m.Plural == xid.Group || (allowSingular && m.Singular == xid.Group) {
-			gm = m
-			break
-		}
-	}
-
-	if gm == nil {
-		return NewXRError("not_found", xid.Group).
-			SetDetailf("Unknown Group type: %s.", xid.Group)
-	}
-
-	if xid.Resource == "" {
-		return nil
-	}
-
-	rm := (*registry.ResourceModel)(nil)
-	for _, m := range gm.Resources {
-		if m.Plural == xid.Resource || (allowSingular && m.Singular == xid.Resource) {
-			rm = m
-			break
-		}
-	}
-	if rm == nil {
-		return NewXRError("not_found", xid.Resource).
-			SetDetailf("Unknown Resource type: %s.", xid.Resource)
-	}
-
-	if xid.Version != "" {
-		if xid.Version != "meta" && xid.Version != "versions" && (!allowSingular || xid.Version != "version") {
-			return NewXRError("malformed_xid", xid.String(),
-				"xid="+xid.String(),
-				"error_detail="+
-					fmt.Sprintf("expected %q not %q", "versions", xid.Version))
-		}
-	}
-	return nil
 }
 
 func GetResourceModelFrom(xid *Xid, reg *registry.Registry) (*registry.ResourceModel, *XRError) {
@@ -184,16 +130,10 @@ func PrettyPrint(object any, prefix string, indent string) string {
 	return string(buf)
 }
 
-func Tablize(xidStr string, object any) string {
-	str := ""
-	xid, err := ParseXid(xidStr)
-	if err != nil {
-		panic(err.Error())
-	}
-
+func Tablize(reg *registry.Registry, xid *Xid, object map[string]any, indent string, w io.Writer) {
 	switch xid.Type {
 	case ENTITY_REGISTRY:
-		str = TablizeRegistry(object)
+		TablizeRegistry(reg, object, indent, w)
 	case ENTITY_GROUP_TYPE:
 	case ENTITY_GROUP:
 	case ENTITY_RESOURCE_TYPE:
@@ -203,12 +143,24 @@ func Tablize(xidStr string, object any) string {
 	default:
 		panic(fmt.Sprintf("Unknown xid type: %v", xid.Type))
 	}
-
-	return str
 }
 
-func TablizeRegistry(regObj any) string {
-	return "Registry:"
+func TablizeRegistry(reg *registry.Registry, regObj map[string]any, indent string, w io.Writer) {
+	fmt.Fprintf(w, "Registry: %s\n", regObj["registryid"])
+	indent += "  "
+
+	PrintNotEmpty(indent+"Name                ", regObj["name"], w)
+	PrintNotEmpty(indent+"Description         ", regObj["description"], w)
+	PrintNotEmpty(indent+"Documentation       ", regObj["documentation"], w)
+	PrintNotEmpty(indent+"Icon                ", regObj["icon"], w)
+	PrintNotEmpty(indent+"Created At          ", regObj["createdat"], w)
+	PrintNotEmpty(indent+"Modified At         ", regObj["modifiedat"], w)
+
+	tmp := regObj["labels"]
+	if daMap, ok := tmp.(map[string]any); ok {
+		PrintMapAny(daMap, "Labels", indent, w)
+	}
+
 }
 
 func XRIndent(buf []byte) ([]byte, error) {
@@ -348,4 +300,64 @@ func DownloadObject(debug bool, urlPath string) (map[string]any, *XRError) {
 	}
 	PanicIf(IsNil(res.JSON), "json is empty")
 	return res.JSON, nil
+}
+
+func PrintNotEmpty(title, val any, w io.Writer) {
+	if IsNil(val) {
+		return
+	}
+
+	str, ok := val.(string)
+	if !ok {
+		i, ok := val.(int)
+		if ok {
+			str = fmt.Sprintf("%d", i)
+		} else {
+			p, ok := val.(*bool)
+			if ok {
+				if p == nil || !*p {
+					str = "false"
+				} else {
+					str = "true"
+				}
+			} else {
+				f, ok := val.(float64)
+				if ok {
+					str = fmt.Sprintf("%v", f)
+				} else {
+					panic("dunno")
+				}
+			}
+		}
+	}
+
+	if val != "" {
+		fmt.Fprintf(w, "%s: %s\n", title, str)
+	}
+}
+
+func PrintMapString(daMap map[string]string, title string, indent string, w io.Writer) {
+	if len(daMap) > 0 {
+		for i, k := range SortedKeys(daMap) {
+			v := daMap[k]
+			if i == 0 {
+				fmt.Fprintf(w, "%s%-19s : %s=%s\n", indent, title, k, v)
+			} else {
+				fmt.Fprintf(w, "%s%-19s   %s=%s\n", indent, "", k, v)
+			}
+		}
+	}
+}
+
+func PrintMapAny(daMap map[string]any, title string, indent string, w io.Writer) {
+	if len(daMap) > 0 {
+		for i, k := range SortedKeys(daMap) {
+			v := daMap[k]
+			if i == 0 {
+				fmt.Fprintf(w, "%s%-19s : %s=%v\n", indent, title, k, v)
+			} else {
+				fmt.Fprintf(w, "%s%-19s   %s=%v\n", indent, "", k, v)
+			}
+		}
+	}
 }
