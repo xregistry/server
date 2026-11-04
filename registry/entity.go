@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"encoding/base64"
 	"fmt"
 	"maps"
 	"reflect"
@@ -2313,6 +2314,21 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 								xidType.Resource)), false, nil
 				}
 			}
+		}
+	case BINARY:
+		// Stored as the base64 text, so only canonical (padded) standard
+		// base64 is allowed - that keeps filter/equality comparisons stable.
+		if !isStr {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a base64 encoded string"), false, nil
+		}
+		_, err := base64.StdEncoding.Strict().DecodeString(valStr)
+		if err != nil {
+			return NewXRError("invalid_attribute", e.XID,
+					"name="+path.UI(),
+					"error_detail="+"is not valid base64: "+err.Error()),
+				false, nil
 		}
 	case STRING:
 		if !isStr {

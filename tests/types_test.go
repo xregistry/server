@@ -1781,3 +1781,429 @@ func TestTypesNameCharSet2(t *testing.T) {
 `)
 
 }
+
+func TestTypesBinary(t *testing.T) {
+	reg := NewRegistry("TestTypesBinary")
+	defer PassDeleteReg(t, reg)
+
+	model := `{
+  "attributes": {
+    "regbin": {
+      "type": "binary"
+    },
+    "regmapbin": {
+      "type": "map",
+      "item": {
+        "type": "binary"
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "attributes": {
+            "filebin": {
+              "type": "binary"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
+
+	XHTTP(t, reg, "PATCH", "/", `{"regbin":"aGVsbG8="}`, 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestTypesBinary",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "regbin": "aGVsbG8=",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+	XHTTP(t, reg, "GET", "/?filter=regbin=aGVsbG8=", ``, 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestTypesBinary",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "regbin": "aGVsbG8=",
+
+  "dirsurl": "http://localhost:8181/dirs?filter=excludeall",
+  "dirscount": 0
+}
+`)
+	XHTTP(t, reg, "PATCH", "/", `{"regmapbin":{"k":"AA=="}}`, 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestTypesBinary",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "regbin": "aGVsbG8=",
+  "regmapbin": {
+    "k": "AA=="
+  },
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+	XHTTP(t, reg, "PATCH", "/", `{"regbin":""}`, 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestTypesBinary",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "regbin": "",
+  "regmapbin": {
+    "k": "AA=="
+  },
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/", `{"regbin":"hello!"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"regbin\" for \"/\" is not valid: is not valid base64: illegal base64 data at input byte 5.",
+  "subject": "/",
+  "args": {
+    "error_detail": "is not valid base64: illegal base64 data at input byte 5",
+    "name": "regbin"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+	XHTTP(t, reg, "PATCH", "/", `{"regbin":"aGVsbG8"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"regbin\" for \"/\" is not valid: is not valid base64: illegal base64 data at input byte 4.",
+  "subject": "/",
+  "args": {
+    "error_detail": "is not valid base64: illegal base64 data at input byte 4",
+    "name": "regbin"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+	XHTTP(t, reg, "PATCH", "/", `{"regbin":"aGVsbG9="}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"regbin\" for \"/\" is not valid: is not valid base64: illegal base64 data at input byte 7.",
+  "subject": "/",
+  "args": {
+    "error_detail": "is not valid base64: illegal base64 data at input byte 7",
+    "name": "regbin"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+	XHTTP(t, reg, "PATCH", "/", `{"regbin":5}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"regbin\" for \"/\" is not valid: must be a base64 encoded string.",
+  "subject": "/",
+  "args": {
+    "error_detail": "must be a base64 encoded string",
+    "name": "regbin"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+	XHTTP(t, reg, "PATCH", "/", `{"regmapbin":{"k":"!"}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"regmapbin.k\" for \"/\" is not valid: is not valid base64: illegal base64 data at input byte 0.",
+  "subject": "/",
+  "args": {
+    "error_detail": "is not valid base64: illegal base64 data at input byte 0",
+    "name": "regmapbin.k"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+
+	// Resource with both a binary attribute and a document
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:       "PUT res w/doc and binary attr",
+		URL:        "/dirs/d1/files/f1",
+		Method:     "PUT",
+		ReqHeaders: []string{"xRegistry-filebin: AAEC/w=="},
+		ReqBody:    "hello doc",
+		Code:       201,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 1",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xRegistry-xid: /dirs/d1/files/f1",
+			"xRegistry-epoch: 1",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2024-01-01T12:00:01Z",
+			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
+			"xRegistry-ancestorid: 1",
+			"xRegistry-filebin: AAEC/w==",
+			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xRegistry-versionscount: 1",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"Content-Disposition: inline; filename=\"f1\"",
+			"Location: http://localhost:8181/dirs/d1/files/f1",
+		},
+		ResBody: "hello doc",
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "GET doc - binary attr is a header",
+		URL:    "/dirs/d1/files/f1",
+		Method: "GET",
+		Code:   200,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 1",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xRegistry-xid: /dirs/d1/files/f1",
+			"xRegistry-epoch: 1",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2024-01-01T12:00:01Z",
+			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
+			"xRegistry-ancestorid: 1",
+			"xRegistry-filebin: AAEC/w==",
+			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xRegistry-versionscount: 1",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"Content-Disposition: inline; filename=\"f1\"",
+		},
+		ResBody: "hello doc",
+	})
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "1",
+  "filebin": "AAEC/w==",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// Now try to change the model to have bad enum/default values
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "regbin": {
+      "type": "binary",
+      "enum": [ "aGVsbG8=", "not base64!" ]
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"regbin\" enum value \"not base64!\" must be of type \"binary\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regbin\" enum value \"not base64!\" must be of type \"binary\""
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "regbin": {
+      "type": "binary",
+      "required": true,
+      "default": "aGVsbG9="
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"regbin\" \"default\" value must be of type \"binary\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regbin\" \"default\" value must be of type \"binary\""
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+	// The failed updates must not have changed the model
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, model)
+}
+
+func TestTypesBinaryModel(t *testing.T) {
+	reg := NewRegistry("TestTypesBinaryModel")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "bin": {
+      "type": "binary",
+      "enum": [ "aGVsbG8=", "bad!" ]
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"bin\" enum value \"bad!\" must be of type \"binary\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"bin\" enum value \"bad!\" must be of type \"binary\""
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "bin": {
+      "type": "binary",
+      "required": true,
+      "default": "aGVsbG8"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"bin\" \"default\" value must be of type \"binary\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"bin\" \"default\" value must be of type \"binary\""
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "bin": {
+      "type": "map",
+      "item": {
+        "type": "binary",
+        "enum": [ "AA==", "AA" ]
+      }
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"bin.item\" enum value \"AA\" must be of type \"binary\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"bin.item\" enum value \"AA\" must be of type \"binary\""
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+
+	model := `{
+  "attributes": {
+    "bin": {
+      "type": "binary",
+      "enum": [
+        "aGVsbG8=",
+        "AA=="
+      ],
+      "strict": true,
+      "default": "aGVsbG8=",
+      "required": true
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, `{
+  "attributes": {
+    "bin": {
+      "type": "binary",
+      "enum": [
+        "aGVsbG8=",
+        "AA=="
+      ],
+      "strict": true,
+      "default": "aGVsbG8=",
+      "required": true
+    }
+  }
+}
+`)
+
+	// Default is applied when the attribute isn't specified
+	XHTTP(t, reg, "GET", "/", ``, 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestTypesBinaryModel",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "bin": "aGVsbG8="
+}
+`)
+
+	// Value in the enum
+	XHTTP(t, reg, "PATCH", "/", `{"bin":"AA=="}`, 200, `{
+  "specversion": "1.0-rc4",
+  "registryid": "TestTypesBinaryModel",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "bin": "AA=="
+}
+`)
+
+	// Valid base64 but not in the enum
+	XHTTP(t, reg, "PATCH", "/", `{"bin":"AAEC/w=="}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"bin\" for \"/\" is not valid: value (AAEC/w==) must be one of the enum values: aGVsbG8=, AA==.",
+  "subject": "/",
+  "args": {
+    "error_detail": "value (AAEC/w==) must be one of the enum values: aGVsbG8=, AA==",
+    "name": "bin"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+
+	// Not base64
+	XHTTP(t, reg, "PATCH", "/", `{"bin":"nope!"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"bin\" for \"/\" is not valid: is not valid base64: illegal base64 data at input byte 4.",
+  "subject": "/",
+  "args": {
+    "error_detail": "is not valid base64: illegal base64 data at input byte 4",
+    "name": "bin"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`)
+}

@@ -1971,9 +1971,24 @@ func TestXrefDocs(t *testing.T) {
 		URL:    "/dirs/d1/files/fx",
 		Method: "GET",
 
-		Code:       303,
-		ResHeaders: []string{"Location: http://localhost:8282/EMPTY-URL"},
-		ResBody:    ``})
+		Code: 303,
+		ResHeaders: []string{
+			"xRegistry-fileid: fx",
+			"xRegistry-versionid: 1",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/fx",
+			"xRegistry-xid: /dirs/d1/files/fx",
+			"xRegistry-epoch: 1",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2024-01-01T12:00:01Z",
+			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
+			"xRegistry-ancestorid: 1",
+			"xRegistry-fileurl: http://localhost:8282/EMPTY-URL",
+			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/fx/meta",
+			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/fx/versions",
+			"xRegistry-versionscount: 1",
+			"Location: http://localhost:8282/EMPTY-URL",
+		},
+		ResBody: ``})
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx$details", ``, 200, `{
   "fileid": "fx",
   "versionid": "1",

@@ -593,10 +593,10 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 		delete(resHeaders, name)
 	}
 
-	// Make sure we don't have any extra xReg headers
-	// testHeaders with just "*":"" means skip all header checks
-	// didn't use len(testHeaders) == 0 to ensure we don't skip by accident
-	if len(testHeaders) != 1 || testHeaders["*"] != "" {
+	// Make sure we don't have any extra xReg headers.
+	// testHeaders with just "*":"" means skip all header checks.
+	l := len(testHeaders)
+	if _, ok := testHeaders["*"]; l > 0 && (!ok || l > 1) {
 		for name, _ := range resHeaders {
 			if !strings.HasPrefix(name, "xregistry-") {
 				continue

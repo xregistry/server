@@ -17797,7 +17797,7 @@ function renderAttrForm(div, attr) {
   var typeReq = document.createElement('span') ; typeReq.textContent = ' *' ; typeReq.style.cssText = 'color:#c00;font-weight:bold;' ;
   typeLbl.appendChild(typeReq) ;
   var typeSel = document.createElement('select') ; typeSel.id = 'ef_type' ; typeSel.className = 'editorInput' ;
-  ['boolean','decimal','integer','string','timestamp',
+  ['binary','boolean','decimal','integer','string','timestamp',
    'uinteger','uri','uriabsolute','urirelative','uritemplate','url','urlabsolute','urlrelative','xid','xidtype',
    'any','array','map','object'
   ].forEach(function(opt) {
@@ -17951,7 +17951,7 @@ function renderItemForm(div, item) {
   var typeRow = document.createElement('div') ; typeRow.className = 'editorField' ;
   var typeLbl = document.createElement('label') ; typeLbl.textContent = 'Type:' ;
   var typeSel = document.createElement('select') ; typeSel.id = 'ef_item_type' ; typeSel.className = 'editorInput' ;
-  ['boolean','decimal','integer','string','timestamp',
+  ['binary','boolean','decimal','integer','string','timestamp',
    'uinteger','uri','uriabsolute','urirelative','uritemplate','url','urlabsolute','urlrelative','xid','xidtype',
    'any','array','map','object'
   ].forEach(function(opt) {
@@ -18367,7 +18367,7 @@ function collectEnum(containerId) {
 // array/any) is "complex" and the backend model validator rejects those
 // fields on it — for map/array attrs, "enum"/"strict" must instead live
 // under "item" (see renderAttrForm()/renderItemForm() below).
-var SCALAR_ATTR_TYPES = ['boolean','decimal','integer','string','timestamp','uinteger',
+var SCALAR_ATTR_TYPES = ['binary','boolean','decimal','integer','string','timestamp','uinteger',
   'uri','uriabsolute','urirelative','uritemplate','url','urlabsolute','urlrelative','xid','xidtype'] ;
 function isScalarType(t) { return SCALAR_ATTR_TYPES.indexOf(t||'string') !== -1 ; }
 

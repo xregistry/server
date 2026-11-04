@@ -22,6 +22,7 @@ const READONLY = false
 // Attribute types
 const ANY = "any"
 const ARRAY = "array"
+const BINARY = "binary"
 const BOOLEAN = "boolean"
 const DECIMAL = "decimal"
 const INTEGER = "integer"

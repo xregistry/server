@@ -2,6 +2,7 @@ package registry
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -1793,7 +1794,8 @@ func KindIsScalar(k reflect.Kind) bool {
 }
 
 func IsScalar(daType string) bool {
-	return daType == BOOLEAN || daType == DECIMAL || daType == INTEGER ||
+	return daType == BINARY || daType == BOOLEAN || daType == DECIMAL ||
+		daType == INTEGER ||
 		daType == STRING || daType == TIMESTAMP || daType == UINTEGER ||
 		daType == URI || daType == URIABSOLUTE || daType == URIRELATIVE ||
 		daType == URITEMPLATE ||
@@ -1802,8 +1804,9 @@ func IsScalar(daType string) bool {
 }
 
 // Is some string variant
+// (binary values are base64-encoded strings)
 func IsString(daType string) bool {
-	return daType == STRING || daType == TIMESTAMP ||
+	return daType == BINARY || daType == STRING || daType == TIMESTAMP ||
 		daType == URI || daType == URIABSOLUTE || daType == URIRELATIVE ||
 		daType == URITEMPLATE ||
 		daType == URL || daType == URLABSOLUTE || daType == URLRELATIVE ||
@@ -4028,6 +4031,7 @@ func (item *Item) Verify(ld *LevelData) *XRError {
 
 var DefinedTypes = map[string]bool{
 	ANY:     true,
+	BINARY:  true,
 	BOOLEAN: true,
 	DECIMAL: true, INTEGER: true, UINTEGER: true,
 	ARRAY:  true,
@@ -4049,6 +4053,10 @@ func IsOfType(val any, attrType string) bool {
 	case string:
 		if attrType == TIMESTAMP {
 			_, err := time.Parse(time.RFC3339, v)
+			return err == nil
+		}
+		if attrType == BINARY {
+			_, err := base64.StdEncoding.Strict().DecodeString(v)
 			return err == nil
 		}
 
