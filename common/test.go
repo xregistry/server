@@ -99,9 +99,9 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 			return
 		}
 		t.Fatalf(extra+orig+
-			"\nExpected:\n%s"+
-			"\nGot:\n%s",
-			exp, got)
+			"\nRegExpected:\n%s"+
+			"\nGot:\n%s\n",
+			exp[1:], got)
 	}
 
 	flagsMap := map[string]bool{}

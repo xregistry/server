@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -57,7 +58,6 @@ func setFunc(cmd *cobra.Command, args []string) {
 	if len(xidStr) > 0 && xidStr[0] != '/' {
 		xidStr = "/" + xidStr
 	}
-	object := any(nil)
 	xid, err := ParseXid(xidStr)
 	Error(err)
 
@@ -180,8 +180,6 @@ func setFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	Error(json.Unmarshal(res.Body, &object))
-
 	if output == "json" {
 		if GetRawJSON() {
 			fmt.Printf("%s", string(res.Body))
@@ -200,7 +198,7 @@ func setFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if output == "table" {
-		fmt.Printf("%s\n", xrlib.Tablize(xid.String(), object))
+		xrlib.Tablize(reg, xid, res.JSON, "", os.Stdout)
 		return
 	}
 

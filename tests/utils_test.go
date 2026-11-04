@@ -761,6 +761,7 @@ func TestFileServerRegisteredOutputs(t *testing.T) {
 }
 
 type CLIResult struct {
+	T      *testing.T
 	Code   int
 	Stdout string
 	Stderr string
@@ -769,6 +770,10 @@ type CLIResult struct {
 // use code of -1 for any non-zero exit code
 func XCLI(t *testing.T, line string, in, Eout, Eerr string, code int, flags ...string) *CLIResult {
 	t.Helper()
+
+	if fn := os.Getenv("XR_HTTP_LOG"); fn != "" {
+		os.Remove(fn)
+	}
 
 	args := SplitCommandLine(line)
 	stdout := bytes.Buffer{}
@@ -784,6 +789,7 @@ func XCLI(t *testing.T, line string, in, Eout, Eerr string, code int, flags ...s
 	err := cmd.Run()
 
 	cliRes := &CLIResult{
+		T:      t,
 		Code:   0,
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
@@ -822,6 +828,45 @@ func XCLI(t *testing.T, line string, in, Eout, Eerr string, code int, flags ...s
 	XEqual(t, "Stderr:", cliRes.Stderr, Eerr, flags...)
 
 	return cliRes
+}
+
+func (c *CLIResult) ExpectCount(fn string, needle string, exp int) *CLIResult {
+	c.T.Helper()
+
+	buf := ""
+
+	if fn == "out" {
+		buf = c.Stdout
+	} else if fn == "err" {
+		buf = c.Stderr
+	} else {
+		b, err := os.ReadFile(fn)
+		// treat a missing file as empty, else panic
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			panic(err)
+		}
+		buf = string(b)
+	}
+
+	count := 0
+
+	if needle[0] == '^' {
+		needle = needle[1:]
+		re := regexp.MustCompile(needle)
+		count = len(re.FindAllString(buf, -1))
+	} else {
+		count = strings.Count(buf, needle)
+	}
+
+	if count == exp {
+		return c
+	}
+
+	c.T.Logf("Output(%s):\n%s\n", fn, buf)
+	c.T.Logf("Expected %q to appear %d time(s), but saw it %d time(s)",
+		needle, exp, count)
+	c.T.FailNow()
+	return c
 }
 
 func XServer(t *testing.T, line string, in, Eout, Eerr string, code int) {

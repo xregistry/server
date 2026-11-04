@@ -713,7 +713,7 @@ func (reg *Registry) GetModelSourceAsModel() (*Model, *XRError) {
 func (reg *Registry) LoadRemoteModel(tryInline bool) *XRError {
 	url := reg.GetStuffAsString("server")
 	if url == "" {
-		return NewXRError("client_error", "", "No Server address provided")
+		return NewXRError("generic_error", "", "No Server address provided")
 	}
 
 	// Download model
@@ -764,7 +764,7 @@ func (reg *Registry) LoadRemoteModel(tryInline bool) *XRError {
 func (reg *Registry) LoadRemoteCapabilities(tryInline bool) *XRError {
 	url := reg.GetStuffAsString("server")
 	if url == "" {
-		return NewXRError("client_error", "", "No Server address provided")
+		return NewXRError("generic_error", "", "No Server address provided")
 	}
 
 	// Download capabilities
@@ -1914,4 +1914,66 @@ func MapShortSelf(tx *Tx, ss string) (string, string, *XRError) {
 // Find entity's real XID in any case (""=not found)
 func (r *Registry) EntityRealXID(xidStr string, accessMode int) (string, *XRError) {
 	return r.Tx.Backend.EntityRealXID(r.Tx, xidStr, accessMode)
+}
+
+func (r *Registry) ValidateXIDString(xidStr string) *XRError {
+	xid, err := ParseXid(xidStr)
+	if err != nil {
+		return NewXRError("malformed_xid", xidStr,
+			"xid="+xidStr,
+			"error_detail="+err.Error())
+	}
+	return r.ValidateXID(xid)
+}
+
+func (r *Registry) ValidateXID(xid *Xid) *XRError {
+	if xid.Group == "" {
+		return nil
+	}
+
+	model, xErr := r.GetModel()
+	if xErr != nil {
+		return xErr
+	}
+
+	soFar := "/" + xid.Group
+
+	gm := model.Groups[xid.Group]
+	if gm == nil {
+		return NewXRError("not_found", soFar).
+			SetDetailf("Unknown Group type: %s.", xid.Group)
+	}
+
+	if xid.Resource == "" {
+		return nil
+	}
+	soFar += "/" + xid.Resource
+
+	rm := gm.Resources[xid.Resource]
+	if rm == nil {
+		return NewXRError("not_found", soFar).
+			SetDetailf("Unknown Group type: %s.", xid.Group)
+	}
+
+	if xid.Version == "" {
+		return nil
+	}
+	soFar += "/" + xid.Version
+
+	if xid.Version == "meta" {
+		if xid.VersionID != "" {
+			return NewXRError("malformed_xid", soFar,
+				"xid="+xid.String(),
+				"error_detail=trailing data after \"/meta\"")
+		}
+		return nil
+	}
+
+	if xid.Version != "versions" {
+		return NewXRError("malformed_xid", soFar,
+			"xid="+xid.String(),
+			"error_detail=\"versions\" isn't valid.")
+	}
+
+	return nil
 }

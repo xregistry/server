@@ -46,14 +46,14 @@ func ShowError(obj any, args ...any) bool {
 	var xErr *XRError
 
 	if str, ok := obj.(string); ok {
-		xErr = NewXRError("client_error", "/",
+		xErr = NewXRError("generic_error", "/",
 			"error_detail="+fmt.Sprintf(str, args...))
 	} else if xErr, ok = obj.(*XRError); ok {
 		// Use as is
 		PanicIf(len(args) > 0, "Extra args to Error(xErr): %v", args)
 	} else if err, ok := obj.(error); ok {
 		if len(args) == 0 {
-			xErr = NewXRError("client_error", "/",
+			xErr = NewXRError("generic_error", "/",
 				"error_detail="+err.Error())
 		} else {
 			for i := 1; i < len(args); i++ {
@@ -65,7 +65,7 @@ func ShowError(obj any, args ...any) bool {
 				// Use it
 			} else {
 				str := args[0].(string)
-				xErr = NewXRError("client_error", "/",
+				xErr = NewXRError("generic_error", "/",
 					"error_detail="+fmt.Sprintf(str, args[1:]...))
 			}
 		}
@@ -84,7 +84,7 @@ func ShowError(obj any, args ...any) bool {
 
 	if ShowDebug {
 		ShowStack()
-		fmt.Printf("xErr: %s\n", xErr)
+		// fmt.Fprintf(os.Stderr, "xErr: %s\n", xErr)
 	}
 
 	return true // yes we printed something

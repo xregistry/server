@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	// "text/tabwriter"
 
@@ -61,30 +62,31 @@ func getFunc(cmd *cobra.Command, args []string) {
 	if len(xidStr) > 0 && xidStr[0] != '/' {
 		xidStr = "/" + xidStr
 	}
-	object := any(nil)
 	xid, err := ParseXid(xidStr)
 	Error(err)
 	resIsJSON := true
-	suffix := ""
 
-	rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
-	Error(xErr)
+	rm := (*registry.ResourceModel)(nil)
 
 	hasDetails, _ := cmd.Flags().GetBool("details")
+	if hasDetails {
+		xid.HasDetails = true
+	} else {
+		hasDetails = xid.HasDetails
+	}
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
-	if xid.ResourceID != "" && xid.Type != ENTITY_META && rm.GetHasDocument() &&
-		xid.IsEntity {
-
-		if hasDetails == false {
+	if !hasDetails && (xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION) {
+		if rm == nil {
+			rm, xErr = xrlib.GetResourceModelFrom(xid, reg)
+			Error(xErr)
+		}
+		if rm.GetHasDocument() {
 			resIsJSON = false
-		} else {
-			suffix = "$details"
 		}
 	}
 
-	path := xid.String() + suffix
-
+	path := xid.String()
 	path = AddQuery(path, queryParams)
 
 	if docView {
@@ -140,6 +142,12 @@ func getFunc(cmd *cobra.Command, args []string) {
 			if IsNil(objAny) {
 				return nil
 			}
+
+			if rm == nil {
+				rm, xErr = xrlib.GetResourceModelFrom(xid, reg)
+				Error(xErr)
+			}
+
 			obj, ok := objAny.(*OrderedMap)
 			if !ok {
 				// Not an entity/object (e.g. an array), nothing to do.
@@ -305,11 +313,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if output == "table" {
-		err = json.Unmarshal(res.Body, &object)
-		Error(err, NewXRError("parsing_response", path,
-			"error_detail="+Err2String(err)).
-			SetDetail("Response: "+string(res.Body)+"."))
-		fmt.Printf("%s\n", xrlib.Tablize(xid.String(), object))
+		xrlib.Tablize(reg, xid, res.JSON, "", os.Stdout)
 		return
 	}
 

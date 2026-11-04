@@ -145,74 +145,92 @@ func createFunc(cmd *cobra.Command, args []string) {
 	if len(xidStr) > 0 && xidStr[0] != '/' {
 		xidStr = "/" + xidStr
 	}
-	// object := any(nil)
+
 	xid, err := ParseXid(xidStr)
 	Error(err)
-	suffix := ""
-
-	// rm, err := xid.GetResourceModelFrom(reg)
-	// Error(err)
 
 	isMetadata, _ := cmd.Flags().GetBool("details")
 	replace, _ := cmd.Flags().GetBool("replace")
 	force, _ := cmd.Flags().GetBool("force")
 	ignores, _ := cmd.Flags().GetStringArray("ignore")
 	output, _ := cmd.Flags().GetString("output")
-	isDomainDoc := false
 
-	data, _ := cmd.Flags().GetString("data")
-	if len(data) > 0 && data[0] == '@' {
-		buf, xErr := xrlib.ReadFile(data[1:])
-		Error(xErr)
-		data = string(buf)
+	if !force {
+		// Skipping error checking, unless we really need it down below
+		Error(reg.ValidateXID(xid))
 	}
 
-	if cmd.Flags().Changed("set") || cmd.Flags().Changed("del") {
-		dataMap := map[string]any{}
+	if xid.HasDetails {
+		isMetadata = true
+	}
 
-		ops := GetArgOrder(cmd, os.Args)
+	data := []byte(nil)
+	dataJSON := map[string]any(nil)
 
-		ObjectPath := xid.String()
-		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
-			ObjectPath += "$details"
-		}
-
-		httpRes, xErr := HttpDo(&HttpRequest{
-			Verb:    "GET",
-			URL:     cliReg.WithPath(ObjectPath),
-			Headers: xrlib.HTTPHeaders,
-			Debug:   VerboseCount > 2,
-		})
-		// httpRes, xErr := cliReg.DownloadObject(ObjectPath)
-		if !xErr.IsType("not_found") {
+	dataStr, _ := cmd.Flags().GetString("data")
+	if len(dataStr) > 0 {
+		if dataStr[0] == '@' {
+			data, xErr = xrlib.ReadFile(dataStr[1:])
 			Error(xErr)
+		} else {
+			data = []byte(dataStr)
 		}
-		oldData := httpRes.JSON
+	}
 
-		doc_data := false
+	if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
+		xid.HasDetails = true
+	}
+	ObjectPath := xid.String()
+
+	// Existing entity's data if we ever download it
+	oldData := map[string]any(nil)
+
+	ops := GetArgOrder(cmd, os.Args)
+	doSetDel := cmd.Flags().Changed("set") || cmd.Flags().Changed("del")
+
+	// Convert any cmd line "--data" into "--set RESOURCEbase64=..." if needed
+	if data != nil && !isMetadata {
 		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
-			rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
+			// Need to validate despite --force to make sure hasDoc is set
+			Error(reg.ValidateXID(xid))
+
+			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
 			Error(xErr)
-			if rm.GetHasDocument() && !isMetadata && len(data) > 0 {
-				doc_data = true
+
+			if rm.GetHasDocument() {
 				ops = append([]Operation{{
 					Action: "set",
-					Value: rm.Singular + "base64=" +
-						base64.StdEncoding.EncodeToString([]byte(data)),
+					Value: rm.Singular +
+						"base64=" +
+						base64.StdEncoding.EncodeToString(data),
 				}}, ops...)
+				data = nil
+				doSetDel = true
 			}
 		}
+	}
 
-		isMetadata = true
+	if data != nil {
+		if err := Unmarshal(data, &dataJSON); err != nil {
+			Error(NewXRError("parsing_data", "/",
+				"error_detail="+err.Error()))
+		}
+	}
 
-		if len(data) > 0 && !doc_data {
-			// We don't really care if it's not valid json from a CLI
-			// perspective unless they're going to del/set something.
-			// That's why we don't do this outside of this if-changed block
-			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
-				Error(NewXRError("parsing_data", "",
-					"error_detail="+err.Error()))
+	getRes := (*HttpResponse)(nil)
+
+	if doSetDel {
+		if oldData == nil && !replace {
+			getRes, xErr = HttpDo(&HttpRequest{
+				Verb:    "GET",
+				URL:     cliReg.WithPath(ObjectPath),
+				Headers: xrlib.HTTPHeaders,
+				Debug:   VerboseCount > 2,
+			})
+			if !xErr.IsType("not_found") {
+				Error(xErr)
 			}
+			oldData = getRes.JSON
 		}
 
 		// --del attr             # attr
@@ -308,11 +326,15 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 			rootName := pp.Top()
 
-			oldVal, ok := dataMap[rootName]
-			if !ok {
+			if dataJSON == nil {
+				dataJSON = map[string]any{}
+			}
+
+			oldVal, ok := dataJSON[rootName]
+			if !ok && oldData != nil {
 				oldVal = oldData[rootName]
 				if !IsNil(oldVal) {
-					dataMap[rootName] = oldVal
+					dataJSON[rootName] = oldVal
 				}
 			}
 
@@ -320,13 +342,13 @@ func createFunc(cmd *cobra.Command, args []string) {
 				if action == "del" || action == "add" {
 					// Grab top-level attribute's value from oldData so we can
 					// add to it, only if we don't already have data in dataMap
-					if IsNil(dataMap[rootName]) && !IsNil(oldData[rootName]) {
-						dataMap[rootName] = oldData[rootName]
+					if IsNil(dataJSON[rootName]) && !IsNil(oldData[rootName]) {
+						dataJSON[rootName] = oldData[rootName]
 					}
 				}
 			*/
 
-			err = ObjectSetProp(dataMap, pp, val, "SHRINK_ARRAYS")
+			err = ObjectSetProp(dataJSON, pp, val, "SHRINK_ARRAYS")
 			Error(err)
 
 			// Not sure if this is smart or a hack but until something breaks
@@ -336,77 +358,50 @@ func createFunc(cmd *cobra.Command, args []string) {
 			// our PATCH call to the server. Notice this just applies for the
 			// root attr processing.
 			if pp.Len() == 1 && val == nil {
-				dataMap[rootName] = nil
+				dataJSON[rootName] = nil
 			}
 		}
 
-		dataBuf, err := json.Marshal(dataMap)
+		data, err = json.Marshal(dataJSON)
 		Error(err)
-		data = string(dataBuf)
 	}
 
-	// If we have doc + ../rID or ../vID then...
-	if xid.ResourceID != "" {
-		rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
-		Error(xErr)
-
-		if !rm.GetHasDocument() {
-			isMetadata = true
-		} else if isMetadata && xid.Type != ENTITY_META {
-			suffix = "$details"
-		} else {
-			isDomainDoc = true
-		}
-
-		if isMetadata && len(data) == 0 {
-			data = `{}`
-		}
+	if xid.IsEntity && len(data) == 0 {
+		data = []byte("{}")
 	}
 
-	if len(data) == 0 {
-		if xid.Type == ENTITY_REGISTRY || xid.Type == ENTITY_GROUP {
-			data = `{}`
-		}
-	}
-
-	if !force {
-		Error(xrlib.ValidateTypes(xid, reg, false))
-	}
-
-	objects := (map[string]json.RawMessage)(nil)
 	IDs := ""
 
 	// Make sure none of the top-level entities already exist
 	if xid.IsEntity {
 		if !force && action != "upsert" {
-			res, xErr := HttpDo(&HttpRequest{
-				Verb:    "GET",
-				URL:     cliReg.WithPath(xid.String()),
-				Headers: xrlib.HTTPHeaders,
-				Debug:   VerboseCount > 2,
-			})
-			if xErr != nil && res == nil {
-				Error(xErr)
+			if getRes == nil {
+				getRes, xErr = HttpDo(&HttpRequest{
+					Verb:    "GET",
+					URL:     cliReg.WithPath(ObjectPath),
+					Headers: xrlib.HTTPHeaders,
+					Debug:   VerboseCount > 2,
+				})
+				if xErr != nil && getRes == nil {
+					Error(xErr)
+				}
+				oldData = getRes.JSON
 			}
+
 			if action == "create" && xErr == nil {
-				Error(NewXRError("exists", xid.String()))
+				Error(NewXRError("exists", xidStr))
 			}
-			if action == "update" && res != nil && res.Code == 404 {
-				Error(NewXRError("not_found", xid.String()))
+			if action == "update" && getRes != nil && getRes.Code == 404 {
+				Error(NewXRError("not_found", xidStr))
 			}
 		}
-		IDs = xid.String()
+		IDs = xidStr // not xid.String() to use the original (not $details)
 	} else {
 		if len(data) == 0 {
 			Error("Missing 'data'")
 		}
 
-		if err := json.Unmarshal([]byte(data), &objects); err != nil {
-			Error(NewXRError("parsing_data", "",
-				"error_detail="+err.Error()))
-		}
-
-		for i, id := range SortedKeys(objects) {
+		for i, id := range SortedKeys(dataJSON) {
 			if i != 0 {
 				IDs += ", "
 			}
@@ -420,6 +415,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 					Debug:   VerboseCount > 2,
 				})
 				Error(xErr)
+
 				if action == "update" && xErr != nil {
 					Error(NewXRError("not_found", id))
 				}
@@ -431,16 +427,11 @@ func createFunc(cmd *cobra.Command, args []string) {
 	if !xid.IsEntity {
 		method = "POST"
 	}
-	if !replace && !isDomainDoc {
+	if !replace {
 		method = "PATCH"
 	}
 
-	path := xid.String()
-	if xid.IsEntity {
-		path += suffix
-	}
-
-	path = AddQuery(path, queryParams)
+	path := AddQuery(ObjectPath, queryParams)
 
 	if cmd.Flags().Changed("ignore") {
 		path = AddQuery(path, "ignore="+strings.Join(ignores, ","))
@@ -450,8 +441,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 		Verb:    method,
 		URL:     cliReg.WithPath(path),
 		Headers: xrlib.HTTPHeaders,
-		Body:    []byte(data),
-		Debug:   VerboseCount > 1,
+		Body:    data,
+		Debug:   VerboseCount > 2,
 	})
 	Error(xErr)
 
@@ -466,35 +457,32 @@ func createFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// TODO allow for GET output to be shown via -o and inline/doc/filter...
-	if xid.ResourceID == "" || isMetadata {
-		if err := json.Unmarshal(res.Body, &objects); err != nil {
-			Error(NewXRError("parsing_response", path,
-				"error_detail="+err.Error()))
-		}
+	// Response MUST always be JSON since we never send domain doc in body
+	Error(res.JSONError)
 
-		if output == "json" {
-			if GetRawJSON() {
-				fmt.Printf("%s", string(res.Body))
-				if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
-					fmt.Print("\n")
-				}
-				return
+	// TODO allow for GET output to be shown via -o and inline/doc/filter...
+	if output == "json" {
+		if GetRawJSON() {
+			fmt.Printf("%s", string(res.Body))
+			if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
+				fmt.Print("\n")
 			}
-			tree, xErr := registry.CanonicalPrettyReorderTree(res.Body)
-			Error(xErr, NewXRError("parsing_response", path,
-				"error_detail="+Err2String(xErr)))
-			buf, err := StringifyCanonicalTree(tree)
-			Error(err)
-			fmt.Printf("%s\n", string(buf))
 			return
 		}
 
-		/*
-			if output == "table" {
-				fmt.Printf("%s\n", xrlib.Tablize(xid.String(), objects))
-				return
-			}
-		*/
+		tree, xErr := registry.CanonicalPrettyReorderTree(res.Body)
+		Error(xErr, NewXRError("parsing_response", path,
+			"error_detail="+Err2String(xErr)))
+		buf, err := StringifyCanonicalTree(tree)
+		Error(err)
+		fmt.Printf("%s\n", string(buf))
+		return
 	}
+
+	/*
+		if output == "table" {
+			fmt.Printf("%s\n", xrlib.Tablize(xidStr, objects))
+			return
+		}
+	*/
 }

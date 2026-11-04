@@ -447,7 +447,7 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println("xRegistry Model:")
-	PrintMap(model.Labels, "Labels", "  ", os.Stdout)
+	xrlib.PrintMapString(model.Labels, "Labels", "  ", os.Stdout)
 	PrintAttributes(ENTITY_REGISTRY, "", model.Attributes, "registry", "",
 		os.Stdout, all)
 
@@ -455,31 +455,6 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 		fmt.Println("")
 		PrintGroupModelsByName(reg.Model, SortedKeys(model.Groups), output,
 			"", true, all)
-	}
-}
-
-func PrintNotEmpty(title, val any, w io.Writer) {
-	str, ok := val.(string)
-	if !ok {
-		i, ok := val.(int)
-		if ok {
-			str = fmt.Sprintf("%d", i)
-		} else {
-			p, ok := val.(*bool)
-			if ok {
-				if p == nil || !*p {
-					str = "false"
-				} else {
-					str = "true"
-				}
-			} else {
-				panic("dunno")
-			}
-		}
-	}
-
-	if val != "" {
-		fmt.Fprintf(w, "%s: %s\n", title, str)
 	}
 }
 
@@ -538,11 +513,11 @@ func PrintGroupModel(gm *registry.GroupModel, format, indent string, showResourc
 
 	fmt.Printf(indent+"GROUP: %s / %s\n", gm.Plural, gm.Singular)
 
-	PrintNotEmpty(indent+"  Description    ", gm.Description, os.Stdout)
-	PrintNotEmpty(indent+"  Model version  ", gm.ModelVersion, os.Stdout)
-	PrintNotEmpty(indent+"  Model Compatible with", gm.ModelCompatibleWith, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Description    ", gm.Description, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Model version  ", gm.ModelVersion, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Model Compatible with", gm.ModelCompatibleWith, os.Stdout)
 
-	PrintMap(gm.Labels, "Labels", indent+"  ", os.Stdout)
+	xrlib.PrintMapString(gm.Labels, "Labels", indent+"  ", os.Stdout)
 	PrintAttributes(ENTITY_GROUP, "", gm.Attributes, gm.Singular, indent+"  ",
 		os.Stdout, all)
 
@@ -561,22 +536,22 @@ func PrintGroupModel(gm *registry.GroupModel, format, indent string, showResourc
 func PrintResourceModel(rm *registry.ResourceModel, format string, indent string, all bool) {
 	fmt.Printf(indent+"RESOURCE: %s / %s\n", rm.Plural, rm.Singular)
 
-	PrintNotEmpty(indent+"  Description         ", rm.Description, os.Stdout)
-	PrintNotEmpty(indent+"  Documentation       ", rm.Documentation, os.Stdout)
-	PrintNotEmpty(indent+"  Max versions        ", rm.GetMaxVersions(), os.Stdout)
-	PrintNotEmpty(indent+"  Set version id      ", rm.SetVersionId, os.Stdout)
-	PrintNotEmpty(indent+"  Has document        ", rm.HasDocument, os.Stdout)
-	PrintNotEmpty(indent+"  Version mode        ", rm.VersionMode, os.Stdout)
-	PrintNotEmpty(indent+"  Single version root ", rm.SingleVersionRoot, os.Stdout)
-	PrintNotEmpty(indent+"  Validate format     ", rm.ValidateFormat, os.Stdout)
-	PrintNotEmpty(indent+"  Validate compat     ", rm.ValidateCompatibility, os.Stdout)
-	PrintNotEmpty(indent+"  Strict valiation    ", rm.StrictValidation, os.Stdout)
-	PrintNotEmpty(indent+"  Icon URL            ", rm.Icon, os.Stdout)
-	PrintNotEmpty(indent+"  Model version       ", rm.ModelVersion, os.Stdout)
-	PrintNotEmpty(indent+"  Model Compat with   ", rm.ModelCompatibleWith, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Description         ", rm.Description, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Documentation       ", rm.Documentation, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Max versions        ", rm.GetMaxVersions(), os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Set version id      ", rm.SetVersionId, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Has document        ", rm.HasDocument, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Version mode        ", rm.VersionMode, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Single version root ", rm.SingleVersionRoot, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Validate format     ", rm.ValidateFormat, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Validate compat     ", rm.ValidateCompatibility, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Strict valiation    ", rm.StrictValidation, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Icon URL            ", rm.Icon, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Model version       ", rm.ModelVersion, os.Stdout)
+	xrlib.PrintNotEmpty(indent+"  Model Compat with   ", rm.ModelCompatibleWith, os.Stdout)
 
-	PrintMap(rm.Labels, "Labels", indent+"  ", os.Stdout)
-	PrintMap(rm.TypeMap, "Type map", indent+"  ", os.Stdout)
+	xrlib.PrintMapString(rm.Labels, "Labels", indent+"  ", os.Stdout)
+	xrlib.PrintMapString(rm.TypeMap, "Type map", indent+"  ", os.Stdout)
 	PrintAttributes(ENTITY_VERSION, "", rm.VersionAttributes,
 		rm.Singular, indent+"  ", os.Stdout, all)
 
@@ -584,19 +559,6 @@ func PrintResourceModel(rm *registry.ResourceModel, format string, indent string
 		rm.Singular, indent+"  ", os.Stdout, all)
 	PrintAttributes(ENTITY_META, "META", rm.MetaAttributes,
 		rm.Singular, indent+"  ", os.Stdout, all)
-}
-
-func PrintMap(daMap map[string]string, title string, indent string, w io.Writer) {
-	if len(daMap) > 0 {
-		for i, k := range SortedKeys(daMap) {
-			v := daMap[k]
-			if i == 0 {
-				fmt.Fprintf(w, "%s%-19s : %s=%s\n", indent, title, k, v)
-			} else {
-				fmt.Fprintf(w, "%s%-19s   %s=%s\n", indent, "", k, v)
-			}
-		}
-	}
 }
 
 func RemoveSystemAttributes(attrs registry.Attributes, level int, singular string) registry.Attributes {
