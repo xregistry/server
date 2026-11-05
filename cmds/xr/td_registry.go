@@ -145,6 +145,7 @@ func TestCapabilities(td *TD) {
 			"/capabilities MUST = ?inline=capabilities")
 	} else {
 		nTD.Skip("?inline not supported")
+		nTD.Skip()
 	}
 
 	nTD = NewTD(td, "Parsing Capabilities MUST work")
@@ -235,6 +236,7 @@ func TestGroups(td *TD) {
 
 	if len(reg.Model.Groups) == 0 {
 		td.Skip("No Group Types defined - leaving")
+		td.Skip()
 		return
 	}
 
@@ -257,6 +259,7 @@ func TestGroups(td *TD) {
 
 		if len(gmRes.JSON) == 0 {
 			td.Skip("No groups defined for group type %q", groupType)
+			td.Skip()
 		}
 
 		for _, id := range SortedKeys(gmRes.JSON) {
@@ -370,7 +373,8 @@ func TestResources(td *TD) {
 
 	groupPathsAny, ok := reg.GetStuff("groupPaths")
 	if !ok {
-		td.Skip("No Group Types defined  - leaving")
+		td.Skip("No Group Types defined - leaving")
+		td.Skip()
 		return
 	}
 	groupPaths, ok := groupPathsAny.(map[string]string)
@@ -379,7 +383,8 @@ func TestResources(td *TD) {
 	}
 
 	if len(groupPaths) == 0 {
-		td.Skip("No Group Types defined  - leaving")
+		td.Skip("No Group Types defined - leaving")
+		td.Skip()
 		return
 	}
 

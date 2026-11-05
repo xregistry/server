@@ -754,6 +754,7 @@ func TestFileServerRegisteredOutputs(t *testing.T) {
 		server.ServeHTTP(res, req)
 		XEqual(t, "", res.Code, http.StatusOK)
 	})
+
 	req = httptest.NewRequest(http.MethodGet, cleanupPath, nil)
 	res = httptest.NewRecorder()
 	server.ServeHTTP(res, req)
