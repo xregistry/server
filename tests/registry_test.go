@@ -674,6 +674,7 @@ func TestRegistryRoot(t *testing.T) {
       "modelsource",
       "readonly"
     ],
+    "maxversionslimit": 0,
     "pagination": true,
     "shortself": false,
     "specversions": [
@@ -716,6 +717,7 @@ func TestRegistryRoot(t *testing.T) {
   ],
   "formats": [],
   "ignores": [],
+  "maxversionslimit": 0,
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -756,6 +758,7 @@ func TestRegistryRoot(t *testing.T) {
     ],
     "formats": [],
     "ignores": [],
+    "maxversionslimit": 0,
     "pagination": false,
     "shortself": false,
     "specversions": [
@@ -804,6 +807,7 @@ func TestRegistryRoot(t *testing.T) {
     ],
     "formats": [],
     "ignores": [],
+    "maxversionslimit": 0,
     "pagination": false,
     "shortself": false,
     "specversions": [
@@ -848,6 +852,7 @@ func TestRegistryRoot(t *testing.T) {
     ],
     "formats": [],
     "ignores": [],
+    "maxversionslimit": 0,
     "pagination": false,
     "shortself": false,
     "specversions": [

@@ -314,6 +314,7 @@ func TestOptionsWithCapabilities(t *testing.T) {
   "flags": [],
   "formats": [],
   "ignores": [],
+  "maxversionslimit": 0,
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -382,6 +383,7 @@ func TestOptionsWithCapabilities(t *testing.T) {
   "flags": [],
   "formats": [],
   "ignores": [],
+  "maxversionslimit": 0,
   "pagination": false,
   "shortself": false,
   "specversions": [

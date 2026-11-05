@@ -2497,6 +2497,7 @@ func TestHTTPJsonSchema(t *testing.T) {
   "flags": [],
   "formats": [],
   "ignores": [],
+  "maxversionslimit": 0,
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -2543,6 +2544,7 @@ func TestHTTPJsonSchema(t *testing.T) {
   "flags": [],
   "formats": [],
   "ignores": [],
+  "maxversionslimit": 0,
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -4992,6 +4994,7 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
   "flags": [],
   "formats": [],
   "ignores": [],
+  "maxversionslimit": 0,
   "pagination": false,
   "shortself": false,
   "specversions": [

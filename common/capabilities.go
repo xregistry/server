@@ -3,6 +3,8 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -12,15 +14,16 @@ import (
 
 type Capabilities struct {
 	// THESE MUST NOT HAVE "omitempty" on them
-	Available       map[string]*AvailableObject `json:"available"`
-	Compatibilities map[string][]string         `json:"compatibilities"`
-	Flags           []string                    `json:"flags"`
-	Formats         []string                    `json:"formats"`
-	Ignores         []string                    `json:"ignores"`
-	Pagination      bool                        `json:"pagination"`
-	ShortSelf       bool                        `json:"shortself"`
-	SpecVersions    []string                    `json:"specversions"`
-	VersionModes    []string                    `json:"versionmodes"`
+	Available        map[string]*AvailableObject `json:"available"`
+	Compatibilities  map[string][]string         `json:"compatibilities"`
+	Flags            []string                    `json:"flags"`
+	Formats          []string                    `json:"formats"`
+	Ignores          []string                    `json:"ignores"`
+	MaxVersionsLimit int                         `json:"maxversionslimit"`
+	Pagination       bool                        `json:"pagination"`
+	ShortSelf        bool                        `json:"shortself"`
+	SpecVersions     []string                    `json:"specversions"`
+	VersionModes     []string                    `json:"versionmodes"`
 }
 
 type AvailableObject struct {
@@ -44,15 +47,16 @@ type OfferedItem struct {
 }
 
 type Offered struct {
-	Available       OfferedCapability `json:"available,omitempty"`
-	Compatibilities OfferedCapability `json:"compatibilities,omitempty"`
-	Flags           OfferedCapability `json:"flags,omitempty"`
-	Formats         OfferedCapability `json:"formats,omitempty"`
-	Ignores         OfferedCapability `json:"ignores,omitempty"`
-	Pagination      OfferedCapability `json:"pagination,omitempty"`
-	ShortSelf       OfferedCapability `json:"shortself,omitempty"`
-	SpecVersions    OfferedCapability `json:"specversions,omitempty"`
-	VersionModes    OfferedCapability `json:"versionmodes,omitempty"`
+	Available        OfferedCapability `json:"available,omitempty"`
+	Compatibilities  OfferedCapability `json:"compatibilities,omitempty"`
+	Flags            OfferedCapability `json:"flags,omitempty"`
+	Formats          OfferedCapability `json:"formats,omitempty"`
+	Ignores          OfferedCapability `json:"ignores,omitempty"`
+	MaxVersionsLimit OfferedCapability `json:"maxversionslimit,omitempty"`
+	Pagination       OfferedCapability `json:"pagination,omitempty"`
+	ShortSelf        OfferedCapability `json:"shortself,omitempty"`
+	SpecVersions     OfferedCapability `json:"specversions,omitempty"`
+	VersionModes     OfferedCapability `json:"versionmodes,omitempty"`
 }
 
 var SupportedAvailable = map[string]*AvailableObject{
@@ -121,6 +125,7 @@ func AddSupportedFormat(format string, compats []string) {
 	}
 
 	Must(DefaultCapabilities.Validate())
+	Must(GetOffered().Validate())
 }
 
 func init() {
@@ -210,6 +215,10 @@ func GetOffered() *Offered {
 				Type: "string",
 			},
 			Enum: String2AnySlice(SupportedIgnores),
+		},
+		MaxVersionsLimit: OfferedCapability{
+			Type: "uinteger",
+			Min:  0,
 		},
 		Pagination: OfferedCapability{
 			Type: "boolean",
@@ -393,6 +402,12 @@ func (c *Capabilities) Validate() *XRError {
 		return xErr
 	}
 
+	offered := GetOffered()
+	if xErr = offered.MaxVersionsLimit.CheckRange("maxversionslimit",
+		c.MaxVersionsLimit); xErr != nil {
+		return xErr
+	}
+
 	if c.SpecVersions == nil {
 		c.SpecVersions = []string{SPECVERSION}
 	}
@@ -558,4 +573,180 @@ func (c *Capabilities) Clone() *Capabilities {
 	newCaps := (*Capabilities)(nil)
 	json.Unmarshal(buf, &newCaps)
 	return newCaps
+}
+
+// effectiveType is the type min/max apply to: "item.type" for array/map
+func (o *OfferedCapability) effectiveType() string {
+	if (o.Type == "array" || o.Type == "map") && o.Item != nil {
+		return o.Item.Type
+	}
+	return o.Type
+}
+
+func isNumericType(t string) bool {
+	return t == "integer" || t == "uinteger" || t == "decimal"
+}
+
+// toNumber converts a Go/JSON numeric value into a float64
+func toNumber(val any) (float64, bool) {
+	switch v := val.(type) {
+	case int:
+		return float64(v), true
+	case int8:
+		return float64(v), true
+	case int16:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case uint:
+		return float64(v), true
+	case uint8:
+		return float64(v), true
+	case uint16:
+		return float64(v), true
+	case uint32:
+		return float64(v), true
+	case uint64:
+		return float64(v), true
+	case float32:
+		return float64(v), true
+	case float64:
+		return v, true
+	case json.Number:
+		f, err := v.Float64()
+		return f, err == nil
+	}
+	return 0, false
+}
+
+// numberMatchesType checks that val is a number valid for the numeric type t
+func numberMatchesType(val any, t string) bool {
+	f, ok := toNumber(val)
+	if !ok {
+		return false
+	}
+	switch t {
+	case "integer":
+		return f == math.Trunc(f)
+	case "uinteger":
+		return f == math.Trunc(f) && f >= 0
+	}
+	return t == "decimal"
+}
+
+// Validate verifies the definition of an offered capability (recursively).
+// In particular, "min"/"max" must only be used with numeric types, be of that
+// same type, and min must not be greater than max.
+func (o *OfferedCapability) Validate(name string) *XRError {
+	t := o.effectiveType()
+
+	for _, mm := range []struct {
+		field string
+		val   any
+	}{{"min", o.Min}, {"max", o.Max}} {
+		if mm.val == nil {
+			continue
+		}
+		if !isNumericType(t) {
+			return NewXRError("capability_error", "/capabilitiesoffered",
+				fmt.Sprintf("error_detail=%q for %q is only allowed on "+
+					"numeric types, not %q", mm.field, name, t))
+		}
+		if !numberMatchesType(mm.val, t) {
+			return NewXRError("capability_error", "/capabilitiesoffered",
+				fmt.Sprintf("error_detail=%q for %q (%v) must be of "+
+					"type %q", mm.field, name, mm.val, t))
+		}
+	}
+
+	if o.Min != nil && o.Max != nil {
+		min, _ := toNumber(o.Min)
+		max, _ := toNumber(o.Max)
+		if min > max {
+			return NewXRError("capability_error", "/capabilitiesoffered",
+				fmt.Sprintf("error_detail=\"min\" (%v) for %q must not be "+
+					"greater than \"max\" (%v)", o.Min, name, o.Max))
+		}
+	}
+
+	for _, k := range SortedKeys(o.Attributes) {
+		if xErr := o.Attributes[k].Validate(name + "." + k); xErr != nil {
+			return xErr
+		}
+	}
+	return nil
+}
+
+// CheckRange verifies that val (a number, or a slice/map of numbers) is
+// within the inclusive "min"/"max" range, if any.
+func (o *OfferedCapability) CheckRange(name string, val any) *XRError {
+	if o.Min == nil && o.Max == nil {
+		return nil
+	}
+
+	rv := reflect.ValueOf(val)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < rv.Len(); i++ {
+			if xErr := o.CheckRange(name, rv.Index(i).Interface()); xErr != nil {
+				return xErr
+			}
+		}
+		return nil
+	case reflect.Map:
+		for _, k := range rv.MapKeys() {
+			if xErr := o.CheckRange(name, rv.MapIndex(k).Interface()); xErr != nil {
+				return xErr
+			}
+		}
+		return nil
+	}
+
+	f, ok := toNumber(val)
+	if !ok {
+		return NewXRError("capability_error", "/capabilities",
+			fmt.Sprintf("error_detail=%q must be a number, not %v", name, val))
+	}
+
+	bad := false
+	list := []string{}
+	if o.Min != nil {
+		min, _ := toNumber(o.Min)
+		bad = bad || f < min
+		list = append(list, fmt.Sprintf(">= %v", o.Min))
+	}
+	if o.Max != nil {
+		max, _ := toNumber(o.Max)
+		bad = bad || f > max
+		list = append(list, fmt.Sprintf("<= %v", o.Max))
+	}
+	if bad {
+		return NewXRError("capability_value", "/capabilities",
+			fmt.Sprintf("value=%v", val),
+			"field="+name,
+			"list="+strings.Join(list, ", "))
+	}
+	return nil
+}
+
+func (o *Offered) Validate() *XRError {
+	for name, oc := range map[string]*OfferedCapability{
+		"available":        &o.Available,
+		"compatibilities":  &o.Compatibilities,
+		"flags":            &o.Flags,
+		"formats":          &o.Formats,
+		"ignores":          &o.Ignores,
+		"maxversionslimit": &o.MaxVersionsLimit,
+		"pagination":       &o.Pagination,
+		"shortself":        &o.ShortSelf,
+		"specversions":     &o.SpecVersions,
+		"versionmodes":     &o.VersionModes,
+	} {
+		if xErr := oc.Validate(name); xErr != nil {
+			return xErr
+		}
+	}
+	return nil
 }

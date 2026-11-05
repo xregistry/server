@@ -77,7 +77,6 @@ TODOs:
 ** support and test "versionmode"
 ** support "xr model group/resource create/update" with "--data"
 ** add support for setversionid, and flag an error when not allowed
-** support min/max in capabilities
 ** support/test case insensitive capability keys/values
 - add tests for xr model group update/upsert/create & --flags
 - make tests so they don't use model.verifyandsave - should go thru modelsource
@@ -121,7 +120,6 @@ TODOs:
   - change create/update to always use $details
 - add xrlint test to make sure ALL errors are tested
 - complete Tablize logic
-** support 'binary' data type
 - use ValiadateXID and other xid funcs in info processing instead
 
 - Backend
