@@ -2,19 +2,19 @@
   {
     "name": "http://localhost:8282/conform-multigroup",
     "status": "PASS",
-    "pass": 57,
+    "pass": 56,
     "fail": 0,
     "warn": 0,
-    "skip": 1,
+    "skip": 2,
     "entries": [
       {
         "subtest": {
           "name": "TestTDSmoke",
           "status": "PASS",
-          "pass": 56,
+          "pass": 55,
           "fail": 0,
           "warn": 0,
-          "skip": 1,
+          "skip": 2,
           "entries": [
             {
               "subtest": {
@@ -94,10 +94,10 @@
               "subtest": {
                 "name": "TestCapabilities",
                 "status": "PASS",
-                "pass": 16,
+                "pass": 15,
                 "fail": 0,
                 "warn": 0,
-                "skip": 1,
+                "skip": 2,
                 "entries": [
                   {
                     "subtest": {
@@ -168,11 +168,11 @@
                   {
                     "subtest": {
                       "name": "Testing ?inline=capabilities",
-                      "status": "PASS",
-                      "pass": 1,
+                      "status": "SKIP",
+                      "pass": 0,
                       "fail": 0,
                       "warn": 0,
-                      "skip": 1,
+                      "skip": 2,
                       "entries": [
                         {
                           "status": "SKIP",
@@ -323,19 +323,19 @@
   {
     "name": "http://localhost:8282/conform-multigroup",
     "status": "PASS",
-    "pass": 57,
+    "pass": 56,
     "fail": 0,
     "warn": 0,
-    "skip": 1,
+    "skip": 2,
     "entries": [
       {
         "subtest": {
           "name": "TestTDSmoke",
           "status": "PASS",
-          "pass": 56,
+          "pass": 55,
           "fail": 0,
           "warn": 0,
-          "skip": 1,
+          "skip": 2,
           "entries": [
             {
               "subtest": {
@@ -415,10 +415,10 @@
               "subtest": {
                 "name": "TestCapabilities",
                 "status": "PASS",
-                "pass": 16,
+                "pass": 15,
                 "fail": 0,
                 "warn": 0,
-                "skip": 1,
+                "skip": 2,
                 "entries": [
                   {
                     "subtest": {
@@ -489,11 +489,11 @@
                   {
                     "subtest": {
                       "name": "Testing ?inline=capabilities",
-                      "status": "PASS",
-                      "pass": 1,
+                      "status": "SKIP",
+                      "pass": 0,
                       "fail": 0,
                       "warn": 0,
-                      "skip": 1,
+                      "skip": 2,
                       "entries": [
                         {
                           "status": "SKIP",

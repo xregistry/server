@@ -17,6 +17,9 @@ var NOMASK_INSTANCE = "NoMaskInstance"
 var NOMASK_SOURCE = "NoMaskSource"
 var MASK_CONFORM_PASS = "MaskConformPass"
 var NOMASK_SHORTSELF = "NoMaskShortSelf"
+var NOMASK_SPECVERSION = "NoMaskSpecVersion"
+var NOMASK_SPECVERSION_TD1 = "NoMaskSpecVersionTD"
+var NOMASK_SPECVERSION_TD2 = "NoMaskSpecVersionTD"
 
 var REG_LOGDATE = `(?m)^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `
 var REG_RFC3339 = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2})`
@@ -27,6 +30,9 @@ var REG_INSTANCE = `"instance": "[a-zA-Z0-9]+"`
 var REG_SOURCE = `"source": "[^"]*"`
 var REG_MASK_CONFORM_PASS = `(?m)^Pass: [0-9]*`
 var REG_SHORTSELF = `"shortself": "[^"]*"`
+var REG_SPECVERSION = `"specversion": "[^"]*"`
+var REG_SPECVERSION_TD1 = `("specversion" \()` + SPECVERSION
+var REG_SPECVERSION_TD2 = `("specversion".* = ")` + SPECVERSION
 
 var SavedREs = map[string]*regexp.Regexp{
 	REG_LOGDATE:           regexp.MustCompile(REG_LOGDATE),
@@ -38,6 +44,9 @@ var SavedREs = map[string]*regexp.Regexp{
 	REG_SOURCE:            regexp.MustCompile(REG_SOURCE),
 	REG_MASK_CONFORM_PASS: regexp.MustCompile(REG_MASK_CONFORM_PASS),
 	REG_SHORTSELF:         regexp.MustCompile(REG_SHORTSELF),
+	REG_SPECVERSION:       regexp.MustCompile(REG_SPECVERSION),
+	REG_SPECVERSION_TD1:   regexp.MustCompile(REG_SPECVERSION_TD1),
+	REG_SPECVERSION_TD2:   regexp.MustCompile(REG_SPECVERSION_TD2),
 }
 
 // Mask timestamps, but if (for the same input) the same TS is used, make sure
@@ -149,6 +158,20 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	if !flagsMap[NOMASK_SHORTSELF] {
 		got = SavedREs[REG_SHORTSELF].ReplaceAllString(got, `"shortself": "xxx"`)
 		exp = SavedREs[REG_SHORTSELF].ReplaceAllString(exp, `"shortself": "xxx"`)
+	}
+
+	if !flagsMap[NOMASK_SPECVERSION] {
+		got = SavedREs[REG_SPECVERSION].ReplaceAllString(got, `"specversion": "xxx"`)
+		exp = SavedREs[REG_SPECVERSION].ReplaceAllString(exp, `"specversion": "xxx"`)
+	}
+
+	if !flagsMap[NOMASK_SPECVERSION_TD1] {
+		got = SavedREs[REG_SPECVERSION_TD1].ReplaceAllString(got, `$1$$SPECVERSION`)
+		exp = SavedREs[REG_SPECVERSION_TD1].ReplaceAllString(exp, `$1$$SPECVERSION`)
+	}
+	if !flagsMap[NOMASK_SPECVERSION_TD2] {
+		got = SavedREs[REG_SPECVERSION_TD2].ReplaceAllString(got, `$1$$SPECVERSION`)
+		exp = SavedREs[REG_SPECVERSION_TD2].ReplaceAllString(exp, `$1$$SPECVERSION`)
 	}
 
 	/*
