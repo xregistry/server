@@ -2662,6 +2662,21 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 		}
 	}
 
+	var caps *Capabilities
+	if reg := rm.GroupModel.Model.Registry; reg != nil {
+		caps, _ = reg.GetCapabilities()
+	}
+	if caps != nil && caps.MaxVersionsLimit > 0 {
+		limit := caps.MaxVersionsLimit
+		if rm.GetMaxVersions() == 0 || rm.GetMaxVersions() > limit {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`"maxversions"(%d) for Resource %q must be `+
+						`between 1 and %d (the "maxversionslimit" capability)`,
+						rm.GetMaxVersions(), rmName, limit))
+		}
+	}
+
 	if rm.GetValidateCompatibility() && !rm.GetValidateFormat() {
 		return NewXRError("bad_request", "/model",
 			"error_detail="+

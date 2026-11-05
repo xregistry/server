@@ -9931,6 +9931,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
     "modelsource",
     "readonly"
   ],
+  "maxversionslimit": 0,
   "pagination": true,
   "shortself": false,
   "specversions": [
@@ -10024,6 +10025,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
   ],
   "formats": [],
   "ignores": [],
+  "maxversionslimit": 0,
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -10052,6 +10054,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
   ],
   "formats": [],
   "ignores": [],
+  "maxversionslimit": 0,
   "pagination": false,
   "shortself": false,
   "specversions": [

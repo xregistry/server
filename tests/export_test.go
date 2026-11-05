@@ -142,6 +142,7 @@ func TestExportBasic(t *testing.T) {
       "modelsource",
       "readonly"
     ],
+    "maxversionslimit": 0,
     "pagination": true,
     "shortself": false,
     "specversions": [
@@ -480,6 +481,7 @@ func TestExportBasic(t *testing.T) {
       "modelsource",
       "readonly"
     ],
+    "maxversionslimit": 0,
     "pagination": true,
     "shortself": false,
     "specversions": [
