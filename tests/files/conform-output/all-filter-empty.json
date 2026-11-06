@@ -2,25 +2,25 @@
   {
     "name": "http://localhost:8181",
     "status": "PASS",
-    "pass": 66,
+    "pass": 61,
     "fail": 0,
     "warn": 0,
-    "skip": 6,
+    "skip": 11,
     "entries": [
       {
         "subtest": {
           "name": "TestAll",
           "status": "PASS",
-          "pass": 65,
+          "pass": 60,
           "fail": 0,
           "warn": 0,
-          "skip": 6,
+          "skip": 11,
           "entries": [
             {
               "subtest": {
                 "name": "TestSmoke",
                 "status": "PASS",
-                "pass": 52,
+                "pass": 51,
                 "fail": 0,
                 "warn": 0,
                 "skip": 2,
@@ -103,10 +103,10 @@
                     "subtest": {
                       "name": "TestCapabilities",
                       "status": "PASS",
-                      "pass": 16,
+                      "pass": 15,
                       "fail": 0,
                       "warn": 0,
-                      "skip": 1,
+                      "skip": 2,
                       "entries": [
                         {
                           "subtest": {
@@ -177,11 +177,11 @@
                         {
                           "subtest": {
                             "name": "Testing ?inline=capabilities",
-                            "status": "PASS",
-                            "pass": 1,
+                            "status": "SKIP",
+                            "pass": 0,
                             "fail": 0,
                             "warn": 0,
-                            "skip": 1,
+                            "skip": 2,
                             "entries": [
                               {
                                 "status": "SKIP",
@@ -279,11 +279,11 @@
                         },
                         {
                           "status": "PASS",
-                          "text": "\"createdat\" (2026-10-29T00:40:37.468493455Z) MUST = \"\u003ctimestamp\u003e\""
+                          "text": "\"createdat\" (2026-11-06T01:47:09.774740835Z) MUST = \"\u003ctimestamp\u003e\""
                         },
                         {
                           "status": "PASS",
-                          "text": "\"modifiedat\" (2026-10-29T00:40:37.480552637Z) MUST = \"\u003ctimestamp\u003e\""
+                          "text": "\"modifiedat\" (2026-11-06T01:47:09.795994373Z) MUST = \"\u003ctimestamp\u003e\""
                         },
                         {
                           "status": "PASS",
@@ -315,10 +315,10 @@
               "subtest": {
                 "name": "TestFilter",
                 "status": "SKIP",
-                "pass": 7,
+                "pass": 6,
                 "fail": 0,
                 "warn": 0,
-                "skip": 3,
+                "skip": 4,
                 "entries": [
                   {
                     "status": "PASS",
@@ -327,11 +327,11 @@
                   {
                     "subtest": {
                       "name": "TestGroups",
-                      "status": "PASS",
-                      "pass": 6,
+                      "status": "SKIP",
+                      "pass": 5,
                       "fail": 0,
                       "warn": 0,
-                      "skip": 1,
+                      "skip": 2,
                       "entries": [
                         {
                           "status": "PASS",
@@ -371,35 +371,35 @@
               "subtest": {
                 "name": "TestEntities",
                 "status": "PASS",
-                "pass": 5,
+                "pass": 2,
                 "fail": 0,
                 "warn": 0,
-                "skip": 3,
+                "skip": 4,
                 "entries": [
                   {
                     "status": "PASS",
                     "text": "TestRegistryRoot (cached)"
                   },
                   {
-                    "status": "PASS",
+                    "status": "SKIP",
                     "text": "TestGroups (cached)"
                   },
                   {
                     "subtest": {
                       "name": "TestResources",
-                      "status": "PASS",
-                      "pass": 2,
+                      "status": "SKIP",
+                      "pass": 0,
                       "fail": 0,
                       "warn": 0,
-                      "skip": 1,
+                      "skip": 3,
                       "entries": [
                         {
-                          "status": "PASS",
+                          "status": "SKIP",
                           "text": "TestGroups (cached)"
                         },
                         {
                           "status": "SKIP",
-                          "text": "No Group Types defined  - leaving"
+                          "text": "No Group Types defined - leaving"
                         }
                       ]
                     }
