@@ -47,14 +47,15 @@ type TDConfig struct {
 	Model        *registry.Model
 	Capabilities *Capabilities
 
-	FailFast     bool
-	IgnoreWarn   bool
-	NextStatus   int
-	ShowSkips    bool
-	ShowWarns    bool
-	ShowLogs     bool // EnvBool("XR_SHOWLOGS", false)
-	ShowStats    bool
-	ConsoleDepth int
+	FailFast       bool
+	IgnoreWarn     bool
+	NextStatus     int
+	ShowSkips      bool
+	ShowWarns      bool
+	ShowLogs       bool // EnvBool("XR_SHOWLOGS", false)
+	ShowStats      bool
+	ConsoleDepth   int
+	AllowMutations bool
 
 	TestRuns map[string]*TD
 	RunFuncs []TestFn
@@ -427,6 +428,12 @@ func (td *TD) Log(args ...any)     { td.Report(LOG, args...) }
 func (td *TD) Msg(args ...any)     { td.Report(MSG, args...) }
 func (td *TD) Stop()               { panic("stop") }
 
+func (td *TD) StopOnFail() {
+	if td.Status == FAIL {
+		td.Stop()
+	}
+}
+
 func (td *TD) DependsOn(fn TestFn) {
 	depStatus := PASS
 
@@ -741,14 +748,19 @@ func (td *TD) ShouldEqual(exp any, got any, args ...any) {
 // FailFast still stops execution on the first failure.
 func (td *TD) HTTPGetJSON(path string) *HttpResponse {
 	nTD := NewTD(td, "GET %s", path)
-	res, xErr := HttpDo(&HttpRequest{
+	res, _ := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     td.GetRegistry().WithPath(path),
 		Headers: xrlib.HTTPHeaders,
 		Body:    nil,
 		Debug:   VerboseCount > 2,
 	})
-	nTD.NoError(xErr, "GET %s", path)
+	nTD.LogHTTP(res)
+	if res == nil {
+		nTD.Fail("GET %s MUST return an HTTP response", path)
+		return nil
+	}
+	nTD.NoError(res.Error, "GET %s", path)
 	if nTD.Status == FAIL {
 		return nil
 	}
@@ -758,11 +770,37 @@ func (td *TD) HTTPGetJSON(path string) *HttpResponse {
 		return nil
 	}
 
-	nTD.HTTPBodyMustJSON(res, "GET %s", path)
+	nTD.httpBodyMustJSON(res, true, "GET %s", path)
 	if nTD.Status == FAIL {
 		return nil
 	}
 	return res
+}
+
+func (td *TD) LogHTTP(res *HttpResponse) {
+	if res == nil {
+		td.Log("HTTP response: <nil>")
+		return
+	}
+
+	if res.Error != nil {
+		td.Log("HTTP error: %s", res.Error)
+	}
+	if res.Status != "" {
+		td.Log("HTTP status: %s", res.Status)
+	} else if res.Code != 0 {
+		td.Log("HTTP status: %d", res.Code)
+	}
+	if location := res.Header.Get("Location"); location != "" {
+		td.Log("HTTP Location: %s", location)
+	}
+
+	body := strings.TrimSpace(string(res.Body))
+	if body == "" {
+		td.Log("HTTP body: <empty>")
+	} else {
+		td.Log("HTTP body: %q", body)
+	}
 }
 
 func (td *TD) HTTPStatusMustEqual(res *HttpResponse, exp int, args ...any) {
@@ -827,12 +865,18 @@ func (td *TD) HTTPPropMustBeTimestamp(res *HttpResponse, prop string) {
 }
 
 func (td *TD) HTTPBodyMustJSON(res *HttpResponse, args ...any) {
+	td.httpBodyMustJSON(res, false, args...)
+}
+
+func (td *TD) httpBodyMustJSON(res *HttpResponse, bodyLogged bool,
+	args ...any) {
+
 	str := ""
 	if len(args) > 0 {
 		str = "'" + fmt.Sprintf(args[0].(string), args[1:]...) + "' "
 	}
 
-	if len(res.Body) < 140 {
+	if !bodyLogged && len(res.Body) < 140 {
 		td.Log("%sBody:\n%s", str, string(res.Body))
 	}
 	td.Must(len(res.Body) > 0, "%sMUST return a non-empty body", str)

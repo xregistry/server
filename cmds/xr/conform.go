@@ -9,12 +9,13 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-var conformRunAliases = []string{"all", "smoke", "entities"}
+var conformRunAliases = []string{"all", "smoke", "entities", "mutations"}
 
 var conformRunFunctions = map[string]TestFn{
-	"all":      TestTDAll,
-	"smoke":    TestTDSmoke,
-	"entities": TestTDEntities,
+	"all":       TestAll,
+	"smoke":     TestSmoke,
+	"entities":  TestEntities,
+	"mutations": TestMutations,
 
 	// Retain the existing internal TD test entry points.
 	"TestTDAllPass": TestTDAllPass,
@@ -56,6 +57,7 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	config.ShowStats, _ = cmd.Flags().GetBool("stats")
 	config.ConsoleDepth, _ = cmd.Flags().GetInt("depth")
 	config.Output, _ = cmd.Flags().GetString("output")
+	config.AllowMutations, _ = cmd.Flags().GetBool("allow-mutations")
 	config.RunFuncs = resolveConformRunFuncs(runNames)
 	if config.Output != "text" && config.Output != "json" {
 		Error("--output must be one of: text, json")
@@ -162,24 +164,21 @@ func resolveConformRunFuncs(names []string) []TestFn {
 	return functions
 }
 
-func TestTDAll(td *TD) {
-	td.DependsOn(TestSniff)
-	td.DependsOn(TestModel)
-	td.DependsOn(TestCapabilities)
-	td.DependsOn(TestRegistryRoot)
-	td.DependsOn(TestGroups)
+func TestAll(td *TD) {
+	td.DependsOn(TestSmoke)
 	td.DependsOn(TestFilter)
-	td.DependsOn(TestResources)
+	td.DependsOn(TestEntities)
+	td.DependsOn(TestMutations)
 }
 
-func TestTDSmoke(td *TD) {
+func TestSmoke(td *TD) {
 	td.DependsOn(TestSniff)
 	td.DependsOn(TestModel)
 	td.DependsOn(TestCapabilities)
 	td.DependsOn(TestRegistryRoot)
 }
 
-func TestTDEntities(td *TD) {
+func TestEntities(td *TD) {
 	td.DependsOn(TestRegistryRoot)
 	td.DependsOn(TestGroups)
 	td.DependsOn(TestResources)
@@ -200,7 +199,9 @@ func addConformCmd(parent *cobra.Command) {
 	conformCmd.Flags().Bool("failfast", false, "Stop on first failure")
 	conformCmd.Flags().Bool("stats", false, "Show full stats on all groups")
 	conformCmd.Flags().StringArrayP("run", "r", nil,
-		"Run test (all, smoke, entities)")
+		"Run test (all, smoke, entities, mutations)")
+	conformCmd.Flags().Bool("allow-mutations", false,
+		"Authorize mutation tests")
 	conformCmd.Flags().StringP("output", "o", "text",
 		"Output format (text*, json)")
 	conformCmd.Flag("output").DefValue = "" // hide default text

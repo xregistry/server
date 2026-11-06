@@ -9,7 +9,7 @@
     "entries": [
       {
         "subtest": {
-          "name": "TestTDSmoke",
+          "name": "TestSmoke",
           "status": "FAIL",
           "pass": 7,
           "fail": 4,

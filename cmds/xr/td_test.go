@@ -302,6 +302,53 @@ func TestCapabilitiesMissingResponseStatus(t *testing.T) {
 	}
 }
 
+func TestModelLeavesOperationalModelDiscoveryToRegistry(t *testing.T) {
+	var modelRequests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path == "/model" {
+				modelRequests.Add(1)
+				_, _ = w.Write([]byte(`{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {"singular": "file"}
+      }
+    }
+  }
+}`))
+			} else {
+				_, _ = w.Write([]byte(`{}`))
+			}
+		}))
+	defer server.Close()
+
+	root := newTestTD("Model")
+	reg, xErr := registry.DefineRegistry(server.URL, XRConfig)
+	root.NoErrorStop(xErr)
+	root.SetRegistry(reg)
+	result := root.Run(TestModel)
+	XEqual(t, "Status", result.Status, PASS)
+	XCheck(t, reg.Model == nil,
+		"Raw model conformance testing MUST NOT seed Registry.Model")
+	XEqual(t, "Raw model requests", modelRequests.Load(), int32(1))
+
+	model, xErr := reg.GetModel()
+	XNoErr(t, xErr)
+	XCheck(t, model == reg.Model, "GetModel MUST own the operational model")
+	XEqual(t, "Operational model requests", modelRequests.Load(), int32(2))
+
+	cachedModel, xErr := reg.GetModel()
+	XNoErr(t, xErr)
+	XCheck(t, cachedModel == model, "GetModel MUST cache the operational model")
+	XEqual(t, "Cached model requests", modelRequests.Load(), int32(2))
+	XCheck(t, root.Config.Model == nil, "TDConfig MUST NOT cache another model")
+	XCheck(t, model.Groups["dirs"].GetBaseAttributes()["labels"] != nil,
+		"Operational model MUST include processed core attributes")
+}
+
 func TestRunConformIsolatesOutputAndConfigState(t *testing.T) {
 	staleRun := NewTD(nil, "stale")
 	staleRun.Fail("stale failure")
@@ -416,6 +463,54 @@ func TestConformanceStateErrorPrintCompleteResult(t *testing.T) {
    └─ FAIL: reg.stuff.groupPaths != map[string]string
 Pass: 1   Fail: 3   Warn: 0   Skip: 0
 `)
+}
+
+func TestStopOnFail(t *testing.T) {
+	passTD := newTestTD("pass")
+	passTD.StopOnFail()
+
+	deferred := false
+	continued := false
+	root := newTestTD("root")
+	result := root.Run(TestFn(func(td *TD) {
+		defer func() {
+			deferred = true
+		}()
+		td.Fail("stop")
+		td.StopOnFail()
+		continued = true
+	}))
+
+	XEqual(t, "Status", result.Status, FAIL)
+	XEqual(t, "Deferred cleanup", deferred, true)
+	XEqual(t, "Continued after failure", continued, false)
+}
+
+func TestLogHTTP(t *testing.T) {
+	td := newTestTD("http")
+	res := &HttpResponse{
+		Code:   http.StatusTemporaryRedirect,
+		Status: "307 Temporary Redirect",
+		Body:   []byte("moved"),
+		Header: http.Header{"Location": []string{"https://example.com/next"}},
+		Error: NewXRError("talking_to_server", "https://example.com",
+			"error_detail=moved"),
+	}
+	td.LogHTTP(res)
+
+	XEqual(t, "Logs", len(td.Logs), 4)
+	XCheck(t, strings.Contains(td.Logs[0].Text, "HTTP error:"),
+		"Expected HTTP error log: %q", td.Logs[0].Text)
+	XEqual(t, "Status log", td.Logs[1].Text,
+		"HTTP status: 307 Temporary Redirect")
+	XEqual(t, "Location log", td.Logs[2].Text,
+		"HTTP Location: https://example.com/next")
+	XEqual(t, "Body log", td.Logs[3].Text, `HTTP body: "moved"`)
+
+	nilTD := newTestTD("nil")
+	nilTD.LogHTTP(nil)
+	XEqual(t, "Nil response log", nilTD.Logs[0].Text,
+		"HTTP response: <nil>")
 }
 
 func TestSetTDStatus(t *testing.T) {
