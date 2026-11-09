@@ -32,10 +32,11 @@ func TestMutationsRequiresAuthorization(t *testing.T) {
 
 func TestConformMutationGroupModel(t *testing.T) {
 	tests := []struct {
-		name string
-		attr *registry.Attribute
-		key  string
-		safe bool
+		name   string
+		attr   *registry.Attribute
+		key    string
+		safe   bool
+		reason string
 	}{
 		{
 			name: "optional extension",
@@ -60,7 +61,10 @@ func TestConformMutationGroupModel(t *testing.T) {
 				Type:      STRING,
 				Immutable: true,
 				Required:  true,
+				Internals: &registry.AttrInternals{},
 			},
+			reason: `Group Type "dirs" requires client attribute(s) with no ` +
+				`default: immutable.`,
 		},
 		{
 			name: "check-only required extension",
@@ -74,6 +78,38 @@ func TestConformMutationGroupModel(t *testing.T) {
 					},
 				},
 			},
+			reason: `Group Type "dirs" requires client attribute(s) with no ` +
+				`default: checked.`,
+		},
+		{
+			name: "getter required extension",
+			key:  "getter",
+			attr: &registry.Attribute{
+				Type:     STRING,
+				Required: true,
+				Internals: &registry.AttrInternals{
+					GetFn: func(e *registry.Entity) any {
+						return nil
+					},
+				},
+			},
+			reason: `Group Type "dirs" requires client attribute(s) with no ` +
+				`default: getter.`,
+		},
+		{
+			name: "updater required extension",
+			key:  "updater",
+			attr: &registry.Attribute{
+				Type:     STRING,
+				Required: true,
+				Internals: &registry.AttrInternals{
+					UpdateFn: func(e *registry.Entity) *XRError {
+						return nil
+					},
+				},
+			},
+			reason: `Group Type "dirs" requires client attribute(s) with no ` +
+				`default: updater.`,
 		},
 		{
 			name: "client required extension without default",
@@ -82,6 +118,8 @@ func TestConformMutationGroupModel(t *testing.T) {
 				Type:     STRING,
 				Required: true,
 			},
+			reason: `Group Type "dirs" requires client attribute(s) with no ` +
+				`default: required.`,
 		},
 		{
 			name: "client required extension with string default",
@@ -130,6 +168,8 @@ func TestConformMutationGroupModel(t *testing.T) {
 				Type:     STRING,
 				Required: true,
 			},
+			reason: `Group Type "dirs" requires client attribute(s) with no ` +
+				`default: name.`,
 		},
 		{
 			name: "required server-populated createdat",
@@ -177,8 +217,7 @@ func TestConformMutationGroupModel(t *testing.T) {
 			_, groupModel, reasons := conformMutationGroupModel(model)
 			XEqual(t, "Safe", groupModel != nil, test.safe)
 			if !test.safe {
-				XCheck(t, len(reasons) == 1,
-					"Expected one deterministic rejection reason: %#v", reasons)
+				XEqual(t, "Reasons", reasons, []string{test.reason})
 			}
 		})
 	}
