@@ -86,7 +86,6 @@ func runConform(servers []string, config *TDConfig) int {
 		nextConfig := *config
 		nextConfig.Server = server
 		nextConfig.Registry = nil
-		nextConfig.Model = nil
 		nextConfig.Capabilities = nil
 		nextConfig.NextStatus = 0
 		nextConfig.Out = out

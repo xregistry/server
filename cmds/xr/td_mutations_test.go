@@ -51,6 +51,29 @@ func TestConformMutationGroupModel(t *testing.T) {
 				ReadOnly: true,
 				Required: true,
 			},
+			safe: true,
+		},
+		{
+			name: "immutable required extension",
+			key:  "immutable",
+			attr: &registry.Attribute{
+				Type:      STRING,
+				Immutable: true,
+				Required:  true,
+			},
+		},
+		{
+			name: "check-only required extension",
+			key:  "checked",
+			attr: &registry.Attribute{
+				Type:     STRING,
+				Required: true,
+				Internals: &registry.AttrInternals{
+					CheckFn: func(e *registry.Entity) *XRError {
+						return nil
+					},
+				},
+			},
 		},
 		{
 			name: "client required extension without default",
@@ -109,6 +132,24 @@ func TestConformMutationGroupModel(t *testing.T) {
 			},
 		},
 		{
+			name: "required server-populated createdat",
+			key:  "createdat",
+			attr: &registry.Attribute{
+				Type:     TIMESTAMP,
+				Required: true,
+			},
+			safe: true,
+		},
+		{
+			name: "required server-populated modifiedat",
+			key:  "modifiedat",
+			attr: &registry.Attribute{
+				Type:     TIMESTAMP,
+				Required: true,
+			},
+			safe: true,
+		},
+		{
 			name: "required server-populated id",
 			key:  "dirid",
 			attr: &registry.Attribute{
@@ -159,6 +200,7 @@ func TestMutationsCleanup(t *testing.T) {
 		wrongLocation    bool
 		unconfirmed      bool
 		foreignResource  bool
+		unexpectedInline bool
 		unexpectedStatus bool
 		redirectCode     int
 		epochChanged     bool
@@ -238,6 +280,14 @@ func TestMutationsCleanup(t *testing.T) {
 			wantMethods:     "GET,PUT,GET,GET",
 			wantDeletes:     0,
 			wantRetained:    true,
+		},
+		{
+			name:             "unexpected empty inline collection retained",
+			unexpectedInline: true,
+			wantStatus:       FAIL,
+			wantMethods:      "GET,PUT,GET",
+			wantDeletes:      0,
+			wantRetained:     true,
 		},
 		{
 			name:             "unexpected success status",
@@ -346,6 +396,9 @@ func TestMutationsCleanup(t *testing.T) {
 							"xid":        r.URL.Path,
 							"epoch":      epoch,
 							"filescount": 0,
+						}
+						if test.unexpectedInline {
+							current["files"] = map[string]any{}
 						}
 						location := publicURL + r.URL.Path
 						if test.wrongLocation {

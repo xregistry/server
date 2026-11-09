@@ -344,7 +344,6 @@ func TestModelLeavesOperationalModelDiscoveryToRegistry(t *testing.T) {
 	XNoErr(t, xErr)
 	XCheck(t, cachedModel == model, "GetModel MUST cache the operational model")
 	XEqual(t, "Cached model requests", modelRequests.Load(), int32(2))
-	XCheck(t, root.Config.Model == nil, "TDConfig MUST NOT cache another model")
 	XCheck(t, model.Groups["dirs"].GetBaseAttributes()["labels"] != nil,
 		"Operational model MUST include processed core attributes")
 }
@@ -492,12 +491,17 @@ func TestLogHTTP(t *testing.T) {
 		Code:   http.StatusTemporaryRedirect,
 		Status: "307 Temporary Redirect",
 		Body:   []byte("moved"),
-		Header: http.Header{"Location": []string{"https://example.com/next"}},
+		Header: http.Header{
+			"Authorization": []string{"secret"},
+			"Location":      []string{"https://example.com/next"},
+		},
 		Error: NewXRError("talking_to_server", "https://example.com",
 			"error_detail=moved"),
+		JSON: map[string]any{"moved": true},
 	}
 	td.LogHTTP(res)
 
+	XEqual(t, "Logged", res.Logged, true)
 	XEqual(t, "Logs", len(td.Logs), 4)
 	XCheck(t, strings.Contains(td.Logs[0].Text, "HTTP error:"),
 		"Expected HTTP error log: %q", td.Logs[0].Text)
@@ -506,6 +510,30 @@ func TestLogHTTP(t *testing.T) {
 	XEqual(t, "Location log", td.Logs[2].Text,
 		"HTTP Location: https://example.com/next")
 	XEqual(t, "Body log", td.Logs[3].Text, `HTTP body: "moved"`)
+	for _, entry := range td.Logs {
+		XCheck(t, !strings.Contains(entry.Text, "secret"),
+			"HTTP logging MUST NOT expose request secrets: %q", entry.Text)
+	}
+
+	td.LogHTTP(res)
+	XEqual(t, "Repeated LogHTTP logs", len(td.Logs), 4)
+
+	td.HTTPBodyMustJSON(res, "redirect")
+	XEqual(t, "HTTPBodyMustJSON logs", len(td.Logs), 6)
+
+	bodyTD := newTestTD("body")
+	bodyRes := &HttpResponse{
+		Code:   http.StatusOK,
+		Status: "200 OK",
+		Body:   []byte(`{"ok":true}`),
+		Header: http.Header{},
+		JSON:   map[string]any{"ok": true},
+	}
+	bodyTD.HTTPBodyMustJSON(bodyRes, "body")
+	XEqual(t, "Body response logged", bodyRes.Logged, true)
+	XEqual(t, "Body logs", len(bodyTD.Logs), 4)
+	bodyTD.LogHTTP(bodyRes)
+	XEqual(t, "Repeated body logs", len(bodyTD.Logs), 4)
 
 	nilTD := newTestTD("nil")
 	nilTD.LogHTTP(nil)

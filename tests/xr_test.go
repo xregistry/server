@@ -3724,37 +3724,43 @@ Pass: 229   Fail: 0   Warn: 0   Skip: 7
 func TestXRConformMutations(t *testing.T) {
 	const target = "http://localhost:8181"
 
-	t.Run("authorization before network", func(t *testing.T) {
-		XCLI(t, "conform --run mutations http://127.0.0.1:1", "",
-			`PASS: http://127.0.0.1:1 (skip:1)
+	clog := t.TempDir() + "/clog"
+	oldHTTPLog, hadHTTPLog := os.LookupEnv("XR_HTTP_LOG")
+	os.Setenv("XR_HTTP_LOG", clog)
+	defer func() {
+		if hadHTTPLog {
+			os.Setenv("XR_HTTP_LOG", oldHTTPLog)
+		} else {
+			os.Unsetenv("XR_HTTP_LOG")
+		}
+	}()
+
+	// Authorization is checked before any target request.
+	XCLI(t, "conform --run mutations http://127.0.0.1:1", "",
+		`PASS: http://127.0.0.1:1 (skip:1)
 └─ SKIP: TestMutations (skip:1)
 Pass: 1   Fail: 0   Warn: 0   Skip: 1
-`, "", 0)
-	})
+`, "", 0).
+		ExpectCount(clog, "Request: ", 0)
 
-	t.Run("authorization alone is read only", func(t *testing.T) {
-		cliResult := XCLI(t, "conform --allow-mutations --run smoke -d1 -vvv "+
-			"http://localhost:8282/conform", "",
-			`PASS: http://localhost:8282/conform (skip:2)
+	// Authorization alone does not expand the selected/default read-only run.
+	XCLI(t, "conform --allow-mutations --run smoke -d1 "+
+		"http://localhost:8282/conform", "",
+		`PASS: http://localhost:8282/conform (skip:2)
 Pass: 50   Fail: 0   Warn: 0   Skip: 2
-`, "*", 0)
-		XEqual(t, "PUT requests",
-			strings.Count(cliResult.Stderr, "Request: PUT "), 0)
-		XEqual(t, "DELETE requests",
-			strings.Count(cliResult.Stderr, "Request: DELETE "), 0)
+`, "", 0).
+		ExpectCount(clog, "Request: PUT ", 0).
+		ExpectCount(clog, "Request: DELETE ", 0)
 
-		cliResult = XCLI(t, "conform --allow-mutations -d1 -vvv "+
-			"http://localhost:8282/conform", "",
-			`PASS: http://localhost:8282/conform (skip:9)
+	XCLI(t, "conform --allow-mutations -d1 "+
+		"http://localhost:8282/conform", "",
+		`PASS: http://localhost:8282/conform (skip:9)
 Pass: 53   Fail: 0   Warn: 0   Skip: 9
-`, "*", 0)
-		XEqual(t, "Default PUT requests",
-			strings.Count(cliResult.Stderr, "Request: PUT "), 0)
-		XEqual(t, "Default DELETE requests",
-			strings.Count(cliResult.Stderr, "Request: DELETE "), 0)
-	})
+`, "", 0).
+		ExpectCount(clog, "Request: PUT ", 0).
+		ExpectCount(clog, "Request: DELETE ", 0)
 
-	t.Run("lifecycle", func(t *testing.T) {
+	func() {
 		reg := NewRegistry("TestXRConformMutations")
 		defer PassDeleteReg(t, reg)
 
@@ -3801,43 +3807,6 @@ Pass: 53   Fail: 0   Warn: 0   Skip: 9
 }
 `)
 
-		XHTTP(t, reg, "PUT", "/dirs/existing", `{
-  "dirid": "existing",
-  "epoch": "xr-conform-create-only",
-  "name": "changed",
-  "labels": {
-    "fixture": "changed"
-  }
-}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"epoch\" for \"/dirs/existing\" is not valid: must be a uinteger.",
-  "subject": "/dirs/existing",
-  "args": {
-    "error_detail": "must be a uinteger",
-    "name": "epoch"
-  },
-  "instance": "xxx",
-  "source": "xxx"
-}
-`)
-
-		XHTTP(t, reg, "GET", "/dirs/existing", "", 200, `{
-  "dirid": "existing",
-  "self": "http://localhost:8181/dirs/existing",
-  "xid": "/dirs/existing",
-  "epoch": 1,
-  "name": "original",
-  "labels": {
-    "fixture": "true"
-  },
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-
-  "filesurl": "http://localhost:8181/dirs/existing/files",
-  "filescount": 0
-}
-`)
-
 		XCLI(t, "conform --run mutations --allow-mutations -d3 "+target, "",
 			`PASS: http://localhost:8181 (skip:2)
 └─ PASS: TestMutations (skip:2)
@@ -3847,7 +3816,7 @@ Pass: 53   Fail: 0   Warn: 0   Skip: 9
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ PASS: Clean up run-owned Group
-Pass: 66   Fail: 0   Warn: 0   Skip: 2
+Pass: 63   Fail: 0   Warn: 0   Skip: 2
 `, "", 0)
 
 		expectedCollection := `{
@@ -3879,19 +3848,17 @@ Pass: 66   Fail: 0   Warn: 0   Skip: 2
 
 		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
 
-		allResult := XCLI(t,
-			"conform --run all --allow-mutations -d1 -vvv "+target,
+		XCLI(t,
+			"conform --run all --allow-mutations -d1 "+target,
 			"", `PASS: http://localhost:8181 (skip:5)
-Pass: 126   Fail: 0   Warn: 0   Skip: 5
-`, "*", 0)
-		XEqual(t, "All-run PUT requests",
-			strings.Count(allResult.Stderr, "Request: PUT "), 1)
-		XEqual(t, "All-run DELETE requests",
-			strings.Count(allResult.Stderr, "Request: DELETE "), 1)
+Pass: 123   Fail: 0   Warn: 0   Skip: 5
+`, "", 0).
+			ExpectCount(clog, "Request: PUT ", 1).
+			ExpectCount(clog, "Request: DELETE ", 1)
 		XHTTP(t, reg, "GET", "/dirs", "", 200, expectedCollection)
-	})
+	}()
 
-	t.Run("lifecycle without epoch flag", func(t *testing.T) {
+	func() {
 		reg := NewRegistry("TestXRConformMutationsNoEpochFlag")
 		defer PassDeleteReg(t, reg)
 
@@ -3936,11 +3903,11 @@ Pass: 126   Fail: 0   Warn: 0   Skip: 5
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ PASS: Clean up run-owned Group
-Pass: 66   Fail: 0   Warn: 0   Skip: 2
+Pass: 63   Fail: 0   Warn: 0   Skip: 2
 `, "", 0)
 
 		XHTTP(t, reg, "GET", "/dirs", "", 200, "{}\n")
-	})
+	}()
 
 	tests := []struct {
 		name       string
@@ -3979,7 +3946,8 @@ Pass: 66   Fail: 0   Warn: 0   Skip: 2
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Logf("Test: %s", test.name)
+		func() {
 			reg := NewRegistry("TestXRConformMutationSkip")
 			defer PassDeleteReg(t, reg)
 
@@ -4156,19 +4124,19 @@ Pass: 26   Fail: 0   Warn: 0   Skip: 3
 			}
 			XCLI(t, "conform --run mutations --allow-mutations --skips -d3 "+
 				target, "", expected, "", 0)
-		})
+		}()
 	}
 }
 
 func TestXRConformMutationCleanupOutput(t *testing.T) {
 	for _, failfast := range []bool{false, true} {
 		for _, output := range []string{"text", "json"} {
-			t.Run(fmt.Sprintf("%s failfast=%t", output, failfast),
-				func(t *testing.T) {
-					reg := NewRegistry("TestXRConformMutationCleanupOutput")
-					defer PassDeleteReg(t, reg)
+			t.Logf("Output: %s, failfast: %t", output, failfast)
+			func() {
+				reg := NewRegistry("TestXRConformMutationCleanupOutput")
+				defer PassDeleteReg(t, reg)
 
-					XHTTP(t, reg, "PUT", "/", `{
+				XHTTP(t, reg, "PUT", "/", `{
   "capabilities": {
     "available": {
       "capabilities": {"mutable": true},
@@ -4201,61 +4169,61 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 }
 `)
 
-					var mu sync.Mutex
-					groupPath := ""
-					groupGets := 0
-					deletes := 0
-					server := httptest.NewServer(http.HandlerFunc(
-						func(w http.ResponseWriter, r *http.Request) {
-							mu.Lock()
-							defer mu.Unlock()
+				var mu sync.Mutex
+				groupPath := ""
+				groupGets := 0
+				deletes := 0
+				server := httptest.NewServer(http.HandlerFunc(
+					func(w http.ResponseWriter, r *http.Request) {
+						mu.Lock()
+						defer mu.Unlock()
 
-							if r.Method == http.MethodPut {
-								groupPath = r.URL.Path
-							}
-							if r.URL.Path == groupPath {
-								switch r.Method {
-								case http.MethodGet:
-									groupGets++
-									// The first GET is the normal read. The second
-									// is the deferred cleanup state probe.
-									if groupGets == 2 {
-										// Fail only cleanup so we can assert that
-										// no DELETE follows and the Group remains.
-										http.Error(w, "cleanup unavailable",
-											http.StatusServiceUnavailable)
-										return
-									}
-								case http.MethodDelete:
-									deletes++
+						if r.Method == http.MethodPut {
+							groupPath = r.URL.Path
+						}
+						if r.URL.Path == groupPath {
+							switch r.Method {
+							case http.MethodGet:
+								groupGets++
+								// The first GET is the normal read. The second
+								// is the deferred cleanup state probe.
+								if groupGets == 2 {
+									// Fail only cleanup so we can assert that
+									// no DELETE follows and the Group remains.
+									http.Error(w, "cleanup unavailable",
+										http.StatusServiceUnavailable)
+									return
 								}
+							case http.MethodDelete:
+								deletes++
 							}
-							// Keep normal traffic on the real server; this wrapper
-							// only injects the cleanup GET failure above.
-							response := httptest.NewRecorder()
-							MainServer.ServeHTTP(response, r)
-							for name, values := range response.Header() {
-								w.Header()[name] = values
-							}
-							w.WriteHeader(response.Code)
-							_, _ = w.Write(response.Body.Bytes())
-						}))
-					defer server.Close()
+						}
+						// Keep normal traffic on the real server; this wrapper
+						// only injects the cleanup GET failure above.
+						response := httptest.NewRecorder()
+						MainServer.ServeHTTP(response, r)
+						for name, values := range response.Header() {
+							w.Header()[name] = values
+						}
+						w.WriteHeader(response.Code)
+						_, _ = w.Write(response.Body.Bytes())
+					}))
+				defer server.Close()
 
-					result := XCLI(t, fmt.Sprintf(
-						"conform --run mutations --allow-mutations "+
-							"--failfast=%t --output %s --nowrap -d3 %s",
-						failfast, output, server.URL), "", "*", "", 1)
+				result := XCLI(t, fmt.Sprintf(
+					"conform --run mutations --allow-mutations "+
+						"--failfast=%t --output %s --nowrap -d3 %s",
+					failfast, output, server.URL), "", "*", "", 1)
 
-					mu.Lock()
-					path := groupPath
-					gotDeletes := deletes
-					mu.Unlock()
-					XCheck(t, strings.HasPrefix(path, "/dirs/xr-conform-"),
-						"Expected the run-owned Group path, got %q", path)
-					XEqual(t, "Cleanup DELETE requests", gotDeletes, 0)
+				mu.Lock()
+				path := groupPath
+				gotDeletes := deletes
+				mu.Unlock()
+				XCheck(t, strings.HasPrefix(path, "/dirs/xr-conform-"),
+					"Expected the run-owned Group path, got %q", path)
+				XEqual(t, "Cleanup DELETE requests", gotDeletes, 0)
 
-					expected := `FAIL: http://mutation-test (skip:2)
+				expected := `FAIL: http://mutation-test (skip:2)
 └─ FAIL: TestMutations (skip:2)
    ├─ PASS: TestModel
    ├─ PASS: TestCapabilities (skip:2)
@@ -4268,20 +4236,20 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
       ├─ HTTP body: "cleanup unavailable"
       ├─ FAIL: Cleanup GET MUST return 200 or 404
       └─ Run-owned Group may remain: /dirs/xr-conform-RUN
-Pass: 53   Fail: 4   Warn: 0   Skip: 2
+Pass: 51   Fail: 4   Warn: 0   Skip: 2
 `
-					if output == "json" {
-						expected = expectedOutput(t,
-							"files/conform-output/mutations-cleanup-failure.json")
-					}
-					got := strings.NewReplacer(
-						server.URL, "http://mutation-test",
-					).Replace(result.Stdout)
-					got = conformRunIDRE.ReplaceAllString(got, "xr-conform-RUN")
-					XEqual(t, "Cleanup failure output", got, expected)
+				if output == "json" {
+					expected = expectedOutput(t,
+						"files/conform-output/mutations-cleanup-failure.json")
+				}
+				got := strings.NewReplacer(
+					server.URL, "http://mutation-test",
+				).Replace(result.Stdout)
+				got = conformRunIDRE.ReplaceAllString(got, "xr-conform-RUN")
+				XEqual(t, "Cleanup failure output", got, expected)
 
-					id := strings.TrimPrefix(path, "/dirs/")
-					XHTTP(t, reg, "GET", path, "", 200, fmt.Sprintf(`{
+				id := strings.TrimPrefix(path, "/dirs/")
+				XHTTP(t, reg, "GET", path, "", 200, fmt.Sprintf(`{
   "dirid": "%s",
   "self": "http://localhost:8181%s",
   "xid": "%s",
@@ -4293,7 +4261,7 @@ Pass: 53   Fail: 4   Warn: 0   Skip: 2
   "filescount": 0
 }
 `, id, path, path, path))
-				})
+			}()
 		}
 	}
 }
@@ -4478,6 +4446,12 @@ func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
 └─ FAIL: TestTDUtils
    ├─ ==== PASSing tests ====
    ├─ PASS: 'GET /' MUST return 200
+   ├─ HTTP status: 200 OK
+   ├─ HTTP body: "{\n  \"specversion\": \"`+SPECVERSION+`\",\n  \"registryid\":
+   │  \"conform-error\",\n  \"self\":
+   │  \"http://localhost:8282/conform-error/\",\n  \"xid\": \"/\",\n
+   │  \"epoch\": 1,\n  \"createdat\": \"2026-01-01T00:00:00Z\",\n
+   │  \"modifiedat\": \"2026-01-01T00:00:00Z\"\n}"
    ├─ PASS: 'GET /' MUST return a non-empty body
    ├─ PASS: 'GET /' MUST return a JSON body
    ├─ PASS: "specversion" (`+SPECVERSION+`) MUST = "`+SPECVERSION+`"

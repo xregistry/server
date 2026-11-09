@@ -59,7 +59,11 @@
                   },
                   {
                     "status": "LOG",
-                    "text": "'GET /model' Body:\n{\n"
+                    "text": "HTTP status: 200 OK"
+                  },
+                  {
+                    "status": "LOG",
+                    "text": "HTTP body: \"{\""
                   },
                   {
                     "status": "PASS",

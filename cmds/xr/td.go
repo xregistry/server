@@ -44,7 +44,6 @@ type TDConfig struct {
 	Output       string
 	Server       string
 	Registry     *registry.Registry
-	Model        *registry.Model
 	Capabilities *Capabilities
 
 	FailFast       bool
@@ -777,7 +776,7 @@ func (td *TD) HTTPGetJSON(path string) *HttpResponse {
 		return nil
 	}
 
-	nTD.httpBodyMustJSON(res, true, "GET %s", path)
+	nTD.HTTPBodyMustJSON(res, "GET %s", path)
 	if nTD.Status == FAIL {
 		return nil
 	}
@@ -789,6 +788,10 @@ func (td *TD) LogHTTP(res *HttpResponse) {
 		td.Log("HTTP response: <nil>")
 		return
 	}
+	if res.Logged {
+		return
+	}
+	res.Logged = true
 
 	if res.Error != nil {
 		td.Log("HTTP error: %s", res.Error)
@@ -872,19 +875,16 @@ func (td *TD) HTTPPropMustBeTimestamp(res *HttpResponse, prop string) {
 }
 
 func (td *TD) HTTPBodyMustJSON(res *HttpResponse, args ...any) {
-	td.httpBodyMustJSON(res, false, args...)
-}
-
-func (td *TD) httpBodyMustJSON(res *HttpResponse, bodyLogged bool,
-	args ...any) {
+	td.LogHTTP(res)
 
 	str := ""
 	if len(args) > 0 {
 		str = "'" + fmt.Sprintf(args[0].(string), args[1:]...) + "' "
 	}
 
-	if !bodyLogged && len(res.Body) < 140 {
-		td.Log("%sBody:\n%s", str, string(res.Body))
+	if res == nil {
+		td.Fail("%sMUST return an HTTP response", str)
+		return
 	}
 	td.Must(len(res.Body) > 0, "%sMUST return a non-empty body", str)
 	td.Must(res.JSON != nil, "%sMUST return a JSON body", str)
@@ -963,18 +963,6 @@ func (td *TD) GetRegistry() *xrlib.CLIReg {
 
 func (td *TD) SetRegistry(r *registry.Registry) *TD {
 	td.Config.Registry = r
-	return td
-}
-
-func (td *TD) GetModel() *registry.Model {
-	if td.Config.Model == nil {
-		td.FailNow("Model isn't set")
-	}
-	return td.Config.Model
-}
-
-func (td *TD) SetModel(m *registry.Model) *TD {
-	td.Config.Model = m
 	return td
 }
 

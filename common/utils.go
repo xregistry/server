@@ -1706,6 +1706,7 @@ type HttpResponse struct {
 	Body   []byte
 	Header http.Header
 	Error  *XRError // same XError the func returns
+	Logged bool     `json:"-"`
 
 	JSON      map[string]any
 	JSONError *XRError // JSON parsing error, if it failed

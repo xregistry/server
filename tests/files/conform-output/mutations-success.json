@@ -2,7 +2,7 @@
   {
     "name": "http://localhost:8181",
     "status": "PASS",
-    "pass": 66,
+    "pass": 63,
     "fail": 0,
     "warn": 0,
     "skip": 2,
@@ -11,7 +11,7 @@
         "subtest": {
           "name": "TestMutations",
           "status": "PASS",
-          "pass": 65,
+          "pass": 62,
           "fail": 0,
           "warn": 0,
           "skip": 2,
@@ -215,7 +215,7 @@
               "subtest": {
                 "name": "Create run-owned Group",
                 "status": "PASS",
-                "pass": 13,
+                "pass": 12,
                 "fail": 0,
                 "warn": 0,
                 "skip": 0,
@@ -238,23 +238,19 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "Group ID MUST match the requested ID"
+                    "text": "\"dirid\" (xr-conform-RUN) MUST = \"xr-conform-RUN\""
                   },
                   {
                     "status": "PASS",
-                    "text": "Group XID MUST match the requested path"
+                    "text": "\"xid\" (/dirs/xr-conform-RUN) MUST = \"/dirs/xr-conform-RUN\""
                   },
                   {
                     "status": "PASS",
-                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                    "text": "\"epoch\" (1) MUST be an exact uinteger less than 2^53"
                   },
                   {
                     "status": "PASS",
-                    "text": "\"filescount\" (0) MUST \u003e= 0"
-                  },
-                  {
-                    "status": "PASS",
-                    "text": "files count MUST be zero"
+                    "text": "\"filescount\" (0) MUST = 0"
                   },
                   {
                     "status": "PASS",
@@ -275,7 +271,7 @@
               "subtest": {
                 "name": "Read run-owned Group",
                 "status": "PASS",
-                "pass": 12,
+                "pass": 11,
                 "fail": 0,
                 "warn": 0,
                 "skip": 0,
@@ -306,23 +302,19 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "Group ID MUST match the requested ID"
+                    "text": "\"dirid\" (xr-conform-RUN) MUST = \"xr-conform-RUN\""
                   },
                   {
                     "status": "PASS",
-                    "text": "Group XID MUST match the requested path"
+                    "text": "\"xid\" (/dirs/xr-conform-RUN) MUST = \"/dirs/xr-conform-RUN\""
                   },
                   {
                     "status": "PASS",
-                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                    "text": "\"epoch\" (1) MUST be an exact uinteger less than 2^53"
                   },
                   {
                     "status": "PASS",
-                    "text": "\"filescount\" (0) MUST \u003e= 0"
-                  },
-                  {
-                    "status": "PASS",
-                    "text": "files count MUST be zero"
+                    "text": "\"filescount\" (0) MUST = 0"
                   },
                   {
                     "status": "PASS",
@@ -330,7 +322,7 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "Group epoch MUST remain unchanged"
+                    "text": "\"epoch\" (1) MUST = 1"
                   }
                 ]
               }
@@ -339,30 +331,26 @@
               "subtest": {
                 "name": "Clean up run-owned Group",
                 "status": "PASS",
-                "pass": 11,
+                "pass": 10,
                 "fail": 0,
                 "warn": 0,
                 "skip": 0,
                 "entries": [
                   {
                     "status": "PASS",
-                    "text": "Group ID MUST match the requested ID"
+                    "text": "\"dirid\" (xr-conform-RUN) MUST = \"xr-conform-RUN\""
                   },
                   {
                     "status": "PASS",
-                    "text": "Group XID MUST match the requested path"
+                    "text": "\"xid\" (/dirs/xr-conform-RUN) MUST = \"/dirs/xr-conform-RUN\""
                   },
                   {
                     "status": "PASS",
-                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                    "text": "\"epoch\" (1) MUST be an exact uinteger less than 2^53"
                   },
                   {
                     "status": "PASS",
-                    "text": "\"filescount\" (0) MUST \u003e= 0"
-                  },
-                  {
-                    "status": "PASS",
-                    "text": "files count MUST be zero"
+                    "text": "\"filescount\" (0) MUST = 0"
                   },
                   {
                     "status": "PASS",
@@ -370,7 +358,7 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "Group epoch MUST remain unchanged"
+                    "text": "\"epoch\" (1) MUST = 1"
                   },
                   {
                     "status": "PASS",
