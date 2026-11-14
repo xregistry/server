@@ -17674,6 +17674,8 @@ function saveResourceFields(gk, rk) {
     else if (v === false) res[f] = false ;
     else delete res[f] ;
   }) ;
+  var tm = collectTypeMap('ef_typemap') ;
+  if (Object.keys(tm).length) res.typemap = tm ; else delete res.typemap ;
   var lbls = collectLabels('ef_labels') ;
   if (Object.keys(lbls).length) res.labels = lbls ; else delete res.labels ;
   var newKey = plural || rk ;
@@ -17752,6 +17754,7 @@ function renderResourceFields(div, gk, rk) {
   var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
   optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
   div.appendChild(boolGrid) ;
+  div.appendChild(makeTypeMapEditor('ef_typemap', r.typemap||{})) ;
   div.appendChild(makeLabelsEditor('ef_labels', r.labels||{})) ;
 }
 
@@ -18317,6 +18320,56 @@ function collectLabels(containerId) {
     if (k) labels[k] = v ;
   }) ;
   return labels ;
+}
+
+// Resource "typemap": contenttype (may contain a '*') -> string|json|binary
+function makeTypeMapEditor(containerId, tm) {
+  var sec = document.createElement('div') ;
+  var hdr = document.createElement('div') ; hdr.className = 'editorSectionLabel' ;
+  hdr.textContent = 'Type Map' ; sec.appendChild(hdr) ;
+  if (_modelReadOnly && Object.keys(tm).length === 0) {
+    var none = document.createElement('span') ; none.textContent = '\u2014 none \u2014' ;
+    none.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
+    sec.appendChild(none) ; return sec ;
+  }
+  var rowsDiv = document.createElement('div') ; rowsDiv.className = 'labelsRows' ;
+  rowsDiv.id = containerId ;
+  if (!_modelReadOnly) {
+    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn editorBtnSmall' ;
+    addBtn.textContent = '+ Add' ; addBtn.title = 'Add Type Map entry' ;
+    addBtn.onclick = function() { rowsDiv.appendChild(makeTypeMapRow('', 'string')) ; markDirty() ; } ;
+    hdr.appendChild(addBtn) ;
+  }
+  Object.keys(tm).forEach(function(k) { rowsDiv.appendChild(makeTypeMapRow(k, tm[k])) ; }) ;
+  sec.appendChild(rowsDiv) ;
+  return sec ;
+}
+
+function makeTypeMapRow(k, v) {
+  var row = document.createElement('div') ; row.className = 'labelRow typemapRow' ;
+  var ki = document.createElement('input') ; ki.type = 'text' ; ki.placeholder = 'contenttype (e.g. text/*)' ;
+  ki.value = k ; ki.className = 'editorInput labelKey' ;
+  var sel = document.createElement('select') ; sel.className = 'editorInput labelVal' ;
+  var vals = ['string', 'json', 'binary'] ;
+  if (v && vals.indexOf(String(v).toLowerCase()) === -1) vals.push(v) ;
+  vals.forEach(function(o) {
+    var opt = document.createElement('option') ; opt.value = o ; opt.textContent = o ;
+    if (String(v).toLowerCase() === o.toLowerCase()) opt.selected = true ;
+    sel.appendChild(opt) ;
+  }) ;
+  var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
+  rb.onclick = function() { confirmDel('this type map entry', function() { row.remove() ; markDirty() ; }) ; } ;
+  row.appendChild(ki) ; row.appendChild(sel) ; row.appendChild(rb) ; return row ;
+}
+
+function collectTypeMap(containerId) {
+  var container = document.getElementById(containerId) ; var tm = {} ;
+  if (!container) return tm ;
+  container.querySelectorAll('.typemapRow').forEach(function(row) {
+    var k = row.querySelector('input').value.trim() ;
+    if (k) tm[k] = row.querySelector('select').value ;
+  }) ;
+  return tm ;
 }
 
 function makeEnumEditor(containerId, values) {

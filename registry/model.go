@@ -2827,7 +2827,14 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 	}
 
 	// Make sure the typemap's values are just certain strings
-	for _, v := range rm.TypeMap {
+	for k, v := range rm.TypeMap {
+		if k == "" {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Resource %q has an empty 'typemap' key",
+						rmName))
+		}
+		v = strings.ToLower(v)
 		if v != "string" && v != "json" && v != "binary" {
 			return NewXRError("model_error", "/model",
 				"error_detail="+
@@ -3186,11 +3193,22 @@ func (rm *ResourceModel) GetBaseAttributes() Attributes {
 }
 
 func (rm *ResourceModel) AddTypeMap(ct string, format string) *XRError {
+	format = strings.ToLower(format)
 	if format != "binary" && format != "json" && format != "string" {
 		return NewXRError("model_error", "/model",
 			"error_detail="+
 				fmt.Sprintf("invalid typemap format: %q", format))
 	}
+
+	if ct == "" {
+		return NewXRError("model_error", "/model",
+			"error_detail=typemap key must not be empty")
+	}
+
+	if xErr := rm.RemoveTypeMap(ct); xErr != nil {
+		return xErr
+	}
+
 	if rm.TypeMap == nil {
 		rm.TypeMap = map[string]string{}
 	}
@@ -3205,7 +3223,14 @@ func (rm *ResourceModel) RemoveTypeMap(ct string) *XRError {
 	if rm.TypeMap == nil {
 		return nil
 	}
-	delete(rm.TypeMap, ct)
+	ct = strings.ToLower(ct)
+	for k, _ := range rm.TypeMap {
+		if ct == strings.ToLower(k) {
+			delete(rm.TypeMap, k)
+			break
+		}
+	}
+
 	if len(rm.TypeMap) == 0 {
 		rm.TypeMap = nil
 	}
@@ -3222,7 +3247,7 @@ func (rm *ResourceModel) MapContentType(ct string) string {
 	result := ""
 
 	// Strip all parameters
-	ct, _ = strings.CutSuffix(ct, ";")
+	ct, _, _ = strings.Cut(ct, ";")
 	ct = strings.ToLower(strings.TrimSpace(ct))
 	if ct == "" {
 		return "binary"
@@ -3230,6 +3255,7 @@ func (rm *ResourceModel) MapContentType(ct string) string {
 
 	for k, v := range rm.TypeMap {
 		k = strings.ToLower(k)
+		v = strings.ToLower(v)
 		if Match(k, ct) {
 			// We got another match but it's a different value, so "binary"
 			if result != "" && result != v {

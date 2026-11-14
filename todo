@@ -32,7 +32,6 @@ TODOs:
 - add tests to make sure changing spec defined attributes are still valid
 - add tests for immutable attributes
 - test filtering on bool attributes where they search for attr=false
-- add model tests for typemap - just that we can set via full model updates
 - create an UpdateDefaultVersion func in resource.go to move it from http logic
 - see if we can create a $RESOURCEid SpecProp for Version&Meta level and then
   use "$SINGULRid" for everything including Versions, but not Meta
