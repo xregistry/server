@@ -772,7 +772,7 @@ func TestMiscTestLogging(t *testing.T) {
 			`.*`+
 			`^`+ts+` .* tx: [a-zA-Z0-9]+ Query: $`+
 			`.*`+
-			`^`+ts+` .* HTTPGet time: [0-9]+\.[0-9]+.?s$`)
+			`^`+ts+` .* HTTPGet time: [0-9]+(\.[0-9]+)?.?s$`)
 
 	log.Reset(nil)
 }
