@@ -2346,10 +2346,7 @@ func TestXRGet(t *testing.T) {
 	os.Setenv("XR_SERVER", "localhost:8181")
 
 	clog := t.TempDir() + "/clog"
-	os.Setenv("XR_HTTP_LOG", clog)
-	defer func() {
-		os.Unsetenv("XR_HTTP_LOG")
-	}()
+	defer SetHTTPLog(clog)()
 
 	// Empty registry
 	XCLI(t, "get", "", `{
@@ -2654,10 +2651,7 @@ func TestXRModify(t *testing.T) {
 	os.Setenv("XR_SERVER", "localhost:8181")
 
 	clog := t.TempDir() + "/clog"
-	os.Setenv("XR_HTTP_LOG", clog)
-	defer func() {
-		os.Unsetenv("XR_HTTP_LOG")
-	}()
+	defer SetHTTPLog(clog)()
 
 	// Test while there is no model
 	XCLI(t, "create /", "", "",
@@ -2874,10 +2868,7 @@ func TestXRModifyDetails(t *testing.T) {
 	os.Setenv("XR_SERVER", "localhost:8181")
 
 	clog := t.TempDir() + "/clog"
-	os.Setenv("XR_HTTP_LOG", clog)
-	defer func() {
-		os.Unsetenv("XR_HTTP_LOG")
-	}()
+	defer SetHTTPLog(clog)()
 
 	for _, arg := range []string{
 		"$details", "/$details", "dirs$details", "dirs/$details",
@@ -2934,10 +2925,7 @@ func TestXRModifyForce(t *testing.T) {
 	os.Setenv("XR_SERVER", "localhost:8181")
 
 	clog := t.TempDir() + "/clog"
-	os.Setenv("XR_HTTP_LOG", clog)
-	defer func() {
-		os.Unsetenv("XR_HTTP_LOG")
-	}()
+	defer SetHTTPLog(clog)()
 
 	XCLI(t, "create -f /", "", "",
 		"To create a registry use the 'xrserver registry create' command.\n",
