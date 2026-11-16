@@ -17740,7 +17740,7 @@ function renderResourceFields(div, gk, rk) {
   div.appendChild(ef('ef_modelversion', 'Model Version', r.modelversion||'')) ;
   div.appendChild(ef('ef_modelcompatiblewith', 'ModelCompatibleWith', r.modelcompatiblewith||'')) ;
   div.appendChild(efNum('ef_maxversions', 'Max Versions', r.maxversions)) ;
-  div.appendChild(ef('ef_versionmode', 'Version Mode', r.versionmode||'')) ;
+  div.appendChild(efVersionModeRow('ef_versionmode', r.versionmode||'')) ;
   var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
   div.appendChild(optSec) ;
   var optList = [
@@ -18215,6 +18215,49 @@ function efIconPreview(row) {
   inp.addEventListener('input', refresh) ;
   row.appendChild(img) ;
   return row ;
+}
+
+// Drop-down variant of ef(). options is a function returning the current
+// list of allowed values (called again once async data arrives, see
+// efVersionModeRow()). The current value is always kept as an option so
+// that an existing, no-longer-offered value isn't silently lost on save.
+function efSelect(id, label, value, getOptions) {
+  var row = document.createElement('div') ; row.className = 'editorField' ;
+  var lbl = document.createElement('label') ; lbl.textContent = label + ':' ;
+  var sel = document.createElement('select') ;
+  sel.id = id ; sel.className = 'editorInput' ;
+  function fill() {
+    var cur = sel.options.length ? sel.value : value ;
+    var vals = (getOptions() || []).slice() ;
+    if (cur && vals.indexOf(cur) === -1) vals.unshift(cur) ;
+    sel.innerHTML = '' ;
+    var blank = document.createElement('option') ;
+    blank.value = '' ; blank.textContent = '\u2014' ;
+    sel.appendChild(blank) ;
+    vals.forEach(function(v) {
+      var o = document.createElement('option') ;
+      o.value = v ; o.textContent = v ; sel.appendChild(o) ;
+    }) ;
+    sel.value = cur || '' ;
+  }
+  fill() ;
+  row.appendChild(lbl) ; row.appendChild(sel) ;
+  return {row: row, refill: fill} ;
+}
+
+// "Version Mode" drop-down for a Resource Type, offering the values from the
+// server's /capabilities "versionmodes" entry. The capabilities doc may not
+// be cached yet, so the list is refreshed once it loads.
+function efVersionModeRow(id, value) {
+  var base = (_state.serverURL || DEFAULT_SERVER_ORIGIN).replace(/\/$/, '') ;
+  var key = normalizeURL(base) ;
+  function modes() {
+    var cap = _capCache[key] ;
+    return (cap && cap.versionmodes) || [] ;
+  }
+  var s = efSelect(id, 'Version Mode', value, modes) ;
+  if (!_capCache.hasOwnProperty(key)) ensureCapCached(base, s.refill) ;
+  return s.row ;
 }
 
 function efNum(id, label, value) {
