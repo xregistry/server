@@ -52,7 +52,6 @@ TODOs:
 - add tests for immutable attributes - in particular extensions
 - see if we can add RESOURCEid to Versions so we don't need special logic
   to exclude them in the code (e.g. in rID's updatefn and validateobj)
-** make sure that maxversions=0 when we only support 1 means sitcky must be false
 - verify readonly attrs are ignored on writes, but readonly resources generate an error
 - add tests for POST / and POST /GROUPS/gID with filters and inlining
 ** find a way to define rules to enforce constraints for extensions w/o making
@@ -75,7 +74,6 @@ TODOs:
   can point to a resource or a version
 ** support and test "versionmode"
 ** support "xr model group/resource create/update" with "--data"
-** add support for setversionid, and flag an error when not allowed
 ** support/test case insensitive capability keys/values
 - add tests for xr model group update/upsert/create & --flags
 - make tests so they don't use model.verifyandsave - should go thru modelsource
