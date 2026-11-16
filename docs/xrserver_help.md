@@ -7,6 +7,7 @@ The `xrserver` CLI boots and manages the API server and backing database:
 The `.xrserver` config file (default location: $HOME) supports:
 
 ```
+backend: STRING             # Persistence layer ("mysql"*)
 db.host: STRING             # Hostname of MySQL server
 db.name: STRING             # MySQL DB name
 db.password: STRING         # MySQL DB password
@@ -15,10 +16,10 @@ db.user: STRING             # MySQL DB username
 defaultreg: STRING          # Default xRegistry name (for HOST/xreg path)
 http.addr: STRING           # HTTP listen address (":PORT")
 http.port: INTEGER          # HTTP listen port
-path.defaultreg: STRING     # HTTP path of default xReg ("xreg")
-path.regcollection: STRING  # HTTP path of xReg collection ("xregs")
-path.ui: STRING             # HTTP path of UI (eg: "ui" -> HOST/ui)
-rootapp: ui|xreg            # What should HOST/ return, UI or default xReg?
+path.defaultreg: STRING     # HTTP path of default xReg ("xreg"*)
+path.regcollection: STRING  # HTTP path of xReg collection ("xregs"*)
+path.ui: STRING             # HTTP path of UI (eg: "ui"* -> HOST/ui)
+rootapp: ui|xreg            # What should HOST/ return, UI* or default xReg?
 ui.dir: STRING              # Directory of the UI static web pages
 ui.xrui.json: STRING        # Path to xrui.json config file for the UI
 ```

@@ -49,7 +49,7 @@ Usage:
 	XNoErr(t, err)
 	lines, _, _ = strings.Cut(string(out), "Available Commands:")
 	exp := `2025/05/21 19:01:39 GitCommit: 8061f34abf
-2025/05/21 19:01:39 DB: registry@localhost:3306
+2025/05/21 19:01:39 Backend: mysql(registry@localhost:3306)
 2025/05/21 19:01:39 Path: /ui -> UI
 2025/05/21 19:01:39 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
 2025/05/21 19:01:39 Path: / -> ` + regCollectionSegment + `/xRegistry
@@ -63,9 +63,9 @@ Usage:
 	lines = re.ReplaceAllString(lines, "GitCommit: <n/a>\n")
 	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
-	re = regexp.MustCompile(`DB: registry@.*:3306`)
-	lines = re.ReplaceAllString(lines, "DB: registry@xxx:3306")
-	exp = re.ReplaceAllString(exp, "DB: registry@xxx:3306")
+	re = regexp.MustCompile(`Backend: mysql\(registry@.*:3306\)`)
+	lines = re.ReplaceAllString(lines, "Backend: mysql(registry@xxx:3306)")
+	exp = re.ReplaceAllString(exp, "Backend: mysql(registry@xxx:3306)")
 
 	// Just look for the first 3 lines
 	XEqual(t, "", lines, exp)
@@ -89,7 +89,7 @@ func TestXRServerRecreates(t *testing.T) {
 
 	exp := `
 2025/10/14 12:20:01 GitCommit: f680917749
-2025/10/14 12:20:01 DB: registry@localhost:3306
+2025/10/14 12:20:01 Backend: mysql(registry@localhost:3306)
 2025/10/14 12:20:01 Deleting DB: registry
 2025/10/14 12:20:01 Creating DB: registry
 2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
@@ -107,9 +107,9 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "GitCommit: <n/a>\n")
 	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
-	re = regexp.MustCompile(`DB: registry@.*:3306`)
-	out = re.ReplaceAllString(out, "DB: registry@xxx:3306")
-	exp = re.ReplaceAllString(exp, "DB: registry@xxx:3306")
+	re = regexp.MustCompile(`Backend: mysql\(registry@.*:3306\)`)
+	out = re.ReplaceAllString(out, "Backend: mysql(registry@xxx:3306)")
+	exp = re.ReplaceAllString(exp, "Backend: mysql(registry@xxx:3306)")
 
 	XEqual(t, "", out, exp)
 
@@ -123,7 +123,7 @@ func TestXRServerRecreates(t *testing.T) {
 
 	exp = `
 2025/10/14 12:20:01 GitCommit: f680917749
-2025/10/14 12:20:01 DB: registry@localhost:3306
+2025/10/14 12:20:01 Backend: mysql(registry@localhost:3306)
 2025/10/14 12:20:01 Deleting xReg: xRegistry
 2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
@@ -140,9 +140,9 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "GitCommit: <n/a>\n")
 	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
-	re = regexp.MustCompile(`DB: registry@.*:3306`)
-	out = re.ReplaceAllString(out, "DB: registry@xxx:3306")
-	exp = re.ReplaceAllString(exp, "DB: registry@xxx:3306")
+	re = regexp.MustCompile(`Backend: mysql\(registry@.*:3306\)`)
+	out = re.ReplaceAllString(out, "Backend: mysql(registry@xxx:3306)")
+	exp = re.ReplaceAllString(exp, "Backend: mysql(registry@xxx:3306)")
 
 	XEqual(t, "", out, exp)
 
@@ -157,7 +157,7 @@ func TestXRServerRecreates(t *testing.T) {
 
 	exp = `
 2025/10/14 12:20:01 GitCommit: f680917749
-2025/10/14 12:20:01 DB: registry@localhost:3306
+2025/10/14 12:20:01 Backend: mysql(registry@localhost:3306)
 2025/10/14 12:20:01 Deleting DB: registry
 2025/10/14 12:20:01 Creating DB: registry
 2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
@@ -175,9 +175,9 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "GitCommit: <n/a>\n")
 	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
-	re = regexp.MustCompile(`DB: registry@.*:3306`)
-	out = re.ReplaceAllString(out, "DB: registry@xxx:3306")
-	exp = re.ReplaceAllString(exp, "DB: registry@xxx:3306")
+	re = regexp.MustCompile(`Backend: mysql\(registry@.*:3306\)`)
+	out = re.ReplaceAllString(out, "Backend: mysql(registry@xxx:3306)")
+	exp = re.ReplaceAllString(exp, "Backend: mysql(registry@xxx:3306)")
 
 	XEqual(t, "", out, exp)
 }
@@ -213,7 +213,7 @@ func TestXRServerCmds(t *testing.T) {
 			Stdin: "",
 			Code:  1,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: sha\n" +
-				"YYYY/MM/DD HH:MM:SS DB: registry@host:port\n" +
+				"YYYY/MM/DD HH:MM:SS Backend: mysql(registry@host:port)\n" +
 				"YYYY/MM/DD HH:MM:SS DB \"registry\" does not exist\n",
 		},
 		{
@@ -239,7 +239,7 @@ func TestXRServerCmds(t *testing.T) {
 			Stdin: "",
 			Code:  1,
 			Experr: "2025/10/15 19:46:51 GitCommit: 687dd7425c\n" +
-				"2025/10/15 19:46:51 DB: registry@localhost:3306\n" +
+				"2025/10/15 19:46:51 Backend: mysql(registry@localhost:3306)\n" +
 				"2025/10/15 19:46:51 Registry \"xRegistry\" does not exist\n",
 		},
 		{
@@ -294,7 +294,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 			Stdin: "",
 			Code:  0,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
-				"YYYY/MM/DD HH:MM:SS DB: registry@localhost:3306\n" +
+				"YYYY/MM/DD HH:MM:SS Backend: mysql(registry@localhost:3306)\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /ui -> UI\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /" + defaultRegSegment + " -> " + regCollectionSegment + "/testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Path: / -> " + regCollectionSegment + "/testreg\n" +
@@ -305,7 +305,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 			Stdin: "",
 			Code:  0,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
-				"YYYY/MM/DD HH:MM:SS DB: registry@localhost:3306\n" +
+				"YYYY/MM/DD HH:MM:SS Backend: mysql(registry@localhost:3306)\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /ui -> UI\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /" + defaultRegSegment + " -> " + regCollectionSegment + "/testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Path: / -> " + regCollectionSegment + "/testreg\n" +
@@ -316,7 +316,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 			Stdin: "",
 			Code:  0,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
-				"YYYY/MM/DD HH:MM:SS DB: registry@localhost:3306\n" +
+				"YYYY/MM/DD HH:MM:SS Backend: mysql(registry@localhost:3306)\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /ui -> UI\n" +
 				"YYYY/MM/DD HH:MM:SS Path: /" + defaultRegSegment + " -> " + regCollectionSegment + "/testreg\n" +
 				"YYYY/MM/DD HH:MM:SS Path: / -> " + uiSegment + "\n" +
@@ -395,7 +395,7 @@ path.regcollection: more
 	runRes.Wait() // Should generate an error on startup
 
 	XEqual(t, "", string(runRes.Err),
-		"^(?m)^.*DB: XREG@localhost:4321(\n|.)*connection refused")
+		"^(?m)^.*Backend: mysql\\(XREG@localhost:4321\\)(\n|.)*connection refused")
 
 	// Make DB host/port good - test other DB stuff
 	XNoErr(t, os.Setenv("DBHOST", "127.0.0.1"))
@@ -494,7 +494,7 @@ path.regcollection: more
 	XNoErr(t, xErr)
 
 	// Check we got db.name too
-	XEqual(t, "", string(runRes.Err), "^(?m)^.*DB: XREG@.*:3306")
+	XEqual(t, "", string(runRes.Err), "^(?m)^.*Backend: mysql\\(XREG@.*:3306\\)")
 
 	// Check: rootapp & indirectly path.regcollection
 	XEqual(t, "", string(runRes.Err), "^(?m)^.*Path: / -> more/xRegistry")

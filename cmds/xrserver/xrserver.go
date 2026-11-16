@@ -245,7 +245,8 @@ func runFunc(cmd *cobra.Command, args []string) {
 
 	PanicIf(GitCommit == "" || GitCommit == "<n/a>", "GitCommit isn't set")
 	Verbose("GitCommit: %.12s", GitCommit)
-	Verbose("DB: %s@%s:%s",
+	Verbose("Backend: %s(%s@%s:%s)",
+		registry.DefaultBackendName(XRSConfig),
 		DBName,
 		XRSConfig.GetAsString("db.host"),
 		XRSConfig.GetAsString("db.port"))
