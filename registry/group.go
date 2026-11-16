@@ -488,8 +488,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	meta.RemoveReadOnlyImmutable(metaObj)
 
 	if ru.DefaultVersionID != "" {
-		meta.JustSet("defaultversionid", ru.DefaultVersionID)
-		meta.JustSet("defaultversionsticky", true)
+		xErr = meta.JustSet("defaultversionid", ru.DefaultVersionID)
+		if xErr != nil {
+			return nil, false, xErr
+		}
+		xErr = meta.JustSet("defaultversionsticky", true)
+		if xErr != nil {
+			return nil, false, xErr
+		}
 	}
 
 	// Now we have a Resource.
@@ -515,12 +521,18 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		if objXref == false || (okObj && IsNil(objXref)) ||
 			(hasMeta && !okObj && metaAddType != ADD_PATCH) {
 			hasXref = false
-			meta.JustSet("xref", nil)
+			xErr = meta.JustSet("xref", nil)
+			if xErr != nil {
+				return nil, false, xErr
+			}
 			// This is also done in the upsertMeta call but we need it
 			// now so that the upsertVersion below uses "1" and not "2+"
 			// TODO see if we can clean-up this dup
 			// DUG
-			meta.JustSet("#nextversionid", 1)
+			xErr = meta.JustSet("#nextversionid", 1)
+			if xErr != nil {
+				return nil, false, xErr
+			}
 
 			// Treat it like a new resource // DUG clean up dup with above
 			// Grab Resource's defaultVersionID from either the incoming
@@ -538,7 +550,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	} else {
 		if okObj && objXref != "" {
 			hasXref = true
-			meta.JustSet("xref", objXref)
+			xErr = meta.JustSet("xref", objXref)
+			if xErr != nil {
+				return nil, false, xErr
+			}
 		}
 	}
 

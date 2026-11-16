@@ -106,14 +106,14 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
-			reg.Rollback()
+			reg.Rollback() //xrlint:ignore
 			return reg
 		}
 
 		reg, xErr = registry.NewRegistry(nil, XRSConfig, "APIs-Guru")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		// Verbose( "New registry:\n%#v", reg)
-		defer reg.Rollback()
+		defer reg.Rollback() //xrlint:ignore
 
 		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
 		ErrFatalf(reg.SetSave("name", "APIs-guru Registry"))
@@ -132,6 +132,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	g, xErr := newModel.AddGroupModel("apiproviders", "apiprovider")
 	ErrFatalf(xErr)
 	r, xErr := g.AddResourceModel("apis", "api", 2, true, true)
+	ErrFatalf(xErr)
 	_, xErr = r.AddAttr("format", STRING)
 	ErrFatalf(xErr)
 
@@ -228,7 +229,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	}
 
 	ErrFatalf(reg.Model.Verify())
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 	return reg
 }
 
@@ -242,13 +243,13 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
-			reg.Rollback()
+			reg.Rollback() //xrlint:ignore
 			return reg
 		}
 
 		reg, xErr = registry.NewRegistry(nil, XRSConfig, "TestRegistry")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
-		defer reg.Rollback()
+		defer reg.Rollback() //xrlint:ignore
 	}
 
 	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
@@ -264,13 +265,13 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
-			reg.Rollback()
+			reg.Rollback() //xrlint:ignore
 			return reg
 		}
 
 		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Endpoints")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
-		defer reg.Rollback()
+		defer reg.Rollback() //xrlint:ignore
 
 		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
 		ErrFatalf(reg.SetSave("name", "Endpoints Registry"))
@@ -324,7 +325,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(g.SetSave("epoch", 1))
 
 	ErrFatalf(reg.Model.Verify())
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 	return reg
 }
 
@@ -335,18 +336,18 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
-			reg.Rollback()
+			reg.Rollback() //xrlint:ignore
 			return reg
 		}
 
 		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Messages")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
-		defer reg.Rollback()
+		defer reg.Rollback() //xrlint:ignore
 
-		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
-		reg.SetSave("name", "Messages Registry")
-		reg.SetSave("description", "An impl of the sages spec")
-		reg.SetSave("documentation", "https://github.com/xregistry/server")
+		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
+		ErrFatalf(reg.SetSave("name", "Messages Registry"))
+		ErrFatalf(reg.SetSave("description", "An impl of the sages spec"))
+		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 	}
 
 	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
@@ -359,7 +360,7 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 	// End of model
 
 	ErrFatalf(reg.Model.Verify())
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 	return reg
 }
 
@@ -370,18 +371,18 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
-			reg.Rollback()
+			reg.Rollback() //xrlint:ignore
 			return reg
 		}
 
 		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Schemas")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
-		defer reg.Rollback()
+		defer reg.Rollback() //xrlint:ignore
 
-		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
-		reg.SetSave("name", "Schemas Registry")
-		reg.SetSave("description", "An impl of the schemas spec")
-		reg.SetSave("documentation", "https://github.com/xregistry/server")
+		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
+		ErrFatalf(reg.SetSave("name", "Schemas Registry"))
+		ErrFatalf(reg.SetSave("description", "An impl of the schemas spec"))
+		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 	}
 
 	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
@@ -394,7 +395,7 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 	// End of model
 
 	ErrFatalf(reg.Model.Verify())
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 	return reg
 }
 
@@ -406,18 +407,18 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
-			reg.Rollback()
+			reg.Rollback() //xrlint:ignore
 			return reg
 		}
 
 		reg, xErr = registry.NewRegistry(nil, XRSConfig, "Large")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
-		defer reg.Rollback()
+		defer reg.Rollback() //xrlint:ignore
 
-		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
-		reg.SetSave("name", "Large Registry")
-		reg.SetSave("description", "A large Registry")
-		reg.SetSave("documentation", "https://github.com/xregistry/server")
+		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
+		ErrFatalf(reg.SetSave("name", "Large Registry"))
+		ErrFatalf(reg.SetSave("description", "A large Registry"))
+		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 	}
 
 	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
@@ -425,8 +426,10 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 
 	newModel := &registry.Model{}
 
-	gm, _ := newModel.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	gm, xErr := newModel.AddGroupModel("dirs", "dir")
+	ErrFatalf(xErr)
+	_, xErr = gm.AddResourceModel("files", "file", 0, true, true)
+	ErrFatalf(xErr)
 
 	ErrFatalf(reg.SetModel(newModel, nil, true))
 
@@ -456,7 +459,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	// End of model
 
 	ErrFatalf(reg.Model.Verify())
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 	dur := time.Now().Sub(start).Round(time.Second)
 	Verbose("Done loading registry: %s (time: %s)", reg.UID, dur)
 	Verbose("Dirs: %d  Files: %d  Versions: %d", dirs, files, vers)
@@ -470,18 +473,18 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
-			reg.Rollback()
+			reg.Rollback() //xrlint:ignore
 			return reg
 		}
 
 		reg, xErr = registry.NewRegistry(nil, XRSConfig, "DocStore")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
-		defer reg.Rollback()
+		defer reg.Rollback() //xrlint:ignore
 
-		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
-		reg.SetSave("name", "DocStore Registry")
-		reg.SetSave("description", "A doc store Registry")
-		reg.SetSave("documentation", "https://github.com/xregistry/server")
+		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
+		ErrFatalf(reg.SetSave("name", "DocStore Registry"))
+		ErrFatalf(reg.SetSave("description", "A doc store Registry"))
+		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 	}
 
 	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
@@ -502,56 +505,60 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
     }
     `), true))
 
-	g, _ := reg.AddGroup("documents", "mydoc1")
-	g.SetSave("labels.group", "g1")
+	g, xErr := reg.AddGroup("documents", "mydoc1")
+	ErrFatalf(xErr)
+	ErrFatalf(g.SetSave("labels.group", "g1"))
 
 	r, xErr := g.AddResource("docformats", "json", "v1")
 	ErrFatalf(xErr)
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 
 	g, xErr = reg.FindGroup("documents", "mydoc1", FOR_READ)
 	ErrFatalf(xErr)
 	r, xErr = g.FindResource("docformats", "json", FOR_WRITE)
 	ErrFatalf(xErr)
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 
-	r.SetSaveDefault("contenttype", "application/json")
-	r.SetSaveDefault("docformat", `{"prop": "A document 1"}`)
+	ErrFatalf(r.SetSaveDefault("contenttype", "application/json"))
+	ErrFatalf(r.SetSaveDefault("docformat", `{"prop": "A document 1"}`))
 
 	r, xErr = g.AddResource("docformats", "xml", "v1")
 	ErrFatalf(xErr)
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 	r, xErr = g.FindResource("docformats", "xml", FOR_WRITE)
 	ErrFatalf(xErr)
 
-	r.SetSaveDefault("contenttype", "application/xml")
-	r.SetSaveDefault("docformat", `<elem title="A document 1"/>`)
+	ErrFatalf(r.SetSaveDefault("contenttype", "application/xml"))
+	ErrFatalf(r.SetSaveDefault("docformat", `<elem title="A document 1"/>`))
 
-	g, _ = reg.AddGroup("documents", "mydoc2")
-	r, _ = g.AddResource("docformats", "json", "v1")
-	reg.SaveAllAndCommit()
+	g, xErr = reg.AddGroup("documents", "mydoc2")
+	ErrFatalf(xErr)
+	r, xErr = g.AddResource("docformats", "json", "v1")
+	ErrFatalf(xErr)
+	ErrFatalf(reg.SaveAllAndCommit())
 
 	g, xErr = reg.FindGroup("documents", "mydoc2", FOR_READ)
 	ErrFatalf(xErr)
 	r, xErr = g.FindResource("docformats", "json", FOR_WRITE)
 	ErrFatalf(xErr)
 
-	r.SetSaveDefault("contenttype", "application/json")
-	r.SetSaveDefault("docformat", `{"prop": "A document 2"}`)
+	ErrFatalf(r.SetSaveDefault("contenttype", "application/json"))
+	ErrFatalf(r.SetSaveDefault("docformat", `{"prop": "A document 2"}`))
 
-	r, _ = g.AddResource("docformats", "xml", "v1")
-	reg.SaveAllAndCommit()
+	r, xErr = g.AddResource("docformats", "xml", "v1")
+	ErrFatalf(xErr)
+	ErrFatalf(reg.SaveAllAndCommit())
 	g, xErr = reg.FindGroup("documents", "mydoc2", FOR_READ)
 	ErrFatalf(xErr)
 	r, xErr = g.FindResource("docformats", "xml", FOR_WRITE)
 	ErrFatalf(xErr)
-	r.SetSaveDefault("contenttype", "application/xml")
-	r.SetSaveDefault("docformat", `<elem title="A document 2"/>`)
+	ErrFatalf(r.SetSaveDefault("contenttype", "application/xml"))
+	ErrFatalf(r.SetSaveDefault("docformat", `<elem title="A document 2"/>`))
 
 	// End of model
 
 	ErrFatalf(reg.Model.Verify())
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 	return reg
 }
 
@@ -563,18 +570,18 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 			FOR_WRITE)
 		ErrFatalf(xErr)
 		if reg != nil {
-			reg.Rollback()
+			reg.Rollback() //xrlint:ignore
 			return reg
 		}
 
 		reg, xErr = registry.NewRegistry(nil, XRSConfig, "CloudEvents")
 		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
-		defer reg.Rollback()
+		defer reg.Rollback() //xrlint:ignore
 
-		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
-		reg.SetSave("name", "CloudEvents Registry")
-		reg.SetSave("description", "An impl of the CloudEvents xReg spec")
-		reg.SetSave("documentation", "https://github.com/xregistry/server")
+		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
+		ErrFatalf(reg.SetSave("name", "CloudEvents Registry"))
+		ErrFatalf(reg.SetSave("description", "An impl of the CloudEvents xReg spec"))
+		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 	}
 
 	regCollectionSegment := XRSConfig.GetAsString("path.regcollection")
@@ -729,6 +736,6 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 		}
 	}
 
-	reg.SaveAllAndCommit()
+	ErrFatalf(reg.SaveAllAndCommit())
 	return reg
 }

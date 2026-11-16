@@ -4510,21 +4510,17 @@ Pass: 16   Fail: 17   Warn: 1   Skip: 3
 Pass: 366   Fail: 0   Warn: 0   Skip: 0
 `, ``, 0)
 
-	// Test how int checks look
+	// Test network issue
 	XCLI(t, "conform -s localhost:8888", "",
-		`FAIL: http://localhost:8888
+		`^FAIL: http://localhost:8888
 └─ FAIL: TestRegistry
    ├─ FAIL: TestSniff
    │  ├─ Server URL: http://localhost:8888
-   │  ├─ FAIL: 'GET /' MUST return 200
-   │  │  ├─ Exp(int): 200
-   │  │  └─ Got(int): 0
-   │  ├─ 'GET /' Body:
-   │  │  
-   │  ├─ FAIL: 'GET /' MUST return a non-empty body
-   │  └─ FAIL: 'GET /' MUST return a JSON body
+   │  └─ Unexpected error: There was an error talking to the server
+   │     \(http://localhost:8888/\): Get "http://localhost:8888/": dial tcp
+   │     .*:8888: connect: connection refused.
    └─ Dependency "TestSniff" failed, leaving
-Pass: 0   Fail: 6   Warn: 0   Skip: 0
+Pass: 0   Fail: 3   Warn: 0   Skip: 0
 `, ``, 1)
 }
 

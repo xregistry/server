@@ -111,8 +111,7 @@ TODOs:
 ** see what it would take to support a registry proxy (at the group level) that
    would expose lots of registries as a single one.
 - only check-in the generated files for xregistry.io, not hub.xreg.io
-- get rid of default writer if we can
-- new http header name/value processing (escaping both, list(,) support)
+** new http header name/value processing (escaping both, list(,) support)
 - test xr cmds to make sure we only send minimal # of commands
 - xr update dirs/d1/files/f1 --set name=foo when "fileurl" is set fails
   - why does it GET dirs/d1/files/abc instead of just "abc" ?
@@ -129,7 +128,6 @@ TODOs:
   - make RequestInfo more generic - try to remove http specifics
   - try to remove the net/http import from jsonWriter, registry and info
   - Consider a Backend.Open() and one backend per server
-  - turn on --xrerror in xrlint
 - move #attrs into system props if we can
 - make backend define what capabilities are available
 - consider a CLIContext (to hold XRConfig/BE/tx) so we don't get a new tx per

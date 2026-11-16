@@ -13,13 +13,15 @@ func TestSniff(td *TD) {
 	reg := td.GetRegistry()
 	td.Log("Server URL: %s", reg.GetServerURL())
 
-	res, _ := HttpDo(&HttpRequest{
+	res, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     td.GetRegistry().WithPath("/"),
 		Headers: xrlib.HTTPHeaders,
 		Body:    nil,
 		Debug:   VerboseCount > 2,
 	})
+	td.NoErrorStop(xErr)
+
 	td.HTTPStatusMustEqual(res, 200, "GET /")
 	td.HTTPBodyMustJSON(res, "GET /")
 }
@@ -38,13 +40,15 @@ func TestModel(td *TD) {
 	td.DependsOn(TestSniff)
 	reg := td.GetRegistry()
 
-	res, _ := HttpDo(&HttpRequest{
+	res, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     td.GetRegistry().WithPath("/model"),
 		Headers: xrlib.HTTPHeaders,
 		Body:    nil,
 		Debug:   VerboseCount > 2,
 	})
+	td.NoErrorStop(xErr)
+
 	// td.Log("Model: %s", string(res.Body))
 	td.HTTPStatusMustEqual(res, 200, "GET /model")
 	td.HTTPBodyMustJSON(res, "GET /model")
@@ -93,13 +97,15 @@ func TestCapabilities(td *TD) {
 	// supported
 
 	// Load from /capabilities first
-	res1, _ := HttpDo(&HttpRequest{
+	res1, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     td.GetRegistry().WithPath("/capabilities"),
 		Headers: xrlib.HTTPHeaders,
 		Body:    nil,
 		Debug:   VerboseCount > 2,
 	})
+	td.NoErrorStop(xErr)
+
 	td.HTTPStatusMustEqual(res1, 200, "GET /capabilities")
 	td.HTTPBodyMustJSON(res1, "GET /capabilities")
 
@@ -108,13 +114,15 @@ func TestCapabilities(td *TD) {
 	nTD.NoError(xErr)
 
 	// Load from / and make sure 'capabilities' isn't there w/o ?inline
-	res2, _ := HttpDo(&HttpRequest{
+	res2, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     td.GetRegistry().WithPath("/"),
 		Headers: xrlib.HTTPHeaders,
 		Body:    nil,
 		Debug:   VerboseCount > 2,
 	})
+	td.NoErrorStop(xErr)
+
 	td.HTTPStatusMustEqual(res2, 200, "GET /")
 	td.HTTPBodyMustJSON(res2, "GET /")
 	_, ok := td.GetObjProp(res2.JSON, "capabilities")
@@ -125,13 +133,15 @@ func TestCapabilities(td *TD) {
 	nTD = NewTD(td, "Testing ?inline=capabilities")
 	if reg.Capabilities.FlagEnabled("inline") {
 		// Load from / and look for "capabilities" attribute
-		res2, _ = HttpDo(&HttpRequest{
+		res2, xErr = HttpDo(&HttpRequest{
 			Verb:    "GET",
 			URL:     td.GetRegistry().WithPath("/?inline=capabilities"),
 			Headers: xrlib.HTTPHeaders,
 			Body:    nil,
 			Debug:   VerboseCount > 2,
 		})
+		td.NoErrorStop(xErr)
+
 		// td.Log("Capabilities: %s", string(res2.Body))
 		nTD.HTTPStatusMustEqual(res2, 200, "GET /?inline=capabilities")
 		nTD.HTTPBodyMustJSON(res2, "GET /?inline=capabilities")
@@ -171,13 +181,14 @@ func TestRegistryRoot(td *TD) {
 	reg := td.GetRegistry()
 
 	// Get the root so we can check its attributes
-	res, _ := HttpDo(&HttpRequest{
+	res, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     td.GetRegistry().WithPath("/"),
 		Headers: xrlib.HTTPHeaders,
 		Body:    nil,
 		Debug:   VerboseCount > 2,
 	})
+	td.NoErrorStop(xErr)
 
 	td.HTTPStatusMustEqual(res, 200, "GET /")
 	td.HTTPBodyMustJSON(res, "GET /")
@@ -188,7 +199,7 @@ func TestRegistryRoot(td *TD) {
 	td.ObjReqMustNe(res.JSON, "self", "")
 	reg.SetStuff("self", MustString(res.JSON["self"]))
 
-	_, xErr := (*registry.Registry)(reg).GetCapabilities()
+	_, xErr = (*registry.Registry)(reg).GetCapabilities()
 	td.NoErrorStop(xErr, "Retrieving capabilities MUST work")
 
 	if reg.Capabilities == nil {
@@ -245,13 +256,15 @@ func TestGroups(td *TD) {
 	for _, groupType := range SortedKeys(reg.Model.Groups) {
 		gm := reg.Model.Groups[groupType]
 		gmPath := "/" + gm.Plural
-		gmRes, _ := HttpDo(&HttpRequest{
+		gmRes, xErr := HttpDo(&HttpRequest{
 			Verb:    "GET",
 			URL:     td.GetRegistry().WithPath(gmPath),
 			Headers: xrlib.HTTPHeaders,
 			Body:    nil,
 			Debug:   VerboseCount > 2,
 		})
+		td.NoErrorStop(xErr)
+
 		td.HTTPStatusMustEqual(gmRes, 200, "GET "+gmPath)
 		td.HTTPBodyMustJSON(gmRes, "GET "+gmPath)
 
@@ -271,13 +284,15 @@ func TestGroups(td *TD) {
 			gTD := NewTD(td, "Group: %s", id)
 			gPath := gmPath + "/" + id
 
-			gRes, _ := HttpDo(&HttpRequest{
+			gRes, xErr := HttpDo(&HttpRequest{
 				Verb:    "GET",
 				URL:     td.GetRegistry().WithPath(gPath),
 				Headers: xrlib.HTTPHeaders,
 				Body:    nil,
 				Debug:   VerboseCount > 2,
 			})
+			td.NoErrorStop(xErr)
+
 			gTD.HTTPStatusMustEqual(gRes, 200, "GET "+gPath)
 			gTD.HTTPBodyMustJSON(gRes, "GET "+gPath)
 
@@ -402,13 +417,15 @@ func TestResources(td *TD) {
 			rm := gm.Resources[k]
 
 			rPath := groupPath + "/" + rm.Plural
-			rmRes, _ := HttpDo(&HttpRequest{
+			rmRes, xErr := HttpDo(&HttpRequest{
 				Verb:    "GET",
 				URL:     td.GetRegistry().WithPath(rPath),
 				Headers: xrlib.HTTPHeaders,
 				Body:    nil,
 				Debug:   VerboseCount > 2,
 			})
+			td.NoErrorStop(xErr)
+
 			td.HTTPStatusMustEqual(rmRes, 200, "GET "+rPath)
 			td.HTTPBodyMustJSON(rmRes, "GET "+rPath)
 
@@ -429,13 +446,15 @@ func TestResources(td *TD) {
 				// TODO conditional $details - check xReg http headers
 				rPath := rPath + "/" + k + "$details"
 
-				rRes, _ := HttpDo(&HttpRequest{
+				rRes, xErr := HttpDo(&HttpRequest{
 					Verb:    "GET",
 					URL:     td.GetRegistry().WithPath(rPath),
 					Headers: xrlib.HTTPHeaders,
 					Body:    nil,
 					Debug:   VerboseCount > 2,
 				})
+				td.NoErrorStop(xErr)
+
 				rTD.HTTPStatusMustEqual(rRes, 200, "GET "+rPath)
 				if rRes == nil {
 					break

@@ -714,7 +714,9 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 
 	// Make sure we always have an ID
 	if IsNil(meta.NewObject[r.Singular+"id"]) {
-		meta.JustSet(r.Singular+"id", r.UID)
+		if xErr := meta.JustSet(r.Singular+"id", r.UID); xErr != nil {
+			return nil, false, xErr
+		}
 	}
 
 	if mu.Obj != nil {
@@ -826,8 +828,12 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			if targetEpoch > newEpoch {
 				newEpoch = targetEpoch
 			}
-			meta.JustSet("epoch", newEpoch)
-			meta.JustSet("#epoch", nil)
+			if xErr := meta.JustSet("epoch", newEpoch); xErr != nil {
+				return nil, false, xErr
+			}
+			if xErr := meta.JustSet("#epoch", nil); xErr != nil {
+				return nil, false, xErr
+			}
 			// We have to fake out the updateFn to think the existing values
 			// are the # values
 			meta.EpochSet = false
@@ -841,12 +847,20 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			// If xref was previously set then make sure we reset
 			// our nextversionid counter to 1
 			if !IsNil(meta.Object["xref"]) {
-				meta.JustSet("#nextversionid", 1)
+				if xErr := meta.JustSet("#nextversionid", 1); xErr != nil {
+					return nil, false, xErr
+				}
 			}
 
 			if IsNil(meta.NewObject["createdat"]) {
-				meta.JustSet("createdat", meta.Object["#createdat"])
-				meta.JustSet("#createdat", nil)
+				xErr := meta.JustSet("createdat", meta.Object["#createdat"])
+				if xErr != nil {
+					return nil, false, xErr
+				}
+				xErr = meta.JustSet("#createdat", nil)
+				if xErr != nil {
+					return nil, false, xErr
+				}
 				meta.Object["createdat"] = meta.Object["#createdat"]
 			}
 
@@ -867,7 +881,10 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 					if xErr != nil {
 						return nil, false, xErr
 					}
-					meta.JustSet("defaultversionid", defVer)
+					xErr = meta.JustSet("defaultversionid", defVer)
+					if xErr != nil {
+						return nil, false, xErr
+					}
 				}
 			}
 		} else {
@@ -886,13 +903,19 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				// needing a special case.
 				oldEpoch = 1
 			}
-			meta.JustSet("#epoch", oldEpoch)
+			xErr := meta.JustSet("#epoch", oldEpoch)
+			if xErr != nil {
+				return nil, false, xErr
+			}
 
 			oldCA := meta.Object["createdat"]
 			if IsNil(oldCA) {
 				oldCA = meta.Tx.CreateTime
 			}
-			meta.JustSet("#createdat", oldCA)
+			xErr = meta.JustSet("#createdat", oldCA)
+			if xErr != nil {
+				return nil, false, xErr
+			}
 
 			// meta.JustSet("createdat", nil)
 
@@ -911,7 +934,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			}
 			if len(extraAttrs) > 0 {
 				sort.Strings(extraAttrs)
-				xErr := NewXRError("extra_xref_attribute", meta.XID,
+				xErr = NewXRError("extra_xref_attribute", meta.XID,
 					"name="+extraAttrs[0],
 					"singular="+r.ResourceModel.Singular)
 				if len(extraAttrs) > 1 {
@@ -921,7 +944,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				return nil, false, xErr
 			}
 
-			if xErr := meta.JustSet("xref", xref); xErr != nil {
+			if xErr = meta.JustSet("xref", xref); xErr != nil {
 				return nil, false, xErr
 			}
 
@@ -953,7 +976,10 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 
 	if oldSticky != true && newDefID == "" {
-		meta.JustSet("defaultversionid", "")
+		xErr = meta.JustSet("defaultversionid", "")
+		    if xErr != nil {
+		     return nil, false, xErr
+		    }
 	}
 	*/
 
@@ -975,7 +1001,10 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		}
 
 		if newSticky != true {
-			meta.JustSet("defaultversionid", "")
+			xErr := meta.JustSet("defaultversionid", "")
+			if xErr != nil {
+				return nil, false, xErr
+			}
 		}
 
 		r.Tx.AddResourceToValidate(r, true, false)
@@ -1075,7 +1104,10 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			nextID++
 
 			if realXID == "" {
-				meta.JustSet("#nextversionid", nextID)
+				xErr = meta.JustSet("#nextversionid", nextID)
+				if xErr != nil {
+					return nil, false, xErr
+				}
 				break
 			}
 		}

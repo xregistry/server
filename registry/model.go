@@ -2664,7 +2664,12 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 
 	var caps *Capabilities
 	if reg := rm.GroupModel.Model.Registry; reg != nil {
-		caps, _ = reg.GetCapabilities()
+		var xErr *XRError
+
+		caps, xErr = reg.GetCapabilities()
+		if xErr != nil {
+			return xErr
+		}
 	}
 	if caps != nil && caps.MaxVersionsLimit > 0 {
 		limit := caps.MaxVersionsLimit
