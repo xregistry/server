@@ -625,8 +625,9 @@ func HTTPGETContent(info *registry.RequestInfo) *XRError {
 		if attr.Type == MAP && registry.IsScalar(attr.Item.Type) {
 			for name, value := range val.(map[string]any) {
 				// Should only ever be one of each xRegistry header
-				httpWriter.SetHeader("xRegistry-"+key+"."+name,
-					fmt.Sprintf("%v", value))
+				httpWriter.SetHeader(
+					"xRegistry-"+key+"."+EncodeHeaderName(name),
+					EncodeHeaderValue(fmt.Sprintf("%v", value)))
 			}
 			return nil
 		}
@@ -643,6 +644,10 @@ func HTTPGETContent(info *registry.RequestInfo) *XRError {
 		}
 
 		str := fmt.Sprintf("%v", val)
+		if headerName == "xRegistry-"+key {
+			// Native headers (e.g. Content-Type) keep their own syntax
+			str = EncodeHeaderValue(str)
+		}
 		// As above, should only ever be one of these
 		httpWriter.AddHeader(headerName, str)
 
@@ -2522,6 +2527,13 @@ func ExtractIncomingObject(info *registry.RequestInfo, body []byte) (Object, *XR
 			}
 
 			key = strings.TrimSpace(key[10:]) // remove xRegistry-
+			if dk, err := url.PathUnescape(key); err != nil {
+				return nil, NewXRError("header_error", "/"+info.OriginalPath,
+					"name=xRegistry-"+key,
+					"error_detail="+err.Error())
+			} else {
+				key = dk
+			}
 			if key == "" {
 				return nil, NewXRError("header_error", "/"+info.OriginalPath,
 					"name=xRegistry-",
@@ -2546,7 +2558,13 @@ func ExtractIncomingObject(info *registry.RequestInfo, body []byte) (Object, *XR
 				}
 			}
 
-			val := any(value[0])
+			decoded, err := DecodeHeaderValue(value[0])
+			if err != nil {
+				return nil, NewXRError("header_error", "/"+info.OriginalPath,
+					"name=xRegistry-"+key,
+					"error_detail="+err.Error())
+			}
+			val := any(decoded)
 			if val == "null" {
 				val = nil
 			}

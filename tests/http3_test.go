@@ -5477,3 +5477,122 @@ func TestHTTPAllow(t *testing.T) {
 `,
 	})
 }
+
+func TestHTTPHeaderEncoding(t *testing.T) {
+	reg := NewRegistry("TestHTTPHeaderEncoding")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "PUT - encoded values and names",
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-name: Euro %E2%82%AC   %F0%9F%98%80",
+			`xRegistry-description: "  A   spacey,  %22string%22  "`,
+			"xRegistry-labels.org%3Ateam: hr:dept1",
+			"xRegistry-labels.pct: %25 is cool",
+		},
+		ReqBody:     "hello",
+		Code:        201,
+		HeaderMasks: []string{},
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 1",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xRegistry-xid: /dirs/d1/files/f1",
+			"xRegistry-epoch: 1",
+			"xRegistry-name: Euro %E2%82%AC   %F0%9F%98%80",
+			"xRegistry-isdefault: true",
+			`xRegistry-description: "%20%20A   spacey,  %22string%22%20%20"`,
+			"xRegistry-labels.org%3Ateam: hr:dept1",
+			"xRegistry-labels.pct: %25 is cool",
+			"xRegistry-createdat: 2024-01-01T12:00:01Z",
+			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
+			"xRegistry-ancestorid: 1",
+			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xRegistry-versionscount: 1",
+			"Location: http://localhost:8181/dirs/d1/files/f1",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"content-disposition: inline; filename=\"f1\"",
+			"Content-Length: 5",
+		},
+		ResBody: `hello`,
+	})
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "Euro €   😀",
+  "isdefault": true,
+  "description": "  A   spacey,  \"string\"  ",
+  "labels": {
+    "org:team": "hr:dept1",
+    "pct": "% is cool"
+  },
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "Bad percent encoding in value",
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-name: bad%G1",
+		},
+		ReqBody:     "",
+		Code:        400,
+		HeaderMasks: []string{},
+		ResHeaders:  []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#header_error",
+  "title": "For \"/dirs/d1/files/f1\", there was an error processing HTTP header \"xRegistry-name\": invalid percent-encoding at \"%G1\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "error_detail": "invalid percent-encoding at \"%G1\"",
+    "name": "xRegistry-name"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "Unterminated group",
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			`xRegistry-name: "oops`,
+		},
+		ReqBody:     "",
+		Code:        400,
+		HeaderMasks: []string{},
+		ResHeaders:  []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#header_error",
+  "title": "For \"/dirs/d1/files/f1\", there was an error processing HTTP header \"xRegistry-name\": unterminated double-quote.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "error_detail": "unterminated double-quote",
+    "name": "xRegistry-name"
+  },
+  "instance": "xxx",
+  "source": "xxx"
+}
+`,
+	})
+}

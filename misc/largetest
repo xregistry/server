@@ -30,6 +30,7 @@
 # 035a8ce55604 2m12s   2m38s  34s     Remove defaultWriter
 # af1e4527e1ab 2m20s   2m36s  33s     Remove shared* files
 # 4ef52aea3e73 2m6s    2m33s  34s     Remove lowerxid index/col
+# 0077577064ff 1m31s   2m20s  35s     Remove mysql prepare
 
 set -e
 
