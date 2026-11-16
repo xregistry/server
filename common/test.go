@@ -25,7 +25,7 @@ var REG_LOGDATE = `(?m)^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `
 var REG_RFC3339 = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2})`
 var REG_TSSLASH = `\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`
 var REG_COMMIT = `GitCommit: [0-9a-f]*\n`
-var REG_DBHOST = `DB: .*`
+var REG_DBHOST = `Backend: .*`
 var REG_INSTANCE = `"instance": "[a-zA-Z0-9]+"`
 var REG_SOURCE = `"source": "[^"]*"`
 var REG_MASK_CONFORM_PASS = `(?m)^Pass: [0-9]*`
@@ -141,8 +141,8 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 		got = SavedREs[REG_COMMIT].ReplaceAllString(got, "GitCommit: sha\n")
 		exp = SavedREs[REG_COMMIT].ReplaceAllString(exp, "GitCommit: sha\n")
 
-		got = SavedREs[REG_DBHOST].ReplaceAllString(got, "DB: name@host:port")
-		exp = SavedREs[REG_DBHOST].ReplaceAllString(exp, "DB: name@host:port")
+		got = SavedREs[REG_DBHOST].ReplaceAllString(got, "Backend: be(name@host:port)")
+		exp = SavedREs[REG_DBHOST].ReplaceAllString(exp, "Backend: be(name@host:port)")
 	}
 
 	if !flagsMap[NOMASK_INSTANCE] {

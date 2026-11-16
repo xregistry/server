@@ -162,6 +162,13 @@ func (td *TD) Dump(indent string) {
 	}
 }
 
+func (td *TD) String() string {
+	str := strings.Builder{}
+
+	td.Print(&str, "", 0)
+	return str.String()
+}
+
 func (td *TD) Print(out io.Writer, indent string, depth int) {
 	goDeep := depth >= 0 || td.Status == FAIL ||
 		(td.Config.ShowWarns && td.NumWarn > 0) ||

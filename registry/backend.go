@@ -1,20 +1,24 @@
 package registry
 
 import (
+	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
+
+const DEFAULT_BACKEND = "mysql"
 
 type BackendInfo struct {
 	Name    string
 	NewFunc func(c *Config) (Backend, *XRError)
 }
 
-var RegisteredBackends = map[string]*BackendInfo{}
+var RegisteredBackends = map[string]*BackendInfo{} // Name->BackendInfo
 
 func RegisterBackend(name string, fn func(c *Config) (Backend, *XRError)) *XRError {
+	log.VPrintf(3, "Registering backend: %s", name)
 	if RegisteredBackends[name] != nil {
 		return NewXRError("server_error", "/").
-			SetDetailf("Duplicate backend registered: %s", name)
+			SetDetailf("Duplicate backend registered: %s.", name)
 	}
 
 	RegisteredBackends[name] = &BackendInfo{
@@ -26,12 +30,35 @@ func RegisterBackend(name string, fn func(c *Config) (Backend, *XRError)) *XRErr
 }
 
 func NewDefaultBackend(c *Config) (Backend, *XRError) {
-	for _, rbe := range RegisteredBackends {
-		return rbe.NewFunc(c)
+	backendName := DefaultBackendName(c)
+
+	if len(RegisteredBackends) == 0 {
+		return nil, NewXRError("server_error", "/").
+			SetDetailf("No backends registered.")
 	}
 
-	return nil, NewXRError("server_error", "/").
-		SetDetailf("No backends registered")
+	be := RegisteredBackends[backendName]
+	if be == nil {
+		return nil, NewXRError("server_error", "/").
+			SetDetailf("Default backend (%s) can't be found.", backendName)
+	}
+
+	return be.NewFunc(c)
+}
+
+func DefaultBackendName(c *Config) string {
+	backendName := c.GetAsString("backend")
+	if backendName == "" {
+		backendName = DEFAULT_BACKEND
+	}
+
+	// If this backend isn't actually there, then if there's only one, use it
+	l := len(RegisteredBackends)
+	if l != 0 && RegisteredBackends[backendName] == nil && l == 1 {
+		backendName = Keys(RegisteredBackends)[0]
+	}
+
+	return backendName
 }
 
 func MustNewDefaultBackend(c *Config) Backend {
