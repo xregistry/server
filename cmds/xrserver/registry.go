@@ -111,7 +111,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 				FOR_READ)
 			ErrStop(err, "Error retrieving the registry: %s", err)
 
-			tx.Rollback()
+			tx.Rollback() //xrlint:ignore
 
 			if reg == nil {
 				Stop("Registry %q does not exist", args[0])
@@ -166,7 +166,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			}
 			tw.Flush()
 
-			tx.Rollback()
+			tx.Rollback() //xrlint:ignore
 		},
 	}
 	registryCmd.AddCommand(listCmd)
