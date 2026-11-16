@@ -111,7 +111,6 @@ TODOs:
 ** see what it would take to support a registry proxy (at the group level) that
    would expose lots of registries as a single one.
 - only check-in the generated files for xregistry.io, not hub.xreg.io
-** new http header name/value processing (escaping both, list(,) support)
 - test xr cmds to make sure we only send minimal # of commands
 - xr update dirs/d1/files/f1 --set name=foo when "fileurl" is set fails
   - why does it GET dirs/d1/files/abc instead of just "abc" ?
