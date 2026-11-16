@@ -68,6 +68,52 @@ func prepare(tx *registry.Tx, query string) (*sql.Stmt, *XRError) {
 	return ps, nil
 }
 
+// By default statements are sent directly (one round trip, args interpolated
+// by the driver via interpolateParams=true). Set XR_PREPARE=1 to go back to
+// explicit server-side Prepare/Exec/Close, e.g. for benchmarking.
+var usePrepare = os.Getenv("XR_PREPARE") != ""
+
+type querier struct {
+	tx    *sql.Tx
+	query string
+	ps    *sql.Stmt
+}
+
+func newQuerier(tx *registry.Tx, query string) (*querier, *XRError) {
+	if usePrepare {
+		ps, xErr := prepare(tx, query)
+		if xErr != nil {
+			return nil, xErr
+		}
+		return &querier{ps: ps}, nil
+	}
+
+	if xErr := tx.EnsureTx(); xErr != nil {
+		return nil, xErr
+	}
+	return &querier{tx: tx.Tx.(*sql.Tx), query: query}, nil
+}
+
+func (q *querier) Close() {
+	if q.ps != nil {
+		q.ps.Close()
+	}
+}
+
+func (q *querier) Query(args ...any) (*sql.Rows, error) {
+	if q.ps != nil {
+		return q.ps.Query(args...)
+	}
+	return q.tx.Query(q.query, args...)
+}
+
+func (q *querier) Exec(args ...any) (sql.Result, error) {
+	if q.ps != nil {
+		return q.ps.Exec(args...)
+	}
+	return q.tx.Exec(q.query, args...)
+}
+
 type Result struct {
 	Tx       *registry.Tx
 	sqlRows  *sql.Rows
@@ -289,16 +335,16 @@ func Query(tx *registry.Tx, cmd string, args ...interface{}) (*Result, *XRError)
 		log.Printf("tx: %s Query: %s", tx.UUID, SubQuery(cmd, args))
 	}
 
-	ps, xErr := prepare(tx, cmd)
+	q, xErr := newQuerier(tx, cmd)
 	if doTime {
 		pTime = time.Now()
 	}
 	if xErr != nil {
 		return nil, xErr
 	}
-	defer ps.Close()
+	defer q.Close()
 
-	rows, err := ps.Query(args...)
+	rows, err := q.Query(args...)
 	if doTime {
 		qTime = time.Now()
 	}
@@ -368,13 +414,13 @@ func Do(tx *registry.Tx, cmd string, args ...interface{}) (int, *XRError) {
 		panic("Tx is locked!!")
 	}
 
-	ps, xErr := prepare(tx, cmd)
+	q, xErr := newQuerier(tx, cmd)
 	if xErr != nil {
 		return 0, xErr
 	}
-	defer ps.Close()
+	defer q.Close()
 
-	result, err := ps.Exec(args...)
+	result, err := q.Exec(args...)
 	if err != nil {
 		return 0, NewXRError("server_error", "/").
 			SetDetailf("Do: Error DB(%s)->%s.", SubQuery(cmd, args), err).

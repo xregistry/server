@@ -3026,7 +3026,7 @@ func GenerateQuery(reg *registry.Registry, what string, XIDs []string) (string, 
   LEFT JOIN Props AS sj ON (
     sj.RegistrySID = ft.RegistrySID AND
     sj.XID = substring_index(ft.XID, '/', ` + slashCount + `) AND
-    sj.PropName = '` + sortKey + `')
+    sj.PropName = ?)
 `
 	}
 
@@ -3120,6 +3120,11 @@ func GenerateQuery(reg *registry.Registry, what string, XIDs []string) (string, 
 	if len(filters) != 0 {
 		query = "WITH RECURSIVE " + filterCTE + "\n"
 		args = append(args, filterArgs...)
+	}
+	if sortKey != "" {
+		// Placeholder order must match the SQL: sortJoin (FROM) comes
+		// before the WHERE's RegistrySID
+		args = append(args, sortKey)
 	}
 	args = append(args, reg.SID)
 	query += `
