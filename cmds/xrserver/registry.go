@@ -140,7 +140,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 		Use:   "list",
 		Short: "List the registries",
 		Run: func(cmd *cobra.Command, args []string) {
-			ids, err := registry.GetRegistryNames(XRSConfig)
+			ids, err := registry.GetRegistryNames(XRSConfig, nil)
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,

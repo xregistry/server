@@ -472,7 +472,7 @@ func HTTPGETXRegistryDiscovery(info *registry.RequestInfo) *XRError {
 
 	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
-	names, xErr := registry.GetRegistryNames(info.XRSConfig)
+	names, xErr := registry.GetRegistryNames(info.XRSConfig, info.Tx)
 	if xErr != nil {
 		return xErr
 	}

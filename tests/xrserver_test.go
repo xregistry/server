@@ -13,6 +13,7 @@ import (
 )
 
 func TestXRServerBasic(t *testing.T) {
+	SkipIfNotMySQL(t)                      // expects mysql output
 	XNoErr(t, os.Setenv("HOME", "/nodir")) // make sure we don't find one
 
 	cmd := exec.Command("../xrserver", "-?")
@@ -73,6 +74,7 @@ Usage:
 }
 
 func TestXRServerRecreates(t *testing.T) {
+	SkipIfNotMySQL(t) // expects mysql output
 	// Granted we're just checking log messages... maybe one day we'll
 	// check the DB itself to make sure the logs aren't lying
 
@@ -183,6 +185,7 @@ func TestXRServerRecreates(t *testing.T) {
 }
 
 func TestXRServerCmds(t *testing.T) {
+	SkipIfNotMySQL(t) // expects mysql output
 	xrsConfig := registry.NewXRServerConfig("")
 	registry.SetXRServerConfigFromEnvVars(xrsConfig)
 	defaultRegSegment := xrsConfig.GetAsString("path.defaultreg")
@@ -332,6 +335,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 }
 
 func TestXRServerConfig(t *testing.T) {
+	SkipIfNotMySQL(t) // expects mysql output
 	tmphome := t.TempDir()
 
 	configStr := `# a config file

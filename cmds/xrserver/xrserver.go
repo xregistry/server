@@ -12,6 +12,7 @@ import (
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
 	xrhttp "github.com/xregistry/server/registry/http"
+	_ "github.com/xregistry/server/registry/memory"
 	_ "github.com/xregistry/server/registry/mysql"
 )
 
@@ -124,6 +125,8 @@ func setupCmds() *cobra.Command {
 		"Config file ($HOME/"+ConfigFileName+")")
 	serverCmd.PersistentFlags().StringArray("cset", nil,
 		"Override configFile property: --cset NAME[:VALUE]")
+	serverCmd.PersistentFlags().StringP("backend", "", "",
+		"Backend type: mysql*, memory (env: XR_BACKEND)")
 	serverCmd.PersistentFlags().StringP("db", "", registry.DefDBName,
 		"DB name ("+registry.DefDBName+"*)")
 	serverCmd.Flag("db").DefValue = "" // hide default text
@@ -204,6 +207,7 @@ func setupCmds() *cobra.Command {
 		registry.SetXRServerConfigFromEnvVars(XRSConfig)
 
 		//  Override with cmd-line params
+		XRSConfig.SetFromCmd("backend", cmd, "backend")
 		XRSConfig.SetFromCmd("db.name", cmd, "db")
 		XRSConfig.SetFromCmd("db.host", cmd, "dbhost")
 		XRSConfig.SetFromCmdInt("db.port", cmd, "dbport")

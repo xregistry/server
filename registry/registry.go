@@ -891,6 +891,7 @@ func NewXRServerConfig(fileName string) *Config {
 }
 
 func SetXRServerConfigFromEnvVars(xrsConfig *Config) *Config {
+	xrsConfig.SetFromEnv("backend", "XR_BACKEND")
 	xrsConfig.SetFromEnv("db.name", "DBNAME")
 	xrsConfig.SetFromEnv("db.host", "DBHOST")
 	xrsConfig.SetFromEnv("db.port", "DBPORT")
@@ -1052,13 +1053,19 @@ func (r *Registry) Validate() *XRError {
 	return nil
 }
 
-func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
+// If tx is nil a temporary Tx is used. Pass an existing Tx when one is open
+// since some backends serialize Txs and a second one would block.
+func GetRegistryNames(xrsConfig *Config, tx *Tx) ([]string, *XRError) {
+	if tx != nil {
+		return tx.Backend.ListRegistries(tx)
+	}
+
 	be, xErr := NewDefaultBackend(xrsConfig)
 	if xErr != nil {
 		return nil, xErr
 	}
 
-	tx, xErr := NewTx(NewUUID(), xrsConfig, be)
+	tx, xErr = NewTx(NewUUID(), xrsConfig, be)
 	if xErr != nil {
 		return nil, xErr
 	}

@@ -23,6 +23,7 @@ import (
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
 	xrhttp "github.com/xregistry/server/registry/http"
+	_ "github.com/xregistry/server/registry/memory"
 	"github.com/xregistry/server/registry/mysql"
 )
 
@@ -66,6 +67,18 @@ const MODEL_DIRS_NODOC = `{
     }
   }
 }`
+
+func IsMySQL() bool {
+	return registry.DefaultBackendName(XRServerConfig) == "mysql"
+}
+
+func SkipIfNotMySQL(t *testing.T) {
+	t.Helper()
+	if !IsMySQL() {
+		t.Skip("mysql-specific test, backend is " +
+			registry.DefaultBackendName(XRServerConfig))
+	}
+}
 
 func TestMain(m *testing.M) {
 	if tmp := os.Getenv("RX_VERBOSE"); tmp != "" {

@@ -17,6 +17,7 @@ import (
 )
 
 func TestMiscDBRows(t *testing.T) {
+	SkipIfNotMySQL(t) // uses raw SQL
 	// Make sure we don't create extra extra stuff in the DB.
 	reg := NewRegistry("TestMiscDBRows")
 	defer PassDeleteReg(t, reg)
@@ -616,6 +617,7 @@ func TestMiscConcurrency(t *testing.T) {
 // eventually lock a pair of rows in reverse order relative to each
 // other - exactly what triggers InnoDB's deadlock detector (1213).
 func TestMiscDeadlockRetry(t *testing.T) {
+	SkipIfNotMySQL(t) // relies on DB row-lock conflicts
 	reg := NewRegistry("TestMiscDeadlockRetry")
 
 	// Capture the server's log output so we can confirm the "Retrying"
@@ -707,6 +709,7 @@ func (b *SyncBuffer) Clear() {
 }
 
 func TestMiscTestLogging(t *testing.T) {
+	SkipIfNotMySQL(t) // checks logged SQL queries
 	buf := &SyncBuffer{}
 	saveVerbose := log.Clone()
 	saveWriter := log.Writer()

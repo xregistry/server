@@ -1,7 +1,7 @@
 all: dev run
 
 # Normal dev items
-dev: mysql cmds docs test images
+dev: cmds docs test images
 
 # Run for each PR
 pr: clean dev benchmark
@@ -80,6 +80,8 @@ xrlint: .xrlint
 		common/* tests/*
 	@echo
 	@echo "# Running xrlint looking for source issues"
+	@! grep -e '	' registry/mysql/init.sql || \
+		(echo "Remove tabs in init.db";exit 1)
 	@misc/errOutput @go run ./cmds/xrlint --unused=false \
 		./registry/... ./common/... ./cmds/... ./tests/...
 	@touch .xrlint
@@ -100,9 +102,7 @@ qtest: .qtest
 .qtest: .cmds */*test.go $(FORCETEST)
 	@make mysql waitformysql
 	@echo
-	@echo "# Testing"
-	@! grep -e '	' registry/mysql/init.sql || \
-		(echo "Remove tabs in init.db";exit 1)
+	@echo "# Testing with mysql backend"
 	@if curl localhost:8080 > /dev/null 2>&1 ; then \
      	echo "Stop server on :8080 first" ; exit 1 ; \
 	 else true ; fi
@@ -111,27 +111,38 @@ qtest: .qtest
 	@$(TIMEIT) for s in $(TESTDIRS); do \
 		if ! $(GO_TEST) $$s; then exit 1; fi; done $(SED)
 	@# go test -failfast $(TESTDIRS)
-	@echo
 ifndef TEST
     # If we asked for certain tests, don't touch the target file
 	@touch .qtest
 endif
 
+mtest: .mtest
+.mtest: .cmds */*test.go
+	@echo
+	@echo "# Testing with in-memory backend"
+	@go clean -testcache
+	@echo XR_BACKEND=memory go test -failfast $(TESTDIRS)
+	@$(TIMEIT) XR_BACKEND=memory $(GO_TEST) $(TESTDIRS) $(SED)
+ifndef TEST
+	@touch .mtest
+endif
+
 ftest: .ftest
 .ftest: .cmds */*test.go .qtest
-	@echo "# Run tests w/o deleting the Registry after each one"
+	@echo
+	@echo "# Testing with mysql w/o deleting the Registry after each one"
 	@go clean -testcache
 	@echo NO_DELETE_REGISTRY=1 go test -failfast $(TESTDIRS)
 	@$(TIMEIT) NO_DELETE_REGISTRY=1 $(GO_TEST) $(TESTDIRS) $(SED)
 	@touch .ftest
 
 test: .test
-.test: .xrlint .errors .qtest .ftest .testimages
+.test: .xrlint .errors .mtest .qtest .ftest .testimages
 	@msg=`gofmt -l .` && [ -z "$$msg" ] || \
 		( echo -e "\n**** Run gofmt:\n$$msg\n" ; exit 1 )
 	@touch .test
 
-benchmark: .cmds .ftest
+benchmark: .cmds .mtest .ftest
 	@misc/largetest
 
 # specattrs.js is checked in so that people can download it w/o needing to
@@ -377,7 +388,7 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .errors .xrlint .cmds .utest .qtest .ftest .test \
+	@rm -f .errors .xrlint .cmds .utest .mtest .qtest .ftest .test \
 		.testimages .devimage .images .push \
 		.xr-all .xrserver-all
 	@go clean -cache -testcache
