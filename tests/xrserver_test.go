@@ -613,3 +613,91 @@ path.regcollection: more
 	// TODO check to make sure cmd line flags override the non-DB stuff
 
 }
+
+func TestXRServerBackend(t *testing.T) {
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+	defer SetClearEnvVar("XR_BACKEND", "")()
+
+	// Make sure we start clean
+	XServer(t, "db delete registry", "", "", "*", -1)
+
+	XServer(t, "-vv --verify", "", "", `2026/11/17 18:50:55 GitCommit: 9441c254163e
+2026/11/17 18:50:55 Backend: mysql(registry@127.0.0.1:3306)
+2026/11/17 19:15:17 Creating DB: registry
+2026/11/17 19:15:18 Creating: xregs/xRegistry
+2026/11/17 18:50:55 Path: /ui -> UI
+2026/11/17 18:50:55 Path: /xreg -> xregs/xRegistry
+2026/11/17 18:50:55 Path: / -> ui
+2026/11/17 18:50:55 Done verifying, exiting
+`, 0)
+
+	XServer(t, "--backend mysql -vv --verify", "", "", `2026/11/17 18:51:36 GitCommit: 9441c254163e
+2026/11/17 18:51:36 Backend: mysql(registry@127.0.0.1:3306)
+2026/11/17 18:51:36 Path: /ui -> UI
+2026/11/17 18:51:36 Path: /xreg -> xregs/xRegistry
+2026/11/17 18:51:36 Path: / -> ui
+2026/11/17 18:51:36 Done verifying, exiting
+`, 0)
+
+	XServer(t, "--backend memory -vv --verify", "", "", `2026/11/17 18:52:00 GitCommit: 9441c254163e
+2026/11/17 18:52:00 Backend: memory
+2026/11/17 18:52:00 Creating DB: registry
+2026/11/17 18:52:00 Creating: xregs/xRegistry
+2026/11/17 18:52:00 Path: /ui -> UI
+2026/11/17 18:52:00 Path: /xreg -> xregs/xRegistry
+2026/11/17 18:52:00 Path: / -> ui
+2026/11/17 18:52:00 Done verifying, exiting
+`, 0)
+}
+
+func TestXRServerMemoryBackend(t *testing.T) {
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+	defer SetClearEnvVar("XR_BACKEND", "memory")()
+
+	XServer(t, "-vv --verify --recreatedb", "", "", `2026/11/17 18:59:13 GitCommit: 9441c254163e
+2026/11/17 18:59:13 Backend: memory
+2026/11/17 18:59:13 Creating DB: registry
+2026/11/17 18:59:13 Creating: xregs/xRegistry
+2026/11/17 18:59:13 Path: /ui -> UI
+2026/11/17 18:59:13 Path: /xreg -> xregs/xRegistry
+2026/11/17 18:59:13 Path: / -> ui
+2026/11/17 18:59:13 Done verifying, exiting
+`, 0)
+	XServer(t, "-vv --verify --recreatereg", "", "", `2026/11/17 18:59:38 GitCommit: 9441c254163e
+2026/11/17 18:59:38 Backend: memory
+2026/11/17 18:59:38 Creating DB: registry
+2026/11/17 18:59:38 Creating: xregs/xRegistry
+2026/11/17 18:59:38 Path: /ui -> UI
+2026/11/17 18:59:38 Path: /xreg -> xregs/xRegistry
+2026/11/17 18:59:38 Path: / -> ui
+2026/11/17 18:59:38 Done verifying, exiting
+`, 0)
+	XServer(t, "-vv --verify --recreatedb --recreatereg", "", "", `2026/11/17 19:00:04 GitCommit: 9441c254163e
+2026/11/17 19:00:04 Backend: memory
+2026/11/17 19:00:04 Creating DB: registry
+2026/11/17 19:00:04 Creating: xregs/xRegistry
+2026/11/17 19:00:04 Path: /ui -> UI
+2026/11/17 19:00:04 Path: /xreg -> xregs/xRegistry
+2026/11/17 19:00:04 Path: / -> ui
+2026/11/17 19:00:04 Done verifying, exiting
+`, 0)
+
+	XServer(t, "-vv db list", "", `DB NAME
+`, ``, 0)
+	XServer(t, "-vv db create reg", ``, ``, `2026/11/17 19:02:04 Creating DB: reg
+`, 0)
+	XServer(t, "-vv db delete reg", ``, ``, `2026/11/17 19:02:55 DB "reg" doesn't exist
+`, 1)
+	XServer(t, "-vv db get reg", ``, ``, `2026/11/17 19:02:55 DB "reg" doesn't exist
+`, 1)
+
+	XServer(t, "-vv registry list", ``, ``,
+		`2026/11/17 19:04:58 Error talking to the DB: An unexpected error occurred, please try again later. In-memory DB "registry" doesn't exist.
+`, 1)
+	XServer(t, "-vv registry create reg", ``, ``, `2026/11/17 19:04:58 Error talking to the DB: An unexpected error occurred, please try again later. In-memory DB "registry" doesn't exist.
+`, 1)
+	XServer(t, "-vv registry delete reg", ``, ``, `2026/11/17 19:04:58 Error talking to the DB: An unexpected error occurred, please try again later. In-memory DB "registry" doesn't exist.
+`, 1)
+	XServer(t, "-vv registry get reg", ``, ``, `2026/11/17 19:04:58 Error talking to the DB: An unexpected error occurred, please try again later. In-memory DB "registry" doesn't exist.
+`, 1)
+}

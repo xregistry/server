@@ -78,7 +78,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 					if force {
 						continue
 					}
-					StopTx(tx, "Registry %q doesn't exists", id)
+					StopTx(tx, "Registry %q doesn't exist", id)
 				}
 
 				Verbose("Deleting: %s", id)

@@ -118,6 +118,7 @@ endif
 
 mtest: .mtest
 .mtest: .cmds */*test.go
+	@make mysql waitformysql
 	@echo
 	@echo "# Testing with in-memory backend"
 	@go clean -testcache

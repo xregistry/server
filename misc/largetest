@@ -31,8 +31,8 @@
 # af1e4527e1ab 2m20s   2m36s  33s     Remove shared* files
 # 4ef52aea3e73 2m6s    2m33s  34s     Remove lowerxid index/col
 # 0077577064ff 1m31s   2m20s  35s     Remove mysql prepare
-# xxx          1m32s   38s    35s     Optimized misc/largetest script's curls
-# memory be    2s      26s    0s      memory backend, one curl per dir for GETs
+# 9441c254 mem 2s      32s    0s      memory backend, one curl per dir for GETs
+# 9441c254 sql 1m39s   40s    35s     Optimized misc/largetest script's curls
 
 set -e
 

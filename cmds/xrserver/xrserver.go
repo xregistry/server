@@ -126,7 +126,7 @@ func setupCmds() *cobra.Command {
 	serverCmd.PersistentFlags().StringArray("cset", nil,
 		"Override configFile property: --cset NAME[:VALUE]")
 	serverCmd.PersistentFlags().StringP("backend", "", "",
-		"Backend type: mysql*, memory (env: XR_BACKEND)")
+		"Backend type: mysql*, memory")
 	serverCmd.PersistentFlags().StringP("db", "", registry.DefDBName,
 		"DB name ("+registry.DefDBName+"*)")
 	serverCmd.Flag("db").DefValue = "" // hide default text
