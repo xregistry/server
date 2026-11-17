@@ -246,14 +246,15 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	DBName := XRSConfig.GetAsString("db.name")
+	ConnStr, xErr := registry.DBConnectionString(XRSConfig)
+	ErrStop(xErr, "Error talking to DB: %s", xErr.String())
+	if ConnStr != "" {
+		ConnStr = "(" + ConnStr + ")"
+	}
 
 	PanicIf(GitCommit == "" || GitCommit == "<n/a>", "GitCommit isn't set")
 	Verbose("GitCommit: %.12s", GitCommit)
-	Verbose("Backend: %s(%s@%s:%s)",
-		registry.DefaultBackendName(XRSConfig),
-		DBName,
-		XRSConfig.GetAsString("db.host"),
-		XRSConfig.GetAsString("db.port"))
+	Verbose("Backend: %s%s", registry.BackendName(XRSConfig), ConnStr)
 
 	if len(args) > 0 {
 		Stop("Too many arguments on the command line")

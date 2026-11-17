@@ -58,7 +58,7 @@ func (be *MemoryBackend) DBCreate(c *Config, name string) *XRError {
 			SetDetailf("DB %q already exists.", name)
 	}
 	dbs[name] = newMemDB(name)
-	log.VPrintf(2, "Created in-memory DB: %s", name)
+	// log.VPrintf(2, "Created in-memory DB: %s", name)
 	return nil
 }
 
@@ -80,6 +80,10 @@ func (be *MemoryBackend) DBList(c *Config) ([]string, *XRError) {
 	}
 	sort.Strings(names)
 	return names, nil
+}
+
+func (be *MemoryBackend) DBConnectionString(c *Config) (string, *XRError) {
+	return "", nil
 }
 
 func (be *MemoryBackend) Close(c *Config) *XRError {

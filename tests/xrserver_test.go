@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
@@ -13,8 +14,7 @@ import (
 )
 
 func TestXRServerBasic(t *testing.T) {
-	SkipIfNotMySQL(t)                      // expects mysql output
-	XNoErr(t, os.Setenv("HOME", "/nodir")) // make sure we don't find one
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
 
 	cmd := exec.Command("../xrserver", "-?")
 	out, err := cmd.CombinedOutput()
@@ -44,13 +44,33 @@ Usage:
 	defaultRegSegment := xrsConfig.GetAsString("path.defaultreg")
 	regCollectionSegment := xrsConfig.GetAsString("path.regcollection")
 
+	connStr := ""
+	beName := registry.BackendName(xrsConfig)
+	creating := ""
+
+	switch beName {
+	case "memory":
+		creating = `
+2025/05/21 19:01:39 Creating DB: registry
+2025/05/21 19:01:39 Creating: ` + regCollectionSegment + `/xRegistry`
+
+	case "mysql":
+		connStr = fmt.Sprintf("(%s@%s:%s)",
+			xrsConfig.GetAsString("db.name"),
+			xrsConfig.GetAsString("db.host"),
+			xrsConfig.GetAsString("db.port"))
+
+	default:
+		t.Fatalf("Unknown backend: %s", beName)
+	}
+
 	cmd = exec.Command("../xrserver", "--rootapp=xreg", "-v", "--verify")
 	out, err = cmd.CombinedOutput()
 	t.Logf("out: %s", string(out))
 	XNoErr(t, err)
 	lines, _, _ = strings.Cut(string(out), "Available Commands:")
 	exp := `2025/05/21 19:01:39 GitCommit: 8061f34abf
-2025/05/21 19:01:39 Backend: mysql(registry@localhost:3306)
+2025/05/21 19:01:39 Backend: ` + beName + connStr + creating + `
 2025/05/21 19:01:39 Path: /ui -> UI
 2025/05/21 19:01:39 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
 2025/05/21 19:01:39 Path: / -> ` + regCollectionSegment + `/xRegistry
@@ -64,9 +84,9 @@ Usage:
 	lines = re.ReplaceAllString(lines, "GitCommit: <n/a>\n")
 	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
-	re = regexp.MustCompile(`Backend: mysql\(registry@.*:3306\)`)
-	lines = re.ReplaceAllString(lines, "Backend: mysql(registry@xxx:3306)")
-	exp = re.ReplaceAllString(exp, "Backend: mysql(registry@xxx:3306)")
+	re = regexp.MustCompile(`Backend: (.*)@(.+)(:[0-9]+)`)
+	lines = re.ReplaceAllString(lines, "Backend: $1@xxx$3")
+	exp = re.ReplaceAllString(exp, "Backend: $1@xxx$3")
 
 	// Just look for the first 3 lines
 	XEqual(t, "", lines, exp)
@@ -74,7 +94,8 @@ Usage:
 }
 
 func TestXRServerRecreates(t *testing.T) {
-	SkipIfNotMySQL(t) // expects mysql output
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+
 	// Granted we're just checking log messages... maybe one day we'll
 	// check the DB itself to make sure the logs aren't lying
 
@@ -89,10 +110,28 @@ func TestXRServerRecreates(t *testing.T) {
 	defaultRegSegment := xrsConfig.GetAsString("path.defaultreg")
 	regCollectionSegment := xrsConfig.GetAsString("path.regcollection")
 
+	connStr := ""
+	beName := registry.BackendName(xrsConfig)
+	creating := ""
+
+	switch beName {
+	case "memory":
+
+	case "mysql":
+		connStr = fmt.Sprintf("(%s@%s:%s)",
+			xrsConfig.GetAsString("db.name"),
+			xrsConfig.GetAsString("db.host"),
+			xrsConfig.GetAsString("db.port"))
+		creating = `
+2025/10/14 12:20:01 Deleting DB: registry`
+
+	default:
+		t.Fatalf("Unknown backend: %s", beName)
+	}
+
 	exp := `
 2025/10/14 12:20:01 GitCommit: f680917749
-2025/10/14 12:20:01 Backend: mysql(registry@localhost:3306)
-2025/10/14 12:20:01 Deleting DB: registry
+2025/10/14 12:20:01 Backend: ` + beName + connStr + creating + `
 2025/10/14 12:20:01 Creating DB: registry
 2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
@@ -109,9 +148,9 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "GitCommit: <n/a>\n")
 	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
-	re = regexp.MustCompile(`Backend: mysql\(registry@.*:3306\)`)
-	out = re.ReplaceAllString(out, "Backend: mysql(registry@xxx:3306)")
-	exp = re.ReplaceAllString(exp, "Backend: mysql(registry@xxx:3306)")
+	re = regexp.MustCompile(`Backend: (.*)@(.+)(:[0-9]+)`)
+	out = re.ReplaceAllString(out, "Backend: $1@xxx$3")
+	exp = re.ReplaceAllString(exp, "Backend: $1@xxx$3")
 
 	XEqual(t, "", out, exp)
 
@@ -123,10 +162,27 @@ func TestXRServerRecreates(t *testing.T) {
 	XNoErr(t, err)
 	out = string(buf)
 
+	switch beName {
+	case "memory":
+		connStr = ""
+		creating = `
+2025/10/14 12:20:01 Creating DB: registry`
+
+	case "mysql":
+		connStr = fmt.Sprintf("(%s@%s:%s)",
+			xrsConfig.GetAsString("db.name"),
+			xrsConfig.GetAsString("db.host"),
+			xrsConfig.GetAsString("db.port"))
+		creating = `
+2025/10/14 12:20:01 Deleting xReg: xRegistry`
+
+	default:
+		t.Fatalf("Unknown backend: %s", beName)
+	}
+
 	exp = `
 2025/10/14 12:20:01 GitCommit: f680917749
-2025/10/14 12:20:01 Backend: mysql(registry@localhost:3306)
-2025/10/14 12:20:01 Deleting xReg: xRegistry
+2025/10/14 12:20:01 Backend: ` + beName + connStr + creating + `
 2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
 2025/10/14 12:20:02 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
@@ -142,9 +198,9 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "GitCommit: <n/a>\n")
 	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
-	re = regexp.MustCompile(`Backend: mysql\(registry@.*:3306\)`)
-	out = re.ReplaceAllString(out, "Backend: mysql(registry@xxx:3306)")
-	exp = re.ReplaceAllString(exp, "Backend: mysql(registry@xxx:3306)")
+	re = regexp.MustCompile(`Backend: (.*)@(.+)(:[0-9]+)`)
+	out = re.ReplaceAllString(out, "Backend: $1@xxx$3")
+	exp = re.ReplaceAllString(exp, "Backend: $1@xxx$3")
 
 	XEqual(t, "", out, exp)
 
@@ -157,10 +213,25 @@ func TestXRServerRecreates(t *testing.T) {
 	XNoErr(t, err)
 	out = string(buf)
 
+	switch beName {
+	case "memory":
+		creating = ``
+
+	case "mysql":
+		connStr = fmt.Sprintf("(%s@%s:%s)",
+			xrsConfig.GetAsString("db.name"),
+			xrsConfig.GetAsString("db.host"),
+			xrsConfig.GetAsString("db.port"))
+		creating = `
+2025/10/14 12:20:01 Deleting DB: registry`
+
+	default:
+		t.Fatalf("Unknown backend: %s", beName)
+	}
+
 	exp = `
 2025/10/14 12:20:01 GitCommit: f680917749
-2025/10/14 12:20:01 Backend: mysql(registry@localhost:3306)
-2025/10/14 12:20:01 Deleting DB: registry
+2025/10/14 12:20:01 Backend: ` + beName + connStr + creating + `
 2025/10/14 12:20:01 Creating DB: registry
 2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
@@ -177,15 +248,18 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "GitCommit: <n/a>\n")
 	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
-	re = regexp.MustCompile(`Backend: mysql\(registry@.*:3306\)`)
-	out = re.ReplaceAllString(out, "Backend: mysql(registry@xxx:3306)")
-	exp = re.ReplaceAllString(exp, "Backend: mysql(registry@xxx:3306)")
+	re = regexp.MustCompile(`Backend: (.*)@(.+)(:[0-9]+)`)
+	out = re.ReplaceAllString(out, "Backend: $1@xxx$3")
+	exp = re.ReplaceAllString(exp, "Backend: $1@xxx$3")
 
 	XEqual(t, "", out, exp)
 }
 
 func TestXRServerCmds(t *testing.T) {
 	SkipIfNotMySQL(t) // expects mysql output
+
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+
 	xrsConfig := registry.NewXRServerConfig("")
 	registry.SetXRServerConfigFromEnvVars(xrsConfig)
 	defaultRegSegment := xrsConfig.GetAsString("path.defaultreg")
@@ -336,6 +410,9 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 
 func TestXRServerConfig(t *testing.T) {
 	SkipIfNotMySQL(t) // expects mysql output
+
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+
 	tmphome := t.TempDir()
 
 	configStr := `# a config file

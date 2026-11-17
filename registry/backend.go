@@ -29,8 +29,8 @@ func RegisterBackend(name string, fn func(c *Config) (Backend, *XRError)) *XRErr
 	return nil
 }
 
-func NewDefaultBackend(c *Config) (Backend, *XRError) {
-	backendName := DefaultBackendName(c)
+func NewBackend(c *Config) (Backend, *XRError) {
+	backendName := BackendName(c)
 
 	if len(RegisteredBackends) == 0 {
 		return nil, NewXRError("server_error", "/").
@@ -46,7 +46,7 @@ func NewDefaultBackend(c *Config) (Backend, *XRError) {
 	return be.NewFunc(c)
 }
 
-func DefaultBackendName(c *Config) string {
+func BackendName(c *Config) string {
 	backendName := c.GetAsString("backend")
 	if backendName == "" {
 		backendName = DEFAULT_BACKEND
@@ -61,8 +61,8 @@ func DefaultBackendName(c *Config) string {
 	return backendName
 }
 
-func MustNewDefaultBackend(c *Config) Backend {
-	be, xErr := NewDefaultBackend(c)
+func MustNewBackend(c *Config) Backend {
+	be, xErr := NewBackend(c)
 	if xErr != nil {
 		panic(xErr)
 	}
@@ -76,6 +76,8 @@ type Backend interface {
 	DBCreate(c *Config, name string) *XRError
 	DBDelete(c *Config, name string) *XRError
 	DBList(c *Config) ([]string, *XRError)
+
+	DBConnectionString(c *Config) (string, *XRError)
 
 	// Close releases any long-lived resources (e.g. connection pools) that
 	// the backend shares across all Backend instances for this Config.
@@ -145,6 +147,13 @@ type Backend interface {
 	RefreshEntity(e *Entity, accessMode int) *XRError
 
 	ClearUserProps(e *Entity) *XRError
+
+	// This might need to be changed later if it ends up this is not possible
+	// for all backends (or is too table/sql dependent)
+	// Result: [](XID, PropName, PropValue as string)
+	// This returns all non-generated/calucated props.
+	// Used by TestMiscDBRows
+	ListProps(r *Registry, all bool) ([][3]string, *XRError)
 
 	// Registry stuff
 	ListRegistries(tx *Tx) ([]string, *XRError) // Order by UID,ASC case-insen.

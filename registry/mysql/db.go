@@ -331,7 +331,7 @@ func Query(tx *registry.Tx, cmd string, args ...interface{}) (*Result, *XRError)
 		startTime = time.Now()
 	}
 
-	if log.IsFuncVerbose() {
+	if log.HasVerbose("Query") {
 		log.Printf("tx: %s Query: %s", tx.UUID, SubQuery(cmd, args))
 	}
 

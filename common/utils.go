@@ -2015,14 +2015,18 @@ func DirIterator(root string, fn DirIteratorFn, recurse bool) error {
 }
 
 func SetHTTPLog(fn string) func() {
-	oldHTTPLog, hadHTTPLog := os.LookupEnv("XR_HTTP_LOG")
-	os.Setenv("XR_HTTP_LOG", fn)
+	return SetClearEnvVar("XR_HTTP_LOG", fn)
+}
+
+func SetClearEnvVar(name, value string) func() {
+	oldValue, hasOldValue := os.LookupEnv(name)
+	os.Setenv(name, value)
 
 	return func() {
-		if hadHTTPLog {
-			os.Setenv("XR_HTTP_LOG", oldHTTPLog)
+		if hasOldValue {
+			os.Setenv(name, oldValue)
 		} else {
-			os.Unsetenv("XR_HTTP_LOG")
+			os.Unsetenv(name)
 		}
 	}
 }

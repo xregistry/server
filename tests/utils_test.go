@@ -68,15 +68,11 @@ const MODEL_DIRS_NODOC = `{
   }
 }`
 
-func IsMySQL() bool {
-	return registry.DefaultBackendName(XRServerConfig) == "mysql"
-}
-
 func SkipIfNotMySQL(t *testing.T) {
 	t.Helper()
-	if !IsMySQL() {
-		t.Skip("mysql-specific test, backend is " +
-			registry.DefaultBackendName(XRServerConfig))
+	if registry.BackendName(XRServerConfig) != "mysql" {
+		t.Skip("mysql-specific test, backend is: " +
+			registry.BackendName(XRServerConfig))
 	}
 }
 

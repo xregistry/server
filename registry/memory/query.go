@@ -404,6 +404,11 @@ type sortRow struct {
 }
 
 func (be *MemoryBackend) GenerateResultEntities(reg *registry.Registry, what string, XIDs []string) (registry.EntityIterator, *XRError) {
+	if log.HasVerbose("Query") {
+		// Just because our testing expect something to be printed
+		log.Printf("tx: %s Query: \nQuerying...", reg.Tx.UUID)
+	}
+
 	tx, xErr := mt(reg.Tx)
 	if xErr != nil {
 		return nil, xErr

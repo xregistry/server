@@ -174,6 +174,41 @@ func (be *MemoryBackend) ClearUserProps(e *registry.Entity) *XRError {
 	return nil
 }
 
+func (be *MemoryBackend) ListProps(reg *registry.Registry, all bool) ([][3]string, *XRError) {
+	tx, xErr := mt(reg.GetTx())
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	rows := []*propRow{}
+	for _, m := range tx.db.props {
+		for _, p := range m {
+			if p.RegSID == reg.SID && (all || p.isPlain()) {
+				rows = append(rows, p)
+			}
+		}
+	}
+
+	// Case-insensitive, like the mysql collation
+	sort.Slice(rows, func(i, j int) bool {
+		ax, bx := strings.ToLower(rows[i].XID), strings.ToLower(rows[j].XID)
+		if ax != bx {
+			return ax < bx
+		}
+		an, bn := strings.ToLower(rows[i].Name), strings.ToLower(rows[j].Name)
+		if an != bn {
+			return an < bn
+		}
+		return rows[i].Name < rows[j].Name
+	})
+
+	res := make([][3]string, len(rows))
+	for i, p := range rows {
+		res[i] = [3]string{p.XID, p.Name, p.Value}
+	}
+	return res, nil
+}
+
 // Building Entities from rows
 
 func (be *MemoryBackend) buildEntity(rtx *registry.Tx, e *entRow, props []*propRow, mode int, mask uint64) (*registry.Entity, *XRError) {

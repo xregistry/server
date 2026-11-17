@@ -143,6 +143,11 @@ test: .test
 	@touch .test
 
 benchmark: .cmds .mtest .ftest
+	@echo
+	@echo "# Benchmark in-memory"
+	@XR_BACKEND=memory misc/largetest
+	@echo
+	@echo "# Benchmark mysql"
 	@misc/largetest
 
 # specattrs.js is checked in so that people can download it w/o needing to
