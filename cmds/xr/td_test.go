@@ -509,7 +509,7 @@ func TestLogHTTP(t *testing.T) {
 		"HTTP status: 307 Temporary Redirect")
 	XEqual(t, "Location log", td.Logs[2].Text,
 		"HTTP Location: https://example.com/next")
-	XEqual(t, "Body log", td.Logs[3].Text, `HTTP body: "moved"`)
+	XEqual(t, "Body log", td.Logs[3].Text, "HTTP body: moved")
 	for _, entry := range td.Logs {
 		XCheck(t, !strings.Contains(entry.Text, "secret"),
 			"HTTP logging MUST NOT expose request secrets: %q", entry.Text)
@@ -534,6 +534,16 @@ func TestLogHTTP(t *testing.T) {
 	XEqual(t, "Body logs", len(bodyTD.Logs), 4)
 	bodyTD.LogHTTP(bodyRes)
 	XEqual(t, "Repeated body logs", len(bodyTD.Logs), 4)
+
+	whitespaceTD := newTestTD("whitespace")
+	whitespaceTD.LogHTTP(&HttpResponse{Body: []byte(" \n\n ")})
+	XEqual(t, "Whitespace body log", whitespaceTD.Logs[0].Text,
+		"HTTP body:  \n\n ")
+
+	emptyTD := newTestTD("empty")
+	emptyTD.LogHTTP(&HttpResponse{})
+	XEqual(t, "Empty body log", emptyTD.Logs[0].Text,
+		"HTTP body: <empty>")
 
 	nilTD := newTestTD("nil")
 	nilTD.LogHTTP(nil)

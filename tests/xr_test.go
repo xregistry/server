@@ -3426,15 +3426,15 @@ Pass: 86   Fail: 5   Warn: 0   Skip: 3
    │  ├─ PASS: TestGroups (cached)
    │  ├─ FAIL: GET /widgets?filter=widgetid=NULL
    │  │  ├─ HTTP status: 200 OK
-   │  │  ├─ HTTP body: "not-json"
-   │  │  ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return 200
+   │  │  ├─ HTTP body: not-json
+` + "   │  │  │  \n" + `   │  │  ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return 200
    │  │  ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return a non-empty
    │  │  │        body
    │  │  └─ FAIL: 'GET /widgets?filter=widgetid=NULL' MUST return a JSON body
    │  └─ FAIL: GET /widgets?filter=widgetid=null
    │     ├─ HTTP status: 200 OK
-   │     ├─ HTTP body: "not-json"
-   │     ├─ PASS: 'GET /widgets?filter=widgetid=null' MUST return 200
+   │     ├─ HTTP body: not-json
+` + "   │     │  \n" + `   │     ├─ PASS: 'GET /widgets?filter=widgetid=null' MUST return 200
    │     ├─ PASS: 'GET /widgets?filter=widgetid=null' MUST return a non-empty
    │     │        body
    │     └─ FAIL: 'GET /widgets?filter=widgetid=null' MUST return a JSON body
@@ -3462,7 +3462,7 @@ Pass: 81   Fail: 7   Warn: 0   Skip: 3
    │  │  │  (http://localhost:8282/TestXRConformFilterResponses/widgets?filter=
    │  │  │  widgetid=NULL): null.
    │  │  ├─ HTTP status: 500 Internal Server Error
-   │  │  ├─ HTTP body: "null"
+   │  │  ├─ HTTP body: null
    │  │  ├─ Unexpected error: There was an error talking to the server
    │  │  │  (http://localhost:8282/TestXRConformFilterResponses/widgets?filter=
    │  │  │  widgetid=NULL): null.
@@ -3492,8 +3492,8 @@ Pass: 82   Fail: 5   Warn: 0   Skip: 3
    │  ├─ PASS: TestGroups (cached)
    │  └─ FAIL: GET /widgets?filter=widgetid=NULL
    │     ├─ HTTP status: 200 OK
-   │     ├─ HTTP body: "not-json"
-   │     ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return 200
+   │     ├─ HTTP body: not-json
+` + "   │     │  \n" + `   │     ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return 200
    │     ├─ PASS: 'GET /widgets?filter=widgetid=NULL' MUST return a non-empty
    │     │        body
    │     └─ FAIL: 'GET /widgets?filter=widgetid=NULL' MUST return a JSON body
@@ -3725,15 +3725,7 @@ func TestXRConformMutations(t *testing.T) {
 	const target = "http://localhost:8181"
 
 	clog := t.TempDir() + "/clog"
-	oldHTTPLog, hadHTTPLog := os.LookupEnv("XR_HTTP_LOG")
-	os.Setenv("XR_HTTP_LOG", clog)
-	defer func() {
-		if hadHTTPLog {
-			os.Setenv("XR_HTTP_LOG", oldHTTPLog)
-		} else {
-			os.Unsetenv("XR_HTTP_LOG")
-		}
-	}()
+	defer SetHTTPLog(clog)()
 
 	// Authorization is checked before any target request.
 	XCLI(t, "conform --run mutations http://127.0.0.1:1", "",
@@ -3816,7 +3808,7 @@ Pass: 53   Fail: 0   Warn: 0   Skip: 9
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ PASS: Clean up run-owned Group
-Pass: 63   Fail: 0   Warn: 0   Skip: 2
+Pass: 66   Fail: 0   Warn: 0   Skip: 2
 `, "", 0)
 
 		expectedCollection := `{
@@ -3851,7 +3843,7 @@ Pass: 63   Fail: 0   Warn: 0   Skip: 2
 		XCLI(t,
 			"conform --run all --allow-mutations -d1 "+target,
 			"", `PASS: http://localhost:8181 (skip:5)
-Pass: 123   Fail: 0   Warn: 0   Skip: 5
+Pass: 126   Fail: 0   Warn: 0   Skip: 5
 `, "", 0).
 			ExpectCount(clog, "Request: PUT ", 1).
 			ExpectCount(clog, "Request: DELETE ", 1)
@@ -3903,7 +3895,7 @@ Pass: 123   Fail: 0   Warn: 0   Skip: 5
    ├─ PASS: Create run-owned Group
    ├─ PASS: Read run-owned Group
    └─ PASS: Clean up run-owned Group
-Pass: 63   Fail: 0   Warn: 0   Skip: 2
+Pass: 66   Fail: 0   Warn: 0   Skip: 2
 `, "", 0)
 
 		XHTTP(t, reg, "GET", "/dirs", "", 200, "{}\n")
@@ -4217,10 +4209,12 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
 
 				mu.Lock()
 				path := groupPath
+				gotGroupGets := groupGets
 				gotDeletes := deletes
 				mu.Unlock()
 				XCheck(t, strings.HasPrefix(path, "/dirs/xr-conform-"),
 					"Expected the run-owned Group path, got %q", path)
+				XEqual(t, "Run-owned Group GET requests", gotGroupGets, 2)
 				XEqual(t, "Cleanup DELETE requests", gotDeletes, 0)
 
 				expected := `FAIL: http://mutation-test (skip:2)
@@ -4233,10 +4227,10 @@ func TestXRConformMutationCleanupOutput(t *testing.T) {
    └─ FAIL: Clean up run-owned Group
       ├─ HTTP error: There was an error talking to the server (http://mutation-test/dirs/xr-conform-RUN): cleanup unavailable.
       ├─ HTTP status: 503 Service Unavailable
-      ├─ HTTP body: "cleanup unavailable"
-      ├─ FAIL: Cleanup GET MUST return 200 or 404
+      ├─ HTTP body: cleanup unavailable
+` + "      │  \n" + `      ├─ FAIL: Cleanup GET MUST return 200 or 404
       └─ Run-owned Group may remain: /dirs/xr-conform-RUN
-Pass: 51   Fail: 4   Warn: 0   Skip: 2
+Pass: 53   Fail: 4   Warn: 0   Skip: 2
 `
 				if output == "json" {
 					expected = expectedOutput(t,
@@ -4447,12 +4441,16 @@ func TestXRConformMalformedCapabilitiesRenderCompleteResult(t *testing.T) {
    ├─ ==== PASSing tests ====
    ├─ PASS: 'GET /' MUST return 200
    ├─ HTTP status: 200 OK
-   ├─ HTTP body: "{\n  \"specversion\": \"`+SPECVERSION+`\",\n  \"registryid\":
-   │  \"conform-error\",\n  \"self\":
-   │  \"http://localhost:8282/conform-error/\",\n  \"xid\": \"/\",\n
-   │  \"epoch\": 1,\n  \"createdat\": \"2026-01-01T00:00:00Z\",\n
-   │  \"modifiedat\": \"2026-01-01T00:00:00Z\"\n}"
-   ├─ PASS: 'GET /' MUST return a non-empty body
+   ├─ HTTP body: {
+   │    "specversion": "`+SPECVERSION+`",
+   │    "registryid": "conform-error",
+   │    "self": "http://localhost:8282/conform-error/",
+   │    "xid": "/",
+   │    "epoch": 1,
+   │    "createdat": "2026-01-01T00:00:00Z",
+   │    "modifiedat": "2026-01-01T00:00:00Z"
+   │  }
+`+"   │  \n"+`   ├─ PASS: 'GET /' MUST return a non-empty body
    ├─ PASS: 'GET /' MUST return a JSON body
    ├─ PASS: "specversion" (`+SPECVERSION+`) MUST = "`+SPECVERSION+`"
    ├─ PASS: "registryid" (conform-error) MUST != ""

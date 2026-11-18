@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"net/url"
 	"strconv"
 	"strings"
@@ -63,13 +62,16 @@ func TestMutations(td *TD) {
 	}))
 
 	preflightTD := NewTD(td, "Confirm target Group is absent")
-	preflightRes, _ := HttpDo(&HttpRequest{
+	preflightRes, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     reg.WithPath(path),
 		Headers: xrlib.HTTPHeaders,
 		Debug:   VerboseCount > 2,
 	})
 	preflightTD.LogHTTP(preflightRes)
+	if preflightRes == nil {
+		preflightTD.NoErrorStop(xErr, "Preflight GET MUST work")
+	}
 	preflightTD.Must(preflightRes != nil,
 		"Preflight GET MUST return an HTTP response")
 	preflightTD.StopOnFail()
@@ -78,13 +80,17 @@ func TestMutations(td *TD) {
 	preflightTD.StopOnFail()
 
 	createTD := NewTD(td, "Create run-owned Group")
-	ownedEpoch := (*uint64)(nil)
+	confirmedCreate := (*HttpResponse)(nil)
 	defer func() {
-		cleanupConformMutationGroup(td, groupModel, path, id, ownedEpoch,
+		if confirmedCreate == nil {
+			td.Msg("Run-owned Group may remain: %s", path)
+			return
+		}
+		cleanupConformMutationGroup(td, groupModel, confirmedCreate,
 			capabilities.FlagEnabled("epoch"))
 	}()
 
-	createRes, _ := HttpDo(&HttpRequest{
+	createRes, xErr := HttpDo(&HttpRequest{
 		Verb:    "PUT",
 		URL:     reg.WithPath(path),
 		Headers: xrlib.HTTPHeaders,
@@ -95,16 +101,16 @@ func TestMutations(td *TD) {
 	createTD.Must(createRes != nil,
 		"Creating the run-owned Group MUST return an HTTP response")
 	createTD.StopOnFail()
-	createTD.NoErrorStop(createRes.Error,
+	createTD.NoErrorStop(xErr,
 		"Creating the run-owned Group MUST work")
 	createTD.HTTPStatusMustEqual(createRes, 201,
 		"Creating the run-owned Group")
 	createTD.StopOnFail()
 	createTD.HTTPBodyMustJSON(createRes, "Creating the run-owned Group")
 	createTD.StopOnFail()
-	ownedEpoch = conformMutationGroupState(createTD, createRes,
-		groupModel, path, id)
+	conformMutationGroupState(createTD, createRes, groupModel, path, id)
 	createTD.StopOnFail()
+	confirmedCreate = createRes
 	createTD.Pass("Created Group matches the target and is empty")
 
 	expectedURL := reg.WithPath(path)
@@ -117,7 +123,7 @@ func TestMutations(td *TD) {
 	readTD.StopOnFail()
 	conformMutationGroupState(readTD, readRes, groupModel, path, id)
 	readTD.StopOnFail()
-	readTD.ObjReqMustEq(readRes.JSON, "epoch", int(*ownedEpoch))
+	readTD.ObjReqMustEq(readRes.JSON, "epoch", createRes.JSON["epoch"])
 	readTD.StopOnFail()
 }
 
@@ -164,53 +170,37 @@ func conformMutationGroupModel(model *registry.Model) (
 }
 
 func conformMutationGroupState(td *TD, res *HttpResponse,
-	groupModel *registry.GroupModel, path, id string) *uint64 {
+	groupModel *registry.GroupModel, path, id string) {
 
 	td.ObjReqMustEq(res.JSON, groupModel.Singular+"id", id)
 	td.ObjReqMustEq(res.JSON, "xid", path)
-
-	epochAny, _ := td.GetObjProp(res.JSON, "epoch")
-	epoch, epochErr := conformMutationUInt(epochAny)
-	td.Must(epochErr == nil,
-		"\"epoch\" (%v) MUST be an exact uinteger less than 2^53", epochAny)
+	td.ObjReqMustGe(res.JSON, "epoch", 0)
+	td.ObjReqMustLt(res.JSON, "epoch", float64(1<<53))
 
 	for _, resourceType := range SortedKeys(groupModel.Resources) {
 		countName := resourceType + "count"
 		td.ObjReqMustEq(res.JSON, countName, 0)
 		td.ObjPropMustNotExist(res.JSON, resourceType)
 	}
-
-	if td.Status == FAIL || epochErr != nil {
-		return nil
-	}
-	return &epoch
-}
-
-func conformMutationUInt(value any) (uint64, error) {
-	const maxSafeJSONInteger = float64(1 << 53)
-
-	number, ok := value.(float64)
-	if !ok || math.IsNaN(number) || math.IsInf(number, 0) ||
-		number < 0 || math.Trunc(number) != number ||
-		number >= maxSafeJSONInteger {
-
-		return 0, fmt.Errorf("must be an exact uinteger less than 2^53")
-	}
-	return uint64(number), nil
 }
 
 func cleanupConformMutationGroup(td *TD, groupModel *registry.GroupModel,
-	path, id string, ownedEpoch *uint64, useEpochFlag bool) {
-
-	failFast := td.Config.FailFast
-	td.Config.FailFast = false
-	defer func() {
-		td.Config.FailFast = failFast
-	}()
+	confirmedCreate *HttpResponse, useEpochFlag bool) {
 
 	cleanupTD := NewTD(td, "Clean up run-owned Group")
+	idName := groupModel.Singular + "id"
+	id := confirmedCreate.JSON[idName].(string)
+	path := confirmedCreate.JSON["xid"].(string)
+	expectedEpoch := confirmedCreate.JSON["epoch"]
+	cleaned := false
+	defer func() {
+		if !cleaned {
+			cleanupTD.Msg("Run-owned Group may remain: %s", path)
+		}
+	}()
+
 	reg := td.GetRegistry()
-	res, _ := HttpDo(&HttpRequest{
+	res, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     reg.WithPath(path),
 		Headers: xrlib.HTTPHeaders,
@@ -218,49 +208,30 @@ func cleanupConformMutationGroup(td *TD, groupModel *registry.GroupModel,
 	})
 	cleanupTD.LogHTTP(res)
 	if res == nil {
+		cleanupTD.NoErrorStop(xErr, "Cleanup GET MUST work")
 		cleanupTD.Fail("Cleanup GET MUST return an HTTP response")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
 		return
 	}
 	if res.Code == 404 {
-		if ownedEpoch != nil {
-			cleanupTD.Fail("Run-owned Group disappeared before cleanup")
-		} else {
-			cleanupTD.Pass("No run-owned Group remains")
-		}
+		cleanupTD.Fail("Run-owned Group disappeared before cleanup")
 		return
 	}
 	if res.Code != 200 {
 		cleanupTD.Fail("Cleanup GET MUST return 200 or 404")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
 		return
 	}
 	if res.JSON == nil {
 		cleanupTD.Fail("Cleanup GET MUST return a JSON body")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
-		return
-	}
-	if ownedEpoch == nil {
-		cleanupTD.Fail("Cleanup requires a confirmed run-owned creation")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
 		return
 	}
 
-	epoch := conformMutationGroupState(cleanupTD, res, groupModel, path, id)
-	if epoch == nil {
-		cleanupTD.Fail("Cleanup MUST only delete the exact confirmed Group")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
-		return
-	}
-	cleanupTD.ObjReqMustEq(res.JSON, "epoch", int(*ownedEpoch))
-	if cleanupTD.Status == FAIL {
-		cleanupTD.Fail("Run-owned Group changed after creation verification")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
-		return
-	}
+	conformMutationGroupState(cleanupTD, res, groupModel, path, id)
+	cleanupTD.StopOnFail()
+	cleanupTD.ObjReqMustEq(res.JSON, "epoch", expectedEpoch)
+	cleanupTD.StopOnFail()
 	cleanupTD.Pass("Cleanup state proof MUST succeed")
 
-	epochString := strconv.FormatUint(*epoch, 10)
+	epochString := strconv.FormatFloat(expectedEpoch.(float64), 'f', -1, 64)
 	deletePath := path + "?epoch=" + url.QueryEscape(epochString)
 	var deleteBody []byte
 	if !useEpochFlag {
@@ -268,7 +239,7 @@ func cleanupConformMutationGroup(td *TD, groupModel *registry.GroupModel,
 		deleteBody = []byte(fmt.Sprintf(`{%s:{"epoch":%s}}`,
 			strconv.Quote(id), epochString))
 	}
-	deleteRes, _ := HttpDo(&HttpRequest{
+	deleteRes, xErr := HttpDo(&HttpRequest{
 		Verb:    "DELETE",
 		URL:     reg.WithPath(deletePath),
 		Headers: xrlib.HTTPHeaders,
@@ -278,20 +249,17 @@ func cleanupConformMutationGroup(td *TD, groupModel *registry.GroupModel,
 	cleanupTD.LogHTTP(deleteRes)
 	if deleteRes == nil {
 		cleanupTD.Fail("DELETE MUST return an HTTP response")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
 		return
 	}
-	cleanupTD.NoError(deleteRes.Error, "Deleting the run-owned Group MUST work")
-	if deleteRes.Error != nil ||
-		(deleteRes.Code != 200 && deleteRes.Code != 204) {
-
+	cleanupTD.NoErrorStop(xErr,
+		"Deleting the run-owned Group MUST work")
+	if deleteRes.Code != 200 && deleteRes.Code != 204 {
 		cleanupTD.Fail("DELETE MUST return 200 or 204")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
 		return
 	}
 	cleanupTD.Pass("DELETE returned an allowed success status")
 
-	verifyRes, _ := HttpDo(&HttpRequest{
+	verifyRes, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     reg.WithPath(path),
 		Headers: xrlib.HTTPHeaders,
@@ -299,14 +267,15 @@ func cleanupConformMutationGroup(td *TD, groupModel *registry.GroupModel,
 	})
 	cleanupTD.LogHTTP(verifyRes)
 	if verifyRes == nil {
+		cleanupTD.NoErrorStop(xErr,
+			"Cleanup verification GET MUST work")
 		cleanupTD.Fail("Cleanup verification GET MUST return an HTTP response")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
 		return
 	}
 	if verifyRes.Code != 404 {
 		cleanupTD.Fail("Cleanup verification GET MUST return 404")
-		cleanupTD.Msg("Run-owned Group may remain: %s", path)
 		return
 	}
+	cleaned = true
 	cleanupTD.Pass("DELETE removed the exact run-owned Group")
 }

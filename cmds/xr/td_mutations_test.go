@@ -233,8 +233,7 @@ func TestMutationsCleanup(t *testing.T) {
 		name             string
 		failFast         bool
 		withoutEpochFlag bool
-		epochZero        bool
-		unsafeEpoch      uint64
+		epoch            any
 		preflightExists  bool
 		wrongLocation    bool
 		unconfirmed      bool
@@ -247,6 +246,8 @@ func TestMutationsCleanup(t *testing.T) {
 		wantMethods      string
 		wantDeletes      int
 		wantRetained     bool
+		wantResidual     bool
+		wantFirstFailure bool
 	}{
 		{
 			name:        "success",
@@ -256,7 +257,14 @@ func TestMutationsCleanup(t *testing.T) {
 		},
 		{
 			name:        "success with epoch zero",
-			epochZero:   true,
+			epoch:       0,
+			wantStatus:  PASS,
+			wantMethods: "GET,PUT,GET,GET,DELETE,GET",
+			wantDeletes: 1,
+		},
+		{
+			name:        "success with largest exact JSON epoch",
+			epoch:       uint64(9007199254740991),
 			wantStatus:  PASS,
 			wantMethods: "GET,PUT,GET,GET,DELETE,GET",
 			wantDeletes: 1,
@@ -308,9 +316,10 @@ func TestMutationsCleanup(t *testing.T) {
 			name:         "unconfirmed object retained",
 			unconfirmed:  true,
 			wantStatus:   FAIL,
-			wantMethods:  "GET,PUT,GET",
+			wantMethods:  "GET,PUT",
 			wantDeletes:  0,
 			wantRetained: true,
+			wantResidual: true,
 		},
 		{
 			name:            "foreign nested resource retained",
@@ -319,31 +328,46 @@ func TestMutationsCleanup(t *testing.T) {
 			wantMethods:     "GET,PUT,GET,GET",
 			wantDeletes:     0,
 			wantRetained:    true,
+			wantResidual:    true,
+		},
+		{
+			name:             "foreign nested resource retained failfast",
+			failFast:         true,
+			foreignResource:  true,
+			wantStatus:       FAIL,
+			wantMethods:      "GET,PUT,GET,GET",
+			wantDeletes:      0,
+			wantRetained:     true,
+			wantResidual:     true,
+			wantFirstFailure: true,
 		},
 		{
 			name:             "unexpected empty inline collection retained",
 			unexpectedInline: true,
 			wantStatus:       FAIL,
-			wantMethods:      "GET,PUT,GET",
+			wantMethods:      "GET,PUT",
 			wantDeletes:      0,
 			wantRetained:     true,
+			wantResidual:     true,
 		},
 		{
 			name:             "unexpected success status",
 			unexpectedStatus: true,
 			wantStatus:       FAIL,
-			wantMethods:      "GET,PUT,GET",
+			wantMethods:      "GET,PUT",
 			wantDeletes:      0,
 			wantRetained:     true,
+			wantResidual:     true,
 		},
 		{
 			name:             "unexpected success status failfast",
 			failFast:         true,
 			unexpectedStatus: true,
 			wantStatus:       FAIL,
-			wantMethods:      "GET,PUT,GET",
+			wantMethods:      "GET,PUT",
 			wantDeletes:      0,
 			wantRetained:     true,
+			wantResidual:     true,
 		},
 		{
 			name:         "epoch change retained",
@@ -352,14 +376,52 @@ func TestMutationsCleanup(t *testing.T) {
 			wantMethods:  "GET,PUT,GET,GET",
 			wantDeletes:  0,
 			wantRetained: true,
+			wantResidual: true,
 		},
 		{
-			name:         "unsafe epoch response retained",
-			unsafeEpoch:  9007199254740993,
+			name:         "two to the fifty-third epoch retained",
+			epoch:        uint64(9007199254740992),
 			wantStatus:   FAIL,
-			wantMethods:  "GET,PUT,GET",
+			wantMethods:  "GET,PUT",
 			wantDeletes:  0,
 			wantRetained: true,
+			wantResidual: true,
+		},
+		{
+			name:         "rounded wire epoch retained",
+			epoch:        uint64(9007199254740993),
+			wantStatus:   FAIL,
+			wantMethods:  "GET,PUT",
+			wantDeletes:  0,
+			wantRetained: true,
+			wantResidual: true,
+		},
+		{
+			name:         "fractional epoch retained",
+			epoch:        1.5,
+			wantStatus:   FAIL,
+			wantMethods:  "GET,PUT",
+			wantDeletes:  0,
+			wantRetained: true,
+			wantResidual: true,
+		},
+		{
+			name:         "negative epoch retained",
+			epoch:        -1,
+			wantStatus:   FAIL,
+			wantMethods:  "GET,PUT",
+			wantDeletes:  0,
+			wantRetained: true,
+			wantResidual: true,
+		},
+		{
+			name:         "nonnumeric epoch retained",
+			epoch:        "1",
+			wantStatus:   FAIL,
+			wantMethods:  "GET,PUT",
+			wantDeletes:  0,
+			wantRetained: true,
+			wantResidual: true,
 		},
 	}
 
@@ -423,12 +485,9 @@ func TestMutationsCleanup(t *testing.T) {
 							return
 						}
 
-						epoch := any(1)
-						if test.epochZero {
-							epoch = 0
-						}
-						if test.unsafeEpoch != 0 {
-							epoch = test.unsafeEpoch
+						epoch := test.epoch
+						if epoch == nil {
+							epoch = 1
 						}
 						current = map[string]any{
 							"dirid":      id,
@@ -549,42 +608,48 @@ func TestMutationsCleanup(t *testing.T) {
 			} else {
 				XCheck(t, current == nil, "Run-owned object must be removed")
 			}
+			output := printTD(root)
+			if test.wantResidual {
+				XCheck(t, tdHasLog(root,
+					"Run-owned Group may remain: /dirs/"+ownedID),
+					"Expected residual path in output:\n%s", output)
+			}
+			if test.wantFirstFailure {
+				cleanupTD := tdFindSubtest(root, "Clean up run-owned Group")
+				XCheck(t, cleanupTD != nil,
+					"Expected cleanup subtest:\n%s", output)
+				XCheck(t, !tdHasLog(cleanupTD, `Attribute "files"`),
+					"Failfast cleanup continued after its first failure:\n%s",
+					output)
+			}
 		})
 	}
 }
 
-func TestConformMutationUInt(t *testing.T) {
-	tests := []struct {
-		name    string
-		value   any
-		want    uint64
-		wantErr bool
-	}{
-		{name: "zero", value: float64(0), want: 0},
-		{
-			name:  "largest exact JSON integer",
-			value: float64(9007199254740991),
-			want:  9007199254740991,
-		},
-		{
-			name:    "two to the fifty-third",
-			value:   float64(9007199254740992),
-			wantErr: true,
-		},
-		{name: "fraction", value: 1.5, wantErr: true},
-		{name: "negative", value: float64(-1), wantErr: true},
-		{name: "wrong type", value: "1", wantErr: true},
+func tdHasLog(td *TD, text string) bool {
+	for _, entry := range td.Logs {
+		if strings.Contains(entry.Text, text) {
+			return true
+		}
+		if entry.Subtest != nil && tdHasLog(entry.Subtest, text) {
+			return true
+		}
 	}
+	return false
+}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got, err := conformMutationUInt(test.value)
-			XEqual(t, "Error", err != nil, test.wantErr)
-			if !test.wantErr {
-				XEqual(t, "Value", got, test.want)
-			}
-		})
+func tdFindSubtest(td *TD, name string) *TD {
+	if td.TestName == name {
+		return td
 	}
+	for _, entry := range td.Logs {
+		if entry.Subtest != nil {
+			if found := tdFindSubtest(entry.Subtest, name); found != nil {
+				return found
+			}
+		}
+	}
+	return nil
 }
 
 type mutationRunServer struct {

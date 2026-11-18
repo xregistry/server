@@ -2,7 +2,7 @@
   {
     "name": "http://mutation-test",
     "status": "FAIL",
-    "pass": 51,
+    "pass": 53,
     "fail": 4,
     "warn": 0,
     "skip": 2,
@@ -11,7 +11,7 @@
         "subtest": {
           "name": "TestMutations",
           "status": "FAIL",
-          "pass": 51,
+          "pass": 53,
           "fail": 3,
           "warn": 0,
           "skip": 2,
@@ -215,7 +215,7 @@
               "subtest": {
                 "name": "Create run-owned Group",
                 "status": "PASS",
-                "pass": 12,
+                "pass": 13,
                 "fail": 0,
                 "warn": 0,
                 "skip": 0,
@@ -246,7 +246,11 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "\"epoch\" (1) MUST be an exact uinteger less than 2^53"
+                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"epoch\" (1) MUST \u003c 9.007199254740992e+15"
                   },
                   {
                     "status": "PASS",
@@ -271,7 +275,7 @@
               "subtest": {
                 "name": "Read run-owned Group",
                 "status": "PASS",
-                "pass": 11,
+                "pass": 12,
                 "fail": 0,
                 "warn": 0,
                 "skip": 0,
@@ -310,7 +314,11 @@
                   },
                   {
                     "status": "PASS",
-                    "text": "\"epoch\" (1) MUST be an exact uinteger less than 2^53"
+                    "text": "\"epoch\" (1) MUST \u003e= 0"
+                  },
+                  {
+                    "status": "PASS",
+                    "text": "\"epoch\" (1) MUST \u003c 9.007199254740992e+15"
                   },
                   {
                     "status": "PASS",
@@ -346,7 +354,7 @@
                   },
                   {
                     "status": "LOG",
-                    "text": "HTTP body: \"cleanup unavailable\""
+                    "text": "HTTP body: cleanup unavailable\n"
                   },
                   {
                     "status": "FAIL",

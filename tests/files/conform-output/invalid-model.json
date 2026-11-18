@@ -63,7 +63,7 @@
                   },
                   {
                     "status": "LOG",
-                    "text": "HTTP body: \"{\""
+                    "text": "HTTP body: {\n"
                   },
                   {
                     "status": "PASS",

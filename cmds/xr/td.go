@@ -754,7 +754,7 @@ func (td *TD) ShouldEqual(exp any, got any, args ...any) {
 // FailFast still stops execution on the first failure.
 func (td *TD) HTTPGetJSON(path string) *HttpResponse {
 	nTD := NewTD(td, "GET %s", path)
-	res, _ := HttpDo(&HttpRequest{
+	res, xErr := HttpDo(&HttpRequest{
 		Verb:    "GET",
 		URL:     td.GetRegistry().WithPath(path),
 		Headers: xrlib.HTTPHeaders,
@@ -766,7 +766,7 @@ func (td *TD) HTTPGetJSON(path string) *HttpResponse {
 		nTD.Fail("GET %s MUST return an HTTP response", path)
 		return nil
 	}
-	nTD.NoError(res.Error, "GET %s", path)
+	nTD.NoError(xErr, "GET %s", path)
 	if nTD.Status == FAIL {
 		return nil
 	}
@@ -805,11 +805,10 @@ func (td *TD) LogHTTP(res *HttpResponse) {
 		td.Log("HTTP Location: %s", location)
 	}
 
-	body := strings.TrimSpace(string(res.Body))
-	if body == "" {
+	if len(res.Body) == 0 {
 		td.Log("HTTP body: <empty>")
 	} else {
-		td.Log("HTTP body: %q", body)
+		td.Log("HTTP body: %s", string(res.Body))
 	}
 }
 
