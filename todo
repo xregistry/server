@@ -116,8 +116,6 @@ TODOs:
 - add xrlint test to make sure ALL errors are tested
 - complete Tablize logic
 - use ValiadateXID and other xid funcs in info processing instead
-- make all tests BACKEND agnostic and add if-statements to handle the diff
-  - remove tests that are memory or mysql specific - if possible
 
 - Backend
   - move mysql triggers to be go initiated, if appropriate but I'm not
