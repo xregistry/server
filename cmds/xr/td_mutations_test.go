@@ -618,7 +618,15 @@ func TestMutationsCleanup(t *testing.T) {
 				cleanupTD := tdFindSubtest(root, "Clean up run-owned Group")
 				XCheck(t, cleanupTD != nil,
 					"Expected cleanup subtest:\n%s", output)
-				XCheck(t, !tdHasLog(cleanupTD, `Attribute "files"`),
+				XCheck(t, tdHasLog(cleanupTD,
+					`"filescount" (1) MUST = 0`),
+					"Expected first cleanup failure:\n%s", output)
+				XCheck(t, !tdHasLog(cleanupTD,
+					`"files" MUST NOT be present`),
+					"Failfast cleanup continued after its first failure:\n%s",
+					output)
+				XCheck(t, !tdHasLog(cleanupTD,
+					`Attribute "files" MUST be null`),
 					"Failfast cleanup continued after its first failure:\n%s",
 					output)
 			}
