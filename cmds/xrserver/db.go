@@ -15,7 +15,7 @@ import (
 func addDBCmd(parent *cobra.Command) *cobra.Command {
 	dbCmd := &cobra.Command{
 		Use:   "db",
-		Short: "Manage mysql databases",
+		Short: "Manage databases",
 	}
 
 	parent.AddCommand(dbCmd)
@@ -30,7 +30,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			dbs, err := registry.DBList(XRSConfig)
-			ErrStop(err, "Error talking to mysql: %s", err)
+			ErrStop(err, "Error talking to backend: %s", err)
 
 			sort.Strings(dbs)
 
@@ -59,7 +59,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 
 	createCmd := &cobra.Command{
 		Use:   "create NAME",
-		Short: "Create a new mysql DB",
+		Short: "Create a new DB",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				Stop("Missing DB NAME argument")
@@ -89,7 +89,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 
 	deleteCmd := &cobra.Command{
 		Use:   "delete NAME",
-		Short: "Delete a mysql DB",
+		Short: "Delete a DB",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				Stop("Missing DB NAME argument")
@@ -116,7 +116,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 
 	getCmd := &cobra.Command{
 		Use:   "get NAME",
-		Short: "Get details about a mysql DB",
+		Short: "Get details about a DB",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				Stop("Missing DB NAME argument")
@@ -138,7 +138,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 	/*
 		listCmd := &cobra.Command{
 			Use:   "list",
-			Short: "List the mysql DBs",
+			Short: "List the DBs",
 			Run: func(cmd *cobra.Command, args []string) {
 				Stop("TBD... list 'em")
 			},

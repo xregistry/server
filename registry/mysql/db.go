@@ -519,17 +519,13 @@ func OpenDB(xrsConfig *Config, name string) (*sql.DB, *XRError) {
 
 	if firstTime {
 		log.FuncPrintf("Open DB: %s:%s:%s",
-			xrsConfig.GetAsString("db.host"),
-			xrsConfig.GetAsString("db.port"), name)
+			registry.BackendOpt(xrsConfig, "host"),
+			registry.BackendOpt(xrsConfig, "port"), name)
 		firstTime = false
 	}
 
-	DB, err := sql.Open("mysql",
-		xrsConfig.GetAsString("db.user")+":"+
-			xrsConfig.GetAsString("db.password")+"@tcp("+
-			xrsConfig.GetAsString("db.host")+":"+
-			xrsConfig.GetAsString("db.port")+")/"+name+
-			"?interpolateParams=true")
+	DB, err := sql.Open("mysql", serverDSN(xrsConfig)+name+
+		"?interpolateParams=true")
 
 	if err != nil {
 		return nil, NewXRError("server_error", "/").
@@ -541,8 +537,8 @@ func OpenDB(xrsConfig *Config, name string) (*sql.DB, *XRError) {
 	DB.SetConnMaxIdleTime(5 * time.Minute)
 
 	holder.db = DB
-	if xrsConfig.GetAsString("db.name") != name {
-		xrsConfig.Set("db.name", name)
+	if registry.BackendOpt(xrsConfig, "dbname") != name {
+		registry.SetBackendOpt(xrsConfig, "dbname", name)
 	}
 
 	return DB, nil

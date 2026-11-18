@@ -42,11 +42,7 @@ of them.
   - XR_SHOWLOGS: false
 - xrserver env vars
   - XR_PORT -> http.port
-  - DBNAME -> db.name
-  - DBHOST -> db.host
-  - DBPORT -> db.port
-  - DBUSER -> db.user
-  - DBPASSWORD -> db.password
+  - XR_BACKEND -> backend ([NAME,]opt=val,...), e.g. mysql,host=foo,port=33
 - setting up the server
   - easy path (stand-alone exe, docker images from github)
   - kubernetes, persistent volumes

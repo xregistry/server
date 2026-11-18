@@ -16,7 +16,8 @@ import (
 // named DBs (config "db.name") live in a process-wide map.
 
 func init() {
-	xErr := registry.RegisterBackend("memory", NewMemoryBackend)
+	xErr := registry.RegisterBackend("memory", NewMemoryBackend,
+		registry.DBNameOption)
 	if xErr != nil {
 		panic(xErr.String() + xErr.Detail)
 	}
@@ -98,7 +99,7 @@ func (be *MemoryBackend) NewTx(tx *registry.Tx) *XRError {
 		return nil
 	}
 
-	name := tx.Config.GetAsString("db.name")
+	name := registry.BackendOpt(tx.Config, "dbname")
 	if name == "" {
 		return NewXRError("server_error", "/").SetDetail("No DBName set.")
 	}

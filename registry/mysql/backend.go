@@ -18,10 +18,28 @@ import (
 )
 
 func init() {
-	xErr := registry.RegisterBackend("mysql", NewSQLBackend)
+	xErr := registry.RegisterBackend("mysql", NewSQLBackend,
+		registry.DBNameOption,
+		registry.BackendOption{Name: "host", Default: "127.0.0.1",
+			Description: "MySQL server host address"},
+		registry.BackendOption{Name: "port", Default: "3306",
+			Description: "MySQL server port"},
+		registry.BackendOption{Name: "user", Default: "root",
+			Description: "MySQL user"},
+		registry.BackendOption{Name: "password", Default: "password",
+			Description: "MySQL password", Secret: true},
+	)
 	if xErr != nil {
 		panic(xErr.String() + xErr.Detail)
 	}
+}
+
+// serverDSN is the connection string to the MySQL server itself (no DB)
+func serverDSN(c *Config) string {
+	return registry.BackendOpt(c, "user") + ":" +
+		registry.BackendOpt(c, "password") + "@tcp(" +
+		registry.BackendOpt(c, "host") + ":" +
+		registry.BackendOpt(c, "port") + ")/"
 }
 
 type SQLBackend struct {
@@ -56,11 +74,7 @@ func NewSQLBackend(c *Config) (registry.Backend, *XRError) {
 func (sqlBE *SQLBackend) DBExists(xrsConfig *Config, name string) bool {
 	defer log.Trace(name)()
 
-	db, err := sql.Open("mysql",
-		xrsConfig.GetAsString("db.user")+":"+
-			xrsConfig.GetAsString("db.password")+"@tcp("+
-			xrsConfig.GetAsString("db.host")+":"+
-			xrsConfig.GetAsString("db.port")+")/")
+	db, err := sql.Open("mysql", serverDSN(xrsConfig))
 	PanicIf(err != nil, "Error opening DB: %s", err)
 	defer db.Close()
 
@@ -79,11 +93,7 @@ func (sqlBE *SQLBackend) DBExists(xrsConfig *Config, name string) bool {
 func (sqlBE *SQLBackend) DBCreate(xrsConfig *Config, name string) *XRError {
 	defer log.Trace(name)()
 
-	db, err := sql.Open("mysql",
-		xrsConfig.GetAsString("db.user")+":"+
-			xrsConfig.GetAsString("db.password")+"@tcp("+
-			xrsConfig.GetAsString("db.host")+":"+
-			xrsConfig.GetAsString("db.port")+")/")
+	db, err := sql.Open("mysql", serverDSN(xrsConfig))
 	if err != nil {
 		panic(err)
 	}
@@ -141,11 +151,7 @@ func replaceVariables(str string) string {
 func (sqlBE *SQLBackend) DBDelete(xrsConfig *Config, name string) *XRError {
 	defer log.Trace(name)()
 
-	db, err := sql.Open("mysql",
-		xrsConfig.GetAsString("db.user")+":"+
-			xrsConfig.GetAsString("db.password")+"@tcp("+
-			xrsConfig.GetAsString("db.host")+":"+
-			xrsConfig.GetAsString("db.port")+")/")
+	db, err := sql.Open("mysql", serverDSN(xrsConfig))
 	if err != nil {
 		panic(err)
 	}
@@ -161,11 +167,7 @@ func (sqlBE *SQLBackend) DBDelete(xrsConfig *Config, name string) *XRError {
 func (sqlBE *SQLBackend) DBList(xrsConfig *Config) ([]string, *XRError) {
 	defer log.Trace()()
 
-	db, err := sql.Open("mysql",
-		xrsConfig.GetAsString("db.user")+":"+
-			xrsConfig.GetAsString("db.password")+"@tcp("+
-			xrsConfig.GetAsString("db.host")+":"+
-			xrsConfig.GetAsString("db.port")+")/")
+	db, err := sql.Open("mysql", serverDSN(xrsConfig))
 	if err != nil {
 		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
@@ -196,9 +198,9 @@ func (sqlBE *SQLBackend) DBList(xrsConfig *Config) ([]string, *XRError) {
 
 func (sqlBE *SQLBackend) DBConnectionString(c *Config) (string, *XRError) {
 	return fmt.Sprintf("%s@%s:%s",
-		c.GetAsString("db.name"),
-		c.GetAsString("db.host"),
-		c.GetAsString("db.port")), nil
+		registry.BackendOpt(c, "dbname"),
+		registry.BackendOpt(c, "host"),
+		registry.BackendOpt(c, "port")), nil
 }
 
 func (sqlBE *SQLBackend) Close(xrsConfig *Config) *XRError {
@@ -217,7 +219,7 @@ func (sqlBE *SQLBackend) NewTx(tx *registry.Tx) *XRError {
 		return nil
 	}
 
-	DBName := tx.Config.GetAsString("db.name")
+	DBName := registry.BackendOpt(tx.Config, "dbname")
 	if DBName == "" {
 		return NewXRError("server_error", "/").SetDetail("No DBName set.")
 	}

@@ -18,11 +18,7 @@ import (
 // Default values for some server config properties
 var DefAddr = ""
 var DefPort = 8080
-var DefDBHost = "127.0.0.1"
-var DefDBPort = 3306
 var DefDBName = "registry"
-var DefDBUser = "root"
-var DefDBPassword = "password"
 var DefRegistryName = "xRegistry"
 
 func DBExists(c *Config, name string) bool {
@@ -886,11 +882,6 @@ func NewXRServerConfig(fileName string) *Config {
 	xrsConfig.Set("verbose", "")
 	xrsConfig.Set("http.addr", DefAddr)
 	xrsConfig.Set("http.port", fmt.Sprintf("%d", DefPort))
-	xrsConfig.Set("db.name", DefDBName)
-	xrsConfig.Set("db.host", DefDBHost)
-	xrsConfig.Set("db.port", fmt.Sprintf("%d", DefDBPort))
-	xrsConfig.Set("db.user", DefDBUser)
-	xrsConfig.Set("db.password", DefDBPassword)
 	xrsConfig.Set("path.ui", "ui")
 	xrsConfig.Set("path.defaultreg", "xreg")
 	xrsConfig.Set("path.regcollection", "xregs")
@@ -898,18 +889,21 @@ func NewXRServerConfig(fileName string) *Config {
 	return xrsConfig
 }
 
-func SetXRServerConfigFromEnvVars(xrsConfig *Config) *Config {
-	xrsConfig.SetFromEnv("backend", "XR_BACKEND")
-	xrsConfig.SetFromEnv("db.name", "DBNAME")
-	xrsConfig.SetFromEnv("db.host", "DBHOST")
-	xrsConfig.SetFromEnv("db.port", "DBPORT")
-	xrsConfig.SetFromEnv("db.user", "DBUSER")
-	xrsConfig.SetFromEnv("db.password", "DBPASSWORD")
+func SetXRServerConfigFromEnvVars(xrsConfig *Config) (*Config, *XRError) {
+	// XR_BACKEND_SECRET is the same as XR_BACKEND but is processed after it
+	// and is not shown when env vars are dumped, so it's for passwords etc.
+	for _, name := range []string{"XR_BACKEND", "XR_BACKEND_SECRET"} {
+		if spec := os.Getenv(name); spec != "" {
+			if xErr := ParseBackendSpec(xrsConfig, spec); xErr != nil {
+				return xrsConfig, xErr
+			}
+		}
+	}
 
 	xrsConfig.SetFromEnv("http.addr", "XR_ADDR")
 	xrsConfig.SetFromEnv("http.port", "XR_PORT")
 
-	return xrsConfig
+	return xrsConfig, nil
 }
 
 func (r *Registry) GetTx() *Tx {

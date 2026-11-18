@@ -15,10 +15,8 @@ spec:
     - containerPort: 8080
       protocol: TCP
     env:
-    - name: DBHOST
-      value: mysql
-    - name: DBPORT
-      value: "3306"
+    - name: XR_BACKEND
+      value: "mysql,host=mysql,port=3306"
 
 ---
 

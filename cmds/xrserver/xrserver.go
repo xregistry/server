@@ -101,7 +101,7 @@ func setupCmds() *cobra.Command {
 		"Default Registry name")
 	serverCmd.Flag("registry").DefValue = ""
 	serverCmd.Flags().StringP("addr", "", registry.DefAddr,
-		fmt.Sprintf("HTTP Listen address (%q*)", registry.DefAddr))
+		fmt.Sprintf("HTTP listen address (%q*)", registry.DefAddr))
 	serverCmd.Flags().IntP("port", "p", registry.DefPort,
 		fmt.Sprintf("HTTP Listen port (%d*)", registry.DefPort))
 	serverCmd.Flag("port").DefValue = "0"
@@ -122,26 +122,11 @@ func setupCmds() *cobra.Command {
 	// global flags
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
 	serverCmd.PersistentFlags().StringP("config", "", "",
-		"Config file ($HOME/"+ConfigFileName+")")
+		"Config file ($HOME/"+ConfigFileName+"*)")
 	serverCmd.PersistentFlags().StringArray("cset", nil,
 		"Override configFile property: --cset NAME[:VALUE]")
-	serverCmd.PersistentFlags().StringP("backend", "", "",
-		"Backend type: mysql*, memory")
-	serverCmd.PersistentFlags().StringP("db", "", registry.DefDBName,
-		"DB name ("+registry.DefDBName+"*)")
-	serverCmd.Flag("db").DefValue = "" // hide default text
-	serverCmd.PersistentFlags().StringP("dbhost", "", registry.DefDBHost,
-		"DB host address ("+registry.DefDBHost+"*)")
-	serverCmd.Flag("dbhost").DefValue = "" // hide default text
-	serverCmd.PersistentFlags().IntP("dbport", "", registry.DefDBPort,
-		fmt.Sprintf("DB host port (%d*)", registry.DefDBPort))
-	serverCmd.Flag("dbport").DefValue = "0" // hide default text
-	serverCmd.PersistentFlags().StringP("dbuser", "", registry.DefDBUser,
-		"DB user ("+registry.DefDBUser+"*)")
-	serverCmd.Flag("dbuser").DefValue = "" // hide default text
-	serverCmd.PersistentFlags().StringP("dbpassword", "",
-		registry.DefDBPassword, "DB password ("+registry.DefDBPassword+"*)")
-	serverCmd.Flag("dbpassword").DefValue = "" // hide default text
+	serverCmd.PersistentFlags().StringArray("backend", nil,
+		"Backend and its options: [NAME,][OPT=VALUE,]...")
 	serverCmd.PersistentFlags().CountP("verbose", "v",
 		"Be chatty``")
 	serverCmd.PersistentFlags().BoolP("version", "", false,
@@ -160,7 +145,10 @@ func setupCmds() *cobra.Command {
 	}
 
 	runCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
-	runCmd.Flags().StringP("rootapp", "", "ui", "Root application (ui,xreg)")
+	runCmd.Flags().StringP("rootapp", "", "ui", "Root application (ui*,xreg)")
+
+	runCmd.Flag("rootapp").DefValue = "" // hide default text
+
 	runCmd.Flags().BoolP("samples", "", false, "Load sample registries")
 	runCmd.Flags().StringP("addr", "", registry.DefAddr,
 		fmt.Sprintf("HTTP Listen address (%q*)", registry.DefAddr))
@@ -180,6 +168,7 @@ func setupCmds() *cobra.Command {
 	serverCmd.AddCommand(runCmd)
 
 	addDBCmd(serverCmd)
+	addBackendCmd(serverCmd)
 	addRegistryCmd(serverCmd)
 
 	serverCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
@@ -204,15 +193,27 @@ func setupCmds() *cobra.Command {
 		}
 
 		// Override with env vars
-		registry.SetXRServerConfigFromEnvVars(XRSConfig)
+		_, xErr := registry.SetXRServerConfigFromEnvVars(XRSConfig)
+		if xErr != nil {
+			Stop("Error processing XR_BACKEND: %s", xErr.Detail)
+		}
 
 		//  Override with cmd-line params
-		XRSConfig.SetFromCmd("backend", cmd, "backend")
-		XRSConfig.SetFromCmd("db.name", cmd, "db")
-		XRSConfig.SetFromCmd("db.host", cmd, "dbhost")
-		XRSConfig.SetFromCmdInt("db.port", cmd, "dbport")
-		XRSConfig.SetFromCmd("db.user", cmd, "dbuser")
-		XRSConfig.SetFromCmd("db.password", cmd, "dbpassword")
+		specs, _ := cmd.Flags().GetStringArray("backend")
+		for _, spec := range specs {
+			xErr := registry.ParseBackendSpec(XRSConfig, spec)
+			if xErr != nil {
+				Stop("Error processing --backend: %s", xErr.Detail)
+			}
+		}
+
+		// "backend list" is allowed to run even if the config is bad
+		if cmd.Parent() == nil || cmd.Parent().Name() != "backend" {
+			xErr = registry.ValidateBackendConfig(XRSConfig)
+			if xErr != nil {
+				Stop("Backend config error: %s", xErr.Detail)
+			}
+		}
 
 		tmpV := XRSConfig.GetAsInt("verbose")
 		if cmd.Flags().Changed("verbose") {
@@ -245,7 +246,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		Verbose("Config: %s", XRSConfig.FileName)
 	}
 
-	DBName := XRSConfig.GetAsString("db.name")
+	DBName := registry.BackendOpt(XRSConfig, "dbname")
 	ConnStr, xErr := registry.DBConnectionString(XRSConfig)
 	ErrStop(xErr, "Error talking to DB: %s", xErr.String())
 	if ConnStr != "" {
