@@ -246,7 +246,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		Verbose("Config: %s", XRSConfig.FileName)
 	}
 
-	DBName := registry.BackendOpt(XRSConfig, "dbname")
+	DBName := registry.BackendOpt(XRSConfig, "dbname") // "" if no DBs
 	ConnStr, xErr := registry.DBConnectionString(XRSConfig)
 	ErrStop(xErr, "Error talking to DB: %s", xErr.String())
 	if ConnStr != "" {
@@ -277,7 +277,10 @@ func runFunc(cmd *cobra.Command, args []string) {
 		Stop("Default Registry name missing, try: -r NAME")
 	}
 
-	if RecreateDB {
+	// Backends w/o DBs silently ignore --recreatedb and --dontcreate (for DBs)
+	supportsDBs := registry.BackendSupportsDBs(XRSConfig)
+
+	if supportsDBs && RecreateDB {
 		if registry.DBExists(XRSConfig, DBName) {
 			Verbose("Deleting DB: %s", DBName)
 			err := registry.DBDelete(XRSConfig, DBName)
@@ -288,7 +291,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		// cmd.Flags().Set("createreg", "true")
 	}
 
-	if !registry.DBExists(XRSConfig, DBName) {
+	if supportsDBs && !registry.DBExists(XRSConfig, DBName) {
 		if !DontCreate || RecreateDB {
 			Verbose("Creating DB: %s", DBName)
 			err := registry.DBCreate(XRSConfig, DBName)

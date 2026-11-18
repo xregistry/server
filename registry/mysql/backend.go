@@ -71,6 +71,8 @@ func NewSQLBackend(c *Config) (registry.Backend, *XRError) {
 
 // DB Actions
 
+func (sqlBE *SQLBackend) SupportsDBs() bool { return true }
+
 func (sqlBE *SQLBackend) DBExists(xrsConfig *Config, name string) bool {
 	defer log.Trace(name)()
 

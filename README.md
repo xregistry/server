@@ -33,9 +33,10 @@ See the [Design Doc](DESIGN.md)
 ### Storage Backends
 
 - `mysql` (default): persistent storage in a MySQL database.
-- `memory`: pure in-memory storage, nothing is persisted. Named DBs
-  live in a process-wide map and are lost when the process exits. Useful for
-  quick demos and for running tests without MySQL.
+- `memory`: pure in-memory storage, nothing is persisted. It has no
+  notion of DBs (`xrserver db ...` returns an error and `--recreatedb` is
+  a no-op) and everything is lost when the process exits. Useful for quick
+  demos and for running tests without MySQL.
 
 Select a backend with `xrserver --backend memory`, the `XR_BACKEND`
 environment variable, or the `backend` config property. To run the test

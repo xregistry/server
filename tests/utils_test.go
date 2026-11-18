@@ -23,7 +23,7 @@ import (
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
 	xrhttp "github.com/xregistry/server/registry/http"
-	_ "github.com/xregistry/server/registry/memory"
+	"github.com/xregistry/server/registry/memory"
 	"github.com/xregistry/server/registry/mysql"
 )
 
@@ -95,9 +95,13 @@ func TestMain(m *testing.M) {
 	registry.SetXRServerConfigFromEnvVars(XRServerConfig)
 
 	// call flag.Parse() here if TestMain uses flags
-	registry.DBDelete(XRServerConfig, TestRegName)
-	registry.DBCreate(XRServerConfig, TestRegName)
-	registry.SetBackendOpt(XRServerConfig, "dbname", TestRegName)
+	if registry.BackendSupportsDBs(XRServerConfig) {
+		registry.DBDelete(XRServerConfig, TestRegName)
+		registry.DBCreate(XRServerConfig, TestRegName)
+		registry.SetBackendOpt(XRServerConfig, "dbname", TestRegName)
+	} else {
+		memory.Reset()
+	}
 
 	// DBName := "registry"
 	// if !registry.DBExists(XRServerConfig,DBName) {

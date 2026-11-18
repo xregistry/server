@@ -16,6 +16,14 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 	dbCmd := &cobra.Command{
 		Use:   "db",
 		Short: "Manage databases",
+		// Cobra only runs the nearest PersistentPreRun so call the root's
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			cmd.Root().PersistentPreRun(cmd, args)
+			if !registry.BackendSupportsDBs(XRSConfig) {
+				Stop("Backend %q doesn't support DBs",
+					registry.BackendName(XRSConfig))
+			}
+		},
 	}
 
 	parent.AddCommand(dbCmd)

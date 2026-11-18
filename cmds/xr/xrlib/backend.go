@@ -31,6 +31,8 @@ func NewCLIBackend(c *Config) (registry.Backend, *XRError) {
 	}, nil
 }
 
+func (CLIBE *CLIBackend) SupportsDBs() bool { return false }
+
 func (CLIBE *CLIBackend) DBExists(c *Config, name string) bool {
 	panic("not yet")
 	return false

@@ -192,6 +192,9 @@ func ValidateBackendConfig(c *Config) *XRError {
 		for _, o := range be.Options {
 			valid = append(valid, o.Name)
 		}
+		if len(valid) == 0 {
+			valid = append(valid, "none")
+		}
 		return NewXRError("server_error", "/").SetDetailf(
 			"Unknown option(s) for backend %q: %s (valid: %s).", profile,
 			strings.Join(bad, ", "), strings.Join(valid, ", "))
@@ -247,7 +250,11 @@ func ListBackends(c *Config, output string) string {
 		if bi.Default {
 			buf.WriteString(" (default)")
 		}
-		buf.WriteString("\n  Options:\n")
+		buf.WriteString("\n  Options:")
+		if len(bi.Options) == 0 {
+			buf.WriteString(" none")
+		}
+		buf.WriteString("\n")
 		for _, o := range bi.Options {
 			def := ""
 			if o.Default != "" {
@@ -257,6 +264,12 @@ func ListBackends(c *Config, output string) string {
 		}
 	}
 	return buf.String()
+}
+
+// BackendSupportsDBs returns true if the active backend has named DBs
+func BackendSupportsDBs(c *Config) bool {
+	be, xErr := NewBackend(c)
+	return xErr == nil && be.SupportsDBs()
 }
 
 func MustNewBackend(c *Config) Backend {
@@ -270,6 +283,10 @@ func MustNewBackend(c *Config) Backend {
 type Backend interface {
 	// DB related stuff
 	/////////////////////////////////////////////////////////////////////
+
+	// SupportsDBs is false for backends with no notion of a named DB. For
+	// those, the DB* funcs below are never called (they just return errors).
+	SupportsDBs() bool
 	DBExists(c *Config, name string) bool
 	DBCreate(c *Config, name string) *XRError
 	DBDelete(c *Config, name string) *XRError
