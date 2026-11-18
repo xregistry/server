@@ -31,6 +31,8 @@
 # af1e4527e1ab 2m20s   2m36s  33s     Remove shared* files
 # 4ef52aea3e73 2m6s    2m33s  34s     Remove lowerxid index/col
 # 0077577064ff 1m31s   2m20s  35s     Remove mysql prepare
+# 9441c254 mem 2s      32s    0s      memory backend, one curl per dir for GETs
+# 9441c254 sql 1m39s   40s    35s     Optimized misc/largetest script's curls
 
 set -e
 
@@ -52,15 +54,18 @@ while ! grep "$SEARCH" server.out > /dev/null ; do
   sleep 10
 done
 
+# One curl per dir (reusing the connection) so that we measure the server and
+# not the cost of spawning ~9000 curl processes.
 TIMEFORMAT="GETs: %0lR" ; time (
 for d in `seq 0 9` ; do
-  $CMD $XR_SERVER/dirs/dir$d > /dev/null
+  urls="$XR_SERVER/dirs/dir$d"
   for f in `seq 0 149` ; do
-    $CMD $XR_SERVER/dirs/dir$d/files/file$f$details?inline > /dev/null
+    urls="$urls $XR_SERVER/dirs/dir$d/files/file$f$details?inline"
     for v in `seq 0 4` ; do
-      $CMD $XR_SERVER/dirs/dir$d/files/file$f/versions/v$v\$details > /dev/null
+      urls="$urls $XR_SERVER/dirs/dir$d/files/file$f/versions/v$v\$details"
     done
   done
+  $CMD $urls > /dev/null
   echo "Done GETting /dirs/dir$d"
 done
 )

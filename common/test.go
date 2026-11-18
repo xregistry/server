@@ -141,8 +141,8 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 		got = SavedREs[REG_COMMIT].ReplaceAllString(got, "GitCommit: sha\n")
 		exp = SavedREs[REG_COMMIT].ReplaceAllString(exp, "GitCommit: sha\n")
 
-		got = SavedREs[REG_DBHOST].ReplaceAllString(got, "Backend: be(name@host:port)")
-		exp = SavedREs[REG_DBHOST].ReplaceAllString(exp, "Backend: be(name@host:port)")
+		got = SavedREs[REG_DBHOST].ReplaceAllString(got, "Backend: be(ConnString)")
+		exp = SavedREs[REG_DBHOST].ReplaceAllString(exp, "Backend: be(ConnString)")
 	}
 
 	if !flagsMap[NOMASK_INSTANCE] {

@@ -51,6 +51,11 @@ func (CLIBE *CLIBackend) DBList(c *Config) ([]string, *XRError) {
 	return nil, nil
 }
 
+func (CLIBE *CLIBackend) DBConnectionString(c *Config) (string, *XRError) {
+	panic("not yet")
+	return "", nil
+}
+
 func (CLIBE *CLIBackend) Close(c *Config) *XRError {
 	return nil
 }
@@ -272,6 +277,11 @@ func (CLIBE *CLIBackend) RefreshEntity(e *registry.Entity, accessMode int) *XREr
 func (CLIBE *CLIBackend) ClearUserProps(e *registry.Entity) *XRError {
 	panic("not yet")
 	return nil
+}
+
+func (CLIBE *CLIBackend) ListProps(reg *registry.Registry, all bool) ([][3]string, *XRError) {
+	panic("not yet")
+	return nil, nil
 }
 
 func (CLIBE *CLIBackend) ListRegistries(tx *registry.Tx) ([]string, *XRError) {

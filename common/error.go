@@ -515,6 +515,11 @@ func (xErr *XRError) SetHeader(name, value string) *XRError {
 }
 
 func (xErr *XRError) String() string {
+	// Just to be nice
+	if xErr == nil {
+		return "<no error>"
+	}
+
 	// return xErr.ToJSON("")
 	str := xErr.GetTitle()
 	if xErr.Detail != "" {

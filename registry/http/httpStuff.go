@@ -54,7 +54,7 @@ func (s *Server) Close() {
 	s.HTTPServer.Close()
 
 	// Release the backend's shared resources, e.g. the DB connection pool
-	if be, xErr := registry.NewDefaultBackend(s.XRSConfig); xErr == nil {
+	if be, xErr := registry.NewBackend(s.XRSConfig); xErr == nil {
 		be.Close(s.XRSConfig) //xrlint:ignore
 	}
 }
@@ -264,7 +264,7 @@ func (s *Server) serveOneAttempt(info *registry.RequestInfo) (retErr *XRError) {
 		}
 	}()
 
-	be, xErr := registry.NewDefaultBackend(s.XRSConfig)
+	be, xErr := registry.NewBackend(s.XRSConfig)
 	if xErr != nil {
 		return xErr
 	}
@@ -472,7 +472,7 @@ func HTTPGETXRegistryDiscovery(info *registry.RequestInfo) *XRError {
 
 	httpWriter := info.Extras["HttpWriter"].(*HttpWriter)
 
-	names, xErr := registry.GetRegistryNames(info.XRSConfig)
+	names, xErr := registry.GetRegistryNames(info.XRSConfig, info.Tx)
 	if xErr != nil {
 		return xErr
 	}

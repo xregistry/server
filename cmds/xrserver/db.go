@@ -101,7 +101,7 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 
 			if !registry.DBExists(XRSConfig, DBName) {
 				if val, _ := cmd.Flags().GetBool("force"); !val {
-					Stop("DB %q doesn't exists", DBName)
+					Stop("DB %q doesn't exist", DBName)
 				}
 				return
 			}

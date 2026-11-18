@@ -12,6 +12,7 @@ import (
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
 	xrhttp "github.com/xregistry/server/registry/http"
+	_ "github.com/xregistry/server/registry/memory"
 	_ "github.com/xregistry/server/registry/mysql"
 )
 
@@ -124,6 +125,8 @@ func setupCmds() *cobra.Command {
 		"Config file ($HOME/"+ConfigFileName+")")
 	serverCmd.PersistentFlags().StringArray("cset", nil,
 		"Override configFile property: --cset NAME[:VALUE]")
+	serverCmd.PersistentFlags().StringP("backend", "", "",
+		"Backend type: mysql*, memory")
 	serverCmd.PersistentFlags().StringP("db", "", registry.DefDBName,
 		"DB name ("+registry.DefDBName+"*)")
 	serverCmd.Flag("db").DefValue = "" // hide default text
@@ -204,6 +207,7 @@ func setupCmds() *cobra.Command {
 		registry.SetXRServerConfigFromEnvVars(XRSConfig)
 
 		//  Override with cmd-line params
+		XRSConfig.SetFromCmd("backend", cmd, "backend")
 		XRSConfig.SetFromCmd("db.name", cmd, "db")
 		XRSConfig.SetFromCmd("db.host", cmd, "dbhost")
 		XRSConfig.SetFromCmdInt("db.port", cmd, "dbport")
@@ -242,14 +246,15 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	DBName := XRSConfig.GetAsString("db.name")
+	ConnStr, xErr := registry.DBConnectionString(XRSConfig)
+	ErrStop(xErr, "Error talking to DB: %s", xErr.String())
+	if ConnStr != "" {
+		ConnStr = "(" + ConnStr + ")"
+	}
 
 	PanicIf(GitCommit == "" || GitCommit == "<n/a>", "GitCommit isn't set")
 	Verbose("GitCommit: %.12s", GitCommit)
-	Verbose("Backend: %s(%s@%s:%s)",
-		registry.DefaultBackendName(XRSConfig),
-		DBName,
-		XRSConfig.GetAsString("db.host"),
-		XRSConfig.GetAsString("db.port"))
+	Verbose("Backend: %s%s", registry.BackendName(XRSConfig), ConnStr)
 
 	if len(args) > 0 {
 		Stop("Too many arguments on the command line")

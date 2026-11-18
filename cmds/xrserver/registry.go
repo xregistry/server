@@ -29,7 +29,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 
 			force, _ := cmd.Flags().GetBool("force")
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,
-				registry.MustNewDefaultBackend(XRSConfig))
+				registry.MustNewBackend(XRSConfig))
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
@@ -66,7 +66,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 
 			force, _ := cmd.Flags().GetBool("force")
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,
-				registry.MustNewDefaultBackend(XRSConfig))
+				registry.MustNewBackend(XRSConfig))
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
@@ -78,7 +78,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 					if force {
 						continue
 					}
-					StopTx(tx, "Registry %q doesn't exists", id)
+					StopTx(tx, "Registry %q doesn't exist", id)
 				}
 
 				Verbose("Deleting: %s", id)
@@ -104,7 +104,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,
-				registry.MustNewDefaultBackend(XRSConfig))
+				registry.MustNewBackend(XRSConfig))
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			reg, err := registry.FindRegistryByUID(tx, XRSConfig, args[0],
@@ -140,11 +140,11 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 		Use:   "list",
 		Short: "List the registries",
 		Run: func(cmd *cobra.Command, args []string) {
-			ids, err := registry.GetRegistryNames(XRSConfig)
+			ids, err := registry.GetRegistryNames(XRSConfig, nil)
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			tx, err := registry.NewTx(NewUUID(), XRSConfig,
-				registry.MustNewDefaultBackend(XRSConfig))
+				registry.MustNewBackend(XRSConfig))
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 1, 3, ' ', 0)

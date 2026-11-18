@@ -194,6 +194,13 @@ func (sqlBE *SQLBackend) DBList(xrsConfig *Config) ([]string, *XRError) {
 	return names, nil
 }
 
+func (sqlBE *SQLBackend) DBConnectionString(c *Config) (string, *XRError) {
+	return fmt.Sprintf("%s@%s:%s",
+		c.GetAsString("db.name"),
+		c.GetAsString("db.host"),
+		c.GetAsString("db.port")), nil
+}
+
 func (sqlBE *SQLBackend) Close(xrsConfig *Config) *XRError {
 	CloseDB(xrsConfig)
 	return nil
@@ -1355,6 +1362,38 @@ func (sqlBE *SQLBackend) ClearUserProps(e *registry.Entity) *XRError {
 		e.SID)
 
 	return xErr
+}
+
+func (sqlBE *SQLBackend) ListProps(reg *registry.Registry, all bool) ([][3]string, *XRError) {
+
+	query := "SELECT XID,PropName,PropValue " +
+		"FROM Props WHERE RegistrySID=? AND IsDefaultVerCopy=false AND " +
+		"IsXrefPropCopy=false AND IsXrefVerCopy=false AND " +
+		"IsCalcStatic=false AND IsCalcDynamic=false " +
+		"ORDER BY XID, PropName "
+	if all {
+		query = "SELECT XID,PropName,PropValue " +
+			"FROM Props WHERE RegistrySID=? ORDER BY XID, PropName "
+	}
+
+	rows, xErr := sqlBE.Query(reg.GetTx(), query, reg.SID)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	strFn := func(v any) string {
+		vp := v.(*any)
+		return NotNilString(vp)
+	}
+
+	res := make([][3]string, 0, len(rows))
+	for _, row := range rows {
+		res = append(res, [3]string{
+			strFn(row[0]),
+			strFn(row[1]),
+			strFn(row[2])})
+	}
+	return res, nil
 }
 
 func batchUpdateProps(e *registry.Entity, isSystem bool, args []any) *XRError {

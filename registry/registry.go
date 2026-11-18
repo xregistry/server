@@ -26,7 +26,7 @@ var DefDBPassword = "password"
 var DefRegistryName = "xRegistry"
 
 func DBExists(c *Config, name string) bool {
-	be, xErr := NewDefaultBackend(c)
+	be, xErr := NewBackend(c)
 	if xErr != nil {
 		panic(xErr)
 	}
@@ -34,7 +34,7 @@ func DBExists(c *Config, name string) bool {
 }
 
 func DBCreate(c *Config, name string) *XRError {
-	be, xErr := NewDefaultBackend(c)
+	be, xErr := NewBackend(c)
 	if xErr != nil {
 		return xErr
 	}
@@ -42,7 +42,7 @@ func DBCreate(c *Config, name string) *XRError {
 }
 
 func DBDelete(c *Config, name string) *XRError {
-	be, xErr := NewDefaultBackend(c)
+	be, xErr := NewBackend(c)
 	if xErr != nil {
 		return xErr
 	}
@@ -50,11 +50,19 @@ func DBDelete(c *Config, name string) *XRError {
 }
 
 func DBList(c *Config) ([]string, *XRError) {
-	be, xErr := NewDefaultBackend(c)
+	be, xErr := NewBackend(c)
 	if xErr != nil {
 		return nil, xErr
 	}
 	return be.DBList(c)
+}
+
+func DBConnectionString(c *Config) (string, *XRError) {
+	be, xErr := NewBackend(c)
+	if xErr != nil {
+		return "", xErr
+	}
+	return be.DBConnectionString(c)
 }
 
 func NewRegistry(tx *Tx, config *Config, id string) (*Registry, *XRError) {
@@ -79,7 +87,7 @@ func NewRegistry(tx *Tx, config *Config, id string) (*Registry, *XRError) {
 	}()
 
 	if tx == nil {
-		be, xErr := NewDefaultBackend(config)
+		be, xErr := NewBackend(config)
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -185,7 +193,7 @@ func DefineRegistry(url string, c *Config) (*Registry, *XRError) {
 		reg.SetStuff("server", url)
 	}
 
-	be, xErr := NewDefaultBackend(c)
+	be, xErr := NewBackend(c)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -270,7 +278,7 @@ func FindRegistryByUID(tx *Tx, config *Config, uid string, accessMode int) (*Reg
 	newTx := false
 	if tx == nil {
 		var xErr *XRError
-		be, xErr := NewDefaultBackend(config)
+		be, xErr := NewBackend(config)
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -891,6 +899,7 @@ func NewXRServerConfig(fileName string) *Config {
 }
 
 func SetXRServerConfigFromEnvVars(xrsConfig *Config) *Config {
+	xrsConfig.SetFromEnv("backend", "XR_BACKEND")
 	xrsConfig.SetFromEnv("db.name", "DBNAME")
 	xrsConfig.SetFromEnv("db.host", "DBHOST")
 	xrsConfig.SetFromEnv("db.port", "DBPORT")
@@ -1052,13 +1061,19 @@ func (r *Registry) Validate() *XRError {
 	return nil
 }
 
-func GetRegistryNames(xrsConfig *Config) ([]string, *XRError) {
-	be, xErr := NewDefaultBackend(xrsConfig)
+// If tx is nil a temporary Tx is used. Pass an existing Tx when one is open
+// since some backends serialize Txs and a second one would block.
+func GetRegistryNames(xrsConfig *Config, tx *Tx) ([]string, *XRError) {
+	if tx != nil {
+		return tx.Backend.ListRegistries(tx)
+	}
+
+	be, xErr := NewBackend(xrsConfig)
 	if xErr != nil {
 		return nil, xErr
 	}
 
-	tx, xErr := NewTx(NewUUID(), xrsConfig, be)
+	tx, xErr = NewTx(NewUUID(), xrsConfig, be)
 	if xErr != nil {
 		return nil, xErr
 	}

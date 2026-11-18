@@ -13,17 +13,12 @@ import (
 
 	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
-	"github.com/xregistry/server/registry/mysql"
 )
 
 func TestMiscDBRows(t *testing.T) {
 	// Make sure we don't create extra extra stuff in the DB.
 	reg := NewRegistry("TestMiscDBRows")
 	defer PassDeleteReg(t, reg)
-
-	if fmt.Sprintf("%T", reg.GetTx().Backend) != "*mysql.SQLBackend" {
-		t.Fatalf("Unknown backend: %T", reg.GetTx().Backend)
-	}
 
 	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
 	XNoErr(t, err)
@@ -67,25 +62,13 @@ func TestMiscDBRows(t *testing.T) {
 }
 `)
 
-	strFn := func(v any) string {
-		vp := v.(*any)
-		return NotNilString(vp)
-	}
-
-	be := registry.MustNewDefaultBackend(reg.GetXRServerConfig()).(*mysql.SQLBackend)
-
-	rows, xErr := be.Query(reg.GetTx(), "SELECT XID,PropName,PropValue "+
-		"FROM Props WHERE RegistrySID=? AND IsDefaultVerCopy=false AND "+
-		"IsXrefPropCopy=false AND IsXrefVerCopy=false AND "+
-		"IsCalcStatic=false AND IsCalcDynamic=false "+
-		"ORDER BY XID, PropName ",
-		reg.SID)
+	be := registry.MustNewBackend(reg.GetXRServerConfig())
+	rows, xErr := be.ListProps(reg, false)
 	XNoErr(t, xErr)
 
 	result := ""
 	for _, row := range rows {
-		result += fmt.Sprintf("%s: %s -> %s\n",
-			strFn(row[0]), strFn(row[1]), strFn(row[2]))
+		result += fmt.Sprintf("%s: %s -> %s\n", row[0], row[1], row[2])
 	}
 	result = MaskTimestamps(result)
 
@@ -135,15 +118,10 @@ func TestMiscDBRows(t *testing.T) {
 
 	// Same query but don't exclude the calculated attributes.
 	// We want to check EVERYTHING!
-	rows, xErr = be.Query(reg.GetTx(), "SELECT XID,PropName,PropValue "+
-		"FROM Props WHERE RegistrySID=? ORDER BY XID, PropName ",
-		reg.SID)
-	XNoErr(t, xErr)
-
+	rows, xErr = be.ListProps(reg, true)
 	result = ""
 	for _, row := range rows {
-		result += fmt.Sprintf("%s: %s -> %s\n",
-			strFn(row[0]), strFn(row[1]), strFn(row[2]))
+		result += fmt.Sprintf("%s: %s -> %s\n", row[0], row[1], row[2])
 	}
 	result = MaskTimestamps(result)
 
@@ -673,9 +651,23 @@ func TestMiscDeadlockRetry(t *testing.T) {
 	}
 
 	logOutput := buf.String()
-	if !strings.Contains(logOutput, "Retrying") {
-		t.Fatalf("expected at least one retry due to a DB lock conflict, " +
-			"but none was logged")
+
+	switch registry.BackendName(reg.GetXRServerConfig()) {
+	case "mysql":
+		if !strings.Contains(logOutput, "Retrying") {
+			t.Fatalf("expected at least one retry due to a DB lock conflict, " +
+				"but none was logged")
+		}
+
+	case "memory":
+		// Since we lock the entire DB we should not see any "Retrying"
+		if strings.Contains(logOutput, "Retrying") {
+			t.Fatalf("got unexpected DB lock conflict")
+		}
+
+	default:
+		t.Fatalf("Unknown backend: %s",
+			registry.BackendName(reg.GetXRServerConfig()))
 	}
 }
 
@@ -756,14 +748,15 @@ func TestMiscTestLogging(t *testing.T) {
 	buf.Clear()
 	log.Reset(nil)
 
+	ts := `[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}`
+
 	XHTTP(t, reg, "GET", "/?verbose=Query", "", 200, "*")
 	logOutput = buf.String()
 	// Must be: YYYY/MM/DD HH:MM:SS tx: TXUID Query:
-	XEqual(t, "", logOutput, "^(?m)^[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} tx: [a-zA-Z0-9]+ Query:")
+	XEqual(t, "", logOutput, `^(?m)^`+ts+` tx: [a-zA-Z0-9]+ Query:`)
 	buf.Clear()
 	log.Reset(nil)
 
-	ts := `[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}`
 	XHTTP(t, reg, "GET", "/?verbose=HTTPGet:timed:Query", "", 200, "*")
 	logOutput = buf.String()
 	// include trace for HTTPGet and timing for it

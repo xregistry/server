@@ -29,6 +29,7 @@ ui.xrui.json: STRING        # Path to xrui.json config file for the UI
 xrserver [command]
   # Global flags:
       --addr string         HTTP Listen address (""*)
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -52,6 +53,7 @@ xrserver [command]
 
 xrserver db [command]
   # Manage mysql databases
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -65,6 +67,7 @@ xrserver db [command]
 
 xrserver db create NAME
   # Create a new mysql DB
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -79,6 +82,7 @@ xrserver db create NAME
 
 xrserver db delete NAME
   # Delete a mysql DB
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -93,6 +97,7 @@ xrserver db delete NAME
 
 xrserver db get NAME
   # Get details about a mysql DB
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -106,6 +111,7 @@ xrserver db get NAME
 
 xrserver db list
   # List the databases
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -123,6 +129,7 @@ xrserver help [command]
 
 xrserver registry [command]
   # Manage xRegistries
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -136,6 +143,7 @@ xrserver registry [command]
 
 xrserver registry create ID...
   # Create one or more xRegistry
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -150,6 +158,7 @@ xrserver registry create ID...
 
 xrserver registry delete ID...
   # Delete one or more registries
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -164,6 +173,7 @@ xrserver registry delete ID...
 
 xrserver registry get ID
   # Get details about a registry
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -177,6 +187,7 @@ xrserver registry get ID
 
 xrserver registry list
   # List the registries
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -191,6 +202,7 @@ xrserver registry list
 xrserver run
   # Run server (the default command)
       --addr string         HTTP Listen address (""*)
+      --backend string      Backend type: mysql*, memory
       --config string       Config file ($HOME/.xrserver)
       --cset stringArray    Override configFile property: --cset NAME[:VALUE]
       --db string           DB name (registry*)
@@ -237,6 +249,7 @@ the `xrserver` command is executed:
 | Env Var    | Value |
 | ---------- | ----- |
 | XR_ADDR    | Listening address of the `xrserver` API server (""*) |
+| XR_BACKEND | `xrserver`'s backend driver (mysql*, memory) |
 | XR_PORT    | Listening port of the `xrserver` API server (8080*) |
 | XR_MODEL_PATH | Where to find the sample's model files |
 | XR_LOAD_LARGE | If set, a very large default sample Registry will be loaded |
