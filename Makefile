@@ -258,8 +258,7 @@ testimages: .testimages
 	@misc/errOutput docker run --network host \
 		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
-		-e DBHOST=$(DBHOST) -e DBPORT=$(DBPORT) -e DBUSER=$(DBUSER) \
-		-e DBNAME=$(DBNAME) \
+		-e XR_BACKEND=mysql,host=$(DBHOST),port=$(DBPORT),user=$(DBUSER),dbname=$(DBNAME) \
 		$(XRSERVER_IMAGE) -v --recreatedb --samples --verify
 	@touch .testimages
 
@@ -373,14 +372,14 @@ testdev: devimage
 	@echo
 	@echo "## Build, test and run the xrserver all within the dev image"
 	docker run -ti -v /var/run/docker.sock:/var/run/docker.sock \
-		-e VERIFY=--verify --network host $(DOCKERHUB)xrdev make clean all
+		-e VERIFY=--verify --network host $(DOCKERHUB)xrdev make clean pr all
 	@echo "## Done testing the dev image"
 
 devenv: devimage mysql waitformysql
 	@docker image ls | grep $(DOCKERHUB)xrdev > /dev/null || \
 		make devimage
 	docker run -ti \
-		-e DBHOST=$(DBHOST) \
+		-e DBHOST=$(DBHOST) -e XR_BACKEND=host=$(DBHOST) \
 		-p 8080:8080 \
 		-v $(HOME)/.bashrc:/root/.bashrc:ro \
 		-v $(PWD):/go/src/github.com/xregistry/server \

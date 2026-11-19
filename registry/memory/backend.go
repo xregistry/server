@@ -13,7 +13,7 @@ import (
 )
 
 // A pure in-memory implementation of registry.Backend. Nothing is persisted,
-// named DBs (config "db.name") live in a process-wide map.
+// all data lives in one process-wide store.
 
 func init() {
 	xErr := registry.RegisterBackend("memory", NewMemoryBackend)
@@ -28,58 +28,52 @@ type MemoryBackend struct {
 
 var _ registry.Backend = &MemoryBackend{}
 
+// The one (implicit) store of this process. Reset() swaps in a fresh one.
 var (
-	dbsMutex sync.Mutex
-	dbs      = map[string]*memDB{}
+	storeMutex sync.Mutex
+	store      = newMemDB("memory")
 )
+
+func getStore() *memDB {
+	storeMutex.Lock()
+	defer storeMutex.Unlock()
+	return store
+}
+
+// Reset discards all of the data, e.g. between tests
+func Reset() {
+	storeMutex.Lock()
+	defer storeMutex.Unlock()
+	store = newMemDB("memory")
+}
 
 func NewMemoryBackend(c *Config) (registry.Backend, *XRError) {
 	return &MemoryBackend{XRSConfig: c}, nil
 }
 
-func getDB(name string) *memDB {
-	dbsMutex.Lock()
-	defer dbsMutex.Unlock()
-	return dbs[name]
+// DB Actions - this backend has no notion of a DB
+
+func (be *MemoryBackend) SupportsDBs() bool { return false }
+
+func notSupported() *XRError {
+	return NewXRError("server_error", "/").
+		SetDetail("Backend \"memory\" doesn't support DBs.")
 }
 
-// DB Actions
-
 func (be *MemoryBackend) DBExists(c *Config, name string) bool {
-	return getDB(name) != nil
+	return false
 }
 
 func (be *MemoryBackend) DBCreate(c *Config, name string) *XRError {
-	dbsMutex.Lock()
-	defer dbsMutex.Unlock()
-
-	if dbs[name] != nil {
-		return NewXRError("server_error", "/").
-			SetDetailf("DB %q already exists.", name)
-	}
-	dbs[name] = newMemDB(name)
-	// log.VPrintf(2, "Created in-memory DB: %s", name)
-	return nil
+	return notSupported()
 }
 
 func (be *MemoryBackend) DBDelete(c *Config, name string) *XRError {
-	dbsMutex.Lock()
-	defer dbsMutex.Unlock()
-
-	delete(dbs, name)
-	return nil
+	return notSupported()
 }
 
 func (be *MemoryBackend) DBList(c *Config) ([]string, *XRError) {
-	dbsMutex.Lock()
-	defer dbsMutex.Unlock()
-
-	names := make([]string, 0, len(dbs))
-	for name := range dbs {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names, nil
+	return nil, notSupported()
 }
 
 func (be *MemoryBackend) DBConnectionString(c *Config) (string, *XRError) {
@@ -98,16 +92,7 @@ func (be *MemoryBackend) NewTx(tx *registry.Tx) *XRError {
 		return nil
 	}
 
-	name := tx.Config.GetAsString("db.name")
-	if name == "" {
-		return NewXRError("server_error", "/").SetDetail("No DBName set.")
-	}
-
-	db := getDB(name)
-	if db == nil {
-		return NewXRError("server_error", "/").
-			SetDetailf("In-memory DB %q doesn't exist.", name)
-	}
+	db := getStore()
 
 	if xErr := db.acquire(); xErr != nil {
 		return xErr

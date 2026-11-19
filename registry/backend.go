@@ -1,20 +1,43 @@
 package registry
 
 import (
+	"fmt"
+	"strings"
+
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
 
 const DEFAULT_BACKEND = "mysql"
 
+// BackendOption describes a single configuration option of a backend. It's
+// set via "backend.<profile>.<Name>" in the config file, or via the
+// --backend / XR_BACKEND "name=value" syntax.
+type BackendOption struct {
+	Name        string
+	Default     string
+	Description string
+	Secret      bool // Don't show the value/default in listings
+}
+
+// DBNameOption is understood by all backends
+var DBNameOption = BackendOption{
+	Name:        "dbname",
+	Default:     DefDBName,
+	Description: "Name of the DB to use",
+}
+
 type BackendInfo struct {
 	Name    string
 	NewFunc func(c *Config) (Backend, *XRError)
+	Options []BackendOption
 }
 
 var RegisteredBackends = map[string]*BackendInfo{} // Name->BackendInfo
 
-func RegisterBackend(name string, fn func(c *Config) (Backend, *XRError)) *XRError {
+func RegisterBackend(name string, fn func(c *Config) (Backend, *XRError),
+	opts ...BackendOption) *XRError {
+
 	log.VPrintf(3, "Registering backend: %s", name)
 	if RegisteredBackends[name] != nil {
 		return NewXRError("server_error", "/").
@@ -24,6 +47,7 @@ func RegisterBackend(name string, fn func(c *Config) (Backend, *XRError)) *XRErr
 	RegisteredBackends[name] = &BackendInfo{
 		Name:    name,
 		NewFunc: fn,
+		Options: opts,
 	}
 
 	return nil
@@ -40,25 +64,212 @@ func NewBackend(c *Config) (Backend, *XRError) {
 	be := RegisteredBackends[backendName]
 	if be == nil {
 		return nil, NewXRError("server_error", "/").
-			SetDetailf("Default backend (%s) can't be found.", backendName)
+			SetDetailf("Backend (%s) can't be found.", backendName)
 	}
 
 	return be.NewFunc(c)
 }
 
+// BackendProfile returns the name of the active backend profile, which is
+// the config's "backend" value (or the default backend).
+func BackendProfile(c *Config) string {
+	name := c.GetAsString("backend")
+	if name == "" {
+		name = DEFAULT_BACKEND
+
+		// If there's only one backend registered, use it
+		if len(RegisteredBackends) == 1 {
+			name = Keys(RegisteredBackends)[0]
+		}
+	}
+	return name
+}
+
+// BackendName returns the backend type of the active profile. A profile's
+// type is "backend.<profile>.type", which defaults to the profile's name.
 func BackendName(c *Config) string {
-	backendName := c.GetAsString("backend")
-	if backendName == "" {
-		backendName = DEFAULT_BACKEND
+	profile := BackendProfile(c)
+	if t := c.GetAsString("backend." + profile + ".type"); t != "" {
+		return t
+	}
+	return profile
+}
+
+func backendOptionSpec(c *Config, name string) *BackendOption {
+	if be := RegisteredBackends[BackendName(c)]; be != nil {
+		for i := range be.Options {
+			if be.Options[i].Name == name {
+				return &be.Options[i]
+			}
+		}
+	}
+	return nil
+}
+
+// BackendOpt returns the value of the named option of the active backend
+// profile, or the option's default if it hasn't been set.
+func BackendOpt(c *Config, name string) string {
+	key := "backend." + BackendProfile(c) + "." + name
+	if v := c.GetAsString(key); v != "" {
+		return v
+	}
+	if spec := backendOptionSpec(c, name); spec != nil {
+		return spec.Default
+	}
+	return ""
+}
+
+func SetBackendOpt(c *Config, name, value string) {
+	c.Set("backend."+BackendProfile(c)+"."+name, value)
+}
+
+// ParseBackendSpec applies a "[NAME,]opt=val,..." string (from --backend or
+// XR_BACKEND) to the config. A leading item without a "=" selects the
+// backend profile, otherwise the options apply to the active profile. A comma
+// in a value can be escaped as "\,".
+func ParseBackendSpec(c *Config, spec string) *XRError {
+	items := []string{}
+	cur := strings.Builder{}
+	for i := 0; i < len(spec); i++ {
+		if spec[i] == '\\' && i+1 < len(spec) && spec[i+1] == ',' {
+			cur.WriteByte(',')
+			i++
+		} else if spec[i] == ',' {
+			items = append(items, cur.String())
+			cur.Reset()
+		} else {
+			cur.WriteByte(spec[i])
+		}
+	}
+	items = append(items, cur.String())
+
+	for i, item := range items {
+		name, value, hasVal := strings.Cut(item, "=")
+		name = strings.TrimSpace(name)
+		if !hasVal {
+			if i != 0 || name == "" {
+				return NewXRError("server_error", "/").SetDetailf(
+					"Invalid backend option %q, expected NAME=VALUE.", item)
+			}
+			c.Set("backend", name)
+			continue
+		}
+		if name == "" {
+			return NewXRError("server_error", "/").SetDetailf(
+				"Invalid backend option %q, missing name.", item)
+		}
+		SetBackendOpt(c, name, value)
+	}
+	return nil
+}
+
+// ValidateBackendConfig makes sure the active backend exists and that all of
+// the options set for its profile are ones that it knows about.
+func ValidateBackendConfig(c *Config) *XRError {
+	profile := BackendProfile(c)
+	typ := BackendName(c)
+	be := RegisteredBackends[typ]
+	if be == nil {
+		names := SortedKeys(RegisteredBackends)
+		return NewXRError("server_error", "/").SetDetailf(
+			"Unknown backend %q (available: %s).", typ,
+			strings.Join(names, ", "))
 	}
 
-	// If this backend isn't actually there, then if there's only one, use it
-	l := len(RegisteredBackends)
-	if l != 0 && RegisteredBackends[backendName] == nil && l == 1 {
-		backendName = Keys(RegisteredBackends)[0]
+	prefix := "backend." + profile + "."
+	bad := []string{}
+	for _, key := range SortedKeys(c.Data) {
+		opt, ok := strings.CutPrefix(key, prefix)
+		if !ok || opt == "type" {
+			continue
+		}
+		if backendOptionSpec(c, opt) == nil {
+			bad = append(bad, opt)
+		}
+	}
+	if len(bad) > 0 {
+		valid := []string{}
+		for _, o := range be.Options {
+			valid = append(valid, o.Name)
+		}
+		if len(valid) == 0 {
+			valid = append(valid, "none")
+		}
+		return NewXRError("server_error", "/").SetDetailf(
+			"Unknown option(s) for backend %q: %s (valid: %s).", profile,
+			strings.Join(bad, ", "), strings.Join(valid, ", "))
+	}
+	return nil
+}
+
+// ListBackends returns the registered backends and their options, either as
+// a human readable table or as JSON.
+func ListBackends(c *Config, output string) string {
+	type optInfo struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Default     string `json:"default,omitempty"`
+	}
+	type beInfo struct {
+		Name    string    `json:"name"`
+		Active  bool      `json:"active"`
+		Default bool      `json:"default"`
+		Options []optInfo `json:"options"`
 	}
 
-	return backendName
+	names := SortedKeys(RegisteredBackends)
+	active := BackendName(c)
+
+	list := []beInfo{}
+	for _, name := range names {
+		bi := beInfo{Name: name, Active: name == active,
+			Default: name == DEFAULT_BACKEND, Options: []optInfo{}}
+		for _, o := range RegisteredBackends[name].Options {
+			oi := optInfo{Name: o.Name, Description: o.Description}
+			if !o.Secret {
+				oi.Default = o.Default
+			}
+			bi.Options = append(bi.Options, oi)
+		}
+		list = append(list, bi)
+	}
+
+	if output == "json" {
+		return ToJSON(list) + "\n"
+	}
+
+	buf := strings.Builder{}
+	for i, bi := range list {
+		if i > 0 {
+			buf.WriteString("\n")
+		}
+		buf.WriteString(bi.Name)
+		if bi.Active {
+			buf.WriteString(" (active)")
+		}
+		if bi.Default {
+			buf.WriteString(" (default)")
+		}
+		buf.WriteString("\n  Options:")
+		if len(bi.Options) == 0 {
+			buf.WriteString(" none")
+		}
+		buf.WriteString("\n")
+		for _, o := range bi.Options {
+			def := ""
+			if o.Default != "" {
+				def = fmt.Sprintf(" (default: %s)", o.Default)
+			}
+			fmt.Fprintf(&buf, "  - %s: %s%s\n", o.Name, o.Description, def)
+		}
+	}
+	return buf.String()
+}
+
+// BackendSupportsDBs returns true if the active backend has named DBs
+func BackendSupportsDBs(c *Config) bool {
+	be, xErr := NewBackend(c)
+	return xErr == nil && be.SupportsDBs()
 }
 
 func MustNewBackend(c *Config) Backend {
@@ -72,6 +283,10 @@ func MustNewBackend(c *Config) Backend {
 type Backend interface {
 	// DB related stuff
 	/////////////////////////////////////////////////////////////////////
+
+	// SupportsDBs is false for backends with no notion of a named DB. For
+	// those, the DB* funcs below are never called (they just return errors).
+	SupportsDBs() bool
 	DBExists(c *Config, name string) bool
 	DBCreate(c *Config, name string) *XRError
 	DBDelete(c *Config, name string) *XRError

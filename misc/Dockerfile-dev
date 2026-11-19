@@ -11,7 +11,7 @@ ARG GIT_COMMIT
 
 # Minimal tools - docker is just for the client, it assumes we'll use the
 # docker running on the host due to --network host on the "docker run"
-RUN apk add make git bash docker
+RUN apk add make git bash docker curl
 
 # Clone the repo. Don't actually do it since we want to test changes to make
 # sure it didn't break anything. However, normally you'll want to use this

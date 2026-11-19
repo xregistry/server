@@ -51,14 +51,13 @@ Usage:
 	switch beName {
 	case "memory":
 		creating = `
-2025/05/21 19:01:39 Creating DB: registry
 2025/05/21 19:01:39 Creating: ` + regCollectionSegment + `/xRegistry`
 
 	case "mysql":
 		connStr = fmt.Sprintf("(%s@%s:%s)",
-			xrsConfig.GetAsString("db.name"),
-			xrsConfig.GetAsString("db.host"),
-			xrsConfig.GetAsString("db.port"))
+			registry.BackendOpt(xrsConfig, "dbname"),
+			registry.BackendOpt(xrsConfig, "host"),
+			registry.BackendOpt(xrsConfig, "port"))
 
 	default:
 		t.Fatalf("Unknown backend: %s", beName)
@@ -119,9 +118,9 @@ func TestXRServerRecreates(t *testing.T) {
 
 	case "mysql":
 		connStr = fmt.Sprintf("(%s@%s:%s)",
-			xrsConfig.GetAsString("db.name"),
-			xrsConfig.GetAsString("db.host"),
-			xrsConfig.GetAsString("db.port"))
+			registry.BackendOpt(xrsConfig, "dbname"),
+			registry.BackendOpt(xrsConfig, "host"),
+			registry.BackendOpt(xrsConfig, "port"))
 		creating = `
 2025/10/14 12:20:01 Deleting DB: registry`
 
@@ -129,11 +128,14 @@ func TestXRServerRecreates(t *testing.T) {
 		t.Fatalf("Unknown backend: %s", beName)
 	}
 
+	creatingDB := ""
+	if beName == "mysql" {
+		creatingDB = "2025/10/14 12:20:01 Creating DB: registry\n"
+	}
 	exp := `
 2025/10/14 12:20:01 GitCommit: f680917749
 2025/10/14 12:20:01 Backend: ` + beName + connStr + creating + `
-2025/10/14 12:20:01 Creating DB: registry
-2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
+` + creatingDB + `2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
 2025/10/14 12:20:02 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: / -> ` + regCollectionSegment + `/xRegistry
@@ -165,14 +167,13 @@ func TestXRServerRecreates(t *testing.T) {
 	switch beName {
 	case "memory":
 		connStr = ""
-		creating = `
-2025/10/14 12:20:01 Creating DB: registry`
+		creating = ""
 
 	case "mysql":
 		connStr = fmt.Sprintf("(%s@%s:%s)",
-			xrsConfig.GetAsString("db.name"),
-			xrsConfig.GetAsString("db.host"),
-			xrsConfig.GetAsString("db.port"))
+			registry.BackendOpt(xrsConfig, "dbname"),
+			registry.BackendOpt(xrsConfig, "host"),
+			registry.BackendOpt(xrsConfig, "port"))
 		creating = `
 2025/10/14 12:20:01 Deleting xReg: xRegistry`
 
@@ -219,9 +220,9 @@ func TestXRServerRecreates(t *testing.T) {
 
 	case "mysql":
 		connStr = fmt.Sprintf("(%s@%s:%s)",
-			xrsConfig.GetAsString("db.name"),
-			xrsConfig.GetAsString("db.host"),
-			xrsConfig.GetAsString("db.port"))
+			registry.BackendOpt(xrsConfig, "dbname"),
+			registry.BackendOpt(xrsConfig, "host"),
+			registry.BackendOpt(xrsConfig, "port"))
 		creating = `
 2025/10/14 12:20:01 Deleting DB: registry`
 
@@ -232,8 +233,7 @@ func TestXRServerRecreates(t *testing.T) {
 	exp = `
 2025/10/14 12:20:01 GitCommit: f680917749
 2025/10/14 12:20:01 Backend: ` + beName + connStr + creating + `
-2025/10/14 12:20:01 Creating DB: registry
-2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
+` + creatingDB + `2025/10/14 12:20:02 Creating: ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: /ui -> UI
 2025/10/14 12:20:02 Path: /` + defaultRegSegment + ` -> ` + regCollectionSegment + `/xRegistry
 2025/10/14 12:20:02 Path: / -> ` + regCollectionSegment + `/xRegistry
@@ -272,11 +272,12 @@ func TestXRServerCmds(t *testing.T) {
 	beName := registry.BackendName(xrsConfig)
 
 	// Each xrserver call is a separate process so the memory backend never
-	// has any data from a previous call.
-	noMemDB := `YYYY/MM/DD HH:MM:SS Error talking to the DB: An unexpected ` +
-		`error occurred, please try again later. In-memory DB "registry" ` +
-		`doesn't exist.
-`
+	// has any data from a previous call. It also has no notion of DBs.
+	noDBs := "YYYY/MM/DD HH:MM:SS Backend \"memory\" doesn't support DBs\n"
+	noReg := func(name string) string {
+		return "YYYY/MM/DD HH:MM:SS Registry \"" + name +
+			"\" does not exist\n"
+	}
 
 	tests := []struct {
 		Args     string
@@ -287,9 +288,8 @@ func TestXRServerCmds(t *testing.T) {
 			Args:  "-v db delete " + TestDBName,
 			Stdin: "",
 			Expected: map[string]xrsExpect{
-				"mysql": {Code: -1, Experr: "*"},
-				"memory": {Code: 1, Experr: "YYYY/MM/DD HH:MM:SS " +
-					"DB \"registry\" doesn't exist\n"},
+				"mysql":  {Code: -1, Experr: "*"},
+				"memory": {Code: 1, Experr: noDBs},
 			},
 		},
 		{
@@ -298,8 +298,7 @@ func TestXRServerCmds(t *testing.T) {
 			Expected: map[string]xrsExpect{
 				"mysql": {Code: 1,
 					Experr: "2025/10/15 00:55:54 DB \"registry\" does not exist\n"},
-				"memory": {Code: 1,
-					Experr: "2025/10/15 00:55:54 DB \"registry\" does not exist\n"},
+				"memory": {Code: 1, Experr: noReg("xRegistry")},
 			},
 		},
 		{
@@ -313,7 +312,7 @@ func TestXRServerCmds(t *testing.T) {
 				"memory": {Code: 1,
 					Experr: "YYYY/MM/DD HH:MM:SS GitCommit: sha\n" +
 						"YYYY/MM/DD HH:MM:SS Backend: memory\n" +
-						"YYYY/MM/DD HH:MM:SS DB \"registry\" does not exist\n"},
+						noReg("xRegistry")},
 			},
 		},
 		{
@@ -322,17 +321,15 @@ func TestXRServerCmds(t *testing.T) {
 			Expected: map[string]xrsExpect{
 				"mysql": {Code: 0,
 					Experr: "YYYY/MM/DD HH:MM:SS Creating DB: registry\n"},
-				"memory": {Code: 0,
-					Experr: "YYYY/MM/DD HH:MM:SS Creating DB: registry\n"},
+				"memory": {Code: 1, Experr: noDBs},
 			},
 		},
 		{
 			Args:  "-v db get " + TestDBName,
 			Stdin: "",
 			Expected: map[string]xrsExpect{
-				"mysql": {Code: 0, Expout: "DB \"registry\" exists\n"},
-				"memory": {Code: 1, Experr: "YYYY/MM/DD HH:MM:SS " +
-					"DB \"registry\" doesn't exist\n"},
+				"mysql":  {Code: 0, Expout: "DB \"registry\" exists\n"},
+				"memory": {Code: 1, Experr: noDBs},
 			},
 		},
 		{
@@ -341,7 +338,7 @@ func TestXRServerCmds(t *testing.T) {
 			Expected: map[string]xrsExpect{
 				// Should look for 'testreg' and title
 				"mysql":  {Code: 0, Expout: "*"},
-				"memory": {Code: 0, Expout: "DB NAME\n"},
+				"memory": {Code: 1, Experr: noDBs},
 			},
 		},
 		{
@@ -355,7 +352,7 @@ func TestXRServerCmds(t *testing.T) {
 				"memory": {Code: 1,
 					Experr: "2025/10/15 19:46:51 GitCommit: 687dd7425c\n" +
 						"2025/10/15 19:46:51 Backend: memory\n" +
-						"2025/10/15 19:46:51 DB \"registry\" does not exist\n"},
+						"2025/10/15 19:46:51 Registry \"xRegistry\" does not exist\n"},
 			},
 		},
 		{
@@ -363,7 +360,7 @@ func TestXRServerCmds(t *testing.T) {
 			Stdin: "",
 			Expected: map[string]xrsExpect{
 				"mysql":  {Code: 0, Expout: "ID   NAME   CREATED   MODIFIED\n"},
-				"memory": {Code: 1, Experr: noMemDB},
+				"memory": {Code: 0, Expout: "ID   NAME   CREATED   MODIFIED\n"},
 			},
 		},
 		{
@@ -372,7 +369,8 @@ func TestXRServerCmds(t *testing.T) {
 			Expected: map[string]xrsExpect{
 				"mysql": {Code: 0,
 					Experr: "YYYY/MM/DD HH:MM:SS Creating: testreg\n"},
-				"memory": {Code: 1, Experr: noMemDB},
+				"memory": {Code: 0,
+					Experr: "YYYY/MM/DD HH:MM:SS Creating: testreg\n"},
 			},
 		},
 		{
@@ -383,7 +381,7 @@ func TestXRServerCmds(t *testing.T) {
 					Expout: `ID        NAME   CREATED               MODIFIED
 testreg          2025/10/16 12:23:14   2025/10/16 12:23:14
 `},
-				"memory": {Code: 1, Experr: noMemDB},
+				"memory": {Code: 0, Expout: "ID   NAME   CREATED   MODIFIED\n"},
 			},
 		},
 		{
@@ -392,7 +390,8 @@ testreg          2025/10/16 12:23:14   2025/10/16 12:23:14
 			Expected: map[string]xrsExpect{
 				"mysql": {Code: 0,
 					Experr: "YYYY/MM/DD HH:MM:SS Deleting: testreg\n"},
-				"memory": {Code: 1, Experr: noMemDB},
+				"memory": {Code: 1,
+					Experr: "YYYY/MM/DD HH:MM:SS Registry \"testreg\" doesn't exist\n"},
 			},
 		},
 		{
@@ -400,7 +399,7 @@ testreg          2025/10/16 12:23:14   2025/10/16 12:23:14
 			Stdin: "",
 			Expected: map[string]xrsExpect{
 				"mysql":  {Code: 0, Expout: "ID   NAME   CREATED   MODIFIED\n"},
-				"memory": {Code: 1, Experr: noMemDB},
+				"memory": {Code: 0, Expout: "ID   NAME   CREATED   MODIFIED\n"},
 			},
 		},
 		{
@@ -409,7 +408,8 @@ testreg          2025/10/16 12:23:14   2025/10/16 12:23:14
 			Expected: map[string]xrsExpect{
 				"mysql": {Code: 0,
 					Experr: "YYYY/MM/DD HH:MM:SS Creating: testreg\n"},
-				"memory": {Code: 1, Experr: noMemDB},
+				"memory": {Code: 0,
+					Experr: "YYYY/MM/DD HH:MM:SS Creating: testreg\n"},
 			},
 		},
 		{
@@ -421,7 +421,7 @@ testreg          2025/10/16 12:23:14   2025/10/16 12:23:14
 Created    : YYYY-MM-DDTHH:MM:01Z
 Modified   : YYYY-MM-DDTHH:MM:01Z
 `},
-				"memory": {Code: 1, Experr: noMemDB},
+				"memory": {Code: 1, Experr: noReg("testreg")},
 			},
 		},
 		{
@@ -438,7 +438,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 				"memory": {Code: 1,
 					Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 						"YYYY/MM/DD HH:MM:SS Backend: memory\n" +
-						"YYYY/MM/DD HH:MM:SS DB \"registry\" does not exist\n"},
+						noReg("testreg")},
 			},
 		},
 		{
@@ -455,7 +455,6 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 				"memory": {Code: 0,
 					Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 						"YYYY/MM/DD HH:MM:SS Backend: memory\n" +
-						"YYYY/MM/DD HH:MM:SS Creating DB: registry\n" +
 						"YYYY/MM/DD HH:MM:SS Creating: " + regCollectionSegment + "/testreg\n" +
 						"YYYY/MM/DD HH:MM:SS Path: /ui -> UI\n" +
 						"YYYY/MM/DD HH:MM:SS Path: /" + defaultRegSegment + " -> " + regCollectionSegment + "/testreg\n" +
@@ -477,7 +476,6 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 				"memory": {Code: 0,
 					Experr: "YYYY/MM/DD HH:MM:SS GitCommit: 687dd7425c\n" +
 						"YYYY/MM/DD HH:MM:SS Backend: memory\n" +
-						"YYYY/MM/DD HH:MM:SS Creating DB: registry\n" +
 						"YYYY/MM/DD HH:MM:SS Creating: " + regCollectionSegment + "/testreg\n" +
 						"YYYY/MM/DD HH:MM:SS Path: /ui -> UI\n" +
 						"YYYY/MM/DD HH:MM:SS Path: /" + defaultRegSegment + " -> " + regCollectionSegment + "/testreg\n" +
@@ -504,6 +502,17 @@ func TestXRServerSettings(t *testing.T) {
 
 	tmphome := t.TempDir()
 
+	// Settings for the active backend need to be keyed by its name
+	cfg := registry.NewXRServerConfig("")
+	_, xErr := registry.SetXRServerConfigFromEnvVars(cfg)
+	XNoErr(t, xErr)
+	beName := registry.BackendProfile(cfg)
+
+	beOpt := ""
+	if beName == "mysql" { // memory has no options
+		beOpt = "backend." + beName + ".dbname: XREG\n"
+	}
+
 	configStr := `# a config file
 rootapp: xreg
 ui.dir: ` + tmphome + `/uidir
@@ -511,16 +520,14 @@ ui.xrui.json: ` + tmphome + `/myxrui
 verbose: 2
 # another comment
 http.port: 8686
-db.name: XREG
-path.ui: iuiu
+` + beOpt + `path.ui: iuiu
 path.defaultreg: def
 path.regcollection: more
 `
 
 	XNoErr(t, os.Setenv("HOME", tmphome))
 
-	for _, name := range []string{"DBNAME", "DBHOST", "DBPORT", "DBUSER",
-		"DBPASSWORD", "XR_ADDR", "XR_PORT"} {
+	for _, name := range []string{"XR_ADDR", "XR_PORT"} {
 		defer SetClearEnvVar(name, "")()
 	}
 
@@ -530,9 +537,6 @@ path.regcollection: more
 	XNoErr(t, os.WriteFile(tmphome+"/myxrui",
 		[]byte(`{"title":"testing"}`), 0600))
 
-	xrsConfig := registry.NewXRServerConfig("")
-	registry.SetXRServerConfigFromEnvVars(xrsConfig)
-	beName := registry.BackendName(xrsConfig)
 	backendRE := ""
 	switch beName {
 	case "memory":
@@ -586,7 +590,7 @@ path.regcollection: more
 	t.Logf("out: %s", string(runRes.Out))
 	t.Logf("err: %s", string(runRes.Err))
 
-	// Check we got db.name too
+	// Check we got dbname too
 	XEqual(t, "", string(runRes.Err), "^(?m)^.*Backend: "+backendRE)
 
 	// Check: rootapp & indirectly path.regcollection
@@ -627,7 +631,7 @@ path.regcollection: more
 	XEqual(t, "", string(runRes.Err), "^(?m)^.*Done verifying, exiting")
 }
 
-// Tests the mysql-specific DB connection settings (host, port, user, ...)
+// Tests the mysql-specific connection settings (host, port, user, ...)
 func TestXRServerConfig(t *testing.T) {
 	SkipIfNotMySQL(t) // these settings only apply to mysql
 
@@ -638,18 +642,18 @@ func TestXRServerConfig(t *testing.T) {
 	configStr := `# a config file
 verbose: 2
 # another comment
-db.name: XREG
-db.host: 0.0.0.0
-db.port: 6033
-db.user: fido
-db.password: noway
+backend: mysql
+backend.mysql.dbname: XREG
+backend.mysql.host: 0.0.0.0
+backend.mysql.port: 6033
+backend.mysql.user: fido
+backend.mysql.password: noway
 `
 
 	// Set HOME to tmp dir but no config file YET
 	XNoErr(t, os.Setenv("HOME", tmphome))
 
-	for _, name := range []string{"DBNAME", "DBHOST", "DBPORT", "DBUSER",
-		"DBPASSWORD", "XR_ADDR", "XR_PORT"} {
+	for _, name := range []string{"XR_BACKEND", "XR_BACKEND_SECRET", "XR_ADDR", "XR_PORT"} {
 		defer SetClearEnvVar(name, "")()
 	}
 
@@ -665,8 +669,7 @@ db.password: noway
 		"^(?m)^.*0.0.0.0:6033.*connection refused")
 
 	// env beats config file
-	XNoErr(t, os.Setenv("DBHOST", "127.0.0.1"))
-	XNoErr(t, os.Setenv("DBPORT", "2222"))
+	XNoErr(t, os.Setenv("XR_BACKEND", "host=127.0.0.1,port=2222"))
 	runRes = Run("../xrserver")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
@@ -676,9 +679,7 @@ db.password: noway
 		"^(?m)^.*127.0.0.1:2222.*connection refused")
 
 	// Make sure flags win
-	XNoErr(t, os.Setenv("DBHOST", "127.0.0.1"))
-	XNoErr(t, os.Setenv("DBPORT", "2222"))
-	runRes = Run("../xrserver", "--dbhost", "localhost", "--dbport", "4321")
+	runRes = Run("../xrserver", "--backend", "host=localhost,port=4321")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -686,11 +687,10 @@ db.password: noway
 	XEqual(t, "", string(runRes.Err),
 		"^(?m)^.*Backend: mysql\\(XREG@localhost:4321\\)(\n|.)*connection refused")
 
-	// Make DB host/port good - test other DB stuff
-	XNoErr(t, os.Setenv("DBHOST", "127.0.0.1"))
-	XNoErr(t, os.Setenv("DBPORT", "3306"))
+	// Make host/port good - test other stuff
+	XNoErr(t, os.Setenv("XR_BACKEND", "mysql,host=127.0.0.1,port=3306"))
 
-	// Test db user - config
+	// Test user - config
 	runRes = Run("../xrserver")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
@@ -699,8 +699,9 @@ db.password: noway
 	XEqual(t, "", string(runRes.Err),
 		"^(?m)^.*Access denied.*fido")
 
-	// Test db user - env var
-	XNoErr(t, os.Setenv("DBUSER", "duke"))
+	// Test user - env var
+	XNoErr(t, os.Setenv("XR_BACKEND",
+		"mysql,host=127.0.0.1,port=3306,user=duke"))
 	runRes = Run("../xrserver")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
@@ -709,8 +710,8 @@ db.password: noway
 	XEqual(t, "", string(runRes.Err),
 		"^(?m)^.*Access denied.*duke")
 
-	// Test db user - flag
-	runRes = Run("../xrserver", "--dbuser", "lola")
+	// Test user - flag
+	runRes = Run("../xrserver", "--backend", "user=lola")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -718,8 +719,8 @@ db.password: noway
 	XEqual(t, "", string(runRes.Err),
 		"^(?m)^.*Access denied.*lola")
 
-	// Test db password - config
-	runRes = Run("../xrserver", "--dbuser", "root")
+	// Test password - config
+	runRes = Run("../xrserver", "--backend", "user=root")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -727,9 +728,10 @@ db.password: noway
 	XEqual(t, "", string(runRes.Err),
 		"^(?m)^.*Access denied.*root")
 
-	// Test db password - env var
-	XNoErr(t, os.Setenv("DBPASSWORD", "password"))
-	runRes = Run("../xrserver", "--dbuser", "root", "--verify")
+	// Test password - env var
+	XNoErr(t, os.Setenv("XR_BACKEND",
+		"host=127.0.0.1,port=3306,user=root,password=password"))
+	runRes = Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait()
@@ -737,10 +739,11 @@ db.password: noway
 	XEqual(t, "", string(runRes.Err),
 		"^(?m)^.*Done verifying, exiting")
 
-	// Test db password - flag
-	XNoErr(t, os.Setenv("DBPASSWORD", "bogus"))
-	runRes = Run("../xrserver", "--dbuser", "root", "--dbpassword", "password",
-		"--verify")
+	// Test password - flag, and a comma in the value via repeated flag
+	XNoErr(t, os.Setenv("XR_BACKEND",
+		"host=127.0.0.1,port=3306,password=bogus"))
+	runRes = Run("../xrserver", "--backend", "user=root",
+		"--backend", "password=password", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait()
@@ -748,15 +751,16 @@ db.password: noway
 	XEqual(t, "", string(runRes.Err),
 		"^(?m)^.*Done verifying, exiting")
 
-	// Check we got db.name too
+	// Check we got dbname too
 	XEqual(t, "", string(runRes.Err), "^(?m)^.*Backend: mysql\\(XREG@.*:3306\\)")
 
 	// Make sure --cset overrides config file
-	XNoErr(t, os.Unsetenv("DBUSER"))
-	XNoErr(t, os.Unsetenv("DBPASSWORD"))
+	XNoErr(t, os.Unsetenv("XR_BACKEND"))
 	runRes = Run("../xrserver",
-		"--cset", "db.user:root",
-		"--cset", "db.password:password",
+		"--cset", "backend.mysql.user:root",
+		"--cset", "backend.mysql.password:password",
+		"--cset", "backend.mysql.host:127.0.0.1",
+		"--cset", "backend.mysql.port:3306",
 		"--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
@@ -764,6 +768,118 @@ db.password: noway
 
 	XEqual(t, "", string(runRes.Err),
 		"^(?m)^.*Done verifying, exiting")
+
+	// Unknown options, and options for another backend, are rejected
+	runRes = Run("../xrserver", "--backend", "bogus=1", "--verify")
+	XNoErr(t, runRes.Error)
+	defer runRes.Kill()
+	runRes.Wait()
+
+	XEqual(t, "", string(runRes.Err),
+		"^(?m)^.*Unknown option\\(s\\) for backend \"mysql\": bogus")
+}
+
+// Tests "backend list" and the --backend / XR_BACKEND syntax, all backends
+func TestXRServerBackendOptions(t *testing.T) {
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+	defer SetClearEnvVar("XR_BACKEND", "")()
+	defer SetClearEnvVar("XR_BACKEND_SECRET", "")()
+
+	XServer(t, "backend list", "",
+		"memory\n"+
+			"  Options: none\n\n"+
+			"mysql (active) (default)\n"+
+			"  Options:\n"+
+			"  - dbname: Name of the DB to use (default: registry)\n"+
+			"  - host: MySQL server host address (default: 127.0.0.1)\n"+
+			"  - port: MySQL server port (default: 3306)\n"+
+			"  - user: MySQL user (default: root)\n"+
+			"  - password: MySQL password\n", "", 0)
+
+	// Backend name + options, and the active one is reflected in the list
+	XServer(t, "--backend memory backend list", "",
+		"memory (active)\n"+
+			"  Options: none\n\n"+
+			"mysql (default)\n"+
+			"  Options:\n"+
+			"  - dbname: Name of the DB to use (default: registry)\n"+
+			"  - host: MySQL server host address (default: 127.0.0.1)\n"+
+			"  - port: MySQL server port (default: 3306)\n"+
+			"  - user: MySQL user (default: root)\n"+
+			"  - password: MySQL password\n", "", 0)
+
+	XServer(t, "--backend memory backend list -o json", "",
+		`[
+  {
+    "name": "memory",
+    "active": true,
+    "default": false,
+    "options": []
+  },
+  {
+    "name": "mysql",
+    "active": false,
+    "default": true,
+    "options": [
+      {
+        "name": "dbname",
+        "description": "Name of the DB to use",
+        "default": "registry"
+      },
+      {
+        "name": "host",
+        "description": "MySQL server host address",
+        "default": "127.0.0.1"
+      },
+      {
+        "name": "port",
+        "description": "MySQL server port",
+        "default": "3306"
+      },
+      {
+        "name": "user",
+        "description": "MySQL user",
+        "default": "root"
+      },
+      {
+        "name": "password",
+        "description": "MySQL password"
+      }
+    ]
+  }
+]
+`, "", 0)
+
+	// XR_BACKEND_SECRET is processed after XR_BACKEND
+	restoreSecret := SetClearEnvVar("XR_BACKEND_SECRET", "dbname=sec")
+	restoreBE := SetClearEnvVar("XR_BACKEND", "mysql,dbname=pub")
+	runRes := Run("../xrserver", "-v", "--verify")
+	XNoErr(t, runRes.Error)
+	defer runRes.Kill()
+	runRes.Wait()
+	XEqual(t, "", string(runRes.Err), "^(?m)^.*Creating DB: sec$")
+	XServer(t, "db delete sec", "", "", "*", -1)
+	restoreBE()
+	restoreSecret()
+
+	// Unknown option
+	XServer(t, "--backend memory,host=x db list", "", "",
+		"YYYY/MM/DD HH:MM:SS Backend config error: Unknown option(s) for backend \"memory\": "+
+			"host (valid: none).\n", 1)
+
+	// Option w/o a name and an unknown backend
+	XServer(t, "--backend memory,bogus db list", "", "",
+		"YYYY/MM/DD HH:MM:SS Error processing --backend: Invalid backend option \"bogus\", "+
+			"expected NAME=VALUE.\n", 1)
+	XServer(t, "--backend nope db list", "", "",
+		"YYYY/MM/DD HH:MM:SS Backend config error: Unknown backend \"nope\" "+
+			"(available: memory, mysql).\n", 1)
+
+	// Same, via the env var
+	defer SetClearEnvVar("XR_BACKEND", "memory,host=x")()
+	XServer(t, "db list", "", "",
+		"YYYY/MM/DD HH:MM:SS Backend config error: Unknown option(s) for backend \"memory\": "+
+			"host (valid: none).\n", 1)
 }
 
 func TestXRServerBackend(t *testing.T) {
@@ -775,9 +891,9 @@ func TestXRServerBackend(t *testing.T) {
 	defaultRegSegment := xrsConfig.GetAsString("path.defaultreg")
 	regCollectionSegment := xrsConfig.GetAsString("path.regcollection")
 	mysqlConn := fmt.Sprintf("(%s@%s:%s)",
-		xrsConfig.GetAsString("db.name"),
-		xrsConfig.GetAsString("db.host"),
-		xrsConfig.GetAsString("db.port"))
+		registry.BackendOpt(xrsConfig, "dbname"),
+		registry.BackendOpt(xrsConfig, "host"),
+		registry.BackendOpt(xrsConfig, "port"))
 
 	// Make sure we start clean. The default backend is mysql
 	XServer(t, "db delete registry", "", "", "*", -1)
@@ -826,7 +942,6 @@ func TestXRServerBackend(t *testing.T) {
 				exp += "YYYY/MM/DD HH:MM:SS Backend: mysql" + mysqlConn + "\n"
 			} else {
 				exp += "YYYY/MM/DD HH:MM:SS Backend: memory\n" +
-					"YYYY/MM/DD HH:MM:SS Creating DB: registry\n" +
 					"YYYY/MM/DD HH:MM:SS Creating: " + regCollectionSegment +
 					"/xRegistry\n"
 			}

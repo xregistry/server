@@ -5,12 +5,15 @@ export DBPORT=${DBPORT:-3306}
 export DBUSER=${DBUSER:-root}
 export DBPASSWORD=${DBPASSWORD:-password}
 export MYSQL_ROOT_PASSWORD=${DBPASSWORD}
+
+export XR_BACKEND=${XR_BACKEND:-host=${DBHOST},port=${DBPORT},user=${DBUSER}}
+export XR_BACKEND_SECRET=${XR_BACKEND_SECRET:-password=${DBPASSWORD}}
 export XR_MODEL_PATH=${XR_MODEL_PATH:-/spec}
 
 test "$1" = "--debug" && set -ex && shift
 
 echo "Environment variables:"
-env | grep -v PASS | sort
+env | grep -v "PASS\|SECRET" | sort
 
 if test "$1" = "--db"; then
   # They want to run mysql in addition to xrserver

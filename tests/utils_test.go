@@ -23,7 +23,7 @@ import (
 	"github.com/xregistry/server/registry"
 	_ "github.com/xregistry/server/registry/formats"
 	xrhttp "github.com/xregistry/server/registry/http"
-	_ "github.com/xregistry/server/registry/memory"
+	"github.com/xregistry/server/registry/memory"
 	"github.com/xregistry/server/registry/mysql"
 )
 
@@ -77,6 +77,14 @@ func SkipIfNotMySQL(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+	// Point HOME at an empty dir so that a developer's own $HOME/.xrserver
+	// config file doesn't affect the xrserver processes the tests start
+	tmpHome, err := os.MkdirTemp("", "xrtests-home")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("HOME", tmpHome)
+
 	if tmp := os.Getenv("RX_VERBOSE"); tmp != "" {
 		if tmpInt, err := strconv.Atoi(tmp); err == nil {
 			log.AddVerbose(tmpInt)
@@ -87,9 +95,13 @@ func TestMain(m *testing.M) {
 	registry.SetXRServerConfigFromEnvVars(XRServerConfig)
 
 	// call flag.Parse() here if TestMain uses flags
-	registry.DBDelete(XRServerConfig, TestRegName)
-	registry.DBCreate(XRServerConfig, TestRegName)
-	XRServerConfig.Set("db.name", TestRegName)
+	if registry.BackendSupportsDBs(XRServerConfig) {
+		registry.DBDelete(XRServerConfig, TestRegName)
+		registry.DBCreate(XRServerConfig, TestRegName)
+		registry.SetBackendOpt(XRServerConfig, "dbname", TestRegName)
+	} else {
+		memory.Reset()
+	}
 
 	// DBName := "registry"
 	// if !registry.DBExists(XRServerConfig,DBName) {
@@ -134,6 +146,7 @@ func TestMain(m *testing.M) {
 		os.WriteFile(fmt.Sprintf("timings-%s.txt", now.Format("15-04-05")),
 			[]byte(mysql.DumpTimings()), 0666)
 	}
+	os.RemoveAll(tmpHome)
 	os.Exit(rc)
 }
 
