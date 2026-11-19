@@ -30,6 +30,20 @@
 //     and result are both *XRError, e.g. SetDetail) are ignored, and a
 //     trailing "//xrlint:ignore" comment on the line opts a call out.
 //
+//   - "errtype" (--errtype): finds calls to common.NewXRError whose
+//     error type (arg 1) isn't a key in common.Type2Error, which would
+//     panic at runtime. A trailing "//xrlint:ignore" comment on the
+//     call line opts a call out.
+//
+//   - "errusage" (--errusage): finds error types defined in
+//     common.Type2Error (common/error.go) that are never passed as the
+//     error type (arg 1) to any call to common.NewXRError.
+//
+//   - "errtest" (--errtest): finds error types defined in
+//     common.Type2Error that aren't referenced (as "#<TYPE>", the end of
+//     the error's "type" URL) in the expected output of any *_test.go
+//     file in the repo.
+//
 // More checks are expected to be added here over time.
 //
 // # nilcheck details
@@ -119,7 +133,7 @@
 // Usage:
 //
 //	go run ./cmds/xrlint [--nilcheck] [--unused] [--gofmt]
-//	    [--defertrace] [--tderror] [--xrerror] [--errtype] [packages...]
+//	    [--defertrace] [--tderror] [--xrerror] [--errtype] [--errusage] [--errtest] [packages...]
 //
 // With no package args it checks ./registry/... ./common/... ./cmds/...
 // ./tests/... (the tmp/ directory is intentionally excluded - it's a
@@ -135,8 +149,11 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -154,16 +171,18 @@ func main() {
 	var nilcheckEnabled, unusedEnabled, gofmtEnabled bool
 	var defertraceEnabled, tderrorEnabled, xrerrorEnabled bool
 	var errtypeEnabled bool
+	var errusageEnabled bool
+	var errtestEnabled bool
 
 	rootCmd := &cobra.Command{
 		Use: "xrlint [packages...]",
 		Short: "Repo-specific static checks (nilcheck, unused funcs," +
-			" gofmt, defertrace, tderror, xrerror, errtype)",
+			" gofmt, defertrace, tderror, xrerror, errtype, errusage, errtest)",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(args, nilcheckEnabled, unusedEnabled, gofmtEnabled,
 				defertraceEnabled, tderrorEnabled, xrerrorEnabled,
-				errtypeEnabled)
+				errtypeEnabled, errusageEnabled, errtestEnabled)
 		},
 	}
 	rootCmd.Flags().BoolVar(&nilcheckEnabled, "nilcheck", true,
@@ -180,6 +199,10 @@ func main() {
 		"check for *XRError results that are ignored/never checked")
 	rootCmd.Flags().BoolVar(&errtypeEnabled, "errtype", true,
 		"check that NewXRError error types exist in Type2Error")
+	rootCmd.Flags().BoolVar(&errusageEnabled, "errusage", true,
+		"check that every error type is used in a NewXRError() call")
+	rootCmd.Flags().BoolVar(&errtestEnabled, "errtest", true,
+		"check that every error type appears in the expected output of a test")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -196,6 +219,8 @@ func run(
 	tderrorEnabled bool,
 	xrerrorEnabled bool,
 	errtypeEnabled bool,
+	errusageEnabled bool,
+	errtestEnabled bool,
 ) error {
 	if len(patterns) == 0 {
 		patterns = []string{
@@ -249,6 +274,12 @@ func run(
 	}
 	if errtypeEnabled {
 		hits += runErrTypeCheck(pkgs, fset)
+	}
+	if errusageEnabled {
+		hits += runErrUsageCheck(pkgs)
+	}
+	if errtestEnabled {
+		hits += runErrTestCheck()
 	}
 
 	if hits > 0 {
@@ -1213,6 +1244,154 @@ func runErrTypeCheck(pkgs []*packages.Package, fset *token.FileSet) int {
 		fmt.Printf("\nerrtype: found %d problem(s)\n", hits)
 	} else {
 		fmt.Println("\nerrtype: all NewXRError types are known")
+	}
+	return hits
+}
+
+// sortedErrTypes returns the names of all of the defined error types.
+func sortedErrTypes() []string {
+	names := make([]string, 0, len(common.Type2Error))
+	for k := range common.Type2Error {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// runErrUsageCheck verifies that every error type in common.Type2Error is
+// used as the error type (arg 1) of at least one call to common.NewXRError.
+func runErrUsageCheck(pkgs []*packages.Package) int {
+	fmt.Println("\n=== Unused error types ===")
+	used := map[string]bool{}
+
+	for _, pkg := range pkgs {
+		info := pkg.TypesInfo
+		for _, file := range pkg.Syntax {
+			constStr := func(e ast.Expr) (string, bool) {
+				tv, ok := info.Types[e]
+				if ok && tv.Value != nil && tv.Value.Kind() == constant.String {
+					return constant.StringVal(tv.Value), true
+				}
+				return "", false
+			}
+
+			// Constants assigned to local vars, for tracing the error type
+			assigned := map[types.Object][]ast.Expr{}
+			ast.Inspect(file, func(n ast.Node) bool {
+				as, ok := n.(*ast.AssignStmt)
+				if !ok || len(as.Lhs) != len(as.Rhs) {
+					return true
+				}
+				for i, l := range as.Lhs {
+					if id, ok := l.(*ast.Ident); ok {
+						if obj := info.ObjectOf(id); obj != nil {
+							assigned[obj] = append(assigned[obj], as.Rhs[i])
+						}
+					}
+				}
+				return true
+			})
+
+			ast.Inspect(file, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok || len(call.Args) == 0 {
+					return true
+				}
+				var id *ast.Ident
+				switch f := call.Fun.(type) {
+				case *ast.Ident:
+					id = f
+				case *ast.SelectorExpr:
+					id = f.Sel
+				default:
+					return true
+				}
+				fn, ok := info.Uses[id].(*types.Func)
+				if !ok || fn.Name() != "NewXRError" || fn.Pkg() == nil ||
+					fn.Pkg().Path() != "github.com/xregistry/server/common" {
+					return true
+				}
+
+				if v, ok := constStr(call.Args[0]); ok {
+					used[v] = true
+				} else if aid, ok := call.Args[0].(*ast.Ident); ok {
+					for _, e := range assigned[info.ObjectOf(aid)] {
+						if v, ok := constStr(e); ok {
+							used[v] = true
+						}
+					}
+				}
+				return true
+			})
+		}
+	}
+
+	hits := 0
+	for _, name := range sortedErrTypes() {
+		if !used[name] {
+			fmt.Printf("error type %q is never used in a NewXRError() call\n",
+				name)
+			hits++
+		}
+	}
+
+	if hits > 0 {
+		fmt.Printf("\nerrusage: found %d problem(s)\n", hits)
+	} else {
+		fmt.Println("\nerrusage: all error types are used")
+	}
+	return hits
+}
+
+// runErrTestCheck verifies that every error type in common.Type2Error appears
+// as "#<TYPE>" (the end of the error's "type" URL) somewhere in the *_test.go
+// files of the repo.
+func runErrTestCheck() int {
+	fmt.Println("\n=== Untested error types ===")
+
+	var all strings.Builder
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry,
+		err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if n := d.Name(); n != "." && (strings.HasPrefix(n, ".") ||
+				n == "node_modules" || n == "tmp") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(path, "_test.go") {
+			buf, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			all.Write(buf)
+			all.WriteByte('\n')
+		}
+		return nil
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "errtest: error scanning files:", err)
+		return 1
+	}
+	text := all.String()
+
+	hits := 0
+	for _, name := range sortedErrTypes() {
+		re := regexp.MustCompile(`#` + regexp.QuoteMeta(name) + `\b`)
+		if !re.MatchString(text) {
+			fmt.Printf("error type %q isn't in the expected output of any "+
+				"test\n", name)
+			hits++
+		}
+	}
+
+	if hits > 0 {
+		fmt.Printf("\nerrtest: found %d problem(s)\n", hits)
+	} else {
+		fmt.Println("\nerrtest: all error types are tested")
 	}
 	return hits
 }

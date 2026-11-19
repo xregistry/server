@@ -82,7 +82,7 @@ xrlint: .xrlint
 	@echo "# Running xrlint looking for source issues"
 	@! grep -e '	' registry/mysql/init.sql || \
 		(echo "Remove tabs in init.db";exit 1)
-	@misc/errOutput @go run ./cmds/xrlint --unused=false \
+	@misc/errOutput @go run ./cmds/xrlint --unused=false --errtest=false \
 		./registry/... ./common/... ./cmds/... ./tests/...
 	@touch .xrlint
 
