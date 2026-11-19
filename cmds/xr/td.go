@@ -44,17 +44,17 @@ type TDConfig struct {
 	Output       string
 	Server       string
 	Registry     *registry.Registry
-	Model        *registry.Model
 	Capabilities *Capabilities
 
-	FailFast     bool
-	IgnoreWarn   bool
-	NextStatus   int
-	ShowSkips    bool
-	ShowWarns    bool
-	ShowLogs     bool // EnvBool("XR_SHOWLOGS", false)
-	ShowStats    bool
-	ConsoleDepth int
+	FailFast       bool
+	IgnoreWarn     bool
+	NextStatus     int
+	ShowSkips      bool
+	ShowWarns      bool
+	ShowLogs       bool // EnvBool("XR_SHOWLOGS", false)
+	ShowStats      bool
+	ConsoleDepth   int
+	AllowMutations bool
 
 	TestRuns map[string]*TD
 	RunFuncs []TestFn
@@ -434,6 +434,12 @@ func (td *TD) Log(args ...any)     { td.Report(LOG, args...) }
 func (td *TD) Msg(args ...any)     { td.Report(MSG, args...) }
 func (td *TD) Stop()               { panic("stop") }
 
+func (td *TD) StopOnFail() {
+	if td.Status == FAIL {
+		td.Stop()
+	}
+}
+
 func (td *TD) DependsOn(fn TestFn) {
 	depStatus := PASS
 
@@ -755,6 +761,11 @@ func (td *TD) HTTPGetJSON(path string) *HttpResponse {
 		Body:    nil,
 		Debug:   VerboseCount > 2,
 	})
+	nTD.LogHTTP(res)
+	if res == nil {
+		nTD.Fail("GET %s MUST return an HTTP response", path)
+		return nil
+	}
 	nTD.NoError(xErr, "GET %s", path)
 	if nTD.Status == FAIL {
 		return nil
@@ -770,6 +781,35 @@ func (td *TD) HTTPGetJSON(path string) *HttpResponse {
 		return nil
 	}
 	return res
+}
+
+func (td *TD) LogHTTP(res *HttpResponse) {
+	if res == nil {
+		td.Log("HTTP response: <nil>")
+		return
+	}
+	if res.Logged {
+		return
+	}
+	res.Logged = true
+
+	if res.Error != nil {
+		td.Log("HTTP error: %s", res.Error)
+	}
+	if res.Status != "" {
+		td.Log("HTTP status: %s", res.Status)
+	} else if res.Code != 0 {
+		td.Log("HTTP status: %d", res.Code)
+	}
+	if location := res.Header.Get("Location"); location != "" {
+		td.Log("HTTP Location: %s", location)
+	}
+
+	if len(res.Body) == 0 {
+		td.Log("HTTP body: <empty>")
+	} else {
+		td.Log("HTTP body: %s", string(res.Body))
+	}
 }
 
 func (td *TD) HTTPStatusMustEqual(res *HttpResponse, exp int, args ...any) {
@@ -834,13 +874,16 @@ func (td *TD) HTTPPropMustBeTimestamp(res *HttpResponse, prop string) {
 }
 
 func (td *TD) HTTPBodyMustJSON(res *HttpResponse, args ...any) {
+	td.LogHTTP(res)
+
 	str := ""
 	if len(args) > 0 {
 		str = "'" + fmt.Sprintf(args[0].(string), args[1:]...) + "' "
 	}
 
-	if len(res.Body) < 140 {
-		td.Log("%sBody:\n%s", str, string(res.Body))
+	if res == nil {
+		td.Fail("%sMUST return an HTTP response", str)
+		return
 	}
 	td.Must(len(res.Body) > 0, "%sMUST return a non-empty body", str)
 	td.Must(res.JSON != nil, "%sMUST return a JSON body", str)
@@ -919,18 +962,6 @@ func (td *TD) GetRegistry() *xrlib.CLIReg {
 
 func (td *TD) SetRegistry(r *registry.Registry) *TD {
 	td.Config.Registry = r
-	return td
-}
-
-func (td *TD) GetModel() *registry.Model {
-	if td.Config.Model == nil {
-		td.FailNow("Model isn't set")
-	}
-	return td.Config.Model
-}
-
-func (td *TD) SetModel(m *registry.Model) *TD {
-	td.Config.Model = m
 	return td
 }
 

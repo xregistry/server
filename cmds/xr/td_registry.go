@@ -57,14 +57,6 @@ func TestModel(td *TD) {
 	model, xErr := registry.ParseModel(res.Body, (*registry.Registry)(reg))
 	nTD.NoErrorStop(xErr)
 
-	// if td.Config.Model == nil {
-	// td.Config.Model = model
-	// }
-
-	// if xErr == nil {
-	// td.Config.Model = model
-	// }
-
 	nTD = NewTD(td, "Verifying model MUST work")
 	nTD.NoError(model.Verify())
 }

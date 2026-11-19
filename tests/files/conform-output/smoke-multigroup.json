@@ -9,7 +9,7 @@
     "entries": [
       {
         "subtest": {
-          "name": "TestTDSmoke",
+          "name": "TestSmoke",
           "status": "PASS",
           "pass": 55,
           "fail": 0,
@@ -330,7 +330,7 @@
     "entries": [
       {
         "subtest": {
-          "name": "TestTDSmoke",
+          "name": "TestSmoke",
           "status": "PASS",
           "pass": 55,
           "fail": 0,

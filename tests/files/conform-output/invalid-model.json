@@ -9,7 +9,7 @@
     "entries": [
       {
         "subtest": {
-          "name": "TestTDSmoke",
+          "name": "TestSmoke",
           "status": "FAIL",
           "pass": 7,
           "fail": 4,
@@ -59,7 +59,11 @@
                   },
                   {
                     "status": "LOG",
-                    "text": "'GET /model' Body:\n{\n"
+                    "text": "HTTP status: 200 OK"
+                  },
+                  {
+                    "status": "LOG",
+                    "text": "HTTP body: {\n"
                   },
                   {
                     "status": "PASS",

@@ -1696,7 +1696,8 @@ type HttpRequest struct {
 	Headers map[string]string
 	Body    []byte
 
-	Debug bool
+	Debug      bool
+	NoRedirect bool
 }
 
 type HttpResponse struct {
@@ -1705,6 +1706,7 @@ type HttpResponse struct {
 	Body   []byte
 	Header http.Header
 	Error  *XRError // same XError the func returns
+	Logged bool     `json:"-"`
 
 	JSON      map[string]any
 	JSONError *XRError // JSON parsing error, if it failed
@@ -1719,6 +1721,12 @@ func HttpGet(url string) (*HttpResponse, *XRError) {
 
 func HttpDo(req *HttpRequest) (*HttpResponse, *XRError) {
 	client := &http.Client{}
+	if req.NoRedirect {
+		client.CheckRedirect = func(req *http.Request,
+			via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
 	httpRes := &HttpResponse{}
 	bodyReader := bytes.NewReader(req.Body)
 
