@@ -660,7 +660,7 @@ backend.mysql.password: noway
 	XNoErr(t, os.WriteFile(tmphome+"/.xrserver", []byte(configStr), 0600))
 
 	// Uses config file
-	runRes := Run("../xrserver")
+	runRes := Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -670,7 +670,7 @@ backend.mysql.password: noway
 
 	// env beats config file
 	XNoErr(t, os.Setenv("XR_BACKEND", "host=127.0.0.1,port=2222"))
-	runRes = Run("../xrserver")
+	runRes = Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -679,7 +679,8 @@ backend.mysql.password: noway
 		"^(?m)^.*127.0.0.1:2222.*connection refused")
 
 	// Make sure flags win
-	runRes = Run("../xrserver", "--backend", "host=localhost,port=4321")
+	runRes = Run("../xrserver", "--verify",
+		"--backend", "host=localhost,port=4321")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -691,7 +692,7 @@ backend.mysql.password: noway
 	XNoErr(t, os.Setenv("XR_BACKEND", "mysql,host=127.0.0.1,port=3306"))
 
 	// Test user - config
-	runRes = Run("../xrserver")
+	runRes = Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -702,7 +703,7 @@ backend.mysql.password: noway
 	// Test user - env var
 	XNoErr(t, os.Setenv("XR_BACKEND",
 		"mysql,host=127.0.0.1,port=3306,user=duke"))
-	runRes = Run("../xrserver")
+	runRes = Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -711,7 +712,7 @@ backend.mysql.password: noway
 		"^(?m)^.*Access denied.*duke")
 
 	// Test user - flag
-	runRes = Run("../xrserver", "--backend", "user=lola")
+	runRes = Run("../xrserver", "--verify", "--backend", "user=lola")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -720,7 +721,7 @@ backend.mysql.password: noway
 		"^(?m)^.*Access denied.*lola")
 
 	// Test password - config
-	runRes = Run("../xrserver", "--backend", "user=root")
+	runRes = Run("../xrserver", "--verify", "--backend", "user=root")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup

@@ -248,7 +248,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 
 	DBName := registry.BackendOpt(XRSConfig, "dbname") // "" if no DBs
 	ConnStr, xErr := registry.DBConnectionString(XRSConfig)
-	ErrStop(xErr, "Error talking to DB: %s", xErr.String())
+	ErrStop(xErr, "Error talking to DB %q: %s", DBName, xErr.String())
 	if ConnStr != "" {
 		ConnStr = "(" + ConnStr + ")"
 	}
@@ -280,24 +280,38 @@ func runFunc(cmd *cobra.Command, args []string) {
 	// Backends w/o DBs silently ignore --recreatedb and --dontcreate (for DBs)
 	supportsDBs := registry.BackendSupportsDBs(XRSConfig)
 
-	if supportsDBs && RecreateDB {
-		if registry.DBExists(XRSConfig, DBName) {
-			Verbose("Deleting DB: %s", DBName)
-			err := registry.DBDelete(XRSConfig, DBName)
-			ErrStop(err, "Error deleting DB(%s): %s", DBName, err)
-		}
-
-		// Force us to create the default registry, otherwise we'll die
-		// cmd.Flags().Set("createreg", "true")
+	// If --verify is there then we want to see the error and stop
+	if val, _ := cmd.Flags().GetBool("verify"); !val {
+		xErr := registry.WaitForBackend(XRSConfig)
+		ErrStop(xErr, "Error waiting for backend: %s", xErr)
 	}
 
-	if supportsDBs && !registry.DBExists(XRSConfig, DBName) {
-		if !DontCreate || RecreateDB {
-			Verbose("Creating DB: %s", DBName)
-			err := registry.DBCreate(XRSConfig, DBName)
-			ErrStop(err, "Error creating DB(%s): %s", DBName, err)
-		} else {
-			Stop("DB %q does not exist", DBName)
+	if supportsDBs {
+		if RecreateDB {
+			exists, xErr := registry.DBExists(XRSConfig, DBName)
+			ErrStop(xErr, "Error looking for DB %q: %s", DBName, xErr)
+
+			if exists {
+				Verbose("Deleting DB: %s", DBName)
+				err := registry.DBDelete(XRSConfig, DBName)
+				ErrStop(err, "Error deleting DB %q: %s", DBName, err)
+			}
+
+			// Force us to create the default registry, otherwise we'll die
+			// cmd.Flags().Set("createreg", "true")
+		}
+
+		exists, xErr := registry.DBExists(XRSConfig, DBName)
+		ErrStop(xErr, "Error looking for DB %q: %s", DBName, xErr)
+
+		if !exists {
+			if !DontCreate || RecreateDB {
+				Verbose("Creating DB: %s", DBName)
+				err := registry.DBCreate(XRSConfig, DBName)
+				ErrStop(err, "Error creating DB %q: %s", DBName, err)
+			} else {
+				Stop("DB %q does not exist", DBName)
+			}
 		}
 	}
 
@@ -328,7 +342,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	reg, xErr := registry.FindRegistryByUID(nil, XRSConfig, regName, FOR_READ)
-	ErrStop(xErr, "Error finding registry(%s): %s", regName, xErr)
+	ErrStop(xErr, "Error finding registry %q: %s", regName, xErr)
 
 	if reg != nil {
 		if RecreateReg {
@@ -347,7 +361,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 			xErr = reg.Commit()
 		}
 
-		ErrStop(xErr, "Error creating new registry(%s): %s", regName, xErr)
+		ErrStop(xErr, "Error creating new registry %q: %s", regName, xErr)
 	}
 
 	if reg == nil {

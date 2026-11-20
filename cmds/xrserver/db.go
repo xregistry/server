@@ -77,19 +77,22 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 			DBName := args[0]
 
-			if registry.DBExists(XRSConfig, DBName) {
+			exists, xErr := registry.DBExists(XRSConfig, DBName)
+			ErrStop(xErr, "Error creating DB %q: %s", DBName, xErr)
+
+			if exists {
 				if val, _ := cmd.Flags().GetBool("force"); !val {
 					Stop("DB %q already exists", DBName)
 				}
 
 				Verbose("Deleting DB: %s", DBName)
-				err := registry.DBDelete(XRSConfig, DBName)
-				ErrStop(err, "Error deleting DB %q: %s", DBName, err)
+				xErr := registry.DBDelete(XRSConfig, DBName)
+				ErrStop(xErr, "Error deleting DB %q: %s", DBName, xErr)
 			}
 
 			Verbose("Creating DB: %s", DBName)
-			err := registry.DBCreate(XRSConfig, DBName)
-			ErrStop(err, "Error creating DB %q: %s", DBName, err)
+			xErr = registry.DBCreate(XRSConfig, DBName)
+			ErrStop(xErr, "Error creating DB %q: %s", DBName, xErr)
 		},
 	}
 	createCmd.Flags().BoolP("force", "f", false, "Delete existing DB first")
@@ -107,7 +110,10 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 			DBName := args[0]
 
-			if !registry.DBExists(XRSConfig, DBName) {
+			exists, xErr := registry.DBExists(XRSConfig, DBName)
+			ErrStop(xErr, "Error deleting DB %q: %s", DBName, xErr)
+
+			if !exists {
 				if val, _ := cmd.Flags().GetBool("force"); !val {
 					Stop("DB %q doesn't exist", DBName)
 				}
@@ -115,8 +121,8 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			Verbose("Deleting DB: %s", DBName)
-			err := registry.DBDelete(XRSConfig, DBName)
-			ErrStop(err, "Error deleting DB %q: %s", DBName, err)
+			xErr = registry.DBDelete(XRSConfig, DBName)
+			ErrStop(xErr, "Error deleting DB %q: %s", DBName, xErr)
 		},
 	}
 	deleteCmd.Flags().BoolP("force", "f", false, "Ignore DB missing error")
@@ -134,7 +140,10 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 			}
 			DBName := args[0]
 
-			if !registry.DBExists(XRSConfig, DBName) {
+			exists, xErr := registry.DBExists(XRSConfig, DBName)
+			ErrStop(xErr, "Error retrieving DB %q: %s", DBName, xErr)
+
+			if !exists {
 				Stop("DB %q doesn't exist", DBName)
 			}
 

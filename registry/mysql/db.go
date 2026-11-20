@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"io"
+	glog "log"
 	"os"
 	"reflect"
 	"strings"
@@ -498,6 +500,26 @@ var firstTime = true
 type dbHolder struct {
 	mu sync.Mutex
 	db *sql.DB
+}
+
+func Ping(xrsConfig *Config) *XRError {
+	mysql.SetLogger(glog.New(io.Discard, "", 0))
+	defer mysql.SetLogger(glog.New(os.Stderr, "[mysql] ",
+		glog.Ldate|glog.Ltime))
+
+	db, err := sql.Open("mysql", serverDSN(xrsConfig))
+	if err != nil {
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
+	}
+	defer db.Close()
+
+	err = db.Ping()
+
+	if err != nil {
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
+	}
+
+	return nil
 }
 
 // OpenDB returns the already-open DB connection for xrsConfig, opening one

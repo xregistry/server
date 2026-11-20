@@ -35,7 +35,6 @@ COPY misc/repo.tar /misc/repo.tar
 
 # If local copy of spec is found, copy it into the image so we can use it
 COPY .spec* /spec/
-COPY misc/waitformysql /
 COPY misc/start /
 
 ENTRYPOINT [ "/start" , "-vv" ]

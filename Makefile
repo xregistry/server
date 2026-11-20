@@ -222,8 +222,7 @@ xr-all: .xr-all
 
 images: .images
 .images: .cmds docs misc/waitformysql \
-		misc/Dockerfile-xr misc/Dockerfile-xrserver misc/Dockerfile-all \
-		misc/start
+		misc/Dockerfile-* misc/start
 	@echo
 	@echo "# Building the container images"
 	@rm -rf .spec
@@ -245,6 +244,11 @@ endif
 		-t $(XRSERVER_IMAGE)-all --no-cache ." \
 	    docker build -f misc/Dockerfile-all \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-all \
+		--no-cache .
+	@misc/errOutput -"docker build -f misc/Dockerfile-memory \
+		-t $(XRSERVER_IMAGE)-memory --no-cache ." \
+	    docker build -f misc/Dockerfile-memory \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-memory \
 		--no-cache .
 	@rm -rf .spec
 	@touch .images
@@ -271,10 +275,12 @@ push: .push
 	docker push -q $(XR_IMAGE):$(TAG)
 	docker push -q $(XRSERVER_IMAGE):$(TAG)
 	docker push -q $(XRSERVER_IMAGE)-all:$(TAG)
+	docker push -q $(XRSERVER_IMAGE)-memory:$(TAG)
 	@echo "Now push 'latest' - not sure we actually need to do this"
 	docker push -q $(XR_IMAGE)
 	docker push -q $(XRSERVER_IMAGE)
 	docker push -q $(XRSERVER_IMAGE)-all
+	docker push -q $(XRSERVER_IMAGE)-memory
 	@touch .push
 
 start: mysql cmds waitformysql
