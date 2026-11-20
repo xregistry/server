@@ -7,6 +7,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 )
@@ -21,6 +22,10 @@ type Config struct {
 	// FileName will be the true path of what was loaded, or "" if the file
 	// is not found
 	FileName string // e.g. .xr
+
+	// Protects Data - some values (e.g. the default Registry's SID) are
+	// set while background goroutines are already reading the Config
+	mu sync.RWMutex
 }
 
 func NewConfig(fn string) *Config {
@@ -31,6 +36,8 @@ func NewConfig(fn string) *Config {
 }
 
 func (c *Config) Clone() *Config {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return &Config{
 		Data:     maps.Clone(c.Data),
 		FileName: c.FileName,
@@ -47,6 +54,8 @@ func (c *Config) GetFilename(fn string) string {
 }
 
 func (c *Config) Get(name string) any {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.Data == nil {
 		return ""
 	}
@@ -54,6 +63,8 @@ func (c *Config) Get(name string) any {
 }
 
 func (c *Config) GetAsString(name string) string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.Data == nil {
 		return ""
 	}
@@ -75,6 +86,8 @@ func (c *Config) GetAsString(name string) string {
 }
 
 func (c *Config) GetAsInt(name string) int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.Data == nil {
 		return 0
 	}
@@ -100,6 +113,8 @@ func (c *Config) GetAsInt(name string) int {
 // so "1"/"t"/"T"/"TRUE"/"true"/"True" etc. are all accepted), or false if
 // name is unset or its value isn't a valid bool.
 func (c *Config) GetAsBool(name string) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.Data == nil {
 		return false
 	}
@@ -123,6 +138,8 @@ func (c *Config) GetAsBool(name string) bool {
 }
 
 func (c *Config) Set(name string, value any) *Config {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	name = strings.TrimSpace(name)
 	// value = strings.TrimSpace(value)
 
@@ -145,6 +162,8 @@ func (c *Config) Set(name string, value any) *Config {
 }
 
 func (c *Config) Clear() *Config {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.Data = nil
 	c.FileName = ""
 	return c
@@ -242,6 +261,8 @@ func (c *Config) SetFromCmdInt(prop string, cmd *cobra.Command, flag string) *Co
 // Utils - some are client vs server specific
 
 func (c *Config) GetHeaders() map[string]string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	headers := map[string]string(nil)
 
 	for key, value := range c.Data {
