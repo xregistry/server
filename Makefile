@@ -272,12 +272,10 @@ push: .push
 	docker push -q $(XR_IMAGE):$(TAG)
 	docker push -q $(XRSERVER_IMAGE):$(TAG)
 	docker push -q $(XRSERVER_IMAGE)-mysql:$(TAG)
-	docker push -q $(XRSERVER_IMAGE)-memory:$(TAG)
 	@echo "Now push 'latest' - not sure we actually need to do this"
 	docker push -q $(XR_IMAGE)
 	docker push -q $(XRSERVER_IMAGE)
 	docker push -q $(XRSERVER_IMAGE)-mysql
-	docker push -q $(XRSERVER_IMAGE)-memory
 	@touch .push
 
 start: mysql cmds waitformysql
