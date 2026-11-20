@@ -222,8 +222,7 @@ xr-all: .xr-all
 
 images: .images
 .images: .cmds docs misc/waitformysql \
-		misc/Dockerfile-xr misc/Dockerfile-xrserver misc/Dockerfile-all \
-		misc/start
+		misc/Dockerfile-* misc/start
 	@echo
 	@echo "# Building the container images"
 	@rm -rf .spec
@@ -241,10 +240,10 @@ endif
 		-t $(XRSERVER_IMAGE) --no-cache ." \
 		docker build -f misc/Dockerfile-xrserver \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE) --no-cache .
-	@misc/errOutput -"docker build -f misc/Dockerfile-all \
-		-t $(XRSERVER_IMAGE)-all --no-cache ." \
-	    docker build -f misc/Dockerfile-all \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-all \
+	@misc/errOutput -"docker build -f misc/Dockerfile-mysql \
+		-t $(XRSERVER_IMAGE)-mysql --no-cache ." \
+	    docker build -f misc/Dockerfile-mysql \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-mysql \
 		--no-cache .
 	@rm -rf .spec
 	@touch .images
@@ -255,6 +254,8 @@ testimages: .testimages
 	@echo "# Verifying the images"
 	@make mysql waitformysql
 	@misc/errOutput docker run --network host $(XR_IMAGE)
+	@misc/errOutput docker run --network host \
+		$(XRSERVER_IMAGE) --backend=memory --samples --verify
 	@misc/errOutput docker run --network host \
 		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
@@ -267,14 +268,16 @@ push: .push
 	@echo "Create a 'today' version of each image and push them"
 	docker tag $(XR_IMAGE) $(XR_IMAGE):$(TAG)
 	docker tag $(XRSERVER_IMAGE) $(XRSERVER_IMAGE):$(TAG)
-	docker tag $(XRSERVER_IMAGE)-all $(XRSERVER_IMAGE)-all:$(TAG)
+	docker tag $(XRSERVER_IMAGE)-mysql $(XRSERVER_IMAGE)-mysql:$(TAG)
 	docker push -q $(XR_IMAGE):$(TAG)
 	docker push -q $(XRSERVER_IMAGE):$(TAG)
-	docker push -q $(XRSERVER_IMAGE)-all:$(TAG)
+	docker push -q $(XRSERVER_IMAGE)-mysql:$(TAG)
+	docker push -q $(XRSERVER_IMAGE)-memory:$(TAG)
 	@echo "Now push 'latest' - not sure we actually need to do this"
 	docker push -q $(XR_IMAGE)
 	docker push -q $(XRSERVER_IMAGE)
-	docker push -q $(XRSERVER_IMAGE)-all
+	docker push -q $(XRSERVER_IMAGE)-mysql
+	docker push -q $(XRSERVER_IMAGE)-memory
 	@touch .push
 
 start: mysql cmds waitformysql
@@ -287,8 +290,8 @@ notest run local: mysql cmds waitformysql
 	@echo "# Starting xrserver from scratch"
 	./xrserver -vv --rootapp=xreg --recreatedb --samples --ui-dir registry/http/ui $(VERIFY)
 
-docker-all: images
-	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -vv --recreatedb --samples
+docker-mysql: images
+	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-mysql -vv --recreatedb --samples
 
 large:
 	# Run the xrserver with a ton of data

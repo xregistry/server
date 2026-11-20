@@ -2,6 +2,8 @@ package tests
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -660,7 +662,7 @@ backend.mysql.password: noway
 	XNoErr(t, os.WriteFile(tmphome+"/.xrserver", []byte(configStr), 0600))
 
 	// Uses config file
-	runRes := Run("../xrserver")
+	runRes := Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -670,7 +672,7 @@ backend.mysql.password: noway
 
 	// env beats config file
 	XNoErr(t, os.Setenv("XR_BACKEND", "host=127.0.0.1,port=2222"))
-	runRes = Run("../xrserver")
+	runRes = Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -679,7 +681,8 @@ backend.mysql.password: noway
 		"^(?m)^.*127.0.0.1:2222.*connection refused")
 
 	// Make sure flags win
-	runRes = Run("../xrserver", "--backend", "host=localhost,port=4321")
+	runRes = Run("../xrserver", "--verify",
+		"--backend", "host=localhost,port=4321")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -691,7 +694,7 @@ backend.mysql.password: noway
 	XNoErr(t, os.Setenv("XR_BACKEND", "mysql,host=127.0.0.1,port=3306"))
 
 	// Test user - config
-	runRes = Run("../xrserver")
+	runRes = Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -702,7 +705,7 @@ backend.mysql.password: noway
 	// Test user - env var
 	XNoErr(t, os.Setenv("XR_BACKEND",
 		"mysql,host=127.0.0.1,port=3306,user=duke"))
-	runRes = Run("../xrserver")
+	runRes = Run("../xrserver", "--verify")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -711,7 +714,7 @@ backend.mysql.password: noway
 		"^(?m)^.*Access denied.*duke")
 
 	// Test user - flag
-	runRes = Run("../xrserver", "--backend", "user=lola")
+	runRes = Run("../xrserver", "--verify", "--backend", "user=lola")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -720,7 +723,7 @@ backend.mysql.password: noway
 		"^(?m)^.*Access denied.*lola")
 
 	// Test password - config
-	runRes = Run("../xrserver", "--backend", "user=root")
+	runRes = Run("../xrserver", "--verify", "--backend", "user=root")
 	XNoErr(t, runRes.Error)
 	defer runRes.Kill()
 	runRes.Wait() // Should generate an error on startup
@@ -955,4 +958,129 @@ func TestXRServerBackend(t *testing.T) {
 			restoreHome()
 		}
 	}
+}
+
+// Starts xrserver (w/o --verify) with its stderr going to a file so that the
+// output can be read while it's still running. Returns a func to read stderr
+// so far and a channel that gets the exit error when the process ends.
+func startWaitServer(t *testing.T, args ...string) (*exec.Cmd, func() string, chan error) {
+	t.Helper()
+
+	errFile, err := os.CreateTemp(t.TempDir(), "stderr")
+	XNoErr(t, err)
+
+	cmd := exec.Command("../xrserver", args...)
+	cmd.Stderr = errFile
+	XNoErr(t, cmd.Start())
+	t.Cleanup(func() { cmd.Process.Kill() })
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	return cmd, func() string {
+		data, _ := os.ReadFile(errFile.Name())
+		return string(data)
+	}, done
+}
+
+func waitForOutput(t *testing.T, read func() string, want string) {
+	t.Helper()
+	for i := 0; i < 100; i++ {
+		if strings.Contains(read(), want) {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("Never saw %q in:\n%s", want, read())
+}
+
+// If the backend isn't reachable yet, xrserver keeps trying until it is
+func TestXRServerWaitForBackend(t *testing.T) {
+	SkipIfNotMySQL(t)
+
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+	defer SetClearEnvVar("XR_BACKEND", "")()
+
+	// Grab a free port, then release it so nothing is listening on it
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	XNoErr(t, err)
+	addr := ln.Addr().String()
+	_, port, _ := net.SplitHostPort(addr)
+	ln.Close()
+
+	_, readErr, done := startWaitServer(t,
+		"--backend", "host=127.0.0.1,port="+port+",dbname=xrwaittest",
+		"--dontcreate")
+
+	waitForOutput(t, readErr, "Will keep trying...")
+	XEqual(t, "", readErr(), "^(?m)^.*Error talking to the backend: .*"+
+		"127.0.0.1:"+port+": connect: connection refused")
+
+	// It should still be waiting
+	time.Sleep(1 * time.Second)
+	select {
+	case <-done:
+		t.Fatalf("xrserver exited while waiting:\n%s", readErr())
+	default:
+	}
+
+	// Now make the "backend" available by proxying to the real mysql
+	ln, err = net.Listen("tcp", addr)
+	XNoErr(t, err)
+	defer ln.Close()
+
+	go func() {
+		for {
+			client, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer client.Close()
+				server, err := net.Dial("tcp", net.JoinHostPort(
+					registry.BackendOpt(XRServerConfig, "host"),
+					registry.BackendOpt(XRServerConfig, "port")))
+				if err != nil {
+					return
+				}
+				defer server.Close()
+				go io.Copy(server, client)
+				io.Copy(client, server)
+			}()
+		}
+	}()
+
+	// It got past the wait and on to the DB check, where it stops
+	select {
+	case err = <-done:
+		XCheck(t, err != nil, "Should have failed: %s", readErr())
+	case <-time.After(15 * time.Second):
+		t.Fatalf("xrserver never proceeded:\n%s", readErr())
+	}
+	XEqual(t, "", readErr(), "^(?m)^.*DB \"xrwaittest\" does not exist")
+}
+
+// Permanent errors (e.g. bad credentials) stop xrserver, no retrying
+func TestXRServerWaitForBackendPermanentError(t *testing.T) {
+	SkipIfNotMySQL(t)
+
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+	defer SetClearEnvVar("XR_BACKEND", "")()
+	defer SetClearEnvVar("XR_BACKEND_SECRET", "")()
+
+	_, readErr, done := startWaitServer(t,
+		"--backend", "user=nobody,password=badpassword")
+
+	select {
+	case err := <-done:
+		XCheck(t, err != nil, "Should have failed: %s", readErr())
+	case <-time.After(15 * time.Second):
+		t.Fatalf("xrserver never stopped:\n%s", readErr())
+	}
+
+	out := readErr()
+	XEqual(t, "", out, "^(?m)^.*Error waiting for backend: .*"+
+		"Access denied for user 'nobody'")
+	XCheck(t, !strings.Contains(out, "Will keep trying"),
+		"Shouldn't retry:\n%s", out)
 }

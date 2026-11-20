@@ -3,6 +3,7 @@ package registry
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
@@ -93,6 +94,40 @@ func BackendName(c *Config) string {
 		return t
 	}
 	return profile
+}
+
+func IsBackendReady(c *Config) *XRError {
+	be, xErr := NewBackend(c)
+	if xErr != nil {
+		return xErr
+	}
+
+	return be.IsReady(c)
+}
+
+func WaitForBackend(c *Config) *XRError {
+	savedErr := ""
+
+	for {
+		xErr := IsBackendReady(c)
+		if xErr == nil {
+			return nil
+		}
+
+		// Permanent errors (e.g. bad credentials) won't fix themselves
+		if !xErr.Retryable {
+			return xErr
+		}
+
+		newErr := xErr.String()
+		if newErr != savedErr {
+			savedErr = newErr
+			log.Printf("Error talking to the backend: %s", savedErr)
+			log.Printf("Will keep trying...")
+		}
+
+		time.Sleep(3 * time.Second)
+	}
 }
 
 func backendOptionSpec(c *Config, name string) *BackendOption {
@@ -281,13 +316,17 @@ func MustNewBackend(c *Config) Backend {
 }
 
 type Backend interface {
+	// IsReady returns nil if ready. A non-nil error that is Retryable means
+	// "not ready yet, try again"; otherwise it is permanent.
+	IsReady(c *Config) *XRError
+
 	// DB related stuff
 	/////////////////////////////////////////////////////////////////////
 
 	// SupportsDBs is false for backends with no notion of a named DB. For
 	// those, the DB* funcs below are never called (they just return errors).
 	SupportsDBs() bool
-	DBExists(c *Config, name string) bool
+	DBExists(c *Config, name string) (bool, *XRError)
 	DBCreate(c *Config, name string) *XRError
 	DBDelete(c *Config, name string) *XRError
 	DBList(c *Config) ([]string, *XRError)

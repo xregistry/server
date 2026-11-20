@@ -53,6 +53,10 @@ func NewMemoryBackend(c *Config) (registry.Backend, *XRError) {
 
 // DB Actions - this backend has no notion of a DB
 
+func (be *MemoryBackend) IsReady(c *Config) *XRError {
+	return nil
+}
+
 func (be *MemoryBackend) SupportsDBs() bool { return false }
 
 func notSupported() *XRError {
@@ -60,8 +64,8 @@ func notSupported() *XRError {
 		SetDetail("Backend \"memory\" doesn't support DBs.")
 }
 
-func (be *MemoryBackend) DBExists(c *Config, name string) bool {
-	return false
+func (be *MemoryBackend) DBExists(c *Config, name string) (bool, *XRError) {
+	return false, nil
 }
 
 func (be *MemoryBackend) DBCreate(c *Config, name string) *XRError {

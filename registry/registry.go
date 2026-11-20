@@ -21,10 +21,10 @@ var DefPort = 8080
 var DefDBName = "registry"
 var DefRegistryName = "xRegistry"
 
-func DBExists(c *Config, name string) bool {
+func DBExists(c *Config, name string) (bool, *XRError) {
 	be, xErr := NewBackend(c)
 	if xErr != nil {
-		panic(xErr)
+		return false, xErr
 	}
 	return be.DBExists(c, name)
 }

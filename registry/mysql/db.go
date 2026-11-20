@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"io"
+	glog "log"
 	"os"
 	"reflect"
 	"strings"
@@ -498,6 +500,36 @@ var firstTime = true
 type dbHolder struct {
 	mu sync.Mutex
 	db *sql.DB
+}
+
+// Ping checks that the MySQL server is reachable and accepts our
+// credentials. The returned error is marked Retryable when the failure looks
+// transient (server not up yet, network error, too many connections) and not
+// when the server answered with a permanent error (e.g. bad password).
+func Ping(xrsConfig *Config) *XRError {
+	mysql.SetLogger(glog.New(io.Discard, "", 0))
+	defer mysql.SetLogger(glog.New(os.Stderr, "[mysql] ",
+		glog.Ldate|glog.Ltime))
+
+	// Bound each attempt so an unreachable host can't block for long
+	db, err := sql.Open("mysql", serverDSN(xrsConfig)+"?timeout=3s")
+	if err != nil {
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
+	}
+	defer db.Close()
+
+	if err = db.Ping(); err != nil {
+		retry := true
+		var myErr *mysql.MySQLError
+		if errors.As(err, &myErr) {
+			// 1040: too many connections, 1053: server shutting down
+			retry = myErr.Number == 1040 || myErr.Number == 1053
+		}
+		return NewXRError("server_error", "/").
+			SetDetail(err.Error() + ".").SetRetryable(retry)
+	}
+
+	return nil
 }
 
 // OpenDB returns the already-open DB connection for xrsConfig, opening one

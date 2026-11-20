@@ -71,25 +71,34 @@ func NewSQLBackend(c *Config) (registry.Backend, *XRError) {
 
 // DB Actions
 
+func (sqlBE *SQLBackend) IsReady(xrsConfig *Config) *XRError {
+	return Ping(xrsConfig)
+}
+
 func (sqlBE *SQLBackend) SupportsDBs() bool { return true }
 
-func (sqlBE *SQLBackend) DBExists(xrsConfig *Config, name string) bool {
+func (sqlBE *SQLBackend) DBExists(xrsConfig *Config, name string) (bool, *XRError) {
 	defer log.Trace(name)()
 
 	db, err := sql.Open("mysql", serverDSN(xrsConfig))
-	PanicIf(err != nil, "Error opening DB: %s", err)
+	if err != nil {
+		return false, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
+	}
 	defer db.Close()
 
 	rows, err := db.Query(`
         SELECT SCHEMA_NAME
         FROM INFORMATION_SCHEMA.SCHEMATA
         WHERE SCHEMA_NAME=?`, name)
-	PanicIf(err != nil, "Error querying DB: %s", err)
+	if err != nil {
+		return false, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
+	}
+
 	defer rows.Close()
 
 	found := rows.Next()
 	log.FuncPrintf("found: %v", found)
-	return found
+	return found, nil
 }
 
 func (sqlBE *SQLBackend) DBCreate(xrsConfig *Config, name string) *XRError {
@@ -97,16 +106,16 @@ func (sqlBE *SQLBackend) DBCreate(xrsConfig *Config, name string) *XRError {
 
 	db, err := sql.Open("mysql", serverDSN(xrsConfig))
 	if err != nil {
-		panic(err)
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 	defer db.Close()
 
 	if _, err = db.Exec("CREATE DATABASE " + name); err != nil {
-		panic(err)
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 
 	if _, err = db.Exec("USE " + name); err != nil {
-		panic(err)
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 
 	log.FuncPrintf("Creating DB")
@@ -120,7 +129,7 @@ func (sqlBE *SQLBackend) DBCreate(xrsConfig *Config, name string) *XRError {
 
 		log.FuncPrintf("CMD: %s", cmd)
 		if _, err := db.Exec(cmd); err != nil {
-			panic(fmt.Sprintf("Error on: %s\n%s", cmd, err))
+			return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 		}
 	}
 
@@ -155,13 +164,13 @@ func (sqlBE *SQLBackend) DBDelete(xrsConfig *Config, name string) *XRError {
 
 	db, err := sql.Open("mysql", serverDSN(xrsConfig))
 	if err != nil {
-		panic(err)
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 	defer db.Close()
 
 	_, err = db.Exec("DROP DATABASE IF EXISTS " + name)
 	if err != nil {
-		panic(err)
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 	return nil
 }

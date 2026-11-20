@@ -21,8 +21,6 @@ ENV BUILDFLAGS -ldflags \
 RUN make cmds
 
 FROM alpine
-# FROM mysql
-# ENV MYSQL_ROOT_PASSWORD=password
 
 LABEL org.opencontainers.image.source https://github.com/xregistry/server
 
@@ -35,7 +33,6 @@ COPY misc/repo.tar /misc/repo.tar
 
 # If local copy of spec is found, copy it into the image so we can use it
 COPY .spec* /spec/
-COPY misc/waitformysql /
 COPY misc/start /
 
-ENTRYPOINT [ "/start" , "-vv" ]
+ENTRYPOINT [ "/start" ]
