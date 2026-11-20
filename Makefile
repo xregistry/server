@@ -260,6 +260,8 @@ testimages: .testimages
 	@make mysql waitformysql
 	@misc/errOutput docker run --network host $(XR_IMAGE)
 	@misc/errOutput docker run --network host \
+		$(XRSERVER_IMAGE)-memory --samples --verify
+	@misc/errOutput docker run --network host \
 		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
 		-e XR_BACKEND=mysql,host=$(DBHOST),port=$(DBPORT),user=$(DBUSER),dbname=$(DBNAME) \

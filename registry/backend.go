@@ -114,6 +114,11 @@ func WaitForBackend(c *Config) *XRError {
 			return nil
 		}
 
+		// Permanent errors (e.g. bad credentials) won't fix themselves
+		if !xErr.Retryable {
+			return xErr
+		}
+
 		newErr := xErr.String()
 		if newErr != savedErr {
 			savedErr = newErr
@@ -311,7 +316,9 @@ func MustNewBackend(c *Config) Backend {
 }
 
 type Backend interface {
-	IsReady(c *Config) *XRError // error == not ready
+	// IsReady returns nil if ready. A non-nil error that is Retryable means
+	// "not ready yet, try again"; otherwise it is permanent.
+	IsReady(c *Config) *XRError
 
 	// DB related stuff
 	/////////////////////////////////////////////////////////////////////

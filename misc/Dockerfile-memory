@@ -31,6 +31,6 @@ COPY misc/repo.tar /misc/repo.tar
 
 # If local copy of spec is found, copy it into the image so we can use it
 COPY .spec* /spec/
-COPY misc/start /
+ENV XR_MODEL_PATH /spec
 
-ENTRYPOINT [ "/start", "--backend=memory", "-vv" ]
+ENTRYPOINT [ "/xrserver", "--backend=memory", "-vv" ]

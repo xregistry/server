@@ -2,6 +2,8 @@ package tests
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -956,4 +958,129 @@ func TestXRServerBackend(t *testing.T) {
 			restoreHome()
 		}
 	}
+}
+
+// Starts xrserver (w/o --verify) with its stderr going to a file so that the
+// output can be read while it's still running. Returns a func to read stderr
+// so far and a channel that gets the exit error when the process ends.
+func startWaitServer(t *testing.T, args ...string) (*exec.Cmd, func() string, chan error) {
+	t.Helper()
+
+	errFile, err := os.CreateTemp(t.TempDir(), "stderr")
+	XNoErr(t, err)
+
+	cmd := exec.Command("../xrserver", args...)
+	cmd.Stderr = errFile
+	XNoErr(t, cmd.Start())
+	t.Cleanup(func() { cmd.Process.Kill() })
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	return cmd, func() string {
+		data, _ := os.ReadFile(errFile.Name())
+		return string(data)
+	}, done
+}
+
+func waitForOutput(t *testing.T, read func() string, want string) {
+	t.Helper()
+	for i := 0; i < 100; i++ {
+		if strings.Contains(read(), want) {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("Never saw %q in:\n%s", want, read())
+}
+
+// If the backend isn't reachable yet, xrserver keeps trying until it is
+func TestXRServerWaitForBackend(t *testing.T) {
+	SkipIfNotMySQL(t)
+
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+	defer SetClearEnvVar("XR_BACKEND", "")()
+
+	// Grab a free port, then release it so nothing is listening on it
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	XNoErr(t, err)
+	addr := ln.Addr().String()
+	_, port, _ := net.SplitHostPort(addr)
+	ln.Close()
+
+	_, readErr, done := startWaitServer(t,
+		"--backend", "host=127.0.0.1,port="+port+",dbname=xrwaittest",
+		"--dontcreate")
+
+	waitForOutput(t, readErr, "Will keep trying...")
+	XEqual(t, "", readErr(), "^(?m)^.*Error talking to the backend: .*"+
+		"127.0.0.1:"+port+": connect: connection refused")
+
+	// It should still be waiting
+	time.Sleep(1 * time.Second)
+	select {
+	case <-done:
+		t.Fatalf("xrserver exited while waiting:\n%s", readErr())
+	default:
+	}
+
+	// Now make the "backend" available by proxying to the real mysql
+	ln, err = net.Listen("tcp", addr)
+	XNoErr(t, err)
+	defer ln.Close()
+
+	go func() {
+		for {
+			client, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer client.Close()
+				server, err := net.Dial("tcp", net.JoinHostPort(
+					registry.BackendOpt(XRServerConfig, "host"),
+					registry.BackendOpt(XRServerConfig, "port")))
+				if err != nil {
+					return
+				}
+				defer server.Close()
+				go io.Copy(server, client)
+				io.Copy(client, server)
+			}()
+		}
+	}()
+
+	// It got past the wait and on to the DB check, where it stops
+	select {
+	case err = <-done:
+		XCheck(t, err != nil, "Should have failed: %s", readErr())
+	case <-time.After(15 * time.Second):
+		t.Fatalf("xrserver never proceeded:\n%s", readErr())
+	}
+	XEqual(t, "", readErr(), "^(?m)^.*DB \"xrwaittest\" does not exist")
+}
+
+// Permanent errors (e.g. bad credentials) stop xrserver, no retrying
+func TestXRServerWaitForBackendPermanentError(t *testing.T) {
+	SkipIfNotMySQL(t)
+
+	defer SetClearEnvVar("HOME", "nodir")() // make sure we don't find one
+	defer SetClearEnvVar("XR_BACKEND", "")()
+	defer SetClearEnvVar("XR_BACKEND_SECRET", "")()
+
+	_, readErr, done := startWaitServer(t,
+		"--backend", "user=nobody,password=badpassword")
+
+	select {
+	case err := <-done:
+		XCheck(t, err != nil, "Should have failed: %s", readErr())
+	case <-time.After(15 * time.Second):
+		t.Fatalf("xrserver never stopped:\n%s", readErr())
+	}
+
+	out := readErr()
+	XEqual(t, "", out, "^(?m)^.*Error waiting for backend: .*"+
+		"Access denied for user 'nobody'")
+	XCheck(t, !strings.Contains(out, "Will keep trying"),
+		"Shouldn't retry:\n%s", out)
 }
