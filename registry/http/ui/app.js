@@ -17133,7 +17133,7 @@ function renderEditor() {
   if (!_modelReadOnly) {
     var sb = document.createElement('button') ;
     sb.className = 'editorBtn' ; sb.id = 'saveBtn' ;
-    sb.textContent = 'Save' ; sb.onclick = function() { saveModel(function() { toggleEdit() ; }) ; } ; sb.disabled = !_modelDirty ;
+    sb.textContent = 'Save' ; sb.onclick = function() { saveModel(function() { renderEditor() ; }) ; } ; sb.disabled = !_modelDirty ;
     bar.appendChild(sb) ;
     var ub = document.createElement('button') ;
     ub.className = 'editorBtn' ; ub.id = 'undoBtn' ;
@@ -19086,7 +19086,7 @@ function renderCapEditor() {
     var bar = document.createElement('div'); bar.className = 'editorActionBar';
     var saveBtn = document.createElement('button'); saveBtn.className = 'editorBtn'; saveBtn.id = 'capSaveBtn';
     saveBtn.textContent = 'Save'; saveBtn.disabled = !_capDirty;
-    saveBtn.onclick = function() { saveCapabilities(function() { toggleEdit(); }); };
+    saveBtn.onclick = function() { saveCapabilities(function() { renderCapEditor(); }); };
     var undoBtn = document.createElement('button'); undoBtn.className = 'editorBtn'; undoBtn.id = 'capUndoBtn';
     undoBtn.textContent = 'Undo'; undoBtn.disabled = !_capDirty;
     undoBtn.onclick = function() { undoCapabilities(); };
