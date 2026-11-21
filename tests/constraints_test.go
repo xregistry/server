@@ -3327,6 +3327,35 @@ func TestConstraintsMatchVersionsWithEquals(t *testing.T) {
 	reg.Model.SetChanged(false)
 }
 
+// TestConstraintsMatchVersionsCaseInsensitive verifies that matchversions
+// compares attribute values case-insensitively.
+func TestConstraintsMatchVersionsCaseInsensitive(t *testing.T) {
+	reg := NewRegistry("TestConstraintsMatchVersionsCaseInsensitive")
+	defer PassDeleteReg(t, reg)
+
+	XNoErr(t, reg.SetModel(nil, []byte(`{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "resources": {"files": {"singular": "file", "hasdocument": false,
+	      "attributes": {
+	        "mystr": { "type": "string", "matchversions": true }
+	      } } } } } }`), true))
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
+		`{"mystr":"Hello"}`, 201, `*`)
+
+	// Differs only by case: still considered a match
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details",
+		`{"mystr":"hELLO"}`, 201, `*`)
+
+	// Really different value: mismatch
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3$details",
+		`{"mystr":"bye"}`, 400,
+		`^(?s)^.*mismatched_version_attribute`)
+
+	reg.Model.SetChanged(false)
+}
+
 // TestConstraintsXref tests that constraint defaults are NOT applied to xref'd
 // resources (per spec). Note: per-spec, "equals" and "enum" ARE enforced for
 // xref'd resources (a xref's mirrored value is checked exactly like any other
