@@ -46,8 +46,13 @@ func chainWillDelete(r *Resource, vID string) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		if ver.GetAsString("ancestorid") != ancestorID {
-			if xErr := ver.SetSave("ancestorid", ancestorID); xErr != nil {
+		newAnc := ancestorID
+		if ancestorID == vID {
+			// Deleting the root: its children become the new root(s)
+			newAnc = ver.UID
+		}
+		if ver.GetAsString("ancestorid") != newAnc {
+			if xErr := ver.SetSave("ancestorid", newAnc); xErr != nil {
 				return xErr
 			}
 		}

@@ -72,7 +72,6 @@ TODOs:
   ID. `ancestorid=request`
 - test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaning it
   can point to a resource or a version
-** support and test "versionmode"
 ** support "xr model group/resource create/update" with "--data"
 ** support/test case insensitive capability keys/values
 - add tests for xr model group update/upsert/create & --flags
@@ -135,9 +134,22 @@ TODOs:
 - get rid of applyNewModel and just have a Set/Save() variant. And make
   it use the incoming model not the current model as the new one. THen
   LoadModel can refresh registry's model instead of just returning *MOdel
+- try to remove the e.SaveSystemProps() call in tx.writeCache, and put it in e.Save()
+- think about whether changing the hasDoc from true to false should generate
+  an error if there's a Resource with ANY resource content, even a URL
 
 - more todo
   - modernize loader.go - use HTTP instead of APIs
   - convert more tests to use HTTP instead of APIs
   - clean-up model-save-verify flow
   - see TODO.md
+
+TD:
+- move td*.go  into cmds/xr/td/ dir and drop the td_ prefixes
+- Move TestXXX funcs to be on a struct so we can discover them
+- drop "Test" from the name of the tests in the logs/output
+- Support --run XXX (w/o Test prefix) finding any test func named TestXXX
+- Keep TestTD funcs as internal testing funcs
+- Add "xr conform run" and make "xr conform" (no verb) default to "run"
+- Add "xr conform tests" to show list of tests. --tree to show hierarchy
+
