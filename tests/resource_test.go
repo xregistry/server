@@ -80,7 +80,7 @@ func TestResourceCreate(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/xxx) cannot be found.",
   "subject": "/dirs/d1/files/xxx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1395"
 }
 `)
@@ -88,7 +88,7 @@ func TestResourceCreate(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/xxx) cannot be found.",
   "subject": "/dirs/d1/files/xxx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1395"
 }
 `)
@@ -97,7 +97,7 @@ func TestResourceCreate(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/files/xxx/yyy) cannot be found.",
   "detail": "Expected \"versions\" or \"meta\", got: yyy.",
   "subject": "/dirs/d1/files/xxx/yyy",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:info:651"
 }
 `)
@@ -106,7 +106,7 @@ func TestResourceCreate(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/files/xxx/yyy) cannot be found.",
   "detail": "Expected \"versions\" or \"meta\", got: yyy.",
   "subject": "/dirs/d1/files/xxx/yyy",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:info:651"
 }
 `)
@@ -334,7 +334,7 @@ func TestResourceMaxVersions(t *testing.T) {
   "args": {
     "error_detail": "\"maxversions\"(-1) must be >= 0"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "abc04c6d0dd6:registry:shared_model:2513"
 }
 `)
@@ -850,7 +850,7 @@ func TestResourceMaxVersions(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
   "title": "For \"/dirs/d1/files/f1/meta\", setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
   "subject": "/dirs/d1/files/f1/meta",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:entity:2244"
 }
 `)
@@ -1001,7 +1001,7 @@ func TestResourceMaxVersions(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
   "title": "For \"/dirs/d1/files/f1/meta\", setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
   "subject": "/dirs/d1/files/f1/meta",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:resource:1896"
 }
 `)
@@ -1100,7 +1100,7 @@ func TestResourceDeprecated(t *testing.T) {
     "error_detail": "must not be sooner than deprecated.effective",
     "name": "deprecated.removal"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -1143,7 +1143,7 @@ func TestResourceDeprecated(t *testing.T) {
     "error_detail": "is a malformed timestamp",
     "name": "deprecated.effective"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -1162,7 +1162,7 @@ func TestResourceDeprecated(t *testing.T) {
     "error_detail": "is a malformed timestamp",
     "name": "deprecated.removal"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -3624,7 +3624,7 @@ func TestResourceSamples(t *testing.T) {
     "id": "foo",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "396100315a6e:registry:entity:1442"
 }
 `)
@@ -3760,7 +3760,7 @@ func TestResourceSamples(t *testing.T) {
     "id": "foo",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "396100315a6e:registry:entity:1442"
 }
 `)
@@ -4381,7 +4381,7 @@ func TestResourceFlow(t *testing.T) {
     "id": "v2",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "55cdbec617b8:registry:entity:1451"
 }
 `)

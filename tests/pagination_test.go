@@ -234,7 +234,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"limit\" value () must be an unsigned integer > 0"
   },
-  "instance": "c749cd1de0eb4cb6",
+  "txid": "c749cd1de0eb4cb6",
   "source": "9f636df17262:registry:info:869"
 }
 `)
@@ -245,7 +245,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"limit\" value () must be an unsigned integer > 0"
   },
-  "instance": "c749cd1de0eb4cb6",
+  "txid": "c749cd1de0eb4cb6",
   "source": "9f636df17262:registry:info:869"
 }
 `)
@@ -256,7 +256,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"limit\" value (0) must be an unsigned integer > 0"
   },
-  "instance": "0cf823badd824fd3",
+  "txid": "0cf823badd824fd3",
   "source": "9f636df17262:registry:info:869"
 }
 `)
@@ -267,7 +267,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"limit\" value (abc) must be an unsigned integer > 0"
   },
-  "instance": "c749cd1de0eb4cb6",
+  "txid": "c749cd1de0eb4cb6",
   "source": "9f636df17262:registry:info:869"
 }
 `)
@@ -278,7 +278,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"limit\" value (-1) must be an unsigned integer > 0"
   },
-  "instance": "c749cd1de0eb4cb6",
+  "txid": "c749cd1de0eb4cb6",
   "source": "9f636df17262:registry:info:869"
 }
 `)
@@ -289,7 +289,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"limit\" value (99999999999999999999999999) must be an unsigned integer > 0"
   },
-  "instance": "a6b729bd1ca24721",
+  "txid": "a6b729bd1ca24721",
   "source": "9f636df17262:registry:info:869"
 }
 `)
@@ -300,7 +300,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"offset\" value (-1) must be an unsigned integer"
   },
-  "instance": "eaa40df859144c4f",
+  "txid": "eaa40df859144c4f",
   "source": "9f636df17262:registry:info:880"
 }
 `)
@@ -311,7 +311,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"limit\" value (0) must be an unsigned integer > 0"
   },
-  "instance": "74b6aae9c48d4ad6",
+  "txid": "74b6aae9c48d4ad6",
   "source": "9f636df17262:registry:info:869"
 }
 `)
@@ -320,7 +320,7 @@ func TestPaginationErrors(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#pagination_noncollection",
   "title": "Can't use pagination on a non-collection result set. Query path: /?limit=2.",
   "subject": "/?limit=2",
-  "instance": "27aed0ee71ac4b42",
+  "txid": "27aed0ee71ac4b42",
   "source": "415c7e40a01c:registry:info:556"
 }
 `)
@@ -328,7 +328,7 @@ func TestPaginationErrors(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#pagination_noncollection",
   "title": "Can't use pagination on a non-collection result set. Query path: /dirs/d1?limit=2.",
   "subject": "/dirs/d1?limit=2",
-  "instance": "2b4ebdf773324560",
+  "txid": "2b4ebdf773324560",
   "source": "415c7e40a01c:registry:info:556"
 }
 `)
@@ -336,7 +336,7 @@ func TestPaginationErrors(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#pagination_noncollection",
   "title": "Can't use pagination on a non-collection result set. Query path: /dirs/d1/files/f1?limit=2.",
   "subject": "/dirs/d1/files/f1?limit=2",
-  "instance": "99cb237768d643df",
+  "txid": "99cb237768d643df",
   "source": "415c7e40a01c:registry:info:556"
 }
 `)
@@ -345,7 +345,7 @@ func TestPaginationErrors(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#pagination_noncollection",
   "title": "Can't use pagination on a non-collection result set. Query path: /dirs/d1/files/f1/versions/v1?limit=2.",
   "subject": "/dirs/d1/files/f1/versions/v1?limit=2",
-  "instance": "9473f17fe9a640e0",
+  "txid": "9473f17fe9a640e0",
   "source": "415c7e40a01c:registry:info:556"
 }
 `)
@@ -357,7 +357,7 @@ func TestPaginationErrors(t *testing.T) {
   "args": {
     "error_detail": "\"offset\" can't be used without \"limit\""
   },
-  "instance": "99092c9a063a40e2",
+  "txid": "99092c9a063a40e2",
   "source": "9f636df17262:registry:info:888"
 }
 `)

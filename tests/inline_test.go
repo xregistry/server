@@ -375,7 +375,7 @@ func TestInlineBasic(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "xxx"
   },
-  "instance": "110c23b310234f30",
+  "txid": "110c23b310234f30",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -391,7 +391,7 @@ func TestInlineBasic(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "Dirs"
   },
-  "instance": "59eea720d59d4c91",
+  "txid": "59eea720d59d4c91",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -407,7 +407,7 @@ func TestInlineBasic(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "xxx.files"
   },
-  "instance": "75ecc62388b64c7f",
+  "txid": "75ecc62388b64c7f",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -423,7 +423,7 @@ func TestInlineBasic(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.xxx"
   },
-  "instance": "54a49b795b4c4dfc",
+  "txid": "54a49b795b4c4dfc",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -449,7 +449,7 @@ func TestInlineBasic(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs"
   },
-  "instance": "7fb7bd1e6ef84522",
+  "txid": "7fb7bd1e6ef84522",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -475,7 +475,7 @@ func TestInlineBasic(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "files.versions.xxx"
   },
-  "instance": "84268f40298b4c99",
+  "txid": "84268f40298b4c99",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -517,7 +517,7 @@ func TestInlineBasic(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs2.files.xxx"
   },
-  "instance": "fbe2469f2c58484a",
+  "txid": "fbe2469f2c58484a",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -932,7 +932,7 @@ func TestInlineResource(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.files.XXversions.file"
   },
-  "instance": "b353c89439984667",
+  "txid": "b353c89439984667",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -948,7 +948,7 @@ func TestInlineResource(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.files.yy"
   },
-  "instance": "9a4fbcf376b141a1",
+  "txid": "9a4fbcf376b141a1",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -964,7 +964,7 @@ func TestInlineResource(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.files.version.yy"
   },
-  "instance": "7fefe186850e4864",
+  "txid": "7fefe186850e4864",
   "source": "244463f5fd17:registry:info:161"
 }
 `,
@@ -1587,7 +1587,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \".\" in \".*\" at pos 1",
     "value": ".*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1599,7 +1599,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "foo.*"
   },
-  "instance": "4f5a7cd3fd344b4e",
+  "txid": "4f5a7cd3fd344b4e",
   "source": "244463f5fd17:registry:info:161"
 }
 `)
@@ -1611,7 +1611,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"foo*\"",
     "value": "foo*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1624,7 +1624,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.bad*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1636,7 +1636,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.bad.*"
   },
-  "instance": "6d41b9897cbb42fa",
+  "txid": "6d41b9897cbb42fa",
   "source": "244463f5fd17:registry:info:161"
 }
 `)
@@ -1649,7 +1649,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.bad*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1661,7 +1661,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.files.bad.*"
   },
-  "instance": "28d0b44fd45d4812",
+  "txid": "28d0b44fd45d4812",
   "source": "244463f5fd17:registry:info:161"
 }
 `)
@@ -1673,7 +1673,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"file*\"",
     "value": "dirs.files.file*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1685,7 +1685,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.files.file.*"
   },
-  "instance": "8b8628398365454e",
+  "txid": "8b8628398365454e",
   "source": "244463f5fd17:registry:info:161"
 }
 `)
@@ -1698,7 +1698,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"meta*\"",
     "value": "dirs.files.meta*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1710,7 +1710,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.files.meta.*"
   },
-  "instance": "64c5106237ec49ab",
+  "txid": "64c5106237ec49ab",
   "source": "244463f5fd17:registry:info:161"
 }
 `)
@@ -1723,7 +1723,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.versions.bad*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1735,7 +1735,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"file*\"",
     "value": "dirs.files.versions.file*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1747,7 +1747,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "dirs.files.versions.file.*"
   },
-  "instance": "0d675d639f9c406a",
+  "txid": "0d675d639f9c406a",
   "source": "244463f5fd17:registry:info:161"
 }
 `)
@@ -1759,7 +1759,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "dirs.files.versions.file.bad*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1772,7 +1772,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "model.*"
   },
-  "instance": "95963c602ea04f7b",
+  "txid": "95963c602ea04f7b",
   "source": "244463f5fd17:registry:info:161"
 }
 `)
@@ -1784,7 +1784,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "model.bad*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)
@@ -1796,7 +1796,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "unknown or non-inlineable attribute specified",
     "value": "capabilities.*"
   },
-  "instance": "18fc11cf26784374",
+  "txid": "18fc11cf26784374",
   "source": "244463f5fd17:registry:info:161"
 }
 `)
@@ -1808,7 +1808,7 @@ func TestInlineWildcards(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"bad*\"",
     "value": "capabilities.bad*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:94"
 }
 `)

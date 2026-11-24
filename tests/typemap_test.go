@@ -543,7 +543,7 @@ func TestTypeMapErrors(t *testing.T) {
   "args": {
     "error_detail": "Resource \"files\" has an invalid 'typemap' value (xml). Must be one of 'string', 'json' or 'binary'"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -557,7 +557,7 @@ func TestTypeMapErrors(t *testing.T) {
   "args": {
     "error_detail": "Resource \"files\" has an empty 'typemap' key"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -571,7 +571,7 @@ func TestTypeMapErrors(t *testing.T) {
   "args": {
     "error_detail": "Resource \"files\" has an invalid 'typemap' value (). Must be one of 'string', 'json' or 'binary'"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)

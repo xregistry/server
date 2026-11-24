@@ -1510,7 +1510,7 @@ func TestTypesNameCharSet2(t *testing.T) {
     "error_detail": "\"abc.def\" in \"top.item\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "name": "abc.def"
   },
-  "instance": "eae16a134faf42c9",
+  "txid": "eae16a134faf42c9",
   "source": "4e29b6b32118:registry:shared_model:48,registry:shared_model:3344"
 }
 `)
@@ -1541,7 +1541,7 @@ func TestTypesNameCharSet2(t *testing.T) {
     "error_detail": "\"abc.def\" in \"top.item\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "name": "abc.def"
   },
-  "instance": "eae16a134faf42c9",
+  "txid": "eae16a134faf42c9",
   "source": "4e29b6b32118:registry:shared_model:48,registry:shared_model:3344"
 }
 `)
@@ -1610,7 +1610,7 @@ func TestTypesNameCharSet2(t *testing.T) {
     "error_detail": "\"xyz.zyx\" in \"name.ifvalues.hi.arr.item\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "name": "xyz.zyx"
   },
-  "instance": "def1d8d83ecb4783",
+  "txid": "def1d8d83ecb4783",
   "source": "4e29b6b32118:registry:shared_model:48,registry:shared_model:3344"
 }
 `)
@@ -1649,7 +1649,7 @@ func TestTypesNameCharSet2(t *testing.T) {
     "error_detail": "\"xyz.zyx\" in \"name.ifvalues.hi.arr.item\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "name": "xyz.zyx"
   },
-  "instance": "def1d8d83ecb4783",
+  "txid": "def1d8d83ecb4783",
   "source": "4e29b6b32118:registry:shared_model:48,registry:shared_model:3344"
 }
 `)
@@ -1759,7 +1759,7 @@ func TestTypesNameCharSet2(t *testing.T) {
     "error_detail": "\"abc.def\" in \"top[0]\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "name": "abc.def"
   },
-  "instance": "c54bd9f605ed412f",
+  "txid": "c54bd9f605ed412f",
   "source": "4e29b6b32118:registry:shared_model:48,registry:entity:3082"
 }
 `)
@@ -1775,7 +1775,7 @@ func TestTypesNameCharSet2(t *testing.T) {
     "error_detail": "\"abc.def\" in \"arr[0]\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "name": "abc.def"
   },
-  "instance": "c54bd9f605ed412f",
+  "txid": "c54bd9f605ed412f",
   "source": "4e29b6b32118:registry:shared_model:48,registry:entity:3082"
 }
 `)
@@ -1888,7 +1888,7 @@ func TestTypesBinary(t *testing.T) {
     "error_detail": "is not valid base64: illegal base64 data at input byte 5",
     "name": "regbin"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -1900,7 +1900,7 @@ func TestTypesBinary(t *testing.T) {
     "error_detail": "is not valid base64: illegal base64 data at input byte 4",
     "name": "regbin"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -1912,7 +1912,7 @@ func TestTypesBinary(t *testing.T) {
     "error_detail": "is not valid base64: illegal base64 data at input byte 7",
     "name": "regbin"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -1924,7 +1924,7 @@ func TestTypesBinary(t *testing.T) {
     "error_detail": "must be a base64 encoded string",
     "name": "regbin"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -1936,7 +1936,7 @@ func TestTypesBinary(t *testing.T) {
     "error_detail": "is not valid base64: illegal base64 data at input byte 0",
     "name": "regmapbin.k"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -2029,7 +2029,7 @@ func TestTypesBinary(t *testing.T) {
   "args": {
     "error_detail": "\"regbin\" enum value \"not base64!\" must be of type \"binary\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -2049,7 +2049,7 @@ func TestTypesBinary(t *testing.T) {
   "args": {
     "error_detail": "\"regbin\" \"default\" value must be of type \"binary\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -2075,7 +2075,7 @@ func TestTypesBinaryModel(t *testing.T) {
   "args": {
     "error_detail": "\"bin\" enum value \"bad!\" must be of type \"binary\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -2095,7 +2095,7 @@ func TestTypesBinaryModel(t *testing.T) {
   "args": {
     "error_detail": "\"bin\" \"default\" value must be of type \"binary\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -2117,7 +2117,7 @@ func TestTypesBinaryModel(t *testing.T) {
   "args": {
     "error_detail": "\"bin.item\" enum value \"AA\" must be of type \"binary\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -2188,7 +2188,7 @@ func TestTypesBinaryModel(t *testing.T) {
     "error_detail": "value (AAEC/w==) must be one of the enum values: aGVsbG8=, AA==",
     "name": "bin"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -2202,7 +2202,7 @@ func TestTypesBinaryModel(t *testing.T) {
     "error_detail": "is not valid base64: illegal base64 data at input byte 4",
     "name": "bin"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)

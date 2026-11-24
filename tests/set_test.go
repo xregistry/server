@@ -837,7 +837,7 @@ func TestSetNameUser(t *testing.T) {
 				xrErr := NewXRError("invalid_attribute", tmpPath,
 					"name="+name,
 					"error_detail=\""+name+"\" must match: ^[a-z_][a-z_0-9]{0,62}$")
-				xrErr.Instance = "xxx"
+				xrErr.TxID = "xxx"
 				msg = xrErr.ToJSON() + "\n"
 			}
 
@@ -899,7 +899,7 @@ func TestSetNameUser(t *testing.T) {
   "args": {
     "error_detail": "map key name \":bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
@@ -911,7 +911,7 @@ func TestSetNameUser(t *testing.T) {
   "args": {
     "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
@@ -927,7 +927,7 @@ func TestSetNameUser(t *testing.T) {
   "args": {
     "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
@@ -945,7 +945,7 @@ func TestSetNameUser(t *testing.T) {
   "args": {
     "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)

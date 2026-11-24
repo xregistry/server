@@ -532,7 +532,7 @@ func TestVersionModeManual(t *testing.T) {
     "id": "nope",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -571,7 +571,7 @@ func TestVersionModeInvalid(t *testing.T) {
   "args": {
     "error_detail": "Resource \"files\" has an invalid 'versionmode' value (bogus). Must be one of: createdat,manual,modifiedat,semver"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)

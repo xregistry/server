@@ -1979,7 +1979,7 @@ func TestModelLabels(t *testing.T) {
   "args": {
     "error_detail": "map key name \"bad one\" in \"labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65"
 }
 `)
@@ -1996,7 +1996,7 @@ func TestModelLabels(t *testing.T) {
   "args": {
     "error_detail": "map key name \"bad one\" in \"groups.dirs.labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:shared_model:2097"
 }
 `)
@@ -2016,7 +2016,7 @@ func TestModelLabels(t *testing.T) {
   "args": {
     "error_detail": "map key name \"bad one\" in \"groups.dirs.resources.files.labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:65,registry:shared_model:2402"
 }
 `)
@@ -7257,7 +7257,7 @@ func TestModelIncludes(t *testing.T) {
   "args": {
     "error_detail": "error processing JSON: Not allowed to access file: ../foo.json"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:common:utils:427"
 }
 `)
@@ -7286,7 +7286,7 @@ func TestModelIncludes(t *testing.T) {
   "args": {
     "error_detail": "error processing JSON: Not allowed to access file: /foo.json"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:common:utils:427"
 }
 `)
@@ -7322,7 +7322,7 @@ func TestModelIncludes(t *testing.T) {
   "args": {
     "error_detail": "error processing JSON: Get \"http://bogus.bogus.bogus.bogus.com/bogus.json\": dial tcp: lookup bogus.bogus.bogus.bogus.com on 127.0.0.53:53: no such host"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:common:utils:427"
 }
 `,
