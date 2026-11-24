@@ -135,7 +135,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -154,7 +154,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -184,7 +184,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1) cannot be found.",
   "subject": "/dirs/d1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -203,7 +203,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1) cannot be found.",
   "subject": "/dirs/d1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -242,7 +242,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/v1$details) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/v1$details",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -257,7 +257,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -403,7 +403,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -415,7 +415,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -427,7 +427,7 @@ func TestFiltersBasic(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -657,7 +657,7 @@ func TestFiltersANDOR(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -880,7 +880,7 @@ func TestFiltersWildcards(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -907,7 +907,7 @@ func TestFiltersWildcards(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -919,7 +919,7 @@ func TestFiltersWildcards(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -931,7 +931,7 @@ func TestFiltersWildcards(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -943,7 +943,7 @@ func TestFiltersWildcards(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -955,7 +955,7 @@ func TestFiltersWildcards(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -967,7 +967,7 @@ func TestFiltersWildcards(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -1287,7 +1287,7 @@ func TestFiltersOps(t *testing.T) {
     "error_detail": "null is not allowed with <, <=, >, >= operators",
     "value": "count<null"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `,
@@ -1303,7 +1303,7 @@ func TestFiltersOps(t *testing.T) {
     "error_detail": "null is not allowed with <, <=, >, >= operators",
     "value": "count<=null"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `,
@@ -1319,7 +1319,7 @@ func TestFiltersOps(t *testing.T) {
     "error_detail": "null is not allowed with <, <=, >, >= operators",
     "value": "count>null"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `,
@@ -1335,7 +1335,7 @@ func TestFiltersOps(t *testing.T) {
     "error_detail": "null is not allowed with <, <=, >, >= operators",
     "value": "count>=null"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `,
@@ -1353,7 +1353,7 @@ func TestFiltersOps(t *testing.T) {
     "error_detail": "wildcards are not allowed with <, <=, >, >= operators",
     "value": "count<3*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `,
@@ -1369,7 +1369,7 @@ func TestFiltersOps(t *testing.T) {
     "error_detail": "wildcards are not allowed with <, <=, >, >= operators",
     "value": "count>=2*"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `,
@@ -1443,7 +1443,7 @@ func TestFiltersObjs(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -1455,7 +1455,7 @@ func TestFiltersObjs(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -1483,7 +1483,7 @@ func TestFiltersObjs(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -1500,7 +1500,7 @@ func TestFiltersObjs(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -1517,7 +1517,7 @@ func TestFiltersObjs(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -1529,7 +1529,7 @@ func TestFiltersObjs(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -1547,7 +1547,7 @@ func TestFiltersObjs(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/) cannot be found.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `,
@@ -2411,7 +2411,7 @@ func TestFiltersMisc(t *testing.T) {
     "error_detail": "Unexpected \".\" in \"dirs..dirid\" at pos 6",
     "value": "dirs..dirid"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:481"
 }
 `)
@@ -2595,7 +2595,7 @@ func TestFiltersWildcardsInName(t *testing.T) {
     "error_detail": "Unexpected \"*\" in \"`+errQ+`\"",
     "value": "obj.`+errQ+`"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "6401a2345caa:registry:info:468"
 }
 `)
@@ -2776,7 +2776,7 @@ func TestFiltersExcludeAll(t *testing.T) {
     "error_detail": "\"excludeall\" must only be used on collections",
     "value": "excludeall"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "c3e948919fa8:registry:registry:1013"
 }
 `)
@@ -2789,7 +2789,7 @@ func TestFiltersExcludeAll(t *testing.T) {
     "error_detail": "\"excludeall\" must not appear with any other filter expressions",
     "value": "excludeall"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "c3e948919fa8:registry:info:436"
 }
 `)
@@ -2802,7 +2802,7 @@ func TestFiltersExcludeAll(t *testing.T) {
     "error_detail": "\"excludeall\" must not appear with any other filter expressions",
     "value": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "c3e948919fa8:registry:info:444"
 }
 `)
@@ -2815,7 +2815,7 @@ func TestFiltersExcludeAll(t *testing.T) {
     "error_detail": "\"excludeall\" must not appear with any other filter expressions",
     "value": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "c3e948919fa8:registry:info:444"
 }
 `)
@@ -2828,7 +2828,7 @@ func TestFiltersExcludeAll(t *testing.T) {
     "error_detail": "\"excludeall\" must not appear with any other filter expressions",
     "value": "excludeall"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "c3e948919fa8:registry:info:436"
 }
 `)

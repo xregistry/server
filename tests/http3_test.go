@@ -1282,7 +1282,7 @@ func TestHTTPModelSource(t *testing.T) {
   "args": {
     "action": "POST"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2569"
 }
 `)
@@ -1294,7 +1294,7 @@ func TestHTTPModelSource(t *testing.T) {
   "args": {
     "action": "PATCH"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2569"
 }
 `)
@@ -1333,7 +1333,7 @@ func TestHTTPModelSource(t *testing.T) {
   "args": {
     "name": "modelsource"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1927"
 }
 `)
@@ -1437,7 +1437,7 @@ func TestHTTPSort(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
   "title": "Can't sort on a non-collection result set. Query path: /?sort=epoch.",
   "subject": "/?sort=epoch",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:735"
 }
 `)
@@ -1445,7 +1445,7 @@ func TestHTTPSort(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
   "title": "Can't sort on a non-collection result set. Query path: /dirs/d1?sort=epoch.",
   "subject": "/dirs/d1?sort=epoch",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:735"
 }
 `)
@@ -1453,7 +1453,7 @@ func TestHTTPSort(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
   "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1?sort=epoch.",
   "subject": "/dirs/d1/files/f1?sort=epoch",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:735"
 }
 `)
@@ -1461,7 +1461,7 @@ func TestHTTPSort(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
   "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1$details?sort=epoch.",
   "subject": "/dirs/d1/files/f1$details?sort=epoch",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:735"
 }
 `)
@@ -1470,7 +1470,7 @@ func TestHTTPSort(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
   "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1/versions/v1?sort=epoch.",
   "subject": "/dirs/d1/files/f1/versions/v1?sort=epoch",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:735"
 }
 `)
@@ -1479,7 +1479,7 @@ func TestHTTPSort(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#sort_noncollection",
   "title": "Can't sort on a non-collection result set. Query path: /dirs/d1/files/f1/versions/v1$details?sort=epoch.",
   "subject": "/dirs/d1/files/f1/versions/v1$details?sort=epoch",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:735"
 }
 `)
@@ -2363,7 +2363,7 @@ func TestHTTPSortArray(t *testing.T) {
     "error_detail": "missing \"sort\" attribute name",
     "value": ""
   },
-  "instance": "7c47061875a04d80",
+  "txid": "7c47061875a04d80",
   "source": "415c7e40a01c:registry:info:520"
 }
 `)
@@ -2376,7 +2376,7 @@ func TestHTTPSortArray(t *testing.T) {
     "error_detail": "missing \"sort\" attribute name",
     "value": ""
   },
-  "instance": "6d1276e2a9a84f02",
+  "txid": "6d1276e2a9a84f02",
   "source": "415c7e40a01c:registry:info:520"
 }
 `)
@@ -2389,7 +2389,7 @@ func TestHTTPSortArray(t *testing.T) {
     "error_detail": "bad attribute name(a..): Unexpected \".\" in \"a..\" at pos 3",
     "value": "a.."
   },
-  "instance": "1ee1fdc32a164985",
+  "txid": "1ee1fdc32a164985",
   "source": "415c7e40a01c:registry:info:535"
 }
 `)
@@ -2402,7 +2402,7 @@ func TestHTTPSortArray(t *testing.T) {
     "error_detail": "invalid \"sort\" order \"foo\"",
     "value": "strs[0]=foo"
   },
-  "instance": "18e06377adc64c93",
+  "txid": "18e06377adc64c93",
   "source": "415c7e40a01c:registry:info:526"
 }
 `)
@@ -2794,7 +2794,7 @@ func TestHTTPModelEnum(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.strs\" is not a scalar so \"enum\" is not allowed"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:2936"
 }
 `)
@@ -2826,7 +2826,7 @@ func TestHTTPModelEnum(t *testing.T) {
     "error_detail": "must be an integer",
     "name": "strs"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:entity:2387"
 }
 `)
@@ -2857,7 +2857,7 @@ func TestHTTPModelEnum(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.strs\" is not a scalar so \"enum\" is not allowed"
   },
-  "instance": "70b4553379be45fc",
+  "txid": "70b4553379be45fc",
   "source": "6d9cf9acafe0:registry:shared_model:3562"
 }
 `)
@@ -2887,7 +2887,7 @@ func TestHTTPModelEnum(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.strs.item\" enum value \"1\" must be of type \"integer\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:shared_model:2944"
 }
 `)
@@ -2921,7 +2921,7 @@ func TestHTTPModelEnum(t *testing.T) {
     "error_detail": "must be an integer",
     "name": "strs[0]"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:entity:2387"
 }
 `)
@@ -2955,7 +2955,7 @@ func TestHTTPModelEnum(t *testing.T) {
     "error_detail": "must be an array",
     "name": "strs"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:entity:2324"
 }
 `)
@@ -3013,7 +3013,7 @@ func TestHTTPModelEnum(t *testing.T) {
     "error_detail": "value (2) must be one of the enum values: 1",
     "name": "strs[0]"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:entity:2589"
 }
 `)
@@ -3070,7 +3070,7 @@ func TestHTTPModelEnum(t *testing.T) {
   "args": {
     "error_detail": "path '.groups[\"dirs\"].attributes[\"strs\"].item.enum': expected \"slice\", got \"object\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "ea3e12b9fede:registry:shared_model:277"
 }
 `)
@@ -3244,7 +3244,7 @@ func TestHTTPModelEnum(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.ints\" default value \"5\" must be one of the specified enum values (3, 1, 2) since \"strict\" is \"true\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "08e2e2f5ead9:registry:shared_model:3354"
 }
 `)
@@ -3381,7 +3381,7 @@ func TestHTTPModelEnum(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.defaultversionsticky\" default value \"true\" must be one of the specified enum values (false) since \"strict\" is \"true\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "08e2e2f5ead9:registry:shared_model:3354"
 }
 `)
@@ -3428,7 +3428,7 @@ func TestHTTPModelEnum(t *testing.T) {
     "error_detail": "value (true) must be one of the enum values: false",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "08e2e2f5ead9:registry:entity:2919"
 }
 `)
@@ -3463,7 +3463,7 @@ func TestHTTPModelEnum(t *testing.T) {
     "error_detail": "value (true) must be one of the enum values: false",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "08e2e2f5ead9:registry:entity:2927"
 }
 `)
@@ -3552,7 +3552,7 @@ func TestHTTPModelEnum(t *testing.T) {
     "error_detail": "value (3) must be one of the enum values: 1",
     "name": "strs[0]"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:entity:2929"
 }
 `)
@@ -3590,7 +3590,7 @@ func TestHTTPModelEnum(t *testing.T) {
     "error_detail": "value (66) must be one of the enum values: 1",
     "name": "strs.s1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:entity:2936"
 }
 `)
@@ -3715,7 +3715,7 @@ func TestHTTPVersWithResLevel(t *testing.T) {
   "args": {
     "name": "meta"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "65b92b8c0e3b:registry:entity:2201"
 }
 `)
@@ -3757,7 +3757,7 @@ func TestHTTPVersWithResLevel(t *testing.T) {
   "args": {
     "name": "foo"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2198"
 }
 `)
@@ -3782,7 +3782,7 @@ func TestHTTPIgnore(t *testing.T) {
   "args": {
     "error_detail": "error parsing data: path '': expected \"struct\", got \"number\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "49e8ae95bbff:common:capabilities:458"
 }
 `)
@@ -3792,7 +3792,7 @@ func TestHTTPIgnore(t *testing.T) {
   "args": {
     "error_detail": "error parsing JSON: path '': expected \"map\", got \"number\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:utils:413"
 }
 `)
@@ -3947,7 +3947,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "5",
     "epoch": "3"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1005"
 }
 `)
@@ -3977,7 +3977,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "99",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2854"
 }
 `)
@@ -4032,7 +4032,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "99",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1005"
 }
 `)
@@ -4049,7 +4049,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "97",
     "epoch": "4"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1005"
 }
 `)
@@ -4096,7 +4096,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "55",
     "epoch": "5"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:3131"
 }
 `)
@@ -4118,7 +4118,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "5",
     "epoch": "2"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1005"
 }
 `)
@@ -4154,7 +4154,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "55",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2811"
 }
 `)
@@ -4173,7 +4173,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "99",
     "epoch": "3"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1005"
 }
 `)
@@ -4225,7 +4225,7 @@ func TestHTTPIgnore(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#misplaced_epoch",
   "title": "The specified \"epoch\" value for \"/dirs/d1/files/f3\" needs to be within a \"meta\" entity.",
   "subject": "/dirs/d1/files/f3",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:3052"
 }
 `)
@@ -4237,7 +4237,7 @@ func TestHTTPIgnore(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#misplaced_epoch",
   "title": "The specified \"epoch\" value for \"/dirs/d1/files/f3\" needs to be within a \"meta\" entity.",
   "subject": "/dirs/d1/files/f3",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:3052"
 }
 `)
@@ -4252,7 +4252,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "55",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:3045"
 }
 `)
@@ -4272,7 +4272,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "99",
     "epoch": "4"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1005"
 }
 `)
@@ -4312,7 +4312,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "55",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2762"
 }
 `)
@@ -4333,7 +4333,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "99",
     "epoch": "6"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1005"
 }
 `)
@@ -4381,7 +4381,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "55",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2947"
 }
 `)
@@ -4405,7 +4405,7 @@ func TestHTTPIgnore(t *testing.T) {
     "bad_epoch": "99",
     "epoch": "7"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1005"
 }
 `)
@@ -4457,7 +4457,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "registry"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "87d46e750ad4:registry:entity:882"
 }
 `)
@@ -4468,7 +4468,7 @@ func TestHTTPIgnore(t *testing.T) {
   "args": {
     "name": "id"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "87d46e750ad4:registry:entity:2260"
 }
 `)
@@ -4496,7 +4496,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "dir"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "87d46e750ad4:registry:entity:882"
 }
 `)
@@ -4529,7 +4529,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "f2",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9c3e229728fc:registry:group:181"
 }
 `)
@@ -4544,7 +4544,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
@@ -4559,7 +4559,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "87d46e750ad4:registry:group:535"
 }
 `)
@@ -4598,7 +4598,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "vx",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9c3e229728fc:registry:entity:937"
 }
 `)
@@ -4631,7 +4631,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "87d46e750ad4:registry:entity:882"
 }
 `)
@@ -4645,7 +4645,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "87d46e750ad4:registry:httpStuff:2581"
 }
 `)
@@ -4759,7 +4759,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "87d46e750ad4:registry:resource:529"
 }
 `)
@@ -4788,7 +4788,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "87d46e750ad4:registry:httpStuff:2370"
 }
 `)
@@ -4819,7 +4819,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "f2",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
@@ -4833,7 +4833,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "f2",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
@@ -4967,7 +4967,7 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /.xregistry/foo.",
   "subject": "/.xregistry/foo",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -5011,7 +5011,7 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/.xregistry) is not available.",
   "subject": "/.xregistry",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `)
@@ -5422,7 +5422,7 @@ func TestHTTPAllow(t *testing.T) {
   "args": {
     "action": "DELETE"
   },
-  "instance": "ea079b7aba134773",
+  "txid": "ea079b7aba134773",
   "source": "550b564c0cbc:registry:httpStuff:2019"
 }
 `,
@@ -5446,7 +5446,7 @@ func TestHTTPAllow(t *testing.T) {
   "args": {
     "action": "XXX"
   },
-  "instance": "ea079b7aba134773",
+  "txid": "ea079b7aba134773",
   "source": "550b564c0cbc:registry:httpStuff:2019"
 }
 `,
@@ -5471,7 +5471,7 @@ func TestHTTPAllow(t *testing.T) {
   "args": {
     "action": "POST"
   },
-  "instance": "ea079b7aba134773",
+  "txid": "ea079b7aba134773",
   "source": "550b564c0cbc:registry:httpStuff:2019"
 }
 `,
@@ -5565,7 +5565,7 @@ func TestHTTPHeaderEncoding(t *testing.T) {
     "error_detail": "invalid percent-encoding at \"%G1\"",
     "name": "xRegistry-name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `,
@@ -5590,7 +5590,7 @@ func TestHTTPHeaderEncoding(t *testing.T) {
     "error_detail": "unterminated double-quote",
     "name": "xRegistry-name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "xxx"
 }
 `,

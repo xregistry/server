@@ -518,8 +518,8 @@ func (reg *Registry) SetModel(newM *Model, src []byte, verifyData bool) *XRError
 		// anything wrong
 
 		// Not everything goes thru the http code
-		if xErr.Instance == "" && reg != nil {
-			xErr.Instance = reg.Tx.UUID
+		if xErr.TxID == "" && reg != nil {
+			xErr.TxID = reg.Tx.UUID
 		}
 
 		// TODO - do we need to reset model/source on failure?

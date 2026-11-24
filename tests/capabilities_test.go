@@ -17,7 +17,7 @@ func TestCapabilitySimple(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /capabilities/foo.",
   "subject": "/capabilities/foo",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1258"
 }
 `)
@@ -379,7 +379,7 @@ func TestCapabilitySimple(t *testing.T) {
     "name": "specversions",
     "value": "` + SPECVERSION + `"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:232"
 }`,
 		},
@@ -394,7 +394,7 @@ func TestCapabilitySimple(t *testing.T) {
   "args": {
     "field": "bad"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:251"
 }`,
 		},
@@ -407,7 +407,7 @@ func TestCapabilitySimple(t *testing.T) {
 		}
 		res := ""
 		if xErr != nil {
-			xErr.Instance = "xxx"
+			xErr.TxID = "xxx"
 			res = xErr.ToJSON()
 		} else {
 			buf, _ := json.MarshalIndent(c, "", "  ")
@@ -586,7 +586,7 @@ func TestCapabilityPath(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/capabilities) is not available.",
   "subject": "/capabilities",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:655"
 }
 `)
@@ -1156,7 +1156,7 @@ func TestCapabilityPath(t *testing.T) {
   "args": {
     "error_detail": "error parsing data: path '.pagination': expected \"bool\", got \"string\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:256"
 }
 `)
@@ -1172,7 +1172,7 @@ func TestCapabilityPath(t *testing.T) {
 				    "list": "false",
 				    "value": "true"
 				  },
-				  "instance": "xxx",
+				  "txid": "xxx",
 		  "source": ":common:capabilities:229"
 				}
 				`)
@@ -1189,7 +1189,7 @@ func TestCapabilityPath(t *testing.T) {
     "name": "specversions",
     "value": "`+SPECVERSION+`"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:236"
 }
 `)
@@ -1203,7 +1203,7 @@ func TestCapabilityPath(t *testing.T) {
   "args": {
     "field": "foo"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:255"
 }
 `)
@@ -1710,7 +1710,7 @@ func TestCapabilityAttr(t *testing.T) {
     "name": "specversions",
     "value": "`+SPECVERSION+`"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:236"
 }
 `)
@@ -1725,7 +1725,7 @@ func TestCapabilityAttr(t *testing.T) {
   "args": {
     "field": "foo"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:255"
 }
 `)
@@ -2150,7 +2150,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/capabilities) is not available.",
   "subject": "/capabilities",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:655"
 }
 `)
@@ -2159,7 +2159,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/capabilitiesoffered) is not available.",
   "subject": "/capabilitiesoffered",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:662"
 }
 `)
@@ -2168,7 +2168,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/export) is not available.",
   "subject": "/export",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:669"
 }
 `)
@@ -2177,7 +2177,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/model) is not available.",
   "subject": "/model",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:676"
 }
 `)
@@ -2186,7 +2186,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/modelsource) is not available.",
   "subject": "/modelsource",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:683"
 }
 `)
@@ -2197,7 +2197,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/capabilities) is not available.",
   "subject": "/capabilities",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:910"
 }
 `)
@@ -2208,7 +2208,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:930"
 }
 `)
@@ -2218,7 +2218,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/modelsource) is not available.",
   "subject": "/modelsource",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:924"
 }
 `)
@@ -2320,7 +2320,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/model) is not available.",
   "subject": "/model",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:676"
 }
 `)
@@ -2329,7 +2329,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/modelsource) is not available.",
   "subject": "/modelsource",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:683"
 }
 `)
@@ -2343,7 +2343,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "args": {
     "error_detail": "Unknown \"available\" value: foo"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:common:capabilities:319"
 }
 `)
@@ -2355,7 +2355,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "args": {
     "error_detail": "Unknown \"available\" value: /foo"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:common:capabilities:319"
 }
 `)
@@ -2372,7 +2372,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "args": {
     "error_detail": "\"available\" value \"export\" is not allowed to be mutable"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:common:capabilities:324"
 }
 `)
@@ -2430,7 +2430,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2441,7 +2441,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2452,7 +2452,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1/files) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2463,7 +2463,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1/files/f1) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2474,7 +2474,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1/files/f1/versions) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1/versions",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2486,7 +2486,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2497,7 +2497,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d2) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d2",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2508,7 +2508,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1/files/f1) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2519,7 +2519,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1/files/f2) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f2",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2530,7 +2530,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1/files/f1/versions/1) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1/versions/1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2542,7 +2542,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2554,7 +2554,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2565,7 +2565,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1/files/f1) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2576,7 +2576,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/dirs/d1/files/f1/versions/1) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1/versions/1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2588,7 +2588,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "title": "The requested data (/) is not available.",
   "detail": "Registry data is read-only.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2607,7 +2607,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f1/versions/1) is not available.",
   "subject": "/dirs/d1/files/f1/versions/1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2617,7 +2617,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f1) is not available.",
   "subject": "/dirs/d1/files/f1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2627,7 +2627,7 @@ func TestCapabilityAvailable(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1) is not available.",
   "subject": "/dirs/d1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
 `)
@@ -2922,7 +2922,7 @@ func TestCapabilityPost(t *testing.T) {
   "args": {
     "action": "POST"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2540"
 }
 `)
@@ -2935,7 +2935,7 @@ func TestCapabilityPost(t *testing.T) {
   "args": {
     "name": "capabilities"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1927"
 }
 `)
@@ -4647,7 +4647,7 @@ func TestCapabilityWildcard(t *testing.T) {
   "args": {
     "field": "flags"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:*"
 }
 `)
@@ -4704,7 +4704,7 @@ func TestCapabilityWildcard(t *testing.T) {
   "args": {
     "field": "ignores"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:*"
 }
 `)
@@ -4760,7 +4760,7 @@ func TestCapabilityWildcard(t *testing.T) {
   "args": {
     "field": "formats"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:*"
 }
 `)
@@ -4812,7 +4812,7 @@ func TestCapabilityWildcard(t *testing.T) {
   "args": {
     "field": "versionmodes"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:*"
 }
 `)
@@ -4879,7 +4879,7 @@ func TestCapabilityWildcard(t *testing.T) {
   "args": {
     "field": "compatibilities[avro*]"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:*"
 }
 `)
@@ -5156,7 +5156,7 @@ func TestCapabilityMaxVersionsLimit(t *testing.T) {
     "list": ">= 0",
     "value": "-1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":common:capabilities:726"
 }
 `)
@@ -5213,7 +5213,7 @@ func TestCapabilityMaxVersionsLimit(t *testing.T) {
   "args": {
     "error_detail": "\"maxversions\"(3) for Resource \"files\" must be between 1 and 2 (the \"maxversionslimit\" capability)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:model:2672"
 }
 `)
@@ -5226,7 +5226,7 @@ func TestCapabilityMaxVersionsLimit(t *testing.T) {
   "args": {
     "error_detail": "\"maxversions\"(0) for Resource \"files\" must be between 1 and 2 (the \"maxversionslimit\" capability)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:model:2672"
 }
 `)

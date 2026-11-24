@@ -114,7 +114,7 @@ func TestMetaSimple(t *testing.T) {
   "args": {
     "action": "POST"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:1873"
 }
 `,
@@ -129,7 +129,7 @@ func TestMetaSimple(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f11/meta/xxx) cannot be found.",
   "subject": "/dirs/d1/files/f11/meta/xxx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:info:661"
 }
 `,
@@ -144,7 +144,7 @@ func TestMetaSimple(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f11/meta/xxx) cannot be found.",
   "subject": "/dirs/d1/files/f11/meta/xxx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:info:661"
 }
 `,
@@ -159,7 +159,7 @@ func TestMetaSimple(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f11/meta/xxx) cannot be found.",
   "subject": "/dirs/d1/files/f11/meta/xxx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:info:661"
 }
 `,
@@ -433,7 +433,7 @@ func TestMetaSimple(t *testing.T) {
   "args": {
     "name": "fff"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `,
@@ -452,7 +452,7 @@ func TestMetaSimple(t *testing.T) {
   "args": {
     "name": "fff"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `,
@@ -559,7 +559,7 @@ func TestMetaSimple(t *testing.T) {
   "args": {
     "action": "DELETE"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:httpStuff:2754"
 }
 `,
@@ -579,7 +579,7 @@ func TestMetaSimple(t *testing.T) {
   "args": {
     "name": "meta"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "65b92b8c0e3b:registry:entity:2201"
 }
 `)
@@ -702,7 +702,7 @@ func TestMetaCombos(t *testing.T) {
     "invalid_id": "v2.0",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:group:466"
 }
 `,
@@ -723,7 +723,7 @@ func TestMetaCombos(t *testing.T) {
     "invalid_id": "foo",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `,
@@ -744,7 +744,7 @@ func TestMetaCombos(t *testing.T) {
     "invalid_id": "foo",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:resource:489"
 }
 `,
@@ -1066,7 +1066,7 @@ func TestMetaCombos(t *testing.T) {
   "args": {
     "name": "defaultversionid"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "186f71c5fb29:registry:entity:2192"
 }
 `,
@@ -1515,7 +1515,7 @@ func TestMetaCombos(t *testing.T) {
     "bad_epoch": "1",
     "epoch": "12"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:entity:1004"
 }
 `,
@@ -1535,7 +1535,7 @@ func TestMetaCombos(t *testing.T) {
     "bad_epoch": "1",
     "epoch": "12"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "e4e59b8a76c4:registry:entity:1004"
 }
 `,
@@ -1678,7 +1678,7 @@ func TestMetaXregHeaders(t *testing.T) {
   "args": {
     "name": "bar"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "abbc855721d7:registry:entity:2254"
 }
 `,
@@ -1699,7 +1699,7 @@ func TestMetaXregHeaders(t *testing.T) {
   "args": {
     "name": "bar"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "abbc855721d7:registry:entity:2254"
 }
 `,

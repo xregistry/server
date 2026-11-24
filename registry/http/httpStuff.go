@@ -109,7 +109,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			xErr := NewXRError("server_error", "/"+info.OriginalPath).
 				SetDetail("An internal error occurred, contact the admin.")
-			xErr.Instance = uuid
+			xErr.TxID = uuid
 
 			HTTPWriteError(info, xErr)
 		}
@@ -197,7 +197,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if attempt == maxAttempts {
 			// Too many retries, send 503 instead of the the DB error
 			xErr = NewXRError("server_busy", "/"+info.OriginalPath)
-			xErr.Instance = info.UUID
+			xErr.TxID = info.UUID
 			break
 		}
 
@@ -324,8 +324,8 @@ func (s *Server) serveOneAttempt(info *registry.RequestInfo) (retErr *XRError) {
 	}
 
 	// Add our tx uuid to the error for debugging
-	if xErr != nil && xErr.Instance == "" {
-		xErr.Instance = info.UUID
+	if xErr != nil && xErr.TxID == "" {
+		xErr.TxID = info.UUID
 	}
 
 	if xErr != nil {
@@ -2737,8 +2737,8 @@ func HTTPWriteError(info *registry.RequestInfo, errAny any) {
 	}
 
 	// Add our tx uuid to the error for debugging
-	if xErr != nil && xErr.Instance == "" {
-		xErr.Instance = info.UUID
+	if xErr != nil && xErr.TxID == "" {
+		xErr.TxID = info.UUID
 	}
 
 	httpWriter.StatusCode = xErr.Code

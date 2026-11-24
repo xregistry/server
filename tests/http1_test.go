@@ -310,7 +310,7 @@ func TestHTTPModel(t *testing.T) {
   "args": {
     "action": "PUT"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1841"
 }
 `,
@@ -2475,7 +2475,7 @@ func TestHTTPModel(t *testing.T) {
     "error_detail": "value (testing) must be one of the enum values: one, two",
     "name": "description"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2581"
 }
 `)
@@ -2596,7 +2596,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "can't be an empty string",
     "name": "registryid"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:819"
 }
 `})
@@ -2681,7 +2681,7 @@ func TestHTTPRegistry(t *testing.T) {
     "bad_epoch": "33",
     "epoch": "4"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1003"
 }
 `})
@@ -2814,7 +2814,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a map[string] or object",
     "name": "mymapobj.mapobj_int"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1979"
 }
 `,
@@ -2886,7 +2886,7 @@ func TestHTTPRegistry(t *testing.T) {
     "bad_epoch": "123",
     "epoch": "6"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1003"
 }
 `},
@@ -2899,7 +2899,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2405"
 }
 `},
@@ -2912,7 +2912,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2393"
 }
 `},
@@ -2925,7 +2925,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a boolean",
     "name": "mybool"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2359"
 }
 `},
@@ -2938,7 +2938,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a boolean",
     "name": "mybool"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2359"
 }
 `},
@@ -2951,7 +2951,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a decimal",
     "name": "mydec"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2365"
 }
 `},
@@ -2964,7 +2964,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a decimal",
     "name": "mydec"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2365"
 }
 `},
@@ -2977,7 +2977,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be an integer",
     "name": "myint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2373"
 }
 `},
@@ -2990,7 +2990,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be an integer",
     "name": "myint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2378"
 }
 `},
@@ -3003,7 +3003,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a string",
     "name": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2513"
 }
 `},
@@ -3016,7 +3016,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a string",
     "name": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2513"
 }
 `},
@@ -3029,7 +3029,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a string",
     "name": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2513"
 }
 `},
@@ -3042,7 +3042,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a timestamp",
     "name": "mytime"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2543"
 }
 `},
@@ -3055,7 +3055,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "is a malformed timestamp",
     "name": "mytime"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2552"
 }
 `},
@@ -3068,7 +3068,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "myuint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2393"
 }
 `},
@@ -3081,7 +3081,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "myuint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2393"
 }
 `},
@@ -3094,7 +3094,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "myuint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2405"
 }
 `},
@@ -3107,7 +3107,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uri",
     "name": "myuri"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2519"
 }
 `},
@@ -3120,7 +3120,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uriabsolute",
     "name": "myuriabs"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2525"
 }
 `},
@@ -3133,7 +3133,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a urirelative",
     "name": "myurirel"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2525"
 }
 `},
@@ -3146,7 +3146,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uritemplate",
     "name": "myuritemplate"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2531"
 }
 `},
@@ -3159,7 +3159,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a url",
     "name": " myurl"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2537"
 }
 `},
@@ -3172,7 +3172,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a urlabsolute",
     "name": " myurlabs"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2537"
 }
 `},
@@ -3185,7 +3185,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a urlrelative",
     "name": " myurlrel"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2537"
 }
 `},
@@ -3198,7 +3198,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a map[string] or object",
     "name": "myobj1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1979"
 }
 `},
@@ -3211,7 +3211,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a map[string] or object",
     "name": "myobj1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1979"
 }
 `},
@@ -3224,7 +3224,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a string",
     "name": "myobj1.mystr1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2513"
 }
 `},
@@ -3236,7 +3236,7 @@ func TestHTTPRegistry(t *testing.T) {
   "args": {
     "name": "myobj2.ext"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2202"
 }
 `},
@@ -3249,7 +3249,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be an integer",
     "name": "myobj2.myobj2_1.ext"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2378"
 }
 `},
@@ -3262,7 +3262,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "myarrayuint[1]"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2405"
 }
 `},
@@ -3275,7 +3275,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "myarrayuint[0]"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2393"
 }
 `},
@@ -3288,7 +3288,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "myarrayuint[1]"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2393"
 }
 `},
@@ -3301,7 +3301,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be an array",
     "name": "myarrayuint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2315"
 }
 `},
@@ -3314,7 +3314,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a map",
     "name": "mymapuint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2253"
 }
 `},
@@ -3327,7 +3327,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "mymapuint.asd"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2405"
 }
 `},
@@ -3341,7 +3341,7 @@ func TestHTTPRegistry(t *testing.T) {
   "args": {
     "name": "myarrayemptyobj[0].asd"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2202"
 }
 `},
@@ -3354,7 +3354,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a map[string] or object",
     "name": "myarrayemptyobj[0]"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1979"
 }
 `},
@@ -3367,7 +3367,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be an integer",
     "name": "mymapobj.asd.mapobj_int"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2386"
 }
 `},
@@ -3379,7 +3379,7 @@ func TestHTTPRegistry(t *testing.T) {
   "args": {
     "name": "mymapobj.asd.qwe"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2202"
 }
 `},
@@ -3392,7 +3392,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a map",
     "name": "mymapobj"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2261"
 }
 `},
@@ -3471,7 +3471,7 @@ func TestHTTPRegistry(t *testing.T) {
     "error_detail": "must be a string",
     "name": "registryid"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2521"
 }
 `,
@@ -3496,7 +3496,7 @@ func TestHTTPRegistry(t *testing.T) {
     "invalid_id": "foo",
     "singular": "registry"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:830"
 }
 `,
@@ -3721,7 +3721,7 @@ func TestHTTPGroups(t *testing.T) {
   "args": {
     "action": "PUT"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1868"
 }
 `,
@@ -4056,7 +4056,7 @@ func TestHTTPGroups(t *testing.T) {
     "invalid_id": "dir44",
     "singular": "dir"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:830"
 }
 `,
@@ -4175,7 +4175,7 @@ func TestHTTPGroups(t *testing.T) {
     "bad_epoch": "10",
     "epoch": "4"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:1003"
 }
 `,
@@ -4198,7 +4198,7 @@ func TestHTTPGroups(t *testing.T) {
     "invalid_id": "dir2",
     "singular": "dir"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:830"
 }
 `,
@@ -4252,7 +4252,7 @@ func TestHTTPGroups(t *testing.T) {
     "invalid_id": "dir3",
     "singular": "dir"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:830"
 }
 `,
@@ -4356,7 +4356,7 @@ func TestHTTPRegGroups(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
   "title": "For \"/\", the request is missing an HTTP body - try '{}'.",
   "subject": "/",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2433"
 }
 `})
@@ -4742,7 +4742,7 @@ func TestHTTPRegGroups(t *testing.T) {
   "args": {
     "name": "foo"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2202"
 }
 `,
@@ -4762,7 +4762,7 @@ func TestHTTPRegGroups(t *testing.T) {
   "args": {
     "name": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1927"
 }
 `,
@@ -4782,7 +4782,7 @@ func TestHTTPRegGroups(t *testing.T) {
   "args": {
     "name": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1927"
 }
 `,
@@ -4802,7 +4802,7 @@ func TestHTTPRegGroups(t *testing.T) {
   "args": {
     "error_detail": "Value of \"d\" must be a \"dir\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:common:utils:793"
 }
 `,
@@ -4894,7 +4894,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
   "args": {
     "action": "PUT"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1868"
 }
 `,
@@ -4920,7 +4920,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "error_detail": "'xRegistry-file' isn't a valid HTTP header",
     "name": "xRegistry-file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2535"
 }
 `,
@@ -4944,7 +4944,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "error_detail": "'xRegistry-filebase64' isn't a valid HTTP header",
     "name": "xRegistry-filebase64"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2535"
 }
 `,
@@ -5084,7 +5084,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "invalid_id": "f2",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `,
@@ -5253,7 +5253,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "error_detail": "header isn't allowed if there's a body",
     "name": "xRegistry-fileurl"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2545"
 }
 `,
@@ -5598,7 +5598,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "error_detail": "missing an attribute name after the \"-\"",
     "name": "xRegistry-"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2529"
 }
 `,
@@ -5623,7 +5623,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "error_detail": "must be a string",
     "name": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2523"
 }
 `,
@@ -5647,7 +5647,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
   "args": {
     "name": "foo"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2193"
 }
 `,
@@ -5672,7 +5672,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "error_detail": "\"meta\" must be an object",
     "name": "meta"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "65b92b8c0e3b:registry:group:196"
 }
 `,
@@ -5697,7 +5697,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "error_detail": "must be a map",
     "name": "labels"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2264"
 }
 `,
@@ -5734,7 +5734,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
   "args": {
     "name": "foo"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2193"
 }
 `,
@@ -5802,7 +5802,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5811,7 +5811,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5819,7 +5819,7 @@ func TestHTTPCases(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/D1) cannot be found.",
   "subject": "/dirs/D1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1730"
 }
 `)
@@ -5829,7 +5829,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/d1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -5838,7 +5838,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/D1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/D1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -5847,7 +5847,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5856,7 +5856,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5865,7 +5865,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5874,7 +5874,7 @@ func TestHTTPCases(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/F1) cannot be found.",
   "subject": "/dirs/d1/files/F1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1395"
 }
 `)
@@ -5883,7 +5883,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/d1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -5892,7 +5892,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/D1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/D1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -5901,7 +5901,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5910,7 +5910,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5919,7 +5919,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5928,7 +5928,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5936,7 +5936,7 @@ func TestHTTPCases(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/D1/files/F1) cannot be found.",
   "subject": "/dirs/D1/files/F1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1395"
 }
 `)
@@ -5946,7 +5946,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/files/f1/Versions) cannot be found.",
   "detail": "Expected \"versions\" or \"meta\", got: Versions.",
   "subject": "/dirs/d1/files/f1/Versions",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:631"
 }
 `)
@@ -5955,7 +5955,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/d1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -5964,7 +5964,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/D1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/D1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -5973,7 +5973,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5982,7 +5982,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -5991,7 +5991,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -6000,7 +6000,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -6009,7 +6009,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/D1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/D1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -6018,7 +6018,7 @@ func TestHTTPCases(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/V1) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/V1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1395"
 }
 `)
@@ -6027,7 +6027,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/files/f1/Versions) cannot be found.",
   "detail": "Expected \"versions\" or \"meta\", got: Versions.",
   "subject": "/dirs/d1/files/f1/Versions",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:631"
 }
 `)
@@ -6036,7 +6036,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/d1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -6045,7 +6045,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/D1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/D1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -6054,7 +6054,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -6063,7 +6063,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -6072,7 +6072,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -6081,7 +6081,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/files/f1/Versions) cannot be found.",
   "detail": "Expected \"versions\" or \"meta\", got: Versions.",
   "subject": "/dirs/d1/files/f1/Versions",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:631"
 }
 `)
@@ -6090,7 +6090,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/d1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -6099,7 +6099,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/dirs/D1/Files) cannot be found.",
   "detail": "Unknown Resource type: Files.",
   "subject": "/dirs/D1/Files",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `)
@@ -6108,7 +6108,7 @@ func TestHTTPCases(t *testing.T) {
   "title": "The targeted entity (/Dirs) cannot be found.",
   "detail": "Unknown Group type: Dirs.",
   "subject": "/Dirs",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -6181,7 +6181,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:registry:627"
 }
 `)
@@ -6194,7 +6194,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "D1",
     "singular": "dir"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:830"
 }
 `)
@@ -6207,7 +6207,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "D1",
     "singular": "dir"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:830"
 }
 `)
@@ -6239,7 +6239,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:132"
 }
 `)
@@ -6251,7 +6251,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:registry:627"
 }
 `)
@@ -6265,7 +6265,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "F1",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
@@ -6277,7 +6277,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:132"
 }
 `)
@@ -6289,7 +6289,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:registry:627"
 }
 `)
@@ -6303,7 +6303,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "F1",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
@@ -6331,7 +6331,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:resource:966"
 }
 `)
@@ -6343,7 +6343,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:132"
 }
 `)
@@ -6355,7 +6355,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:registry:627"
 }
 `)
@@ -6369,7 +6369,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "V1",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2435"
 }
 `)
@@ -6383,7 +6383,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "V1",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2435"
 }
 `)
@@ -6399,7 +6399,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:registry:627"
 }
 `)
@@ -6412,7 +6412,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "D1",
     "singular": "dir"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:830"
 }
 `)
@@ -6423,7 +6423,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Group with a \"dirid\" of \"D1\", when one already exists as \"d1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:registry:627"
 }
 `)
@@ -6436,7 +6436,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:132"
 }
 `)
@@ -6449,7 +6449,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "F1",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
@@ -6461,7 +6461,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:132"
 }
 `)
@@ -6476,7 +6476,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "path '.vv.versionid': unterminated string"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "ea3e12b9fede:registry:httpStuff:2469"
 }
 `) // just a typo first
@@ -6486,7 +6486,7 @@ func TestHTTPCases(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
   "title": "Use of \"$details\" in this context is not allowed: /dirs/d1/files/f1/versions$details.",
   "subject": "/dirs/d1/files/f1/versions$details",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:627"
 }
 `)
@@ -6499,7 +6499,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:resource:966"
 }
 `)
@@ -6513,7 +6513,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "V1",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:879"
 }
 `)
@@ -6526,7 +6526,7 @@ func TestHTTPCases(t *testing.T) {
   "args": {
     "error_detail": "Attempting to create a Version with a \"versionid\" of \"V1\", when one already exists as \"v1\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:resource:966"
 }
 `)
@@ -6936,7 +6936,7 @@ func TestHTTPVersions(t *testing.T) {
   "args": {
     "name": "x"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `)
@@ -7113,7 +7113,7 @@ func TestHTTPVersions(t *testing.T) {
   "args": {
     "error_detail": "path '': invalid boolean"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "ea3e12b9fede:registry:httpStuff:2469"
 }
 `,
@@ -7303,7 +7303,7 @@ func TestHTTPVersions(t *testing.T) {
   "args": {
     "list": "file,fileurl,filebase64,fileproxyurl"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:shared_model:2517"
 }
 `,
@@ -7329,7 +7329,7 @@ func TestHTTPVersions(t *testing.T) {
   "args": {
     "list": "file,fileurl,filebase64,fileproxyurl"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:shared_model:2517"
 }
 `,
@@ -9132,7 +9132,7 @@ func TestHTTPEnum(t *testing.T) {
     "error_detail": "value (4) must be one of the enum values: 1, 2, 3",
     "name": "myint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2589"
 }
 `,
@@ -9252,7 +9252,7 @@ func TestHTTPCompatility(t *testing.T) {
     "error_detail": "value (mine) must be one of the enum values: backward, backward_transitive, forward, forward_transitive, full, full_transitive",
     "name": "compatibility"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "dea6f3070dde:registry:entity:2665"
 }
 `)
@@ -9428,7 +9428,7 @@ func TestHTTPIfValue(t *testing.T) {
   "args": {
     "name": "myext"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `,
@@ -9449,7 +9449,7 @@ func TestHTTPIfValue(t *testing.T) {
   "args": {
     "list": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2149"
 }
 `,
@@ -9497,7 +9497,7 @@ func TestHTTPIfValue(t *testing.T) {
   "args": {
     "name": "myext"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `,
@@ -9693,7 +9693,7 @@ func TestHTTPIfValue(t *testing.T) {
   "args": {
     "list": "myint7"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2149"
 }
 `,
@@ -9716,7 +9716,7 @@ func TestHTTPIfValue(t *testing.T) {
   "args": {
     "name": "myint7"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `,
@@ -9998,7 +9998,7 @@ func TestHTTPResources(t *testing.T) {
     "invalid_id": "x",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:879"
 }
 `)
@@ -10044,7 +10044,7 @@ func TestHTTPResources(t *testing.T) {
   "args": {
     "name": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `)
@@ -10061,7 +10061,7 @@ func TestHTTPResources(t *testing.T) {
   "args": {
     "name": "filebase64"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `)
@@ -10078,7 +10078,7 @@ func TestHTTPResources(t *testing.T) {
   "args": {
     "name": "fileurl"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `)
@@ -10095,7 +10095,7 @@ func TestHTTPResources(t *testing.T) {
   "args": {
     "name": "fileproxyurl"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `)
@@ -10115,7 +10115,7 @@ func TestHTTPResources(t *testing.T) {
   "args": {
     "name": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `)
@@ -10154,7 +10154,7 @@ func TestHTTPResources(t *testing.T) {
   "args": {
     "name": "object.objint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2203"
 }
 `)
@@ -10493,7 +10493,7 @@ func TestHTTPNonStrings(t *testing.T) {
     "error_detail": "must be a string",
     "name": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2522"
 }
 `,
@@ -10517,7 +10517,7 @@ func TestHTTPNonStrings(t *testing.T) {
     "error_detail": "must be a string",
     "name": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2522"
 }
 `,
@@ -10758,7 +10758,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "value (true) must be one of the enum values: false",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:entity:2925"
 }
 `,
@@ -10781,7 +10781,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "value (true) must be one of the enum values: false",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:entity:2925"
 }
 `,
@@ -10801,7 +10801,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "value (true) must be one of the enum values: false",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:entity:2925"
 }
 `,
@@ -10821,7 +10821,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "value (true) must be one of the enum values: false",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:entity:2925"
 }
 `,
@@ -10892,7 +10892,7 @@ func TestHTTPDefault(t *testing.T) {
     "id": "x",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:resource:436"
 }
 `,
@@ -10912,7 +10912,7 @@ func TestHTTPDefault(t *testing.T) {
     "id": "x",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:resource:436"
 }
 `,
@@ -10986,7 +10986,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `,
@@ -11005,7 +11005,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `,
@@ -11025,7 +11025,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `,
@@ -11045,7 +11045,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `,
@@ -11135,7 +11135,7 @@ func TestHTTPDefault(t *testing.T) {
   "title": "The targeted entity (/badgroup) cannot be found.",
   "detail": "Unknown Group type: badgroup.",
   "subject": "/badgroup",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `,
@@ -11157,7 +11157,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
     "name": "xregistry-versionid"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2458"
 }
 `,
@@ -11178,7 +11178,7 @@ func TestHTTPDefault(t *testing.T) {
     "id": "6",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2628"
 }
 `,
@@ -11196,7 +11196,7 @@ func TestHTTPDefault(t *testing.T) {
   "title": "The targeted entity (/dirs/d1/badfiles) cannot be found.",
   "detail": "Unknown Resource type: badfiles.",
   "subject": "/dirs/d1/badfiles",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:595"
 }
 `,
@@ -11218,7 +11218,7 @@ func TestHTTPDefault(t *testing.T) {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
     "name": "xregistry-versionid"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "dc6f67fbba78:registry:httpStuff:2458"
 }
 `,
@@ -11239,7 +11239,7 @@ func TestHTTPDefault(t *testing.T) {
     "id": "6",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2628"
 }
 `,
@@ -11288,7 +11288,7 @@ func TestHTTPSticky(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.defaultversionsticky\" default value \"false\" must be one of the specified enum values (true) since \"strict\" is \"true\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:shared_model:3268"
 }
 `)
@@ -11330,7 +11330,7 @@ func TestHTTPSticky(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.defaultversionsticky\" default value \"true\" must be one of the specified enum values (false) since \"strict\" is \"true\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:shared_model:3268"
 }
 `)
@@ -11438,7 +11438,7 @@ func TestHTTPSticky(t *testing.T) {
     "error_detail": "value (false) must be one of the enum values: true",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:entity:2929"
 }
 `)
@@ -11452,7 +11452,7 @@ func TestHTTPSticky(t *testing.T) {
     "error_detail": "value (false) must be one of the enum values: true",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "9263661f51d9:registry:entity:2929"
 }
 `)
@@ -11525,7 +11525,7 @@ func TestHTTPSticky(t *testing.T) {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "4a51b174cf4e:registry:info:782"
 }
 `)
@@ -11539,7 +11539,7 @@ func TestHTTPSticky(t *testing.T) {
     "error_detail": "value (false) must be one of the enum values: true",
     "name": "defaultversionsticky"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "923b0240301e:registry:entity:2929"
 }
 `)
@@ -11796,7 +11796,7 @@ func TestHTTPDelete(t *testing.T) {
   "args": {
     "action": "DELETE"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2640"
 }
 `)
@@ -11881,7 +11881,7 @@ func TestHTTPDelete(t *testing.T) {
     "error_detail": "value (2x) must be a uinteger",
     "name": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2650"
 }
 `)
@@ -11894,7 +11894,7 @@ func TestHTTPDelete(t *testing.T) {
     "bad_epoch": "2",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2686"
 }
 `)
@@ -11913,7 +11913,7 @@ func TestHTTPDelete(t *testing.T) {
     "bad_epoch": "2",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2871"
 }
 `,
@@ -11937,7 +11937,7 @@ func TestHTTPDelete(t *testing.T) {
     "invalid_id": "xx",
     "singular": "dir"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2879"
 }
 `,
@@ -11976,7 +11976,7 @@ func TestHTTPDelete(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2866"
 }
 `,
@@ -12059,7 +12059,7 @@ func TestHTTPDelete(t *testing.T) {
   "title": "The targeted entity (/dirsx) cannot be found.",
   "detail": "Unknown Group type: dirsx.",
   "subject": "/dirsx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:info:562"
 }
 `)
@@ -12126,7 +12126,7 @@ func TestHTTPDelete(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/dx) cannot be found.",
   "subject": "/dirs/dx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2679"
 }
 `)
@@ -12203,7 +12203,7 @@ func TestHTTPDelete(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/fx) cannot be found.",
   "subject": "/dirs/d1/files/fx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2723"
 }
 `)
@@ -12218,7 +12218,7 @@ func TestHTTPDelete(t *testing.T) {
     "error_detail": "value (2x) must be a uinteger",
     "name": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2650"
 }
 `)
@@ -12231,7 +12231,7 @@ func TestHTTPDelete(t *testing.T) {
     "bad_epoch": "2",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2735"
 }
 `)
@@ -12282,7 +12282,7 @@ func TestHTTPDelete(t *testing.T) {
     "invalid_id": "fx",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2981"
 }
 `)
@@ -12296,7 +12296,7 @@ func TestHTTPDelete(t *testing.T) {
     "invalid_id": "fx",
     "singular": "file"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2955"
 }
 `)
@@ -12305,7 +12305,7 @@ func TestHTTPDelete(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#misplaced_epoch",
   "title": "The specified \"epoch\" value for \"/dirs/d1/files/f3\" needs to be within a \"meta\" entity.",
   "subject": "/dirs/d1/files/f3",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2976"
 }
 `)
@@ -12323,7 +12323,7 @@ func TestHTTPDelete(t *testing.T) {
     "error_detail": "must be a uinteger",
     "name": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2964"
 }
 `)
@@ -12337,7 +12337,7 @@ func TestHTTPDelete(t *testing.T) {
     "bad_epoch": "4",
     "epoch": "2"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2969"
 }
 `)
@@ -12356,7 +12356,7 @@ func TestHTTPDelete(t *testing.T) {
     "bad_epoch": "3",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2969"
 }
 `)
@@ -12453,7 +12453,7 @@ func TestHTTPDelete(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/vx) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/vx",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2775"
 }
 `)
@@ -12470,7 +12470,7 @@ func TestHTTPDelete(t *testing.T) {
     "error_detail": "value (2x) must be a uinteger",
     "name": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2650"
 }
 `)
@@ -12483,7 +12483,7 @@ func TestHTTPDelete(t *testing.T) {
     "bad_epoch": "3",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2782"
 }
 `)
@@ -12500,7 +12500,7 @@ func TestHTTPDelete(t *testing.T) {
     "error_detail": "value must be a uinteger",
     "name": "epoch"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:3050"
 }
 `)
@@ -12514,7 +12514,7 @@ func TestHTTPDelete(t *testing.T) {
     "bad_epoch": "2",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:3055"
 }
 `)
@@ -12534,7 +12534,7 @@ func TestHTTPDelete(t *testing.T) {
     "invalid_id": "2",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:3065"
 }
 `)
@@ -12569,7 +12569,7 @@ func TestHTTPDelete(t *testing.T) {
     "bad_epoch": "3",
     "epoch": "1"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:3055"
 }
 `)
@@ -12679,7 +12679,7 @@ func TestHTTPDelete(t *testing.T) {
   "args": {
     "error_detail": "Can't set \"defaultversionid\" to a Version that is being deleted"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:version:63"
 }
 `)
@@ -12694,7 +12694,7 @@ func TestHTTPDelete(t *testing.T) {
     "id": "vx",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:version:117"
 }
 `)
@@ -12706,7 +12706,7 @@ func TestHTTPDelete(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/versions/v9) cannot be found.",
   "subject": "/dirs/d1/files/f1/versions/v9",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:2775"
 }
 `)
@@ -12789,7 +12789,7 @@ func TestHTTPDelete(t *testing.T) {
     "id": "vx",
     "singular": "version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:version:117"
 }
 `)
@@ -12802,7 +12802,7 @@ func TestHTTPDelete(t *testing.T) {
   "args": {
     "error_detail": "Can't set \"defaultversionid\" to a Version that is being deleted"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:version:63"
 }
 `)
@@ -12994,7 +12994,7 @@ func TestHTTPDelete(t *testing.T) {
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1) cannot be found.",
   "subject": "/dirs/d1/files/f1",
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:httpStuff:1746"
 }
 `)
@@ -13074,7 +13074,7 @@ func TestHTTPRequiredFields(t *testing.T) {
   "args": {
     "list": "req2"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2149"
 }
 `)
@@ -13107,7 +13107,7 @@ func TestHTTPRequiredFields(t *testing.T) {
   "args": {
     "list": "req3"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2149"
 }
 `)
@@ -13152,7 +13152,7 @@ func TestHTTPRequiredFields(t *testing.T) {
   "args": {
     "list": "req3"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2149"
 }
 `,
@@ -13175,7 +13175,7 @@ func TestHTTPRequiredFields(t *testing.T) {
   "args": {
     "list": "req3"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2149"
 }
 `,
@@ -13263,7 +13263,7 @@ func TestHTTPRequiredFields(t *testing.T) {
   "args": {
     "list": "req3"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2149"
 }
 `,
@@ -13287,7 +13287,7 @@ func TestHTTPRequiredFields(t *testing.T) {
   "args": {
     "list": "req3"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:entity:2149"
 }
 `,
@@ -13402,7 +13402,7 @@ func TestHTTPNullCollEntity(t *testing.T) {
   "args": {
     "error_detail": "Value of \"d1\" must be a \"dir\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:common:utils:793"
 }
 `)
@@ -13414,7 +13414,7 @@ func TestHTTPNullCollEntity(t *testing.T) {
     "error_detail": "Key \"f1\" doesn't appear to be of type \"file\"",
     "name": "files"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:registry:registry:933"
 }
 `)
@@ -13427,7 +13427,7 @@ func TestHTTPNullCollEntity(t *testing.T) {
     "error_detail": "key \"v1\" in attribute \"versions\" doesn't appear to be of type \"version\"",
     "name": "versions"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:registry:group:513"
 }
 `)
@@ -13438,7 +13438,7 @@ func TestHTTPNullCollEntity(t *testing.T) {
   "args": {
     "error_detail": "Value of \"d1\" must be a \"dir\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:common:utils:793"
 }
 `)
@@ -13450,7 +13450,7 @@ func TestHTTPNullCollEntity(t *testing.T) {
     "error_detail": "Key \"v1\" doesn't appear to be of type \"file\"",
     "name": "files"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:registry:registry:933"
 }
 `)
@@ -13461,7 +13461,7 @@ func TestHTTPNullCollEntity(t *testing.T) {
   "args": {
     "error_detail": "Value of \"f1\" must be a \"file\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:common:utils:793"
 }
 `)
@@ -13474,7 +13474,7 @@ func TestHTTPNullCollEntity(t *testing.T) {
     "error_detail": "key \"v1\" in attribute \"versions\" doesn't appear to be of type \"version\"",
     "name": "versions"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:registry:group:513"
 }
 `)
@@ -13486,7 +13486,7 @@ func TestHTTPNullCollEntity(t *testing.T) {
   "args": {
     "error_detail": "Value of \"v1\" must be a version"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "a257d5f27b6d:common:utils:793"
 }
 `)
@@ -13635,7 +13635,7 @@ func TestHTTPResourceAttrs(t *testing.T) {
     "error_detail": "illegal base64 data at input byte 0",
     "name": "filebase64"
   },
-  "instance": "b3bafd5ded434e3b",
+  "txid": "b3bafd5ded434e3b",
   "source": "415c7e40a01c:registry:resource:1230"
 }
 `)

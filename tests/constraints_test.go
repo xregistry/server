@@ -42,7 +42,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.myobj\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3632"
 }`)
 
@@ -64,7 +64,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.mymap\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3632"
 }`)
 
@@ -86,7 +86,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.mymap\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3632"
 }`)
 
@@ -107,7 +107,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.myarray\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3632"
 }`)
 
@@ -127,7 +127,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.myany\" is not allowed to have \"matchversions\" set to \"true\" due to it not being a scalar attribute"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3632"
 }`)
 
@@ -150,7 +150,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.myarray.item.myint\" is not allowed to have \"matchversions\" set to \"true\" due to it being in an array"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3640"
 }`)
 
@@ -173,7 +173,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.mymap.item.myint\" is not allowed to have \"matchversions\" set to \"true\" due to it being in a map"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3648"
 }`)
 
@@ -197,7 +197,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.myint.ifvalues.5.mystr\" is not allowed to have \"matchversions\" set to \"true\" due to it being in an \"ifvalues\" clause"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3613"
 }`)
 
@@ -216,7 +216,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.*\" is not allowed to have \"matchversions\" set to \"true\" due to it being in a \"*\" extension"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3621"
 }`)
 
@@ -274,7 +274,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "myint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -290,7 +290,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "myint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -341,7 +341,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -357,7 +357,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -394,7 +394,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:entity:2508"
 }`)
 
@@ -465,7 +465,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "myint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -481,7 +481,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "myobj.mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -497,7 +497,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "myobj.intobj.int2"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -513,7 +513,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "myint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -529,7 +529,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "myobj.mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -545,7 +545,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "args": {
     "name": "myobj.intobj.int2"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:resource:2081"
 }
 `)
@@ -1225,7 +1225,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"filesmystr\" has an invalid key. It must be of the form \"<RESOURCES>.<PATH>\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4095"
 }`)
 
@@ -1253,7 +1253,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"datas.files\" has an unknown Resource type \"datas\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4103"
 }`)
 
@@ -1281,7 +1281,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.\" has an empty reference to an attribute"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4117"
 }`)
 
@@ -1309,7 +1309,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.fh'213'\" has an invalid path (fh'213'): Unexpected \"'\" in \"fh'213'\" at pos 3"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4111"
 }`)
 
@@ -1337,7 +1337,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.foo\" has an invalid path (foo): Attribute \"foo\" can not be found"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4125"
 }`)
 
@@ -1365,7 +1365,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mystr.foo\" has an invalid path (mystr.foo): Attribute \"mystr\" is scalar, so \"foo\" is invalid"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4125"
 }`)
 
@@ -1395,7 +1395,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mymap.foo\" has an invalid path (mymap.foo): Attribute \"foo\" can not be found in \"mymap\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4125"
 }`)
 
@@ -1429,7 +1429,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mymap.foo\" has a path (mymap.foo) that includes a map (mymap), which is not allowed"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4139"
 }`)
 
@@ -1459,7 +1459,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.myarray.foo\" has an invalid path (myarray.foo): Attribute \"foo\" can not be found in \"myarray\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4125"
 }`)
 
@@ -1491,7 +1491,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.myarray.foo\" has a path (myarray.foo) that includes an array (myarray), which is not allowed"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4134"
 }`)
 
@@ -1517,7 +1517,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.myobj.foo\" has an invalid path (myobj.foo): Attribute \"foo\" can not be found in \"myobj\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4125"
 }`)
 
@@ -1543,7 +1543,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.myobj\" has an invalid path (myobj): \"myobj\" must be a scalar"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4133"
 }`)
 
@@ -1567,7 +1567,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mystr\" has an enum value (bye) that isn't part of the inherited attribute's enum list (abc, def)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4030"
 }`)
 
@@ -1633,7 +1633,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mystr\" has an enum set (abc, bye) that doesn't include the attribute's default value (def)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4224"
 }`)
 
@@ -1658,7 +1658,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mystr\" has an enum set (abc) that doesn't include the attribute's default value (def)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4224"
 }`)
 
@@ -1696,7 +1696,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mystr\" has an enum value (123) that must be of type \"string\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4020"
 }`)
 
@@ -1729,7 +1729,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mystr\" has an \"equals\" reference (foo) that isn't valid: Attribute \"foo\" can not be found"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4256"
 }`)
 
@@ -1750,7 +1750,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mystr\" has an \"equals\" reference (labels) that must be a scalar"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4264"
 }`)
 
@@ -1771,7 +1771,7 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
   "args": {
     "error_detail": "Group Type \"dirs\" constraint \"files.mystr\" references an attribute of type \"string\" but its \"equals\" (epoch) references an attribute of type \"uinteger\". They need to match"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4271"
 }`)
 
@@ -1923,7 +1923,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
     "kind": "enum",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -1964,7 +1964,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:group:850"
 }
 `)
@@ -1995,7 +1995,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:group:850"
 }
 `)
@@ -2016,7 +2016,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:group:850"
 }
 `)
@@ -2037,7 +2037,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:group:850"
 }
 `)
@@ -2089,7 +2089,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:895"
 }
 `)
@@ -2144,7 +2144,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
     "kind": "enum",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -2171,7 +2171,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"/dirs/d1\" constraint \"files.name\" has a default value (b) that isn't part of the base attribute's enum list (a)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4055"
 }
 `)
@@ -2206,7 +2206,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"/dirs/d1\" constraint \"files.name\" has a default value (b) that isn't part of the base attribute's enum list (a)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4054"
 }
 `)
@@ -2228,7 +2228,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"/dirs/d1\" constraint \"files.name\" has an enum value (a) that isn't part of the inherited attribute's enum list (b)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4030"
 }
 `)
@@ -2250,7 +2250,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"/dirs/d1\" constraint \"files.name\" has an enum value (a) that isn't part of the inherited attribute's enum list (b)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4030"
 }
 `)
@@ -2272,7 +2272,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"/dirs/d1\" constraint \"files.name\" has an enum set (a) that doesn't include the Group Model's default value (c) for the same constraint"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4071"
 }
 `)
@@ -2294,7 +2294,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.name\" default value \"c\" must be one of the specified enum values (d) since \"strict\" is \"true\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3468"
 }
 `)
@@ -2329,7 +2329,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "\"groups.dirs.resources.files.name\" default value \"c\" must be one of the specified enum values (d) since \"strict\" is \"true\""
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:3465"
 }
 `)
@@ -2364,7 +2364,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"/dirs/d1\" constraint \"files.name\" has an enum set (a) that doesn't include the attribute's default value (c)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4080"
 }
 `)
@@ -2386,7 +2386,7 @@ func TestConstraintsGroupErrors(t *testing.T) {
   "args": {
     "error_detail": "Group \"/dirs/d1\" constraint \"files.name\" has an \"equals\" value (name) that differs from the one defined in the Group Type (description)"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "3ba414aa22c1:registry:shared_model:4099"
 }
 `)
@@ -2507,7 +2507,7 @@ func TestConstraintsGroupRuntime(t *testing.T) {
     "kind": "enum",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -2542,7 +2542,7 @@ func TestConstraintsGroupRuntime(t *testing.T) {
     "kind": "enum",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -2612,7 +2612,7 @@ func TestConstraintsGroupRuntime(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:895"
 }
 `)
@@ -2727,7 +2727,7 @@ func TestConstraintsLayering(t *testing.T) {
     "kind": "enum",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -2804,7 +2804,7 @@ func TestConstraintsLayering(t *testing.T) {
     "kind": "enum",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -3038,7 +3038,7 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
     "kind": "enum",
     "path": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -3055,7 +3055,7 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
     "kind": "enum",
     "path": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -3097,7 +3097,7 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
     "kind": "enum",
     "path": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -3202,7 +3202,7 @@ func TestConstraintsDeepNestedPath(t *testing.T) {
     "kind": "enum",
     "path": "a.b.c"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -3268,7 +3268,7 @@ func TestConstraintsGroupInstanceNewKey(t *testing.T) {
     "kind": "enum",
     "path": "mystr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -3586,7 +3586,7 @@ func TestConstraintsEqualsEnforcedOnXref(t *testing.T) {
     "kind": "equals",
     "path": "myattr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:895"
 }
 `)
@@ -3605,7 +3605,7 @@ func TestConstraintsEqualsEnforcedOnXref(t *testing.T) {
     "kind": "equals",
     "path": "myattr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:895"
 }
 `)
@@ -3738,7 +3738,7 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
     "kind": "enum",
     "path": "myattr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -3757,7 +3757,7 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
     "kind": "enum",
     "path": "myattr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -3940,7 +3940,7 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
     "kind": "enum",
     "path": "myattr"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": ":registry:group:969"
 }
 `)
@@ -4515,7 +4515,7 @@ func TestConstraintsWithXrefs(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "d201b31810dc:registry:group:895"
 }
 `)
@@ -4590,7 +4590,7 @@ func TestConstraintsWithXrefs(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "d201b31810dc:registry:group:895"
 }
 `)
@@ -4661,7 +4661,7 @@ func TestConstraintsWithXrefs(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "d201b31810dc:registry:group:895"
 }
 `)
@@ -4694,7 +4694,7 @@ func TestConstraintsWithXrefs(t *testing.T) {
     "kind": "equals",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "d201b31810dc:registry:group:895"
 }
 `)
@@ -4719,7 +4719,7 @@ func TestConstraintsWithXrefs(t *testing.T) {
     "kind": "enum",
     "path": "name"
   },
-  "instance": "xxx",
+  "txid": "xxx",
   "source": "d201b31810dc:registry:group:969"
 }
 `)

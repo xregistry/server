@@ -15,14 +15,14 @@ import (
 )
 
 type XRError struct {
-	Type     string            `json:"type,omitempty"`
-	Code     int               `json:"code,omitempty"` // HTTP response code
-	Title    string            `json:"title,omitempty"`
-	Args     map[string]string `json:"args,omitempty"`
-	Subject  string            `json:"subject,omitempty"`
-	Detail   string            `json:"detail,omitempty"`
-	Instance string            `json:"instance,omitempty"`
-	Source   string            `json:"source,omitempty"`
+	Type    string            `json:"type,omitempty"`
+	Code    int               `json:"code,omitempty"` // HTTP response code
+	Title   string            `json:"title,omitempty"`
+	Args    map[string]string `json:"args,omitempty"`
+	Subject string            `json:"subject,omitempty"`
+	Detail  string            `json:"detail,omitempty"`
+	TxID    string            `json:"txid,omitempty"`
+	Source  string            `json:"source,omitempty"`
 
 	// Internal use
 	Headers   map[string]string `json:"-"` // HTTP response headers
@@ -537,13 +537,13 @@ func (xErr *XRError) ToJSON() string {
 	}
 
 	type userErr struct {
-		Type     string            `json:"type,omitempty"`
-		Title    string            `json:"title,omitempty"`
-		Detail   string            `json:"detail,omitempty"`
-		Subject  string            `json:"subject,omitempty"`
-		Args     map[string]string `json:"args,omitempty"`
-		Instance string            `json:"instance,omitempty"`
-		Source   string            `json:"source,omitempty"`
+		Type    string            `json:"type,omitempty"`
+		Title   string            `json:"title,omitempty"`
+		Detail  string            `json:"detail,omitempty"`
+		Subject string            `json:"subject,omitempty"`
+		Args    map[string]string `json:"args,omitempty"`
+		TxID    string            `json:"txid,omitempty"`
+		Source  string            `json:"source,omitempty"`
 	}
 
 	sub := xErr.Subject
@@ -558,13 +558,13 @@ func (xErr *XRError) ToJSON() string {
 	}
 
 	tmpErr := userErr{
-		Type:     xErr.Type,
-		Title:    xErr.GetTitle(),
-		Detail:   xErr.Detail,
-		Subject:  sub,
-		Args:     xErr.Args,
-		Instance: xErr.Instance,
-		Source:   xErr.Source,
+		Type:    xErr.Type,
+		Title:   xErr.GetTitle(),
+		Detail:  xErr.Detail,
+		Subject: sub,
+		Args:    xErr.Args,
+		TxID:    xErr.TxID,
+		Source:  xErr.Source,
 	}
 
 	// can't use MarshalIndent because go escapes chars, like "<"  :-(
