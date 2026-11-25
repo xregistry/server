@@ -4939,6 +4939,97 @@ func TestHTTPEpoch(t *testing.T) {
 }
 `)
 
+	createReg := NewRegistry("TestHTTPEpochCreate")
+	defer PassDeleteReg(t, createReg)
+	XHTTP(t, createReg, "PUT", "/modelsource", model, 200, model+"\n")
+	XHTTP(t, createReg, "PUT", "/?inline=*", `{
+  "dirs": {
+    "d2": {
+      "epoch": "foo",
+      "files": {
+        "f2": {
+          "meta": {
+            "epoch": "foo"
+          },
+          "versions": {
+            "v1": {
+              "epoch": "foo"
+            }
+          }
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochCreate",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirs": {
+    "d2": {
+      "dirid": "d2",
+      "self": "http://localhost:8181/dirs/d2",
+      "xid": "/dirs/d2",
+      "epoch": 1,
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
+
+      "files": {
+        "f2": {
+          "fileid": "f2",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d2/files/f2$details",
+          "xid": "/dirs/d2/files/f2",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "v1",
+
+          "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "http://localhost:8181/dirs/d2/files/f2/meta",
+            "xid": "/dirs/d2/files/f2/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1$details",
+            "defaultversionsticky": false
+          },
+
+          "versions": {
+            "v1": {
+              "fileid": "f2",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d2/files/f2/versions/v1$details",
+              "xid": "/dirs/d2/files/f2/versions/v1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
+          "versionscount": 1
+        }
+      },
+      "filesurl": "http://localhost:8181/dirs/d2/files",
+      "filescount": 1
+    }
+  },
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
 }
 
 func TestHTTPRegistryPatchNoDoc(t *testing.T) {
